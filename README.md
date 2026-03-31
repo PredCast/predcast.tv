@@ -50,6 +50,7 @@ docker compose -f compose/build.yaml down --remove-orphans --volumes --timeout 0
 ## Deploy
 
 ```bash
+docker context create chilliztv.com --docker "host=ssh://chiliztv.com"
 docker -c chiliztv.com compose -f compose/deploy.yaml up -d --build
 docker -c chiliztv.com compose -f compose/deploy.yaml compose down --remove-orphans --volumes --timeout 0
 ```
