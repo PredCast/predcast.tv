@@ -1,4 +1,4 @@
-import { injectable } from 'tsyringe';
+import { injectable, inject } from 'tsyringe';
 import { createPublicClient, http, Log } from 'viem';
 import { chiliz } from 'viem/chains';
 import { supabaseClient as supabase } from '../../database/supabase/client';
@@ -6,6 +6,14 @@ import { chilizConfig, networkType } from '../../config/chiliz.config';
 import { baseSepolia } from '../chains';
 import { BET_PLACED_EVENT } from '../abis';
 import { logger } from '../../logging/logger';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
+import { IPredictionRepository } from '@chiliztv/domain/predictions/repositories/IPredictionRepository';
+import { IChatRepository } from '@chiliztv/domain/chat/repositories/IChatRepository';
+import { Prediction } from '@chiliztv/domain/predictions/entities/Prediction';
+import { TransactionHash } from '@chiliztv/domain/predictions/value-objects/TransactionHash';
+import { Odds } from '@chiliztv/domain/predictions/value-objects/Odds';
+import { PredictionStatus } from '@chiliztv/domain/predictions/value-objects/PredictionStatus';
+import { ChatMessage, MessageType } from '@chiliztv/domain/chat/entities/ChatMessage';
 
 const POLLING_INTERVAL_MS = 6000;
 
@@ -26,7 +34,8 @@ interface MatchWithContract {
 
 /**
  * Betting Event Indexer
- * Listens to blockchain events for bet placements and settlements
+ * Listens to blockchain events for bet placements and settlements.
+ * Writes via domain repositories — never calls use-cases.
  */
 @injectable()
 export class BettingEventIndexer {
@@ -35,7 +44,12 @@ export class BettingEventIndexer {
     private lastIndexedBlock: bigint = BigInt(0);
     private pollingTimer: ReturnType<typeof setInterval> | null = null;
 
-    constructor() {
+    constructor(
+        @inject(TOKENS.IPredictionRepository)
+        private readonly predictionRepository: IPredictionRepository,
+        @inject(TOKENS.IChatRepository)
+        private readonly chatRepository: IChatRepository,
+    ) {
         const chain = networkType === 'testnet' ? baseSepolia : chiliz;
         this.publicClient = createPublicClient({
             chain,
@@ -230,58 +244,53 @@ export class BettingEventIndexer {
                 return;
             }
 
-            // Decode on-chain data first (needed for both new and existing predictions)
             const amountWei = BigInt(amount);
             const amountCHZ = Number(amountWei) / 1e18;
             const selectionNum = Number(selection);
             const { subType, team } = this.selectionToPrediction(selectionNum, match);
 
-            const { data: existing } = await supabase
-                .from('predictions')
-                .select('id')
-                .eq('transaction_hash', transactionHash)
-                .maybeSingle();
+            // Idempotency check via repository
+            const existing = await this.predictionRepository.findByTransactionHash(
+                TransactionHash.create(transactionHash)
+            );
 
             if (existing) {
-                // Prediction already saved by POST /predictions; just send the chat message
                 logger.debug('Bet already indexed, sending chat message only', { txHash: transactionHash.slice(0, 10) });
                 await this.insertBetSystemMessage(match.api_football_id, amountCHZ.toFixed(4), team);
                 return;
             }
 
             const oddsForSelection = this.getOddsForSelection(selectionNum, match);
-            const oddsToStore = oddsForSelection ?? (oddsX10000 != null ? Number(oddsX10000) / 10000 : 2.0);
+            const rawOdds = oddsForSelection ?? (oddsX10000 != null ? Number(oddsX10000) / 10000 : 2.0);
+            const oddsValue = Math.max(1.01, rawOdds);
 
             const username = await this.getUsernameForWallet(user) ?? `${user.slice(0, 6)}...${user.slice(-4)}`;
 
-            const { error: predError } = await supabase.from('predictions').insert({
-                user_id: 'wallet:' + user.toLowerCase(),
-                wallet_address: user.toLowerCase(),
+            // Save prediction via repository using reconstitute (blockchain events bypass create() validation)
+            const prediction = Prediction.reconstitute({
+                id: crypto.randomUUID(),
+                userId: 'wallet:' + user.toLowerCase(),
+                walletAddress: user.toLowerCase(),
                 username,
-                match_id: match.api_football_id,
-                match_name: `${this.getTeamName(match.home_team)} vs ${this.getTeamName(match.away_team)}`,
-                prediction_type: 'match_winner',
-                prediction_value: subType,
-                predicted_team: team,
-                odds: oddsToStore,
-                transaction_hash: transactionHash,
-                placed_at: new Date().toISOString(),
-                match_start_time: match.match_date,
-                status: 'PENDING'
+                matchId: match.api_football_id,
+                matchName: `${this.getTeamName(match.home_team)} vs ${this.getTeamName(match.away_team)}`,
+                predictionType: 'match_winner',
+                predictionValue: subType,
+                predictedTeam: team,
+                odds: Odds.create(oddsValue),
+                status: PredictionStatus.PENDING,
+                transactionHash: TransactionHash.create(transactionHash),
+                placedAt: new Date(),
+                matchStartTime: new Date(match.match_date),
+                createdAt: new Date(),
+                updatedAt: new Date(),
             });
 
-            if (predError) {
-                logger.error('Error inserting prediction', { error: predError.message });
-                return;
-            }
+            await this.predictionRepository.save(prediction);
 
             logger.info('Indexed bet', { txHash: transactionHash.slice(0, 10), amount: amountCHZ.toFixed(4), team });
 
-            await this.insertBetSystemMessage(
-                match.api_football_id,
-                amountCHZ.toFixed(4),
-                team
-            );
+            await this.insertBetSystemMessage(match.api_football_id, amountCHZ.toFixed(4), team);
         } catch (error) {
             logger.error('Error indexing BetPlaced event', {
                 error: error instanceof Error ? error.message : 'Unknown error'
@@ -297,22 +306,18 @@ export class BettingEventIndexer {
         try {
             const message = `🎯 New prediction: ${amountFormatted} CHZ on ${selection}`;
 
-            const { error } = await supabase.from('chat_messages').insert({
-                match_id: matchId,
-                user_id: 'system',
+            const chatMessage = ChatMessage.create({
+                matchId,
+                userId: 'system',
+                walletAddress: 'system',
                 username: 'System',
                 message,
-                message_type: 'system',
-                system_type: 'bet',
-                wallet_address: 'system',
-                created_at: new Date().toISOString()
+                type: MessageType.SYSTEM,
+                isFeatured: false,
             });
 
-            if (error) {
-                logger.error('Failed to insert bet chat message', { error: error.message });
-            } else {
-                logger.info('Bet system message posted', { matchId });
-            }
+            await this.chatRepository.saveMessage(chatMessage);
+            logger.info('Bet system message posted', { matchId });
         } catch (err) {
             logger.error('Error inserting bet chat message', {
                 error: err instanceof Error ? err.message : 'Unknown error'
