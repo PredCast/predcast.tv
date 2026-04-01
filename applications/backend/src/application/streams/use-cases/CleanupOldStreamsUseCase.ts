@@ -1,4 +1,5 @@
 import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { IStreamRepository } from '@chiliztv/domain/streams/repositories/IStreamRepository';
 import { logger } from '../../../infrastructure/logging/logger';
 
@@ -10,7 +11,7 @@ import { logger } from '../../../infrastructure/logging/logger';
 @injectable()
 export class CleanupOldStreamsUseCase {
     constructor(
-        @inject('IStreamRepository') private readonly streamRepository: IStreamRepository
+        @inject(TOKENS.IStreamRepository) private readonly streamRepository: IStreamRepository
     ) {}
 
     async execute(): Promise<{ success: boolean; deletedCount: number; error?: string }> {

@@ -1,4 +1,5 @@
 import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { IWaitlistRepository } from '@chiliztv/domain/waitlist/repositories/IWaitlistRepository';
 import { WaitlistEntry } from '@chiliztv/domain/waitlist/entities/WaitlistEntry';
 
@@ -10,7 +11,7 @@ export interface CheckAccessResult {
 @injectable()
 export class CheckAccessUseCase {
   constructor(
-    @inject('IWaitlistRepository')
+    @inject(TOKENS.IWaitlistRepository)
     private readonly waitlistRepository: IWaitlistRepository
   ) {}
 

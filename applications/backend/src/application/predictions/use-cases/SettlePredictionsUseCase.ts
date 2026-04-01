@@ -1,4 +1,5 @@
 import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { IPredictionRepository } from '@chiliztv/domain/predictions/repositories/IPredictionRepository';
 import { IMatchRepository } from '@chiliztv/domain/matches/repositories/IMatchRepository';
 import { logger } from '../../../infrastructure/logging/logger';
@@ -10,8 +11,8 @@ import { logger } from '../../../infrastructure/logging/logger';
 @injectable()
 export class SettlePredictionsUseCase {
     constructor(
-        @inject('IPredictionRepository') private readonly predictionRepository: IPredictionRepository,
-        @inject('IMatchRepository') private readonly matchRepository: IMatchRepository
+        @inject(TOKENS.IPredictionRepository) private readonly predictionRepository: IPredictionRepository,
+        @inject(TOKENS.IMatchRepository) private readonly matchRepository: IMatchRepository
     ) {}
 
     async execute(): Promise<number> {

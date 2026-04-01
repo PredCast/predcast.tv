@@ -1,4 +1,5 @@
 import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import * as readline from 'readline';
 import { IMatchRepository } from '@chiliztv/domain/matches/repositories/IMatchRepository';
 import { BettingContractDeploymentAdapter } from '../../../infrastructure/blockchain/adapters/BettingContractDeploymentAdapter';
@@ -23,7 +24,7 @@ export class TestMatchLifecycleCommand {
     };
 
     constructor(
-        @inject('IMatchRepository') private readonly matchRepository: IMatchRepository,
+        @inject(TOKENS.IMatchRepository) private readonly matchRepository: IMatchRepository,
         @inject(BettingContractDeploymentAdapter) private readonly deploymentAdapter: BettingContractDeploymentAdapter
     ) {}
 

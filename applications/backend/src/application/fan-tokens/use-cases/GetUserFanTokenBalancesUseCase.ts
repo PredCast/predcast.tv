@@ -1,4 +1,5 @@
 import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { IFanTokenRepository, UserTokenBalance } from '@chiliztv/domain/fan-tokens/repositories/IFanTokenRepository';
 import { logger } from '../../../infrastructure/logging';
 
@@ -9,7 +10,7 @@ import { logger } from '../../../infrastructure/logging';
 @injectable()
 export class GetUserFanTokenBalancesUseCase {
   constructor(
-    @inject('IFanTokenRepository')
+    @inject(TOKENS.IFanTokenRepository)
     private readonly fanTokenRepository: IFanTokenRepository
   ) {}
 

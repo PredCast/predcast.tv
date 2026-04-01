@@ -1,10 +1,11 @@
 import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { IChatRepository } from '@chiliztv/domain/chat/repositories/IChatRepository';
 
 @injectable()
 export class LeaveRoomUseCase {
   constructor(
-    @inject('IChatRepository')
+    @inject(TOKENS.IChatRepository)
     private readonly chatRepository: IChatRepository
   ) {}
 

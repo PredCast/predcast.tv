@@ -1,4 +1,5 @@
 import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { WaitlistEntry } from '@chiliztv/domain/waitlist/entities/WaitlistEntry';
 import { IWaitlistRepository } from '@chiliztv/domain/waitlist/repositories/IWaitlistRepository';
 import { JoinWaitlistDto } from '@chiliztv/shared/dto/waitlist/JoinWaitlistDto';
@@ -7,7 +8,7 @@ import { ConflictError } from '@chiliztv/domain/shared/errors/ConflictError';
 @injectable()
 export class JoinWaitlistUseCase {
   constructor(
-    @inject('IWaitlistRepository')
+    @inject(TOKENS.IWaitlistRepository)
     private readonly waitlistRepository: IWaitlistRepository
   ) {}
 

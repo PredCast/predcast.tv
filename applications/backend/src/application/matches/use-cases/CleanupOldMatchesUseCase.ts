@@ -1,4 +1,5 @@
 import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { IMatchRepository } from '@chiliztv/domain/matches/repositories/IMatchRepository';
 import { MatchFetchWindow } from '@chiliztv/domain/matches/value-objects/MatchFetchWindow';
 import { logger } from '../../../infrastructure/logging/logger';
@@ -11,7 +12,7 @@ import { logger } from '../../../infrastructure/logging/logger';
 @injectable()
 export class CleanupOldMatchesUseCase {
     constructor(
-        @inject('IMatchRepository') private readonly matchRepository: IMatchRepository
+        @inject(TOKENS.IMatchRepository) private readonly matchRepository: IMatchRepository
     ) {}
 
     /**

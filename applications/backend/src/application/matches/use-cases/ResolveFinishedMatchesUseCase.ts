@@ -1,4 +1,5 @@
 import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { IMatchRepository } from '@chiliztv/domain/matches/repositories/IMatchRepository';
 import { MatchResolutionAdapter } from '../../../infrastructure/blockchain/adapters/MatchResolutionAdapter';
 import { logger } from '../../../infrastructure/logging/logger';
@@ -11,7 +12,7 @@ export interface ResolveFinishedMatchesResult {
 @injectable()
 export class ResolveFinishedMatchesUseCase {
     constructor(
-        @inject('IMatchRepository')
+        @inject(TOKENS.IMatchRepository)
         private readonly matchRepository: IMatchRepository,
         private readonly matchResolutionAdapter: MatchResolutionAdapter
     ) {}

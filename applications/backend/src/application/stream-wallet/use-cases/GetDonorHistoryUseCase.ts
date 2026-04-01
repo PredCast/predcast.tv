@@ -1,11 +1,12 @@
 import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { Donation } from '@chiliztv/domain/stream-wallet/entities/Donation';
 import { IStreamWalletRepository } from '@chiliztv/domain/stream-wallet/repositories/IStreamWalletRepository';
 
 @injectable()
 export class GetDonorHistoryUseCase {
   constructor(
-    @inject('IStreamWalletRepository')
+    @inject(TOKENS.IStreamWalletRepository)
     private readonly streamWalletRepository: IStreamWalletRepository
   ) {}
 

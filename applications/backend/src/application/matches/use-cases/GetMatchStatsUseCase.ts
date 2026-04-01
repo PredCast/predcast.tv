@@ -1,10 +1,11 @@
 import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { IMatchRepository, MatchStats } from '@chiliztv/domain/matches/repositories/IMatchRepository';
 
 @injectable()
 export class GetMatchStatsUseCase {
   constructor(
-    @inject('IMatchRepository')
+    @inject(TOKENS.IMatchRepository)
     private readonly matchRepository: IMatchRepository
   ) {}
 

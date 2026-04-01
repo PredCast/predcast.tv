@@ -1,4 +1,5 @@
 import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { IMatchRepository } from '@chiliztv/domain/matches/repositories/IMatchRepository';
 import { MatchFetchWindow } from '@chiliztv/domain/matches/value-objects/MatchFetchWindow';
 import { FootballApiAdapter } from '../../../infrastructure/external/adapters/FootballApiAdapter';
@@ -26,7 +27,7 @@ export interface SyncMatchesResult {
 @injectable()
 export class SyncMatchesUseCase {
     constructor(
-        @inject('IMatchRepository') private readonly matchRepository: IMatchRepository,
+        @inject(TOKENS.IMatchRepository) private readonly matchRepository: IMatchRepository,
         @inject(FootballApiAdapter) private readonly footballApiAdapter: FootballApiAdapter,
         @inject(BettingContractDeploymentAdapter) private readonly bettingDeploymentAdapter: BettingContractDeploymentAdapter,
         @inject(MarketOddsAdapter) private readonly marketOddsAdapter: MarketOddsAdapter

@@ -1,11 +1,12 @@
 import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { Follow } from '@chiliztv/domain/follows/entities/Follow';
 import { IFollowRepository } from '@chiliztv/domain/follows/repositories/IFollowRepository';
 
 @injectable()
 export class GetFollowedStreamersUseCase {
   constructor(
-    @inject('IFollowRepository')
+    @inject(TOKENS.IFollowRepository)
     private readonly followRepository: IFollowRepository
   ) {}
 

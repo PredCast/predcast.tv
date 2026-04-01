@@ -1,4 +1,5 @@
 import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { IStreamRepository } from '@chiliztv/domain/streams/repositories/IStreamRepository';
 import { StreamStatus } from '@chiliztv/domain/streams/entities/Stream';
 import { logger } from '../logging/logger';
@@ -12,7 +13,7 @@ export class StreamLifecycleService {
   private readonly inFlight = new Set<string>();
 
   constructor(
-    @inject('IStreamRepository')
+    @inject(TOKENS.IStreamRepository)
     private readonly streamRepository: IStreamRepository,
   ) {}
 

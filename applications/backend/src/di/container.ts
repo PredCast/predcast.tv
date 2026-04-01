@@ -1,6 +1,240 @@
 import 'reflect-metadata';
 import { container } from 'tsyringe';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 
-import './bindings/infrastructure.bindings';
+// ─── Repositories ────────────────────────────────────────────────────────────
+import { IPredictionRepository } from '@chiliztv/domain/predictions/repositories/IPredictionRepository';
+import { SupabasePredictionRepository } from '../infrastructure/persistence/repositories/SupabasePredictionRepository';
+import { IMatchRepository } from '@chiliztv/domain/matches/repositories/IMatchRepository';
+import { SupabaseMatchRepository } from '../infrastructure/persistence/repositories/SupabaseMatchRepository';
+import { IChatRepository } from '@chiliztv/domain/chat/repositories/IChatRepository';
+import { SupabaseChatRepository } from '../infrastructure/persistence/repositories/SupabaseChatRepository';
+import { IWaitlistRepository } from '@chiliztv/domain/waitlist/repositories/IWaitlistRepository';
+import { SupabaseWaitlistRepository } from '../infrastructure/persistence/repositories/SupabaseWaitlistRepository';
+import { IStreamRepository } from '@chiliztv/domain/streams/repositories/IStreamRepository';
+import { SupabaseStreamRepository } from '../infrastructure/persistence/repositories/SupabaseStreamRepository';
+import { IStreamWalletRepository } from '@chiliztv/domain/stream-wallet/repositories/IStreamWalletRepository';
+import { SupabaseStreamWalletRepository } from '../infrastructure/persistence/repositories/SupabaseStreamWalletRepository';
+import { IFanTokenRepository } from '@chiliztv/domain/fan-tokens/repositories/IFanTokenRepository';
+import { FanTokenAdapter } from '../infrastructure/blockchain/adapters/FanTokenAdapter';
+import { IFollowRepository } from '@chiliztv/domain/follows/repositories/IFollowRepository';
+import { SupabaseFollowRepository } from '../infrastructure/persistence/repositories/SupabaseFollowRepository';
+import { ISubscriptionChecker } from '@chiliztv/domain/shared/ports/ISubscriptionChecker';
+import { SubscriptionChecker } from '../infrastructure/services/SubscriptionChecker';
+
+// ─── Blockchain Adapters ─────────────────────────────────────────────────────
+import { TokenBalanceAdapter } from '../infrastructure/blockchain/adapters/TokenBalanceAdapter';
+import { MarketOddsAdapter } from '../infrastructure/blockchain/adapters/MarketOddsAdapter';
+import { MatchResolutionAdapter } from '../infrastructure/blockchain/adapters/MatchResolutionAdapter';
+import { BettingContractDeploymentAdapter } from '../infrastructure/blockchain/adapters/BettingContractDeploymentAdapter';
+
+// ─── External Adapters ────────────────────────────────────────────────────────
+import { FootballApiAdapter } from '../infrastructure/external/adapters/FootballApiAdapter';
+
+// ─── Application — Predictions ───────────────────────────────────────────────
+import { CreatePredictionUseCase } from '../application/predictions/use-cases/CreatePredictionUseCase';
+import { GetUserPredictionsUseCase } from '../application/predictions/use-cases/GetUserPredictionsUseCase';
+import { GetUserStatsUseCase } from '../application/predictions/use-cases/GetUserStatsUseCase';
+import { SettlePredictionsUseCase } from '../application/predictions/use-cases/SettlePredictionsUseCase';
+
+// ─── Application — Matches ───────────────────────────────────────────────────
+import { GetAllMatchesUseCase } from '../application/matches/use-cases/GetAllMatchesUseCase';
+import { GetLiveMatchesUseCase } from '../application/matches/use-cases/GetLiveMatchesUseCase';
+import { GetUpcomingMatchesUseCase } from '../application/matches/use-cases/GetUpcomingMatchesUseCase';
+import { GetMatchByIdUseCase } from '../application/matches/use-cases/GetMatchByIdUseCase';
+import { GetMatchesByLeagueUseCase } from '../application/matches/use-cases/GetMatchesByLeagueUseCase';
+import { GetMatchStatsUseCase } from '../application/matches/use-cases/GetMatchStatsUseCase';
+import { GetBrowseMatchesUseCase } from '../application/matches/use-cases/GetBrowseMatchesUseCase';
+import { ResolveFinishedMatchesUseCase } from '../application/matches/use-cases/ResolveFinishedMatchesUseCase';
+import { SyncMatchesUseCase } from '../application/matches/use-cases/SyncMatchesUseCase';
+import { CleanupOldMatchesUseCase } from '../application/matches/use-cases/CleanupOldMatchesUseCase';
+
+// ─── Application — Chat ──────────────────────────────────────────────────────
+import { JoinRoomUseCase } from '../application/chat/use-cases/JoinRoomUseCase';
+import { LeaveRoomUseCase } from '../application/chat/use-cases/LeaveRoomUseCase';
+import { SendMessageUseCase } from '../application/chat/use-cases/SendMessageUseCase';
+import { SendBetMessageUseCase } from '../application/chat/use-cases/SendBetMessageUseCase';
+import { GetRoomMessagesUseCase } from '../application/chat/use-cases/GetRoomMessagesUseCase';
+import { GetConnectedUsersUseCase } from '../application/chat/use-cases/GetConnectedUsersUseCase';
+import { GetChatStatsUseCase } from '../application/chat/use-cases/GetChatStatsUseCase';
+
+// ─── Application — Waitlist ──────────────────────────────────────────────────
+import { JoinWaitlistUseCase } from '../application/waitlist/use-cases/JoinWaitlistUseCase';
+import { CheckAccessUseCase } from '../application/waitlist/use-cases/CheckAccessUseCase';
+import { GetWaitlistStatsUseCase } from '../application/waitlist/use-cases/GetWaitlistStatsUseCase';
+
+// ─── Application — Streams ───────────────────────────────────────────────────
+import { CreateStreamUseCase } from '../application/streams/use-cases/CreateStreamUseCase';
+import { GetActiveStreamsUseCase } from '../application/streams/use-cases/GetActiveStreamsUseCase';
+import { GetPreferredStreamUseCase } from '../application/streams/use-cases/GetPreferredStreamUseCase';
+import { EndStreamUseCase } from '../application/streams/use-cases/EndStreamUseCase';
+import { UpdateViewerCountUseCase } from '../application/streams/use-cases/UpdateViewerCountUseCase';
+import { CleanupOldStreamsUseCase } from '../application/streams/use-cases/CleanupOldStreamsUseCase';
+
+// ─── Application — StreamWallet ──────────────────────────────────────────────
+import { GetStreamerDonationsUseCase } from '../application/stream-wallet/use-cases/GetStreamerDonationsUseCase';
+import { GetStreamerSubscriptionsUseCase } from '../application/stream-wallet/use-cases/GetStreamerSubscriptionsUseCase';
+import { GetStreamerStatsUseCase } from '../application/stream-wallet/use-cases/GetStreamerStatsUseCase';
+import { GetDonorHistoryUseCase } from '../application/stream-wallet/use-cases/GetDonorHistoryUseCase';
+import { GetSubscriberHistoryUseCase } from '../application/stream-wallet/use-cases/GetSubscriberHistoryUseCase';
+
+// ─── Application — FanTokens ─────────────────────────────────────────────────
+import { GetUserFanTokenBalancesUseCase } from '../application/fan-tokens/use-cases/GetUserFanTokenBalancesUseCase';
+
+// ─── Application — Follows ───────────────────────────────────────────────────
+import { FollowStreamerUseCase } from '../application/follows/use-cases/FollowStreamerUseCase';
+import { UnfollowStreamerUseCase } from '../application/follows/use-cases/UnfollowStreamerUseCase';
+import { GetIsFollowingUseCase } from '../application/follows/use-cases/GetIsFollowingUseCase';
+import { GetFollowerCountUseCase } from '../application/follows/use-cases/GetFollowerCountUseCase';
+import { GetFollowedStreamersUseCase } from '../application/follows/use-cases/GetFollowedStreamersUseCase';
+
+// ─── Infrastructure — Scheduling ─────────────────────────────────────────────
+import { JobScheduler } from '../infrastructure/scheduling/JobScheduler';
+import { SyncMatchesJob } from '../infrastructure/scheduling/jobs/SyncMatchesJob';
+import { ResolveMarketsJob } from '../infrastructure/scheduling/jobs/ResolveMarketsJob';
+import { CleanupStreamsJob } from '../infrastructure/scheduling/jobs/CleanupStreamsJob';
+import { StaleStreamCleanupJob } from '../infrastructure/scheduling/jobs/StaleStreamCleanupJob';
+import { SettlePredictionsJob } from '../infrastructure/scheduling/jobs/SettlePredictionsJob';
+import { ViewerReconcileJob } from '../infrastructure/scheduling/jobs/ViewerReconcileJob';
+
+// ─── Infrastructure — Services ───────────────────────────────────────────────
+import { ViewerSessionService } from '../infrastructure/services/ViewerSessionService';
+import { StreamLifecycleService } from '../infrastructure/services/StreamLifecycleService';
+
+// ─── Infrastructure — Blockchain ─────────────────────────────────────────────
+import { BlockchainEventListener } from '../infrastructure/blockchain/BlockchainEventListener';
+import { StreamWalletIndexer } from '../infrastructure/blockchain/indexers/StreamWalletIndexer';
+import { BettingEventIndexer } from '../infrastructure/blockchain/indexers/BettingEventIndexer';
+
+// ─── Presentation — Controllers ──────────────────────────────────────────────
+import { PredictionController } from '../presentation/http/controllers/prediction.controller';
+import { MatchController } from '../presentation/http/controllers/match.controller';
+import { ChatController } from '../presentation/http/controllers/chat.controller';
+import { WaitlistController } from '../presentation/http/controllers/waitlist.controller';
+import { AuthController } from '../presentation/http/controllers/auth.controller';
+import { StreamController } from '../presentation/http/controllers/stream.controller';
+import { StreamWalletController } from '../presentation/http/controllers/stream-wallet.controller';
+import { FanTokensController } from '../presentation/http/controllers/fan-tokens.controller';
+import { FollowController } from '../presentation/http/controllers/follow.controller';
+import { MediamtxWebhookController } from '../presentation/http/controllers/mediamtx-webhook.controller';
+
+// ─── Presentation — CLI Commands ─────────────────────────────────────────────
+import { DeployMissingContractsCommand } from '../presentation/cli/commands/DeployMissingContractsCommand';
+import { SetupMarketsCommand } from '../presentation/cli/commands/SetupMarketsCommand';
+import { TestMatchLifecycleCommand } from '../presentation/cli/commands/TestMatchLifecycleCommand';
+
+export function setupDependencyInjection(): void {
+  // ─── 1. Repositories (Symbol tokens) ───────────────────────────────────────
+  container.registerSingleton<IPredictionRepository>(TOKENS.IPredictionRepository, SupabasePredictionRepository);
+  container.registerSingleton<IMatchRepository>(TOKENS.IMatchRepository, SupabaseMatchRepository);
+  container.registerSingleton<IChatRepository>(TOKENS.IChatRepository, SupabaseChatRepository);
+  container.registerSingleton<IWaitlistRepository>(TOKENS.IWaitlistRepository, SupabaseWaitlistRepository);
+  container.registerSingleton<IStreamRepository>(TOKENS.IStreamRepository, SupabaseStreamRepository);
+  container.registerSingleton<IStreamWalletRepository>(TOKENS.IStreamWalletRepository, SupabaseStreamWalletRepository);
+  container.registerSingleton<IFanTokenRepository>(TOKENS.IFanTokenRepository, FanTokenAdapter);
+  container.registerSingleton<IFollowRepository>(TOKENS.IFollowRepository, SupabaseFollowRepository);
+  container.registerSingleton<ISubscriptionChecker>(TOKENS.ISubscriptionChecker, SubscriptionChecker);
+
+  // ─── 2. Blockchain Adapters ─────────────────────────────────────────────────
+  container.registerSingleton(TokenBalanceAdapter);
+  container.registerSingleton(MarketOddsAdapter);
+  container.registerSingleton(MatchResolutionAdapter);
+  container.registerSingleton(BettingContractDeploymentAdapter);
+
+  // ─── 3. External Adapters ───────────────────────────────────────────────────
+  container.registerSingleton(FootballApiAdapter);
+
+  // ─── 4. Use Cases — Predictions ────────────────────────────────────────────
+  container.registerSingleton(CreatePredictionUseCase);
+  container.registerSingleton(GetUserPredictionsUseCase);
+  container.registerSingleton(GetUserStatsUseCase);
+  container.registerSingleton(SettlePredictionsUseCase);
+
+  // ─── 5. Use Cases — Matches ────────────────────────────────────────────────
+  container.registerSingleton(GetAllMatchesUseCase);
+  container.registerSingleton(GetLiveMatchesUseCase);
+  container.registerSingleton(GetUpcomingMatchesUseCase);
+  container.registerSingleton(GetMatchByIdUseCase);
+  container.registerSingleton(GetMatchesByLeagueUseCase);
+  container.registerSingleton(GetMatchStatsUseCase);
+  container.registerSingleton(GetBrowseMatchesUseCase);
+  container.registerSingleton(ResolveFinishedMatchesUseCase);
+  container.registerSingleton(SyncMatchesUseCase);
+  container.registerSingleton(CleanupOldMatchesUseCase);
+
+  // ─── 6. Use Cases — Chat ───────────────────────────────────────────────────
+  container.registerSingleton(JoinRoomUseCase);
+  container.registerSingleton(LeaveRoomUseCase);
+  container.registerSingleton(SendMessageUseCase);
+  container.registerSingleton(SendBetMessageUseCase);
+  container.registerSingleton(GetRoomMessagesUseCase);
+  container.registerSingleton(GetConnectedUsersUseCase);
+  container.registerSingleton(GetChatStatsUseCase);
+
+  // ─── 7. Use Cases — Waitlist ───────────────────────────────────────────────
+  container.registerSingleton(JoinWaitlistUseCase);
+  container.registerSingleton(CheckAccessUseCase);
+  container.registerSingleton(GetWaitlistStatsUseCase);
+
+  // ─── 8. Use Cases — Streams ────────────────────────────────────────────────
+  container.registerSingleton(CreateStreamUseCase);
+  container.registerSingleton(GetActiveStreamsUseCase);
+  container.registerSingleton(GetPreferredStreamUseCase);
+  container.registerSingleton(EndStreamUseCase);
+  container.registerSingleton(UpdateViewerCountUseCase);
+  container.registerSingleton(CleanupOldStreamsUseCase);
+
+  // ─── 9. Use Cases — StreamWallet ───────────────────────────────────────────
+  container.registerSingleton(GetStreamerDonationsUseCase);
+  container.registerSingleton(GetStreamerSubscriptionsUseCase);
+  container.registerSingleton(GetStreamerStatsUseCase);
+  container.registerSingleton(GetDonorHistoryUseCase);
+  container.registerSingleton(GetSubscriberHistoryUseCase);
+
+  // ─── 10. Use Cases — FanTokens ─────────────────────────────────────────────
+  container.registerSingleton(GetUserFanTokenBalancesUseCase);
+
+  // ─── 11. Use Cases — Follows ───────────────────────────────────────────────
+  container.registerSingleton(FollowStreamerUseCase);
+  container.registerSingleton(UnfollowStreamerUseCase);
+  container.registerSingleton(GetIsFollowingUseCase);
+  container.registerSingleton(GetFollowerCountUseCase);
+  container.registerSingleton(GetFollowedStreamersUseCase);
+
+  // ─── 12. Infrastructure — Scheduling ───────────────────────────────────────
+  container.registerSingleton(SyncMatchesJob);
+  container.registerSingleton(ResolveMarketsJob);
+  container.registerSingleton(CleanupStreamsJob);
+  container.registerSingleton(StaleStreamCleanupJob);
+  container.registerSingleton(SettlePredictionsJob);
+  container.registerSingleton(ViewerReconcileJob);
+  container.registerSingleton(JobScheduler);
+
+  // ─── 13. Infrastructure — Services ─────────────────────────────────────────
+  container.registerSingleton(StreamLifecycleService);
+  container.registerSingleton(ViewerSessionService);
+
+  // ─── 14. Infrastructure — Blockchain ───────────────────────────────────────
+  container.registerSingleton(BlockchainEventListener);
+  container.registerSingleton(StreamWalletIndexer);
+  container.registerSingleton(BettingEventIndexer);
+
+  // ─── 15. Presentation — CLI Commands ───────────────────────────────────────
+  container.registerSingleton(DeployMissingContractsCommand);
+  container.registerSingleton(SetupMarketsCommand);
+  container.registerSingleton(TestMatchLifecycleCommand);
+
+  // ─── 16. Presentation — Controllers ────────────────────────────────────────
+  container.registerSingleton(MediamtxWebhookController);
+  container.registerSingleton(PredictionController);
+  container.registerSingleton(MatchController);
+  container.registerSingleton(ChatController);
+  container.registerSingleton(WaitlistController);
+  container.registerSingleton(AuthController);
+  container.registerSingleton(StreamController);
+  container.registerSingleton(StreamWalletController);
+  container.registerSingleton(FanTokensController);
+  container.registerSingleton(FollowController);
+}
 
 export { container };

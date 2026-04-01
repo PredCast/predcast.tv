@@ -1,4 +1,5 @@
 import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { ChatMessage, MessageType } from '@chiliztv/domain/chat/entities/ChatMessage';
 import { IChatRepository } from '@chiliztv/domain/chat/repositories/IChatRepository';
 import { ISubscriptionChecker } from '@chiliztv/domain/shared/ports/ISubscriptionChecker';
@@ -7,9 +8,9 @@ import { SendMessageDto } from '@chiliztv/shared/dto/chat/SendMessageDto';
 @injectable()
 export class SendMessageUseCase {
   constructor(
-    @inject('IChatRepository')
+    @inject(TOKENS.IChatRepository)
     private readonly chatRepository: IChatRepository,
-    @inject('ISubscriptionChecker')
+    @inject(TOKENS.ISubscriptionChecker)
     private readonly subscriptionChecker: ISubscriptionChecker
   ) {}
 
