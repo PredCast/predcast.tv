@@ -1,9 +1,15 @@
-import { injectable } from 'tsyringe';
+import { injectable, inject } from 'tsyringe';
 import { createPublicClient, http, parseAbiItem, Log, defineChain } from 'viem';
 import { chiliz } from 'viem/chains';
-import { supabaseClient as supabase } from '../../database/supabase/client';
 import { chilizConfig, networkType } from '../../config/chiliz.config';
+import { supabaseClient as supabase } from '../../database/supabase/client';
 import { logger } from '../../logging/logger';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
+import { IStreamWalletRepository } from '@chiliztv/domain/stream-wallet/repositories/IStreamWalletRepository';
+import { IChatRepository } from '@chiliztv/domain/chat/repositories/IChatRepository';
+import { Donation } from '@chiliztv/domain/stream-wallet/entities/Donation';
+import { Subscription } from '@chiliztv/domain/stream-wallet/entities/Subscription';
+import { ChatMessage, MessageType } from '@chiliztv/domain/chat/entities/ChatMessage';
 
 const FACTORY_ADDRESS = (process.env.STREAM_WALLET_FACTORY_ADDRESS ||
     '0x7310cE3bD564fA63587a388b87a8C973a0BA3d7B') as `0x${string}`;
@@ -23,10 +29,12 @@ const baseSepolia = defineChain({
 
 const POLLING_INTERVAL_MS = 6000;
 const EXPIRY_CHECK_INTERVAL_MS = 60000;
+const PLATFORM_FEE_BPS = 500;
 
 /**
  * Stream Wallet Indexer
- * Listens to blockchain events for donations, subscriptions and wallet creations
+ * Listens to blockchain events for donations, subscriptions and wallet creations.
+ * Writes via domain repositories — never calls use-cases.
  */
 @injectable()
 export class StreamWalletIndexer {
@@ -36,7 +44,12 @@ export class StreamWalletIndexer {
     private pollingTimer: ReturnType<typeof setInterval> | null = null;
     private expiryCheckTimer: ReturnType<typeof setInterval> | null = null;
 
-    constructor() {
+    constructor(
+        @inject(TOKENS.IStreamWalletRepository)
+        private readonly streamWalletRepository: IStreamWalletRepository,
+        @inject(TOKENS.IChatRepository)
+        private readonly chatRepository: IChatRepository,
+    ) {
         const chain = networkType === 'testnet' ? baseSepolia : chiliz;
         this.publicClient = createPublicClient({
             chain,
@@ -55,15 +68,8 @@ export class StreamWalletIndexer {
         this.isRunning = true;
 
         try {
-            const { data: lastBlock } = await supabase
-                .from('donations')
-                .select('created_at')
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .single();
-
             const currentBlock = await this.publicClient.getBlockNumber();
-            this.lastIndexedBlock = lastBlock ? currentBlock - BigInt(1000) : currentBlock - BigInt(10000);
+            this.lastIndexedBlock = currentBlock - BigInt(10000);
 
             logger.info('Starting from block', { block: this.lastIndexedBlock.toString() });
 
@@ -181,27 +187,14 @@ export class StreamWalletIndexer {
             }
         }, EXPIRY_CHECK_INTERVAL_MS);
 
-        // Run once immediately
         this.updateExpiredSubscriptions().catch(err => logger.error('Error on initial expiry check', { error: err.message }));
     }
 
     private async updateExpiredSubscriptions(): Promise<void> {
         try {
-            const now = new Date().toISOString();
-            const { data, error } = await supabase
-                .from('subscriptions')
-                .update({ status: 'expired' })
-                .eq('status', 'active')
-                .lt('expiry_time', now)
-                .select('id');
-
-            if (error) {
-                logger.error('Error updating expired subscriptions', { error: error.message });
-                return;
-            }
-
-            if (data && data.length > 0) {
-                logger.info('Marked subscriptions as expired', { count: data.length });
+            const count = await this.streamWalletRepository.markExpiredSubscriptions();
+            if (count > 0) {
+                logger.info('Marked subscriptions as expired', { count });
             }
         } catch (err) {
             logger.error('Error in updateExpiredSubscriptions', {
@@ -220,28 +213,14 @@ export class StreamWalletIndexer {
 
             const { streamer, wallet } = args;
 
-            const { data: existing } = await supabase
-                .from('stream_wallets')
-                .select('id')
-                .eq('transaction_hash', transactionHash)
-                .single();
-
-            if (existing) {
+            const exists = await this.streamWalletRepository.findStreamWalletByTransactionHash(transactionHash);
+            if (exists) {
                 logger.debug('Wallet creation already indexed', { txHash: transactionHash });
                 return;
             }
 
-            const { error } = await supabase.from('stream_wallets').insert({
-                streamer_address: streamer.toLowerCase(),
-                wallet_address: wallet.toLowerCase(),
-                transaction_hash: transactionHash
-            });
-
-            if (error && error.code !== '23505') {
-                logger.error('Error indexing wallet creation', { error: error.message });
-            } else {
-                logger.info('Indexed wallet creation', { streamer, wallet });
-            }
+            await this.streamWalletRepository.saveStreamWallet(streamer, wallet, transactionHash);
+            logger.info('Indexed wallet creation', { streamer, wallet });
         } catch (error) {
             logger.error('Error in indexWalletCreatedEvent', {
                 error: error instanceof Error ? error.message : 'Unknown error'
@@ -259,13 +238,8 @@ export class StreamWalletIndexer {
 
             const { streamer, donor, amount, message } = args;
 
-            const { data: existing } = await supabase
-                .from('donations')
-                .select('id')
-                .eq('transaction_hash', transactionHash)
-                .single();
-
-            if (existing) {
+            const exists = await this.streamWalletRepository.findDonationByTransactionHash(transactionHash);
+            if (exists) {
                 logger.debug('Donation already indexed', { txHash: transactionHash });
                 return;
             }
@@ -273,42 +247,38 @@ export class StreamWalletIndexer {
             const receipt = await this.publicClient.getTransactionReceipt({ hash: transactionHash as `0x${string}` });
             const block = await this.publicClient.getBlock({ blockHash: receipt.blockHash });
 
-            const platformFeeBps = 500;
             const amountBigInt = BigInt(amount);
-            const platformFee = (amountBigInt * BigInt(platformFeeBps)) / BigInt(10000);
+            const platformFee = (amountBigInt * BigInt(PLATFORM_FEE_BPS)) / BigInt(10000);
             const streamerAmount = amountBigInt - platformFee;
 
             const streamWalletAddress = await this.getStreamerWallet(streamer);
 
-            const { error } = await supabase.from('donations').insert({
-                streamer_address: streamer.toLowerCase(),
-                donor_address: donor.toLowerCase(),
-                stream_wallet_address: streamWalletAddress?.toLowerCase() || '',
+            const donation = Donation.create({
+                streamerAddress: streamer,
+                donorAddress: donor,
+                streamWalletAddress: streamWalletAddress ?? undefined,
                 amount: (Number(amountBigInt) / 1e18).toString(),
-                message: message || null,
-                transaction_hash: transactionHash,
-                platform_fee: (Number(platformFee) / 1e18).toString(),
-                streamer_amount: (Number(streamerAmount) / 1e18).toString(),
-                created_at: new Date(Number(block.timestamp) * 1000).toISOString()
+                platformFee: (Number(platformFee) / 1e18).toString(),
+                streamerAmount: (Number(streamerAmount) / 1e18).toString(),
+                message: message || undefined,
+                transactionHash,
+                timestamp: new Date(Number(block.timestamp) * 1000),
             });
 
-            if (error) {
-                logger.error('Error inserting donation', { error: error.message });
-            } else {
-                logger.info('Indexed donation', { txHash: transactionHash.slice(0, 10), amount: (Number(amountBigInt) / 1e18).toFixed(4) });
+            await this.streamWalletRepository.saveDonation(donation);
+            logger.info('Indexed donation', { txHash: transactionHash.slice(0, 10), amount: (Number(amountBigInt) / 1e18).toFixed(4) });
 
-                const matchId = await this.getMatchIdForStreamer(streamer.toLowerCase(), streamWalletAddress?.toLowerCase() || null);
-                if (matchId) {
-                    await this.insertChatMessageForStreamerEvent(
-                        matchId,
-                        'donation',
-                        donor.toLowerCase(),
-                        (Number(amountBigInt) / 1e18).toString(),
-                        message || undefined
-                    );
-                } else {
-                    logger.warn('No active stream found for donation, skipping chat message', { streamer });
-                }
+            const matchId = await this.getMatchIdForStreamer(streamer.toLowerCase(), streamWalletAddress?.toLowerCase() ?? null);
+            if (matchId) {
+                await this.insertChatMessageForStreamerEvent(
+                    matchId,
+                    'donation',
+                    donor.toLowerCase(),
+                    (Number(amountBigInt) / 1e18).toString(),
+                    message || undefined
+                );
+            } else {
+                logger.warn('No active stream found for donation, skipping chat message', { streamer });
             }
         } catch (error) {
             logger.error('Error indexing donation event', {
@@ -327,13 +297,8 @@ export class StreamWalletIndexer {
 
             const { streamer, subscriber, amount } = args;
 
-            const { data: existing } = await supabase
-                .from('subscriptions')
-                .select('id')
-                .eq('transaction_hash', transactionHash)
-                .single();
-
-            if (existing) {
+            const exists = await this.streamWalletRepository.findSubscriptionByTransactionHash(transactionHash);
+            if (exists) {
                 logger.debug('Subscription already indexed', { txHash: transactionHash });
                 return;
             }
@@ -341,48 +306,43 @@ export class StreamWalletIndexer {
             const receipt = await this.publicClient.getTransactionReceipt({ hash: transactionHash as `0x${string}` });
             const block = await this.publicClient.getBlock({ blockHash: receipt.blockHash });
 
-            const platformFeeBps = 500;
             const amountBigInt = BigInt(amount);
-            const platformFee = (amountBigInt * BigInt(platformFeeBps)) / BigInt(10000);
+            const platformFee = (amountBigInt * BigInt(PLATFORM_FEE_BPS)) / BigInt(10000);
             const streamerAmount = amountBigInt - platformFee;
 
             const streamWalletAddress = await this.getStreamerWallet(streamer);
 
             const durationSeconds = 30 * 24 * 60 * 60;
-            const startTime = new Date(Number(block.timestamp) * 1000);
-            const expiryTime = new Date(startTime.getTime() + durationSeconds * 1000);
+            const startDate = new Date(Number(block.timestamp) * 1000);
+            const endDate = new Date(startDate.getTime() + durationSeconds * 1000);
 
-            const { error } = await supabase.from('subscriptions').insert({
-                streamer_address: streamer.toLowerCase(),
-                subscriber_address: subscriber.toLowerCase(),
-                stream_wallet_address: streamWalletAddress?.toLowerCase() || '',
+            const subscription = Subscription.create({
+                streamerAddress: streamer,
+                subscriberAddress: subscriber,
+                streamWalletAddress: streamWalletAddress ?? undefined,
+                durationSeconds,
                 amount: (Number(amountBigInt) / 1e18).toString(),
-                duration_seconds: durationSeconds,
-                start_time: startTime.toISOString(),
-                expiry_time: expiryTime.toISOString(),
-                transaction_hash: transactionHash,
-                platform_fee: (Number(platformFee) / 1e18).toString(),
-                streamer_amount: (Number(streamerAmount) / 1e18).toString(),
+                platformFee: (Number(platformFee) / 1e18).toString(),
+                streamerAmount: (Number(streamerAmount) / 1e18).toString(),
+                startDate,
+                endDate,
+                transactionHash,
                 status: 'active',
-                created_at: startTime.toISOString()
             });
 
-            if (error) {
-                logger.error('Error inserting subscription', { error: error.message });
-            } else {
-                logger.info('Indexed subscription', { txHash: transactionHash.slice(0, 10), amount: (Number(amountBigInt) / 1e18).toFixed(4) });
+            await this.streamWalletRepository.saveSubscription(subscription);
+            logger.info('Indexed subscription', { txHash: transactionHash.slice(0, 10), amount: (Number(amountBigInt) / 1e18).toFixed(4) });
 
-                const matchId = await this.getMatchIdForStreamer(streamer.toLowerCase(), streamWalletAddress?.toLowerCase() || null);
-                if (matchId) {
-                    await this.insertChatMessageForStreamerEvent(
-                        matchId,
-                        'subscription',
-                        subscriber.toLowerCase(),
-                        (Number(amountBigInt) / 1e18).toString()
-                    );
-                } else {
-                    logger.warn('No active stream found for subscription, skipping chat message', { streamer });
-                }
+            const matchId = await this.getMatchIdForStreamer(streamer.toLowerCase(), streamWalletAddress?.toLowerCase() ?? null);
+            if (matchId) {
+                await this.insertChatMessageForStreamerEvent(
+                    matchId,
+                    'subscription',
+                    subscriber.toLowerCase(),
+                    (Number(amountBigInt) / 1e18).toString()
+                );
+            } else {
+                logger.warn('No active stream found for subscription, skipping chat message', { streamer });
             }
         } catch (error) {
             logger.error('Error indexing subscription event', {
@@ -395,7 +355,7 @@ export class StreamWalletIndexer {
         try {
             const addresses = [streamerAddress.toLowerCase()];
             if (streamWalletAddress) addresses.push(streamWalletAddress.toLowerCase());
-            
+
             const conditions = addresses.map(a => `streamer_wallet_address.ilike.${a}`).join(',');
 
             const { data, error } = await supabase
@@ -460,26 +420,22 @@ export class StreamWalletIndexer {
             const displayName = await this.getUsernameForWallet(userAddress)
                 ?? `${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
             const amountFormatted = parseFloat(amount).toFixed(4);
-            const message = type === 'donation'
+            const messageText = type === 'donation'
                 ? `🎁 ${displayName} donated ${amountFormatted} CHZ${extraMessage ? `: "${extraMessage}"` : ''}`
                 : `⭐ ${displayName} subscribed for ${amountFormatted} CHZ`;
 
-            const { error } = await supabase.from('chat_messages').insert({
-                match_id: matchId,
-                user_id: 'system',
+            const chatMessage = ChatMessage.create({
+                matchId,
+                userId: 'system',
+                walletAddress: userAddress,
                 username: 'System',
-                message,
-                message_type: 'system',
-                system_type: type,
-                wallet_address: userAddress,
-                created_at: new Date().toISOString()
+                message: messageText,
+                type: MessageType.SYSTEM,
+                isFeatured: false,
             });
 
-            if (error) {
-                logger.error(`Failed to insert chat message for ${type}`, { error: error.message });
-            } else {
-                logger.info(`Chat message posted for ${type}`, { matchId });
-            }
+            await this.chatRepository.saveMessage(chatMessage);
+            logger.info(`Chat message posted for ${type}`, { matchId });
         } catch (err) {
             logger.error(`Error inserting chat message for ${type}`, {
                 error: err instanceof Error ? err.message : 'Unknown error'

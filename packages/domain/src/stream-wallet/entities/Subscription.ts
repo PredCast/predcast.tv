@@ -2,11 +2,15 @@ export interface SubscriptionProps {
   id: string;
   streamerAddress: string;
   subscriberAddress: string;
+  streamWalletAddress?: string;
   durationSeconds: number;
   amount: string;
+  platformFee?: string;
+  streamerAmount?: string;
   startDate: Date;
   endDate: Date;
   transactionHash: string;
+  status?: 'active' | 'expired';
 }
 
 export class Subscription {
@@ -33,11 +37,15 @@ export class Subscription {
       id: this.props.id,
       streamerAddress: this.props.streamerAddress,
       subscriberAddress: this.props.subscriberAddress,
+      streamWalletAddress: this.props.streamWalletAddress,
       durationSeconds: this.props.durationSeconds,
       amount: this.props.amount,
+      platformFee: this.props.platformFee,
+      streamerAmount: this.props.streamerAmount,
       startDate: this.props.startDate,
       endDate: this.props.endDate,
       transactionHash: this.props.transactionHash,
+      status: this.props.status,
       isActive: this.isActive(),
     };
   }

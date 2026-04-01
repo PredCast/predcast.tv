@@ -9,7 +9,10 @@ interface DonationRow {
   id: string;
   streamer_address: string;
   donor_address: string;
+  stream_wallet_address?: string;
   amount: string;
+  platform_fee?: string;
+  streamer_amount?: string;
   message?: string;
   transaction_hash: string;
   created_at: string;
@@ -19,11 +22,15 @@ interface SubscriptionRow {
   id: string;
   streamer_address: string;
   subscriber_address: string;
+  stream_wallet_address?: string;
   duration_seconds: number;
   amount: string;
+  platform_fee?: string;
+  streamer_amount?: string;
   start_time: string;
   expiry_time: string;
   transaction_hash: string;
+  status?: string;
 }
 
 @injectable()
@@ -110,12 +117,112 @@ export class SupabaseStreamWalletRepository implements IStreamWalletRepository {
     };
   }
 
+  async saveDonation(donation: Donation): Promise<void> {
+    const json = donation.toJSON();
+    const { error } = await supabase.from('donations').insert({
+      id: json.id,
+      streamer_address: json.streamerAddress.toLowerCase(),
+      donor_address: json.donorAddress.toLowerCase(),
+      stream_wallet_address: json.streamWalletAddress?.toLowerCase() ?? '',
+      amount: json.amount,
+      platform_fee: json.platformFee ?? null,
+      streamer_amount: json.streamerAmount ?? null,
+      message: json.message ?? null,
+      transaction_hash: json.transactionHash,
+      created_at: json.timestamp.toISOString(),
+    });
+    if (error && error.code !== '23505') {
+      logger.error('Failed to save donation', { error: error.message });
+      throw new Error('Failed to save donation');
+    }
+  }
+
+  async findDonationByTransactionHash(txHash: string): Promise<boolean> {
+    const { data } = await supabase
+      .from('donations')
+      .select('id')
+      .eq('transaction_hash', txHash)
+      .maybeSingle();
+    return data !== null;
+  }
+
+  async saveSubscription(subscription: Subscription): Promise<void> {
+    const json = subscription.toJSON();
+    const { error } = await supabase.from('subscriptions').insert({
+      id: json.id,
+      streamer_address: json.streamerAddress.toLowerCase(),
+      subscriber_address: json.subscriberAddress.toLowerCase(),
+      stream_wallet_address: json.streamWalletAddress?.toLowerCase() ?? '',
+      amount: json.amount,
+      platform_fee: json.platformFee ?? null,
+      streamer_amount: json.streamerAmount ?? null,
+      duration_seconds: json.durationSeconds,
+      start_time: json.startDate.toISOString(),
+      expiry_time: json.endDate.toISOString(),
+      transaction_hash: json.transactionHash,
+      status: json.status ?? 'active',
+      created_at: json.startDate.toISOString(),
+    });
+    if (error && error.code !== '23505') {
+      logger.error('Failed to save subscription', { error: error.message });
+      throw new Error('Failed to save subscription');
+    }
+  }
+
+  async findSubscriptionByTransactionHash(txHash: string): Promise<boolean> {
+    const { data } = await supabase
+      .from('subscriptions')
+      .select('id')
+      .eq('transaction_hash', txHash)
+      .maybeSingle();
+    return data !== null;
+  }
+
+  async saveStreamWallet(streamerAddress: string, walletAddress: string, transactionHash: string): Promise<void> {
+    const { error } = await supabase.from('stream_wallets').insert({
+      streamer_address: streamerAddress.toLowerCase(),
+      wallet_address: walletAddress.toLowerCase(),
+      transaction_hash: transactionHash,
+    });
+    if (error && error.code !== '23505') {
+      logger.error('Failed to save stream wallet', { error: error.message });
+      throw new Error('Failed to save stream wallet');
+    }
+  }
+
+  async findStreamWalletByTransactionHash(txHash: string): Promise<boolean> {
+    const { data } = await supabase
+      .from('stream_wallets')
+      .select('id')
+      .eq('transaction_hash', txHash)
+      .maybeSingle();
+    return data !== null;
+  }
+
+  async markExpiredSubscriptions(): Promise<number> {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from('subscriptions')
+      .update({ status: 'expired' })
+      .eq('status', 'active')
+      .lt('expiry_time', now)
+      .select('id');
+    if (error) {
+      logger.error('Failed to mark expired subscriptions', { error: error.message });
+      throw new Error('Failed to mark expired subscriptions');
+    }
+    return data?.length ?? 0;
+  }
+
   private donationToDomain(row: DonationRow): Donation {
     return Donation.reconstitute({
       id: row.id,
       streamerAddress: row.streamer_address,
       donorAddress: row.donor_address,
+      streamWalletAddress: row.stream_wallet_address,
       amount: row.amount,
+      platformFee: row.platform_fee,
+      streamerAmount: row.streamer_amount,
       message: row.message,
       transactionHash: row.transaction_hash,
       timestamp: new Date(row.created_at),
@@ -127,11 +234,15 @@ export class SupabaseStreamWalletRepository implements IStreamWalletRepository {
       id: row.id,
       streamerAddress: row.streamer_address,
       subscriberAddress: row.subscriber_address,
+      streamWalletAddress: row.stream_wallet_address,
       durationSeconds: row.duration_seconds,
       amount: row.amount,
+      platformFee: row.platform_fee,
+      streamerAmount: row.streamer_amount,
       startDate: new Date(row.start_time),
       endDate: new Date(row.expiry_time),
       transactionHash: row.transaction_hash,
+      status: row.status as 'active' | 'expired' | undefined,
     });
   }
 }
