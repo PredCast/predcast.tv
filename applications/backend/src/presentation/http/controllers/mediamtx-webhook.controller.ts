@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { IStreamRepository } from '@chiliztv/domain/streams/repositories/IStreamRepository';
 import { StreamLifecycleService } from '../../../infrastructure/services/StreamLifecycleService';
 import { extractStreamKey } from '../../../infrastructure/streaming/utils/mediamtx-path';
@@ -18,7 +19,7 @@ interface MediamtxAuthPayload {
 @injectable()
 export class MediamtxWebhookController {
   constructor(
-    @inject('IStreamRepository')
+    @inject(TOKENS.IStreamRepository)
     private readonly streamRepository: IStreamRepository,
     @inject(StreamLifecycleService)
     private readonly lifecycleService: StreamLifecycleService,

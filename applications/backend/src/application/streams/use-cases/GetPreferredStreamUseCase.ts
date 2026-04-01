@@ -1,4 +1,5 @@
 import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { Stream } from '@chiliztv/domain/streams/entities/Stream';
 import { IStreamRepository } from '@chiliztv/domain/streams/repositories/IStreamRepository';
 import { IFollowRepository } from '@chiliztv/domain/follows/repositories/IFollowRepository';
@@ -13,9 +14,9 @@ export interface PreferredStreamResult {
 @injectable()
 export class GetPreferredStreamUseCase {
   constructor(
-    @inject('IStreamRepository')
+    @inject(TOKENS.IStreamRepository)
     private readonly streamRepository: IStreamRepository,
-    @inject('IFollowRepository')
+    @inject(TOKENS.IFollowRepository)
     private readonly followRepository: IFollowRepository,
   ) {}
 

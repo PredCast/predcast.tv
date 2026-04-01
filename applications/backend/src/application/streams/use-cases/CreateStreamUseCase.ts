@@ -1,4 +1,5 @@
 import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { Stream, StreamStatus } from '@chiliztv/domain/streams/entities/Stream';
 import { IStreamRepository } from '@chiliztv/domain/streams/repositories/IStreamRepository';
 import { CreateStreamDto } from '@chiliztv/shared/dto/streams/CreateStreamDto';
@@ -6,7 +7,7 @@ import { CreateStreamDto } from '@chiliztv/shared/dto/streams/CreateStreamDto';
 @injectable()
 export class CreateStreamUseCase {
   constructor(
-    @inject('IStreamRepository')
+    @inject(TOKENS.IStreamRepository)
     private readonly streamRepository: IStreamRepository
   ) {}
 

@@ -1,4 +1,5 @@
 import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { Prediction } from '@chiliztv/domain/predictions/entities/Prediction';
 import { IPredictionRepository } from '@chiliztv/domain/predictions/repositories/IPredictionRepository';
 import { TransactionHash } from '@chiliztv/domain/predictions/value-objects/TransactionHash';
@@ -11,7 +12,7 @@ import { v4 as uuidv4 } from 'uuid';
 @injectable()
 export class CreatePredictionUseCase {
   constructor(
-    @inject('IPredictionRepository')
+    @inject(TOKENS.IPredictionRepository)
     private readonly predictionRepository: IPredictionRepository
   ) {}
 

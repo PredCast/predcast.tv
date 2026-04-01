@@ -1,11 +1,12 @@
 import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { Stream } from '@chiliztv/domain/streams/entities/Stream';
 import { IStreamRepository } from '@chiliztv/domain/streams/repositories/IStreamRepository';
 
 @injectable()
 export class GetActiveStreamsUseCase {
   constructor(
-    @inject('IStreamRepository')
+    @inject(TOKENS.IStreamRepository)
     private readonly streamRepository: IStreamRepository
   ) {}
 

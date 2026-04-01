@@ -1,11 +1,12 @@
 import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { Prediction } from '@chiliztv/domain/predictions/entities/Prediction';
 import { IPredictionRepository } from '@chiliztv/domain/predictions/repositories/IPredictionRepository';
 
 @injectable()
 export class GetUserPredictionsUseCase {
   constructor(
-    @inject('IPredictionRepository')
+    @inject(TOKENS.IPredictionRepository)
     private readonly predictionRepository: IPredictionRepository
   ) {}
 

@@ -1,4 +1,5 @@
 import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { IMatchRepository } from '@chiliztv/domain/matches/repositories/IMatchRepository';
 import { IStreamRepository } from '@chiliztv/domain/streams/repositories/IStreamRepository';
 import { MatchFetchWindow } from '@chiliztv/domain/matches/value-objects/MatchFetchWindow';
@@ -13,9 +14,9 @@ import {
 @injectable()
 export class GetBrowseMatchesUseCase {
   constructor(
-    @inject('IMatchRepository')
+    @inject(TOKENS.IMatchRepository)
     private readonly matchRepository: IMatchRepository,
-    @inject('IStreamRepository')
+    @inject(TOKENS.IStreamRepository)
     private readonly streamRepository: IStreamRepository,
   ) {}
 
