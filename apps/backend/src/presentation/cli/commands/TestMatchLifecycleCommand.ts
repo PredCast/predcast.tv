@@ -12,7 +12,7 @@ import { logger } from '../../../infrastructure/logging/logger';
  */
 @injectable()
 export class TestMatchLifecycleCommand {
-    private readonly TEST_MATCH_ID = 999001;
+    private readonly TEST_MATCH_ID = 999010;
     private readonly DEFAULT_ODDS = {
         homeWin: 2.1,
         draw: 3.2,
@@ -58,20 +58,20 @@ export class TestMatchLifecycleCommand {
         const match = Match.create({
             id: this.TEST_MATCH_ID,
             apiFootballId: this.TEST_MATCH_ID,
-            homeTeamId: 6,
-            homeTeamName: 'Real Madrid',
+            homeTeamId: 1,
+            homeTeamName: 'OM',
             homeTeamLogo: '',
-            awayTeamId: 5,
-            awayTeamName: 'Barcelona',
+            awayTeamId: 2,
+            awayTeamName: 'PSG',
             awayTeamLogo: '',
-            leagueId: 1,
-            leagueName: 'Liga',
+            leagueId: 2,
+            leagueName: 'Ligue1',
             leagueLogo: '',
-            leagueCountry: 'España',
+            leagueCountry: 'France',
             season: new Date().getFullYear(),
             matchDate,
             status: 'NS',
-            venue: 'Santiago Bernabeu',
+            venue: 'Velodrome',
             odds: this.DEFAULT_ODDS,
         });
 
@@ -79,7 +79,7 @@ export class TestMatchLifecycleCommand {
         await this.matchRepository.save(match);
 
         // Deploy contract
-        const matchName = `Real Madrid vs Fc Barcelona`;
+        const matchName = `OM vs PSG`;
         const ownerAddress = this.deploymentAdapter.getAdminAddress();
 
         logger.info('Deploying FootballMatch contract');

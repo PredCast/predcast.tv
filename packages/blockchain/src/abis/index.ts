@@ -38,6 +38,14 @@ export const FACTORY_ABI = [
 
 // FootballMatch ABI for market management and resolution
 export const FOOTBALL_MATCH_ABI = [
+    // Errors (for proper decoding of on-chain reverts)
+    { type: 'error', name: 'InvalidMarketId', inputs: [{ name: 'marketId', type: 'uint256' }] },
+    { type: 'error', name: 'InvalidMarketState', inputs: [{ name: 'marketId', type: 'uint256' }, { name: 'current', type: 'uint8' }, { name: 'required', type: 'uint8' }] },
+    { type: 'error', name: 'InvalidMarketType', inputs: [{ name: 'marketType', type: 'bytes32' }] },
+    { type: 'error', name: 'InvalidOddsValue', inputs: [{ name: 'odds', type: 'uint32' }, { name: 'min', type: 'uint32' }, { name: 'max', type: 'uint32' }] },
+    { type: 'error', name: 'InvalidSelection', inputs: [{ name: 'marketId', type: 'uint256' }, { name: 'selection', type: 'uint64' }, { name: 'maxAllowed', type: 'uint8' }] },
+    { type: 'error', name: 'OddsNotSet', inputs: [{ name: 'marketId', type: 'uint256' }] },
+    { type: 'error', name: 'AccessControlUnauthorizedAccount', inputs: [{ name: 'account', type: 'address' }, { name: 'neededRole', type: 'bytes32' }] },
     {
         type: 'function',
         name: 'addMarket',
