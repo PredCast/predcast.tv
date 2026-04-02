@@ -1,6 +1,6 @@
 import { injectable } from 'tsyringe';
 import { createWalletClient, createPublicClient, http } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
+import { privateKeyToAccount, nonceManager } from 'viem/accounts';
 import { chiliz } from 'viem/chains';
 import { chilizConfig, networkType } from '../../config/chiliz.config';
 import { baseSepolia } from '@chiliztv/blockchain';
@@ -31,7 +31,7 @@ export class MatchResolutionAdapter {
             throw new Error('ADMIN_PRIVATE_KEY environment variable is required for match resolution');
         }
         this.chain = networkType === 'testnet' ? baseSepolia : chiliz;
-        const account = privateKeyToAccount(ADMIN_PRIVATE_KEY);
+        const account = privateKeyToAccount(ADMIN_PRIVATE_KEY, { nonceManager });
         this.walletClient = createWalletClient({
             account,
             chain: this.chain,

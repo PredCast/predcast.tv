@@ -6,7 +6,7 @@ import {
     keccak256,
     toBytes,
 } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
+import { privateKeyToAccount, nonceManager } from 'viem/accounts';
 import { chiliz } from 'viem/chains';
 import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { INetworkConfig } from '@chiliztv/domain/shared/ports/INetworkConfig';
@@ -18,6 +18,8 @@ import { ExtendedOdds } from '@chiliztv/domain/shared/ports/IFootballApiService'
 import { FACTORY_ABI, FOOTBALL_MATCH_ABI } from '@chiliztv/blockchain';
 import { baseSepolia } from '@chiliztv/blockchain';
 import { logger } from '../../logging/logger';
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 const MARKET_STATE_RESOLVED = 4;
 const MATCH_CREATED_TOPIC   = '0x5969a2068f5fa459c1b0f8d90549ffd48273691f337cf3200090f8c4ded08d16';
@@ -42,10 +44,9 @@ function toOddsX10000(decimal: number): number {
  */
 @injectable()
 export class ViemBlockchainService implements IBlockchainService {
-    private readonly walletClient: ReturnType<typeof createWalletClient>;
-    private readonly publicClient: ReturnType<typeof createPublicClient>;
+    private readonly walletClient: any;
+    private readonly publicClient: any;
     private readonly account: ReturnType<typeof privateKeyToAccount>;
-    private readonly chain: typeof baseSepolia | typeof chiliz;
 
     constructor(
         @inject(TOKENS.INetworkConfig)
@@ -55,17 +56,17 @@ export class ViemBlockchainService implements IBlockchainService {
             throw new Error('INetworkConfig.adminPrivateKey is required');
         }
 
-        this.chain   = config.chainId === 88888 ? chiliz : baseSepolia;
-        this.account = privateKeyToAccount(config.adminPrivateKey as `0x${string}`);
+        const chain   = config.chainId === 88888 ? chiliz : baseSepolia;
+        this.account  = privateKeyToAccount(config.adminPrivateKey as `0x${string}`, { nonceManager });
 
         this.walletClient = createWalletClient({
             account: this.account,
-            chain:   this.chain,
+            chain,
             transport: http(config.rpcUrl),
         });
 
         this.publicClient = createPublicClient({
-            chain:     this.chain,
+            chain,
             transport: http(config.rpcUrl),
         });
 
@@ -86,8 +87,6 @@ export class ViemBlockchainService implements IBlockchainService {
         logger.info('Deploying FootballMatch contract', { matchName, ownerAddress });
 
         const hash = await this.walletClient.writeContract({
-            account:      this.account,
-            chain:        this.chain,
             address:      this.config.bettingFactoryAddress as `0x${string}`,
             abi:          FACTORY_ABI,
             functionName: 'createFootballMatch',
@@ -116,37 +115,41 @@ export class ViemBlockchainService implements IBlockchainService {
 
         const sendAndWait = async (fn: () => Promise<`0x${string}`>) => {
             const hash = await fn();
-            await this.publicClient.waitForTransactionReceipt({ hash, timeout: 90_000 });
+            const receipt = await this.publicClient.waitForTransactionReceipt({ hash, timeout: 90_000 });
+            if (receipt.status === 'reverted') {
+                throw new Error(`Transaction reverted on-chain (hash: ${hash})`);
+            }
             await delay();
         };
 
         logger.info('Adding WINNER market', { contractAddress });
         await sendAndWait(() => this.walletClient.writeContract({
-            account: this.account, chain: this.chain,
             address: addr, abi: FOOTBALL_MATCH_ABI,
             functionName: 'addMarket', args: [MARKET_WINNER, oddsHome],
+            gas: 500_000n,
         }));
 
         logger.info('Adding GOALS_TOTAL market', { contractAddress });
         await sendAndWait(() => this.walletClient.writeContract({
-            account: this.account, chain: this.chain,
             address: addr, abi: FOOTBALL_MATCH_ABI,
             functionName: 'addMarketWithLine', args: [MARKET_GOALS_TOTAL, oddsOver, 25],
+            gas: 500_000n,
         }));
 
         logger.info('Adding BOTH_SCORE market', { contractAddress });
         await sendAndWait(() => this.walletClient.writeContract({
-            account: this.account, chain: this.chain,
             address: addr, abi: FOOTBALL_MATCH_ABI,
             functionName: 'addMarket', args: [MARKET_BOTH_SCORE, oddsBtts],
+            gas: 500_000n,
         }));
 
         logger.info('Opening markets', { contractAddress });
         for (let id = 0; id < 3; id++) {
             await sendAndWait(() => this.walletClient.writeContract({
-                account: this.account, chain: this.chain,
+                chain: undefined,
                 address: addr, abi: FOOTBALL_MATCH_ABI,
                 functionName: 'openMarket', args: [BigInt(id)],
+                gas: 200_000n,
             }));
         }
 
@@ -178,7 +181,7 @@ export class ViemBlockchainService implements IBlockchainService {
 
                     const result = BigInt(this.computeResult(id, homeScore, awayScore));
                     const hash = await this.walletClient.writeContract({
-                        account: this.account, chain: this.chain,
+                        chain: undefined,
                         address: addr, abi: FOOTBALL_MATCH_ABI,
                         functionName: 'resolveMarket', args: [BigInt(id), result],
                     });
@@ -225,7 +228,7 @@ export class ViemBlockchainService implements IBlockchainService {
                 if (current === newOdds) continue;
 
                 await this.walletClient.writeContract({
-                    account: this.account, chain: this.chain,
+                    chain: undefined,
                     address: addr, abi: FOOTBALL_MATCH_ABI,
                     functionName: 'setMarketOdds', args: [BigInt(id), newOdds],
                 });
