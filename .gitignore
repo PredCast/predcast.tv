@@ -7,3 +7,4 @@
 **/.env.*
 !**/.env.example
 **/.node_repl_history
+**/.turbo
