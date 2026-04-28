@@ -5,7 +5,7 @@ import { Button } from "./ui/button";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, Trophy, TvIcon, User, X } from "lucide-react";
+import { Compass, Menu, Trophy, TvIcon, User, X } from "lucide-react";
 import { useDynamicContext, DynamicConnectButton } from "@dynamic-labs/sdk-react-core";
 
 export function Header() {
@@ -44,6 +44,21 @@ export function Header() {
                     <nav className="hidden md:flex flex-row gap-[38px] items-center text-[16px]">
                         <button
                             className="flex items-center gap-2 text-white/70 hover:text-white transition-colors cursor-pointer"
+                            onClick={() => router.push("/browse")}
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                    router.push("/browse");
+                                }
+                            }}
+                        >
+                            <Compass />
+                            <span className="text-white/70 hover:text-white transition-colors cursor-pointer">
+                                Discover
+                            </span>
+                        </button>
+                        <button
+                            className="flex items-center gap-2 text-white/70 hover:text-white transition-colors cursor-pointer"
                             onClick={() => router.push("/live")}
                             tabIndex={0}
                             onKeyDown={(e) => {
@@ -52,7 +67,7 @@ export function Header() {
                                 }
                             }}
                         >
-                            <TvIcon /> 
+                            <TvIcon />
                             <span className="text-white/70 hover:text-white transition-colors cursor-pointer">
                                 Browse Matches
                             </span>
@@ -124,6 +139,15 @@ export function Header() {
                             transition={{ duration: 0.25 }}
                             className="md:hidden overflow-hidden flex flex-col gap-4 mt-4 text-white text-base"
                         >
+                            <button
+                                onClick={() => {
+                                    router.push("/browse");
+                                    setMenuOpen(false);
+                                }}
+                                className="text-white/80 hover:text-white text-left"
+                            >
+                                Discover
+                            </button>
                             <button
                                 onClick={() => {
                                     router.push("/live");
