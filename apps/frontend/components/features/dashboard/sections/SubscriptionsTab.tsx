@@ -104,7 +104,7 @@ export function SubscriptionsTab({
                     <TableCell className="text-white font-mono text-xs">
                       {sub.streamerAddress.slice(0, 6)}...{sub.streamerAddress.slice(-4)}
                     </TableCell>
-                    <TableCell className="text-white font-bold">{sub.amount} CHZ</TableCell>
+                    <TableCell className="text-white font-bold">{sub.amount} USDC</TableCell>
                     <TableCell className="text-white/80">
                       {formatDate(new Date(sub.startDate))}
                     </TableCell>

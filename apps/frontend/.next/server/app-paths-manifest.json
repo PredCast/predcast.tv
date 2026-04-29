@@ -1,0 +1,8 @@
+{
+  "/admin/page": "app/admin/page.js",
+  "/browse/page": "app/browse/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/leaderboard/page": "app/leaderboard/page.js",
+  "/verifying/page": "app/verifying/page.js",
+  "/waitlist/page": "app/waitlist/page.js"
+}

@@ -111,7 +111,7 @@ export default function StreamWalletButton({
             <div className="flex justify-between text-sm">
               <span className="text-gray-400">Total Revenue:</span>
               <span className="font-mono text-green-400">
-                {streamWalletAddress ? statistics.totalRevenue : '0'} CHZ
+                {streamWalletAddress ? statistics.totalRevenue : '0'} USDC
               </span>
             </div>
             
@@ -119,7 +119,7 @@ export default function StreamWalletButton({
             <div className="flex justify-between text-sm">
               <span className="text-gray-400">Total Withdrawn:</span>
               <span className="font-mono text-blue-400">
-                {streamWalletAddress ? statistics.totalWithdrawn : '0'} CHZ
+                {streamWalletAddress ? statistics.totalWithdrawn : '0'} USDC
               </span>
             </div>
             
@@ -127,7 +127,7 @@ export default function StreamWalletButton({
             <div className="flex justify-between text-sm">
               <span className="text-gray-400">Available Balance:</span>
               <span className="font-mono text-yellow-400 font-bold">
-                {streamWalletAddress ? statistics.availableBalance : '0'} CHZ
+                {streamWalletAddress ? statistics.availableBalance : '0'} USDC
               </span>
             </div>
             

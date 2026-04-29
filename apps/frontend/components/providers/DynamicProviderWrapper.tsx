@@ -86,7 +86,7 @@ export default function DynamicSolanaWalletProvider({ children }: Readonly<{ chi
                 router.push("/");
             },
             onAuthSuccess: () => {
-                router.push("/verifying");
+                router.push("/browse");
             }
         }
     };

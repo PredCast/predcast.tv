@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { getAllFanTokens } from "@/utils/FanTokens";
-import { MonthlyCashPrizePool } from "../../leaderboard/MonthlyCashPrizePool";
 import { LeaderboardHeader, AchievementBadges, PredictorCard, TokenHolderCard } from "./components";
 import { mockTopPredictors, mockTopTokenHolders } from "./utils";
 
@@ -15,7 +14,7 @@ const PERIOD_LABELS: Record<Period, string> = {
   all: "All Time",
 };
 
-const COL_PREDICTS = ["#", "Predictor", "Preds", "Win Rate", "Earned $CHZ", "Streak"];
+const COL_PREDICTS = ["#", "Predictor", "Preds", "Win Rate", "Earned USDC", "Streak"];
 const COL_TOKENS   = ["#", "Holder", "Tokens", "Portfolio"];
 
 export function Leaderboard() {
@@ -40,8 +39,6 @@ export function Leaderboard() {
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 py-12 sm:py-14 flex flex-col gap-10">
 
         <LeaderboardHeader />
-        <MonthlyCashPrizePool />
-        <AchievementBadges />
 
         {/* Controls row */}
         <div className="flex flex-wrap items-center justify-between gap-4 mt-2">
@@ -113,6 +110,8 @@ export function Leaderboard() {
                 ))}
           </div>
         </div>
+
+        <AchievementBadges />
 
       </div>
     </div>

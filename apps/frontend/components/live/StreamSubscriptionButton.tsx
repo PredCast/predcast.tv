@@ -149,7 +149,7 @@ export default function StreamSubscriptionButton({
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-400">Amount:</span>
                     <span className="font-mono text-purple-400">
-                      {subscription.amount} CHZ
+                      {subscription.amount} USDC
                     </span>
                   </div>
                 )}
@@ -195,7 +195,7 @@ export default function StreamSubscriptionButton({
                 placeholder="10"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Suggested: 10-50 CHZ per month
+                Suggested: 10-50 USDC per month
               </p>
             </div>
             

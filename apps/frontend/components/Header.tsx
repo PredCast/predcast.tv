@@ -5,7 +5,7 @@ import { Button } from "./ui/button";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Compass, Menu, Trophy, TvIcon, User, X } from "lucide-react";
+import { Compass, Menu, Settings, Trophy, TvIcon, User, X } from "lucide-react";
 import { useDynamicContext, DynamicConnectButton } from "@dynamic-labs/sdk-react-core";
 
 export function Header() {
@@ -96,6 +96,19 @@ export function Header() {
                                 </span>
                             </button>
                         )}
+                        <button
+                            className="flex items-center gap-2 text-white/70 hover:text-white transition-colors cursor-pointer"
+                            onClick={() => router.push("/admin")}
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") router.push("/admin");
+                            }}
+                        >
+                            <Settings />
+                            <span className="text-white/70 hover:text-white transition-colors cursor-pointer">
+                                Admin
+                            </span>
+                        </button>
                     </nav>
 
                     {/* Mobile Menu Toggle */}
@@ -177,6 +190,15 @@ export function Header() {
                                     Dashboard
                                 </button>
                             )}
+                            <button
+                                onClick={() => {
+                                    router.push("/admin");
+                                    setMenuOpen(false);
+                                }}
+                                className="text-white/80 hover:text-white text-left"
+                            >
+                                Admin
+                            </button>
                             <div className="border-t border-white/10 pt-4 flex flex-col gap-3">
                                 {!connected ? (
                                         <DynamicConnectButton>

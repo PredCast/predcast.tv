@@ -94,7 +94,7 @@ export function UserProfileCard({
                 <span className="text-white/20 text-xs">·</span>
                 <span className="flex items-center gap-1 text-xs text-white/50">
                   <Coins className="w-3 h-3 text-green-400" />
-                  <span className="text-white/80 font-medium">{totalRevenue} CHZ</span>
+                  <span className="text-white/80 font-medium">{totalRevenue} USDC</span>
                   <span>earned</span>
                 </span>
               </div>

@@ -1,32 +1,75 @@
 "use client";
 
-import { Lock, Zap, Clock, TrendingUp, ArrowRight } from "lucide-react";
+import { useState } from "react";
+import { formatUnits, type Address } from "viem";
+import { Lock, Zap, Activity, TrendingUp, ArrowRight } from "lucide-react";
+import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
+import { useLiquidityPool } from "@/hooks/useLiquidityPool";
+import { chilizConfig } from "@/config/chiliz.config";
+import { PoolDepositDialog } from "./PoolDepositDialog";
 
-const METRICS = [
-  {
-    icon: Lock,
-    label: "Wallets Locked",
-    value: "—",
-    sub: "On-chain",
-  },
-  {
-    icon: Clock,
-    label: "Bets to Resolve",
-    value: "—",
-    sub: "Pending",
-  },
-  {
-    icon: TrendingUp,
-    label: "Pool Growth",
-    value: "—",
-    sub: "This month",
-  },
-];
+const USDC_DECIMALS = 6;
+
+function formatUsdc(value: bigint | undefined, fractionDigits = 0): string {
+  if (value === undefined) return "—";
+  const n = Number(formatUnits(value, USDC_DECIMALS));
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return n.toLocaleString("en-US", {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  });
+}
+
+function formatUtilization(util: bigint | undefined): string {
+  if (util === undefined) return "—";
+  const pct = Number(util) / 1e16;
+  return `${pct.toFixed(1)}%`;
+}
+
+function formatBps(bps: number | undefined): string {
+  if (bps === undefined) return "—";
+  return `${(bps / 100).toFixed(2)}%`;
+}
 
 export function PoolStatsSection() {
+  const poolAddress = chilizConfig.liquidityPool;
+  const { primaryWallet } = useDynamicContext();
+  const userAddress = primaryWallet?.address as Address | undefined;
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const { stats, isLoadingStats } = useLiquidityPool(poolAddress, userAddress);
+
+  const poolUnconfigured =
+    poolAddress === "0x0000000000000000000000000000000000000000";
+
+  const tvl = formatUsdc(stats.totalAssets, 0);
+  const liabilities = formatUsdc(stats.totalLiabilities, 0);
+  const free = formatUsdc(stats.freeBalance, 0);
+
+  const metrics = [
+    {
+      icon: Lock,
+      label: "Locked Liability",
+      value: poolUnconfigured ? "—" : isLoadingStats ? "…" : liabilities,
+      sub: "Open bets",
+    },
+    {
+      icon: Activity,
+      label: "Utilization",
+      value: poolUnconfigured ? "—" : isLoadingStats ? "…" : formatUtilization(stats.utilization),
+      sub: "Of TVL",
+    },
+    {
+      icon: TrendingUp,
+      label: "Free Balance",
+      value: poolUnconfigured ? "—" : isLoadingStats ? "…" : free,
+      sub: "Available",
+    },
+  ];
+
   return (
     <section>
-      {/* Section title */}
       <div className="flex items-center gap-3 mb-5">
         <div className="w-1 h-6 rounded-full flex-shrink-0" style={{ background: "#E8001D" }} />
         <h2
@@ -35,6 +78,14 @@ export function PoolStatsSection() {
         >
           Pool
         </h2>
+        {stats.isPaused && (
+          <span
+            className="text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-[0.1em]"
+            style={{ background: "rgba(245,197,24,0.12)", color: "#F5C518" }}
+          >
+            Paused
+          </span>
+        )}
       </div>
 
       <div
@@ -45,7 +96,6 @@ export function PoolStatsSection() {
           boxShadow: "0 0 48px rgba(232,0,29,0.06)",
         }}
       >
-        {/* Top band — red accent line */}
         <div className="h-[2px]" style={{ background: "linear-gradient(90deg, #E8001D 0%, transparent 60%)" }} />
 
         <div className="flex flex-col lg:flex-row">
@@ -72,7 +122,7 @@ export function PoolStatsSection() {
                   fontFamily: "'JetBrains Mono', monospace",
                 }}
               >
-                —
+                {poolUnconfigured ? "—" : isLoadingStats ? "…" : `$${tvl}`}
               </div>
               <div className="flex items-center gap-2 mt-3">
                 <div
@@ -84,40 +134,46 @@ export function PoolStatsSection() {
                     className="text-[11px] font-bold"
                     style={{ color: "#F5C518", fontFamily: "'JetBrains Mono', monospace" }}
                   >
-                    APY —
+                    Fee {formatBps(stats.protocolFeeBps)}
                   </span>
                 </div>
-                <span className="text-[11px]" style={{ color: "#555" }}>Rolling 30d</span>
+                <span className="text-[11px]" style={{ color: "#555" }}>Protocol</span>
               </div>
             </div>
 
-            {/* CTA */}
             <button
+              onClick={() => setDialogOpen(true)}
+              disabled={poolUnconfigured}
               className="mt-8 w-full flex items-center justify-center gap-2 py-3 rounded text-[13px] font-bold tracking-[0.08em] uppercase transition-all duration-150 group"
-              style={{ background: "#E8001D", color: "#fff" }}
+              style={{
+                background: poolUnconfigured ? "#3A3A3A" : "#E8001D",
+                color: "#fff",
+                cursor: poolUnconfigured ? "not-allowed" : "pointer",
+              }}
               onMouseEnter={(e) => {
+                if (poolUnconfigured) return;
                 const b = e.currentTarget as HTMLButtonElement;
                 b.style.background = "#B0001A";
                 b.style.transform = "translateY(-1px)";
                 b.style.boxShadow = "0 4px 20px rgba(232,0,29,0.35)";
               }}
               onMouseLeave={(e) => {
+                if (poolUnconfigured) return;
                 const b = e.currentTarget as HTMLButtonElement;
                 b.style.background = "#E8001D";
                 b.style.transform = "translateY(0)";
                 b.style.boxShadow = "none";
               }}
             >
-              Join the Pool
-              <ArrowRight size={14} />
+              {poolUnconfigured ? "Pool unavailable" : "Join the Pool"}
+              {!poolUnconfigured && <ArrowRight size={14} />}
             </button>
           </div>
 
           {/* RIGHT — Metrics + description */}
           <div className="flex flex-col justify-between p-6 lg:p-8 flex-1">
-            {/* Metrics row */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-0">
-              {METRICS.map(({ icon: Icon, label, value, sub }, i) => (
+              {metrics.map(({ icon: Icon, label, value, sub }, i) => (
                 <div
                   key={label}
                   className="flex items-start gap-3 sm:px-6"
@@ -152,7 +208,6 @@ export function PoolStatsSection() {
               ))}
             </div>
 
-            {/* Divider + description */}
             <div
               className="mt-6 pt-5"
               style={{ borderTop: "1px solid #1E1E1E" }}
@@ -162,7 +217,7 @@ export function PoolStatsSection() {
                 no transaction fees, no middleman. Pure on-chain mechanics.
               </p>
               <div className="flex flex-wrap gap-4 mt-4">
-                {["No lock-up period", "100% on-chain", "CHZ-native yield"].map((tag) => (
+                {["No lock-up period", "100% on-chain", "USDC yield"].map((tag) => (
                   <span
                     key={tag}
                     className="text-[10px] font-semibold tracking-[0.08em] uppercase px-2.5 py-1 rounded"
@@ -180,6 +235,8 @@ export function PoolStatsSection() {
           </div>
         </div>
       </div>
+
+      <PoolDepositDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />
     </section>
   );
 }
