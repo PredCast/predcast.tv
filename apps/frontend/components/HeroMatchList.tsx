@@ -65,7 +65,7 @@ function TeamBadge({ name, logoUrl, side }: { name: string; logoUrl?: string; si
   );
 }
 
-export function HeroMatchList() {
+export function HeroMatchList({ vertical = false }: { vertical?: boolean }) {
   const router = useRouter();
   const { data: liveMatches = [], isLoading: liveLoading } = useLiveMatches();
   const { data: upcomingMatches = [], isLoading: upcomingLoading } = useUpcomingMatches();
@@ -89,7 +89,7 @@ export function HeroMatchList() {
   if (liveLoading || upcomingLoading) {
     return (
       <div
-        className="w-full max-w-6xl mx-auto rounded-2xl border border-white/10 py-8 flex items-center justify-center"
+        className="w-full rounded-2xl border border-white/10 py-8 flex items-center justify-center"
         style={{ fontFamily: "Lexend, sans-serif" }}
       >
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -100,8 +100,8 @@ export function HeroMatchList() {
   if (displayMatches.length === 0) return null;
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-1" style={{ fontFamily: "Lexend, sans-serif" }}>
-      <div className="flex items-center gap-2 text-white font-semibold text-sm mb-4 justify-center">
+    <div className="w-full px-1" style={{ fontFamily: "Lexend, sans-serif" }}>
+      <div className={`flex items-center gap-2 text-white font-semibold text-sm mb-4 ${vertical ? "" : "justify-center"}`}>
         {isLiveMode ? (
           <>
             <Zap className="w-4 h-4 text-red-400 animate-pulse" />
@@ -115,7 +115,7 @@ export function HeroMatchList() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className={vertical ? "flex flex-col gap-4" : "grid grid-cols-1 sm:grid-cols-3 gap-4"}>
         {displayMatches.map((match) => {
           const displayStatus = getMatchStatus(match);
           const cfg = getStatusConfig(displayStatus);

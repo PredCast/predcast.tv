@@ -32,7 +32,7 @@ import {
   BETTING_LIMITS,
   MARKET_NAMES,
 } from "./utils";
-import { formatUSDValue, formatCHZPrice, convertUSDtoCHZ } from "@/lib/utils/formatting/price";
+import { formatUSDValue, convertUSDtoCHZ } from "@/lib/utils/formatting/price";
 import { formatDecimal } from "@/lib/utils/formatting/number";
 
 interface DynamicUserExtended {
@@ -515,7 +515,7 @@ export default function PredictionsDialog({
 
             <div className="space-y-3">
               <label className="text-sm font-medium text-gray-300">
-                Bet Amount (USD)
+                Bet Amount (USDC)
                 <span className="text-xs text-gray-500 ml-2">
                   Min: ${BETTING_LIMITS.MIN_BET}
                 </span>
@@ -546,10 +546,7 @@ export default function PredictionsDialog({
                 ))}
               </div>
               <p className="text-sm text-gray-400 text-center">
-                Balance: {formatUSDValue(maxAmount)} USD
-                {chzPrice && balanceData && (
-                  <span className="ml-2">({formatCHZPrice(Number(balanceData.formatted))})</span>
-                )}
+                Balance: {formatUSDValue(maxAmount)} USDC
               </p>
             </div>
           </div>

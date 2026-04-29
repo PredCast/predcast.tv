@@ -15,7 +15,7 @@ export function StreamerSection({ userId, walletAddress }: StreamerSectionProps)
 
   const stats = statsData?.stats;
   const totalSubscribers = stats?.totalSubscribers ?? 0;
-  const totalRevenue = stats ? `${parseFloat(stats.totalRevenue || "0").toFixed(2)} CHZ` : "0 CHZ";
+  const totalRevenue = stats ? `${parseFloat(stats.totalRevenue || "0").toFixed(2)} USDC` : "0 USDC";
 
   return (
     <div className="mb-6">

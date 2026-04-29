@@ -90,7 +90,7 @@ export function PredictorCard({ predictor, tokenLogo }: PredictorCardProps) {
           <div className="font-mono text-[13px] font-bold" style={{ color: "#F5C518", fontFamily: "'JetBrains Mono', monospace" }}>
             +{predictor.totalWinnings.toLocaleString()}
           </div>
-          <div className="text-[9px] uppercase tracking-[0.08em]" style={{ color: "#555" }}>$CHZ</div>
+          <div className="text-[9px] uppercase tracking-[0.08em]" style={{ color: "#555" }}>USDC</div>
         </div>
 
         {/* Streak */}
@@ -107,7 +107,7 @@ export function PredictorCard({ predictor, tokenLogo }: PredictorCardProps) {
         <div className="font-mono text-[13px] font-bold" style={{ color: "#F5C518", fontFamily: "'JetBrains Mono', monospace" }}>
           +{predictor.totalWinnings.toLocaleString()}
         </div>
-        <div className="text-[10px]" style={{ color: "#555" }}>$CHZ</div>
+        <div className="text-[10px]" style={{ color: "#555" }}>USDC</div>
       </div>
     </div>
   );

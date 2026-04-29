@@ -108,18 +108,6 @@ export function DiscoverPage() {
         {/* Pool */}
         <PoolStatsSection />
 
-        {/* Top Streamers */}
-        {topStreams.length > 0 && (
-          <section>
-            <SectionTitle>Top Streamers</SectionTitle>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {topStreams.map((s) => (
-                <StreamCard key={s.streamId} stream={s} />
-              ))}
-            </div>
-          </section>
-        )}
-
         {/* Matches */}
         <section>
           <SectionTitle>Matches</SectionTitle>
@@ -163,6 +151,18 @@ export function DiscoverPage() {
             </div>
           )}
         </section>
+
+        {/* Top Streamers */}
+        {topStreams.length > 0 && (
+          <section>
+            <SectionTitle>Top Streamers</SectionTitle>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {topStreams.map((s) => (
+                <StreamCard key={s.streamId} stream={s} />
+              ))}
+            </div>
+          </section>
+        )}
 
       </div>
     </div>

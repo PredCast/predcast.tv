@@ -91,7 +91,7 @@ export function TransactionsTab({
                       <TableCell className="text-white/80 font-mono text-xs">
                         {streamerAddr?.slice(0, 6)}...{streamerAddr?.slice(-4)}
                       </TableCell>
-                      <TableCell className="text-white font-bold">{item.data.amount} CHZ</TableCell>
+                      <TableCell className="text-white font-bold">{item.data.amount} USDC</TableCell>
                       <TableCell className="text-white/60 font-mono text-xs">
                         {txHash && (
                           <a
