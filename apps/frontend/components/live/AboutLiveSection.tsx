@@ -1,33 +1,51 @@
 "use client";
 
-import { Heart } from "lucide-react";
-import { formatLargeNumber } from "@/lib/utils/formatting/number";
+import { useState } from "react";
+import { Heart, Gift, Star } from "lucide-react";
+import type { Address } from "viem";
 import { useIsFollowing, useFollowMutation, useUnfollowMutation } from "@/hooks/api";
+import { MatchMarketsList } from "./MatchMarketsList";
+import { StreamerSchedule, type ScheduledStream } from "./StreamerSchedule";
+
+type Tab = "markets" | "schedule";
 
 interface AboutLiveSectionProps {
   streamerId?: string;
   streamerName: string;
   title?: string;
-  predictionsCount: number;
-  messagesCount: number;
   currentUserId?: string;
-  showAd?: boolean;
+  bettingContractAddress?: Address;
+  walletAddress?: string;
+  homeTeam?: string;
+  awayTeam?: string;
+  streamerSchedule?: ScheduledStream[];
+  onDonate?: () => void;
+  onSubscribe?: () => void;
+  /** When true, donate/subscribe affordances are hidden (own stream / no streamer). */
+  hideStreamerActions?: boolean;
 }
 
 export function AboutLiveSection({
   streamerId,
   streamerName,
   title,
-  predictionsCount,
-  messagesCount,
   currentUserId,
-  showAd = true,
+  bettingContractAddress,
+  walletAddress,
+  homeTeam,
+  awayTeam,
+  streamerSchedule,
+  onDonate,
+  onSubscribe,
+  hideStreamerActions = false,
 }: AboutLiveSectionProps) {
+  const [activeTab, setActiveTab] = useState<Tab>("markets");
+
   const canFollow = !!currentUserId && !!streamerId && currentUserId !== streamerId;
 
   const { data: isFollowing, isLoading: isLoadingFollow } = useIsFollowing(
     canFollow ? currentUserId : undefined,
-    canFollow ? streamerId : undefined
+    canFollow ? streamerId : undefined,
   );
 
   const followMutation = useFollowMutation(currentUserId);
@@ -45,69 +63,153 @@ export function AboutLiveSection({
   const isMutating = followMutation.isPending || unfollowMutation.isPending;
   const initial = streamerName.charAt(0).toUpperCase();
 
-  return (
-    <div className="w-full space-y-4">
+  const tabs: { key: Tab; label: string }[] = [
+    { key: "markets", label: "Markets" },
+    { key: "schedule", label: "Schedule" },
+  ];
 
-      {/* Streamer header row */}
-      <div className="flex items-center gap-3">
-        {/* Avatar */}
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-white font-bold text-base flex-shrink-0">
+  return (
+    <div
+      className="w-full rounded-lg overflow-hidden"
+      style={{ background: "#141414", border: "1px solid #2A2A2A" }}
+    >
+      {/* Streamer row */}
+      <div className="flex items-center gap-3 p-4">
+        <div
+          className="w-10 h-10 rounded-full flex items-center justify-center text-[15px] font-bold flex-shrink-0"
+          style={{
+            background: "#1E1E1E",
+            border: "1px solid #2A2A2A",
+            color: "#fff",
+            fontFamily: "'Barlow Condensed', sans-serif",
+          }}
+        >
           {initial}
         </div>
 
-        {/* Name + title */}
         <div className="flex-1 min-w-0">
-          <span className="text-white font-semibold text-sm">@{streamerName}</span>
+          <div
+            className="text-[14px] font-bold truncate"
+            style={{ color: "#fff", fontFamily: "'Barlow', sans-serif" }}
+          >
+            @{streamerName}
+          </div>
           {title && (
-            <p className="text-gray-400 text-xs italic truncate mt-0.5">{title}</p>
+            <p
+              className="text-[12px] truncate mt-0.5"
+              style={{ color: "#888", fontFamily: "'Barlow', sans-serif" }}
+            >
+              {title}
+            </p>
           )}
         </div>
 
-        {/* Follow button */}
-        <button
-          onClick={handleFollowClick}
-          disabled={!canFollow || isLoadingFollow || isMutating}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all duration-200 flex-shrink-0 ${
-            !canFollow
-              ? "bg-transparent border-gray-700 text-gray-600 cursor-default"
-              : isFollowing
-              ? "bg-red-500/20 border-red-500/60 text-red-400 hover:bg-red-500/10"
-              : "bg-transparent border-gray-600 text-gray-300 hover:border-gray-400 hover:text-white"
-          }`}
-        >
-          <Heart
-            className="w-3 h-3"
-            fill={isFollowing ? "currentColor" : "none"}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {!hideStreamerActions && onDonate && (
+            <button
+              onClick={onDonate}
+              aria-label="Send a donation"
+              className="w-9 h-9 rounded flex items-center justify-center transition-colors duration-150"
+              style={{ background: "#1E1E1E", border: "1px solid #2A2A2A", color: "#888" }}
+              onMouseEnter={(e) => {
+                const el = e.currentTarget;
+                el.style.borderColor = "#E8001D";
+                el.style.color = "#E8001D";
+              }}
+              onMouseLeave={(e) => {
+                const el = e.currentTarget;
+                el.style.borderColor = "#2A2A2A";
+                el.style.color = "#888";
+              }}
+            >
+              <Gift size={14} />
+            </button>
+          )}
+          {!hideStreamerActions && onSubscribe && (
+            <button
+              onClick={onSubscribe}
+              aria-label="Subscribe"
+              className="w-9 h-9 rounded flex items-center justify-center transition-colors duration-150"
+              style={{ background: "#1E1E1E", border: "1px solid #2A2A2A", color: "#888" }}
+              onMouseEnter={(e) => {
+                const el = e.currentTarget;
+                el.style.borderColor = "#F5C518";
+                el.style.color = "#F5C518";
+              }}
+              onMouseLeave={(e) => {
+                const el = e.currentTarget;
+                el.style.borderColor = "#2A2A2A";
+                el.style.color = "#888";
+              }}
+            >
+              <Star size={14} />
+            </button>
+          )}
+          <button
+            onClick={handleFollowClick}
+            disabled={!canFollow || isLoadingFollow || isMutating}
+            className="flex items-center gap-1.5 px-3 h-9 rounded text-[11px] font-bold tracking-[0.08em] uppercase transition-colors duration-150"
+            style={{
+              background: !canFollow
+                ? "#1E1E1E"
+                : isFollowing
+                  ? "rgba(232,0,29,0.12)"
+                  : "#E8001D",
+              border: !canFollow
+                ? "1px solid #2A2A2A"
+                : isFollowing
+                  ? "1px solid rgba(232,0,29,0.4)"
+                  : "1px solid #E8001D",
+              color: !canFollow ? "#555" : isFollowing ? "#E8001D" : "#fff",
+              cursor: canFollow ? "pointer" : "default",
+              fontFamily: "'Barlow', sans-serif",
+            }}
+          >
+            <Heart size={12} fill={isFollowing ? "currentColor" : "none"} />
+            {isFollowing ? "Following" : "Follow"}
+          </button>
+        </div>
+      </div>
+
+      {/* Tab strip */}
+      <div className="flex" style={{ borderTop: "1px solid #2A2A2A" }}>
+        {tabs.map((t) => {
+          const isActive = activeTab === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setActiveTab(t.key)}
+              className="flex-1 px-4 py-3 text-[11px] font-bold tracking-[0.1em] uppercase transition-colors duration-150"
+              style={{
+                color: isActive ? "#fff" : "#888",
+                background: isActive ? "#0F0F0F" : "transparent",
+                borderBottom: `2px solid ${isActive ? "#E8001D" : "transparent"}`,
+                fontFamily: "'Barlow', sans-serif",
+              }}
+            >
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Tab content */}
+      <div style={{ borderTop: "1px solid #1E1E1E" }}>
+        {activeTab === "markets" ? (
+          <MatchMarketsList
+            contractAddress={bettingContractAddress}
+            walletAddress={walletAddress}
+            homeTeam={homeTeam}
+            awayTeam={awayTeam}
           />
-          {isFollowing ? "Following" : "Follow"}
-        </button>
+        ) : (
+          <StreamerSchedule
+            streamerId={streamerId}
+            streamerName={streamerName}
+            schedule={streamerSchedule}
+          />
+        )}
       </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-gradient-to-br from-green-900/30 to-green-800/20 rounded-lg p-3 border border-green-500/20">
-          <div className="text-green-400 text-xs font-medium">Live Predictions</div>
-          <div className="text-white text-lg font-bold">{formatLargeNumber(predictionsCount)}</div>
-        </div>
-        <div className="bg-gradient-to-br from-blue-900/30 to-blue-800/20 rounded-lg p-3 border border-blue-500/20">
-          <div className="text-blue-400 text-xs font-medium">Chat Messages</div>
-          <div className="text-white text-lg font-bold">{formatLargeNumber(messagesCount)}</div>
-        </div>
-      </div>
-
-      {/* Ad Placeholder */}
-      {showAd && (
-        <div className="w-full h-20 bg-gradient-to-r from-gray-800 to-gray-700 rounded-lg border-2 border-dashed border-gray-600 flex items-center justify-center hover:border-gray-500 transition-colors cursor-pointer group">
-          <div className="text-center">
-            <div className="text-gray-400 text-sm font-medium group-hover:text-gray-300 transition-colors">
-              Insert your ad here
-            </div>
-            <div className="text-gray-500 text-xs mt-1 group-hover:text-gray-400 transition-colors">
-              400x80px • Contact us for advertising
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ChevronDown, Eye } from "lucide-react";
 import StreamSelector from "./StreamSelector";
 import type { LiveStream } from "@/models/stream.model";
 
@@ -36,25 +35,38 @@ export function BrowseLivesCollapsible({
 
   return (
     <div className="w-full">
-      {/* Trigger Button */}
-      <Button
+      <button
         onClick={() => setIsOpen(!isOpen)}
-        variant="outline"
-        className="w-auto flex items-center gap-2 bg-gray-900 hover:bg-gray-800 border-gray-700"
+        className="flex items-center gap-2 h-9 px-3 rounded text-[11px] font-bold tracking-[0.08em] uppercase transition-colors duration-150"
+        style={{
+          background: isOpen ? "#1E1E1E" : "transparent",
+          border: "1px solid #2A2A2A",
+          color: "#fff",
+          fontFamily: "'Barlow', sans-serif",
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.borderColor = "#3A3A3A";
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.borderColor = "#2A2A2A";
+        }}
       >
-        <span>Browse Lives</span>
-        {isOpen ? (
-          <ChevronUp className="w-4 h-4" />
-        ) : (
-          <ChevronDown className="w-4 h-4" />
-        )}
-      </Button>
+        <Eye size={12} />
+        <span>Browse streams</span>
+        <ChevronDown
+          size={12}
+          style={{
+            transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform 150ms",
+          }}
+        />
+      </button>
 
       {/*
         StreamSelector is always mounted so auto-selection runs on page load.
         Its visual output is hidden until the user opens the collapsible.
       */}
-      <div className={isOpen ? "mt-4" : "hidden"}>
+      <div className={isOpen ? "mt-3" : "hidden"}>
         <StreamSelector
           matchId={matchId}
           selectedStreamId={selectedStreamId}
@@ -63,7 +75,7 @@ export function BrowseLivesCollapsible({
           onOwnStreamDetected={onOwnStreamDetected}
           onStreamSelect={(stream) => {
             onStreamSelect(stream);
-            setIsOpen(false); // Auto-close on selection
+            setIsOpen(false);
           }}
         />
       </div>
