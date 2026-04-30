@@ -1,8 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ChevronDown, ChevronUp, Square, Video } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ChevronDown, Square, Video } from "lucide-react";
 import StreamManager from "./StreamManager";
 import { motion, AnimatePresence } from "framer-motion";
 import { LiveStream } from "@/models/stream.model";
@@ -30,37 +29,48 @@ export function StartStreamCollapsible({
   return (
     <div className="w-full">
       {isStreaming ? (
-        <Button
+        <button
           onClick={() => endStreamRef.current?.()}
-          variant="destructive"
-          className="w-auto flex items-center gap-2 bg-red-600 hover:bg-red-700 border-red-500 text-white"
+          className="flex items-center gap-2 h-9 px-3 rounded text-[11px] font-bold tracking-[0.08em] uppercase transition-colors duration-150"
+          style={{
+            background: "rgba(232,0,29,0.12)",
+            border: "1px solid #E8001D",
+            color: "#E8001D",
+            fontFamily: "'Barlow', sans-serif",
+          }}
         >
-          <Square className="w-4 h-4" />
-          <span>End Stream</span>
-        </Button>
+          <Square size={12} />
+          <span>End stream</span>
+        </button>
       ) : (
-        <Button
+        <button
           onClick={() => setIsOpen(!isOpen)}
-          variant="outline"
-          className="w-auto flex items-center gap-2 bg-blue-600 hover:bg-blue-700 border-blue-500 text-white"
+          className="flex items-center gap-2 h-9 px-3 rounded text-[11px] font-bold tracking-[0.08em] uppercase transition-colors duration-150"
+          style={{
+            background: "#E8001D",
+            border: "1px solid #E8001D",
+            color: "#fff",
+            fontFamily: "'Barlow', sans-serif",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = "#B0001A";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = "#E8001D";
+          }}
         >
-          <Video className="w-4 h-4" />
-          <span>Start Your Stream</span>
-          {isOpen ? (
-            <ChevronUp className="w-4 h-4" />
-          ) : (
-            <ChevronDown className="w-4 h-4" />
-          )}
-        </Button>
+          <Video size={12} />
+          <span>Go live</span>
+          <ChevronDown
+            size={12}
+            style={{
+              transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+              transition: "transform 150ms",
+            }}
+          />
+        </button>
       )}
 
-      {/*
-       * StreamManager is kept mounted while isManagerMounted is true.
-       * When streaming starts, the panel animates to height 0 (hidden) without
-       * unmounting, so the WebRTC connection stays alive.
-       * When the user closes the collapsible without streaming, AnimatePresence
-       * plays the exit animation then unmounts normally.
-       */}
       <AnimatePresence>
         {isManagerMounted && (
           <motion.div
@@ -73,7 +83,7 @@ export function StartStreamCollapsible({
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="mt-4">
+            <div className="mt-3">
               <StreamManager
                 matchId={matchId}
                 portalTarget={portalTarget}

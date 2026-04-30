@@ -3480,3 +3480,116 @@ export const useStreamWalletFactoryWatchTreasuryUpdated =
     abi: streamWalletFactoryAbi,
     eventName: 'TreasuryUpdated',
   })
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// LiquidityPool
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const liquidityPoolAbi = [
+  { type: 'function', name: 'acceptTreasury', inputs: [], outputs: [], stateMutability: 'nonpayable' },
+  { type: 'function', name: 'accruedTreasury', inputs: [], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'asset', inputs: [], outputs: [{ name: '', type: 'address', internalType: 'address' }], stateMutability: 'view' },
+  { type: 'function', name: 'authorizeMatch', inputs: [{ name: 'bettingMatch', type: 'address', internalType: 'address' }], outputs: [], stateMutability: 'nonpayable' },
+  { type: 'function', name: 'balanceOf', inputs: [{ name: 'account', type: 'address', internalType: 'address' }], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'cancelTreasuryProposal', inputs: [], outputs: [], stateMutability: 'nonpayable' },
+  { type: 'function', name: 'convertToAssets', inputs: [{ name: 'shares', type: 'uint256', internalType: 'uint256' }], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'convertToShares', inputs: [{ name: 'assets', type: 'uint256', internalType: 'uint256' }], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'deposit', inputs: [{ name: 'assets', type: 'uint256', internalType: 'uint256' }, { name: 'receiver', type: 'address', internalType: 'address' }], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'nonpayable' },
+  { type: 'function', name: 'depositCooldownSeconds', inputs: [], outputs: [{ name: '', type: 'uint48', internalType: 'uint48' }], stateMutability: 'view' },
+  { type: 'function', name: 'freeBalance', inputs: [], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'grantRole', inputs: [{ name: 'role', type: 'bytes32', internalType: 'bytes32' }, { name: 'account', type: 'address', internalType: 'address' }], outputs: [], stateMutability: 'nonpayable' },
+  { type: 'function', name: 'hasRole', inputs: [{ name: 'role', type: 'bytes32', internalType: 'bytes32' }, { name: 'account', type: 'address', internalType: 'address' }], outputs: [{ name: '', type: 'bool', internalType: 'bool' }], stateMutability: 'view' },
+  { type: 'function', name: 'lastDepositAt', inputs: [{ name: 'holder', type: 'address', internalType: 'address' }], outputs: [{ name: '', type: 'uint48', internalType: 'uint48' }], stateMutability: 'view' },
+  { type: 'function', name: 'marketLiability', inputs: [{ name: 'bettingMatch', type: 'address', internalType: 'address' }, { name: 'marketId', type: 'uint256', internalType: 'uint256' }], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'matchLiability', inputs: [{ name: 'bettingMatch', type: 'address', internalType: 'address' }], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'maxBetAmount', inputs: [], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'maxLiabilityPerMarketBps', inputs: [], outputs: [{ name: '', type: 'uint16', internalType: 'uint16' }], stateMutability: 'view' },
+  { type: 'function', name: 'maxLiabilityPerMatchBps', inputs: [], outputs: [{ name: '', type: 'uint16', internalType: 'uint16' }], stateMutability: 'view' },
+  { type: 'function', name: 'mint', inputs: [{ name: 'shares', type: 'uint256', internalType: 'uint256' }, { name: 'receiver', type: 'address', internalType: 'address' }], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'nonpayable' },
+  { type: 'function', name: 'name', inputs: [], outputs: [{ name: '', type: 'string', internalType: 'string' }], stateMutability: 'view' },
+  { type: 'function', name: 'pause', inputs: [], outputs: [], stateMutability: 'nonpayable' },
+  { type: 'function', name: 'paused', inputs: [], outputs: [{ name: '', type: 'bool', internalType: 'bool' }], stateMutability: 'view' },
+  { type: 'function', name: 'previewDeposit', inputs: [{ name: 'assets', type: 'uint256', internalType: 'uint256' }], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'previewMint', inputs: [{ name: 'shares', type: 'uint256', internalType: 'uint256' }], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'previewRedeem', inputs: [{ name: 'shares', type: 'uint256', internalType: 'uint256' }], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'previewWithdraw', inputs: [{ name: 'assets', type: 'uint256', internalType: 'uint256' }], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'proposeTreasury', inputs: [{ name: 'newTreasury', type: 'address', internalType: 'address' }], outputs: [], stateMutability: 'nonpayable' },
+  { type: 'function', name: 'protocolFeeBps', inputs: [], outputs: [{ name: '', type: 'uint16', internalType: 'uint16' }], stateMutability: 'view' },
+  { type: 'function', name: 'redeem', inputs: [{ name: 'shares', type: 'uint256', internalType: 'uint256' }, { name: 'receiver', type: 'address', internalType: 'address' }, { name: 'owner', type: 'address', internalType: 'address' }], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'nonpayable' },
+  { type: 'function', name: 'revokeMatch', inputs: [{ name: 'bettingMatch', type: 'address', internalType: 'address' }], outputs: [], stateMutability: 'nonpayable' },
+  { type: 'function', name: 'revokeRole', inputs: [{ name: 'role', type: 'bytes32', internalType: 'bytes32' }, { name: 'account', type: 'address', internalType: 'address' }], outputs: [], stateMutability: 'nonpayable' },
+  { type: 'function', name: 'setDepositCooldownSeconds', inputs: [{ name: 'newSeconds', type: 'uint48', internalType: 'uint48' }], outputs: [], stateMutability: 'nonpayable' },
+  { type: 'function', name: 'setMaxBetAmount', inputs: [{ name: 'newMax', type: 'uint256', internalType: 'uint256' }], outputs: [], stateMutability: 'nonpayable' },
+  { type: 'function', name: 'setMaxLiabilityPerMarketBps', inputs: [{ name: 'newBps', type: 'uint16', internalType: 'uint16' }], outputs: [], stateMutability: 'nonpayable' },
+  { type: 'function', name: 'setMaxLiabilityPerMatchBps', inputs: [{ name: 'newBps', type: 'uint16', internalType: 'uint16' }], outputs: [], stateMutability: 'nonpayable' },
+  { type: 'function', name: 'setProtocolFeeBps', inputs: [{ name: 'newBps', type: 'uint16', internalType: 'uint16' }], outputs: [], stateMutability: 'nonpayable' },
+  { type: 'function', name: 'symbol', inputs: [], outputs: [{ name: '', type: 'string', internalType: 'string' }], stateMutability: 'view' },
+  { type: 'function', name: 'totalAssets', inputs: [], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'totalLiabilities', inputs: [], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'totalSupply', inputs: [], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'treasury', inputs: [], outputs: [{ name: '', type: 'address', internalType: 'address' }], stateMutability: 'view' },
+  { type: 'function', name: 'treasuryWithdrawable', inputs: [], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'unpause', inputs: [], outputs: [], stateMutability: 'nonpayable' },
+  { type: 'function', name: 'utilization', inputs: [], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
+  { type: 'function', name: 'withdraw', inputs: [{ name: 'assets', type: 'uint256', internalType: 'uint256' }, { name: 'receiver', type: 'address', internalType: 'address' }, { name: 'owner', type: 'address', internalType: 'address' }], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'nonpayable' },
+  { type: 'function', name: 'withdrawTreasury', inputs: [{ name: 'amount', type: 'uint256', internalType: 'uint256' }], outputs: [], stateMutability: 'nonpayable' },
+  // UUPS proxy functions
+  { type: 'function', name: 'UPGRADE_INTERFACE_VERSION', inputs: [], outputs: [{ name: '', type: 'string', internalType: 'string' }], stateMutability: 'view' },
+  { type: 'function', name: 'proxiableUUID', inputs: [], outputs: [{ name: '', type: 'bytes32', internalType: 'bytes32' }], stateMutability: 'view' },
+  { type: 'function', name: 'pendingTreasury', inputs: [], outputs: [{ name: '', type: 'address', internalType: 'address' }], stateMutability: 'view' },
+  { type: 'function', name: 'upgradeToAndCall', inputs: [{ name: 'newImplementation', type: 'address', internalType: 'address' }, { name: 'data', type: 'bytes', internalType: 'bytes' }], outputs: [], stateMutability: 'payable' },
+] as const
+
+// ─── Read hooks ───────────────────────────────────────────────────────────────
+
+export const useLiquidityPoolReadTotalAssets = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'totalAssets' })
+export const useLiquidityPoolReadFreeBalance = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'freeBalance' })
+export const useLiquidityPoolReadTotalLiabilities = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'totalLiabilities' })
+export const useLiquidityPoolReadUtilization = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'utilization' })
+export const useLiquidityPoolReadTotalSupply = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'totalSupply' })
+export const useLiquidityPoolReadBalanceOf = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'balanceOf' })
+export const useLiquidityPoolReadProtocolFeeBps = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'protocolFeeBps' })
+export const useLiquidityPoolReadMaxBetAmount = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'maxBetAmount' })
+export const useLiquidityPoolReadMaxLiabilityPerMarketBps = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'maxLiabilityPerMarketBps' })
+export const useLiquidityPoolReadMaxLiabilityPerMatchBps = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'maxLiabilityPerMatchBps' })
+export const useLiquidityPoolReadDepositCooldownSeconds = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'depositCooldownSeconds' })
+export const useLiquidityPoolReadPaused = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'paused' })
+export const useLiquidityPoolReadTreasury = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'treasury' })
+export const useLiquidityPoolReadAccruedTreasury = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'accruedTreasury' })
+export const useLiquidityPoolReadTreasuryWithdrawable = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'treasuryWithdrawable' })
+export const useLiquidityPoolReadAsset = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'asset' })
+export const useLiquidityPoolReadPreviewDeposit = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'previewDeposit' })
+export const useLiquidityPoolReadPreviewWithdraw = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'previewWithdraw' })
+export const useLiquidityPoolReadPreviewRedeem = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'previewRedeem' })
+export const useLiquidityPoolReadConvertToAssets = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'convertToAssets' })
+export const useLiquidityPoolReadConvertToShares = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'convertToShares' })
+export const useLiquidityPoolReadLastDepositAt = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'lastDepositAt' })
+export const useLiquidityPoolReadMarketLiability = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'marketLiability' })
+export const useLiquidityPoolReadMatchLiability = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'matchLiability' })
+export const useLiquidityPoolReadHasRole = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'hasRole' })
+
+// ─── Write hooks ──────────────────────────────────────────────────────────────
+
+export const useLiquidityPoolWriteDeposit = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'deposit' })
+export const useLiquidityPoolWriteWithdraw = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'withdraw' })
+export const useLiquidityPoolWriteRedeem = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'redeem' })
+export const useLiquidityPoolWriteMint = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'mint' })
+export const useLiquidityPoolWriteAuthorizeMatch = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'authorizeMatch' })
+export const useLiquidityPoolWriteRevokeMatch = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'revokeMatch' })
+export const useLiquidityPoolWriteSetProtocolFeeBps = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'setProtocolFeeBps' })
+export const useLiquidityPoolWriteSetMaxBetAmount = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'setMaxBetAmount' })
+export const useLiquidityPoolWriteSetMaxLiabilityPerMarketBps = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'setMaxLiabilityPerMarketBps' })
+export const useLiquidityPoolWriteSetMaxLiabilityPerMatchBps = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'setMaxLiabilityPerMatchBps' })
+export const useLiquidityPoolWriteSetDepositCooldownSeconds = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'setDepositCooldownSeconds' })
+export const useLiquidityPoolWritePause = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'pause' })
+export const useLiquidityPoolWriteUnpause = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'unpause' })
+export const useLiquidityPoolWriteProposeTreasury = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'proposeTreasury' })
+export const useLiquidityPoolWriteAcceptTreasury = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'acceptTreasury' })
+export const useLiquidityPoolWriteCancelTreasuryProposal = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'cancelTreasuryProposal' })
+export const useLiquidityPoolWriteWithdrawTreasury = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'withdrawTreasury' })
+export const useLiquidityPoolWriteGrantRole = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'grantRole' })
+export const useLiquidityPoolWriteRevokeRole = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'revokeRole' })
+export const useLiquidityPoolReadUpgradeInterfaceVersion = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'UPGRADE_INTERFACE_VERSION' })
+export const useLiquidityPoolReadProxiableUuid = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'proxiableUUID' })
+export const useLiquidityPoolReadPendingTreasury = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'pendingTreasury' })
+export const useLiquidityPoolWriteUpgradeToAndCall = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'upgradeToAndCall' })

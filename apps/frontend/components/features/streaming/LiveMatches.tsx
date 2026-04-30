@@ -13,6 +13,7 @@ import type { BrowseLeagueDto, BrowseMatchDto } from "@chiliztv/shared/dto/match
 import type { SortMode } from "@/types/browse.types";
 import { applySort } from "@/utils/browse-sorting";
 import type { Match } from "@/types/api.types";
+import { TEST_BROWSE_LEAGUE } from "@/lib/test-fixtures/psgOmMatch";
 
 /**
  * @notice Live matches page component
@@ -26,7 +27,10 @@ export default function LiveMatches() {
   const [activeStatus, setActiveStatus] = useState<StatusFilter | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>("league_asc");
 
-  const leagues = useMemo(() => data?.leagues ?? [], [data?.leagues]);
+  const leagues = useMemo<BrowseLeagueDto[]>(
+    () => [TEST_BROWSE_LEAGUE, ...(data?.leagues ?? [])],
+    [data?.leagues],
+  );
 
   const filteredLeagues = useMemo<BrowseLeagueDto[]>(() => {
     return leagues
