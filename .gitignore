@@ -8,3 +8,5 @@
 !**/.env.example
 **/.node_repl_history
 **/.turbo
+**/.next
+**/tsconfig.tsbuildinfo

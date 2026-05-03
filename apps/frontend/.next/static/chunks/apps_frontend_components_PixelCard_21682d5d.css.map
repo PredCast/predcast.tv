@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["file:///home/helder/Documents/chiliztv.com/apps/frontend/components/PixelCard.css"],"sourcesContent":[".pixel-canvas {\n  width: 100%;\n  height: 100%;\n  display: block;\n  position: absolute;\n  inset: 0;\n  z-index: 0;\n  pointer-events: none;\n}\n\n.pixel-card {\n  height: auto;\n  min-height: 180px;\n  width: 100%;\n  position: relative;\n  overflow: hidden;\n  display: flex;\n  flex-direction: column;\n  border: 1px solid #27272a;\n  border-radius: 16px;\n  isolation: isolate;\n  transition: border-color 200ms cubic-bezier(0.5, 1, 0.89, 1);\n  user-select: none;\n  background: rgba(26, 25, 25, 0.8);\n}\n\n.pixel-card:hover,\n.pixel-card:focus-within {\n  border-color: #FF3465;\n}\n\n.pixel-card::before {\n  content: '';\n  position: absolute;\n  inset: 0;\n  margin: auto;\n  aspect-ratio: 1;\n  background: radial-gradient(circle, #09090b, transparent 85%);\n  opacity: 0;\n  transition: opacity 800ms cubic-bezier(0.5, 1, 0.89, 1);\n}\n\n.pixel-card:hover::before,\n.pixel-card:focus-within::before {\n  opacity: 1;\n}\n"],"names":[],"mappings":"AAAA;;;;;;;;;;AAUA;;;;;;;;;;;;;;;;AAgBA;;;;AAKA;;;;;;;;;;;AAWA","debugId":null}}]
-}

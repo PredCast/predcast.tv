@@ -127,6 +127,20 @@
   50% { opacity: 0.5; transform: scale(1.3); }
 }
 
+/* Sports TV orbit animations — balls orbit via CSS variable --r for radius */
+@keyframes orbit-cw {
+  from { transform: rotate(0deg)   translateX(var(--r)) rotate(0deg);   }
+  to   { transform: rotate(360deg) translateX(var(--r)) rotate(-360deg); }
+}
+@keyframes orbit-ccw {
+  from { transform: rotate(0deg)    translateX(var(--r)) rotate(0deg);   }
+  to   { transform: rotate(-360deg) translateX(var(--r)) rotate(360deg); }
+}
+@keyframes tv-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(232,0,29,0.12), 0 0 50px rgba(232,0,29,0.04); }
+  50%       { box-shadow: 0 0 38px rgba(232,0,29,0.24), 0 0 80px rgba(232,0,29,0.09); }
+}
+
 /* Custom scrollbar styles for chat */
 @layer utilities {
   .scrollbar-thin::-webkit-scrollbar {

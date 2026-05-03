@@ -13,6 +13,10 @@ import {
 import { useWaitForTransactionReceipt } from 'wagmi';
 import { Address } from 'viem';
 
+// Pin contract reads to Chiliz Spicy testnet so they don't depend on the
+// connected wallet's active chain (otherwise the request never fires).
+const BETTING_CHAIN_ID = 88882 as const;
+
 interface MatchCreationState {
   isPending: boolean;
   isConfirming: boolean;
@@ -24,8 +28,8 @@ interface MatchCreationState {
 
 export interface UseBettingMatchFactoryReturn {
   // Write functions
-  createFootballMatch: (matchName: string, owner: Address) => void;
-  createBasketballMatch: (matchName: string, owner: Address) => void;
+  createFootballMatch: (matchName: string, owner: Address, oracle: Address) => void;
+  createBasketballMatch: (matchName: string, owner: Address, oracle: Address) => void;
 
   // Read functions
   allMatches: readonly Address[] | undefined;
@@ -91,39 +95,41 @@ export function useBettingMatchFactory(factoryAddress: Address): UseBettingMatch
     refetch: refetchMatches,
   } = useBettingMatchFactoryReadGetAllMatches({
     address: factoryAddress,
+    chainId: BETTING_CHAIN_ID,
   });
 
   const { data: sportTypeData } = useBettingMatchFactoryReadGetSportType({
     address: factoryAddress,
     args: allMatches && allMatches.length > 0 ? [allMatches[0]] : undefined,
+    chainId: BETTING_CHAIN_ID,
   });
 
   // ============================================
   // Write Functions
   // ============================================
   const createFootballMatch = useCallback(
-    (matchName: string, owner: Address) => {
+    (matchName: string, owner: Address, oracle: Address) => {
       if (!writeCreateFootballMatch) {
         console.error('writeCreateFootballMatch is not available');
         return;
       }
       writeCreateFootballMatch({
         address: factoryAddress,
-        args: [matchName, owner],
+        args: [matchName, owner, oracle],
       });
     },
     [writeCreateFootballMatch, factoryAddress]
   );
 
   const createBasketballMatch = useCallback(
-    (matchName: string, owner: Address) => {
+    (matchName: string, owner: Address, oracle: Address) => {
       if (!writeCreateBasketballMatch) {
         console.error('writeCreateBasketballMatch is not available');
         return;
       }
       writeCreateBasketballMatch({
         address: factoryAddress,
-        args: [matchName, owner],
+        args: [matchName, owner, oracle],
       });
     },
     [writeCreateBasketballMatch, factoryAddress]

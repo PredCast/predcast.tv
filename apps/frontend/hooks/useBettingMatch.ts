@@ -5,18 +5,23 @@
 
 import { useCallback, useEffect } from 'react';
 import {
-  useBettingMatchWritePlaceBet,
+  useBettingMatchWritePlaceBetUsdc,
   useBettingMatchWriteClaim,
   useBettingMatchWriteClaimRefund,
   useBettingMatchWriteClaimAll,
-  useBettingMatchReadGetFootballMarket,
+  useBettingMatchReadGetMarketInfo,
   useBettingMatchReadGetUserBets,
   useBettingMatchReadMatchName,
   useBettingMatchReadMarketCount,
   useBettingMatchReadPaused,
+  useBettingMatchReadUsdcToken,
 } from '@/lib/contracts/generated';
 import { useWaitForTransactionReceipt } from 'wagmi';
-import { Address, parseEther } from 'viem';
+import { Address } from 'viem';
+
+// Pin contract reads to Chiliz Spicy testnet so they don't depend on the
+// connected wallet's active chain (otherwise the request never fires).
+const BETTING_CHAIN_ID = 88882 as const;
 
 // Market state enum (matches BettingMatch.MarketState)
 export enum MarketState {
@@ -55,10 +60,13 @@ interface BetState {
 
 export interface UseBettingMatchReturn {
   // Write functions
-  placeBet: (marketId: number, selection: number, amountInCHZ: string) => void;
+  placeBet: (marketId: number, selection: number, grossAmountUsdcRaw: bigint) => void;
   claim: (marketId: number, betIndex: number) => void;
   claimAll: (marketId: number) => void;
   claimRefund: (marketId: number, betIndex: number) => void;
+
+  // Read functions - Match metadata
+  usdcToken: Address | undefined;
 
   // Read functions - Market data
   getMarket: (marketId: number) => MarketInfo | undefined;
@@ -97,7 +105,7 @@ export function useBettingMatch(
     data: betTxHash,
     isPending: isBetPending,
     error: betWriteError,
-  } = useBettingMatchWritePlaceBet();
+  } = useBettingMatchWritePlaceBetUsdc();
 
   const {
     isLoading: isBetConfirming,
@@ -165,26 +173,35 @@ export function useBettingMatch(
     isLoading: isLoadingMatchName,
   } = useBettingMatchReadMatchName({
     address: matchAddress,
+    chainId: BETTING_CHAIN_ID,
   });
 
   const {
     data: marketCountData,
   } = useBettingMatchReadMarketCount({
     address: matchAddress,
+    chainId: BETTING_CHAIN_ID,
   });
 
   const {
     data: isPausedData,
   } = useBettingMatchReadPaused({
     address: matchAddress,
+    chainId: BETTING_CHAIN_ID,
   });
 
   const {
     data: marketData,
     refetch: refetchMarket,
-  } = useBettingMatchReadGetFootballMarket({
+  } = useBettingMatchReadGetMarketInfo({
     address: matchAddress,
     args: [BigInt(marketId)],
+    chainId: BETTING_CHAIN_ID,
+  });
+
+  const { data: usdcTokenAddr } = useBettingMatchReadUsdcToken({
+    address: matchAddress,
+    chainId: BETTING_CHAIN_ID,
   });
 
   // ============================================
@@ -196,6 +213,7 @@ export function useBettingMatch(
   } = useBettingMatchReadGetUserBets({
     address: matchAddress,
     args: userAddress ? [BigInt(marketId), userAddress] : undefined,
+    chainId: BETTING_CHAIN_ID,
     query: {
       enabled: !!userAddress,
     },
@@ -205,16 +223,14 @@ export function useBettingMatch(
   // Write Functions
   // ============================================
   const placeBet = useCallback(
-    (marketId: number, selection: number, amountInCHZ: string) => {
+    (marketId: number, selection: number, grossAmountUsdcRaw: bigint) => {
       if (!writePlaceBet) {
         console.error('writePlaceBet is not available');
         return;
       }
-      const amountWei = parseEther(amountInCHZ);
       writePlaceBet({
         address: matchAddress,
-        args: [BigInt(marketId), BigInt(selection)],
-        value: amountWei,
+        args: [BigInt(marketId), BigInt(selection), grossAmountUsdcRaw],
       });
     },
     [writePlaceBet, matchAddress]
@@ -266,15 +282,22 @@ export function useBettingMatch(
   // Helper Functions
   // ============================================
   const getMarket = useCallback(
-    (marketId: number): MarketInfo | undefined => {
+    (_marketId: number): MarketInfo | undefined => {
       if (!marketData) return undefined;
 
-      // getFootballMarket returns: marketTypeStr, line, maxSelections, state, currentOdds, result, totalPool
+      // getMarketInfo returns: (bytes32 marketType, uint8 state, uint32 currentOdds, uint64 result, uint256 totalPool)
+      const [marketType, state, currentOdds, result] = marketData as readonly [
+        `0x${string}`,
+        number,
+        number,
+        bigint,
+        bigint,
+      ];
       return {
-        marketType: marketData[0] as string,
-        odds: BigInt(marketData[4] as number),
-        state: marketData[3] as MarketState,
-        result: BigInt(marketData[5] as bigint),
+        marketType,
+        odds: BigInt(currentOdds),
+        state: state as MarketState,
+        result,
       };
     },
     [marketData]
@@ -343,6 +366,9 @@ export function useBettingMatch(
     claim,
     claimAll,
     claimRefund,
+
+    // Read functions - Match metadata
+    usdcToken: usdcTokenAddr as Address | undefined,
 
     // Read functions - Market data
     getMarket,

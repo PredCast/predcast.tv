@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "wagmi:gen": "wagmi generate"
   },
   "dependencies": {
     "@chiliztv/blockchain": "workspace:*",

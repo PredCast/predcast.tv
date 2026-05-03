@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":["file:///home/helder/Documents/chiliztv.com/node_modules/.pnpm/%40dynamic-labs%2Bsdk-react-core%404.73.2_%40dynamic-labs-wallet%2Bforward-mpc-client%400.3.0_buffe_40c3b6b25f2c2dab6d59a9b0239bbb40/node_modules/%40dynamic-labs/sdk-react-core/src/version.js"],"sourcesContent":["'use client'\nimport { version, dependencies } from '../package.js';\n\nconst VERSION = version;\nconst API_VERSION = dependencies['@dynamic-labs/sdk-api-core'];\n\nexport { API_VERSION, VERSION };\n"],"names":[],"mappings":";;;;AACA;AADA;;AAGA,MAAM,UAAU,8WAAA,CAAA,UAAO;AACvB,MAAM,cAAc,8WAAA,CAAA,eAAY,CAAC,6BAA6B","ignoreList":[0],"debugId":null}}]
-}

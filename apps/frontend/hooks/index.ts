@@ -18,3 +18,5 @@ export type { TokenBalance, FanTokenData } from './useFanTokens';
 export { useMultiChat } from './useMultiChat';
 export type { ChatTab, UseMultiChatOptions, UseMultiChatResult } from './useMultiChat';
 export { useStreamWallet } from './useStreamWallet';
+export { useLiquidityPool } from './useLiquidityPool';
+export type { PoolStats, UseLiquidityPoolReturn } from './useLiquidityPool';
