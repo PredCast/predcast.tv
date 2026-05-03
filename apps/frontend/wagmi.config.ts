@@ -7,28 +7,33 @@ import BettingMatchJSON from "./artifacts/BettingMatch.json";
 import BettingMatchFactoryJSON from "./artifacts/BettingMatchFactory.json";
 import StreamWalletJSON from "./artifacts/StreamWallet.json";
 import StreamWalletFactoryJSON from "./artifacts/StreamWalletFactory.json";
+import LiquidityPoolJSON from "./artifacts/LiquidityPool.json";
 
 // Counter to track function occurrences for unique naming
 const hookNameCounter: Record<string, number> = {};
 
 export default defineConfig({
-  out: 'src/contracts/generatedContracts.ts',
+  out: 'lib/contracts/generated.ts',
   contracts: [
-    { 
-      name: 'BettingMatch', 
+    {
+      name: 'BettingMatch',
       abi: BettingMatchJSON.abi as Abi
     },
-    { 
-      name: 'BettingMatchFactory', 
+    {
+      name: 'BettingMatchFactory',
       abi: BettingMatchFactoryJSON.abi as Abi
     },
-    { 
-      name: 'StreamWallet', 
+    {
+      name: 'StreamWallet',
       abi: StreamWalletJSON.abi as Abi
     },
-    { 
-      name: 'StreamWalletFactory', 
+    {
+      name: 'StreamWalletFactory',
       abi: StreamWalletFactoryJSON.abi as Abi
+    },
+    {
+      name: 'LiquidityPool',
+      abi: LiquidityPoolJSON.abi as Abi
     },
   ],
   plugins: [

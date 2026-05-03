@@ -1,14 +1,28 @@
 "use client";
 
 import { useState } from "react";
-import { type Address } from "viem";
+import { type Address, keccak256, toBytes } from "viem";
 import { Trophy, Target, Users, Hash, Flag, Clock3, type LucideIcon } from "lucide-react";
 import {
   useBettingMatchReadMarketCount,
-  useBettingMatchReadGetFootballMarket,
+  useBettingMatchReadGetMarketInfo,
 } from "@/lib/contracts/generated";
 import { MarketBetDialog } from "./MarketBetDialog";
 import { BET_TOKEN_SYMBOL, formatBetAmount } from "./utils/betToken";
+
+// Pin contract reads to Chiliz Spicy testnet so they don't depend on the
+// connected wallet's active chain (otherwise the request never fires).
+const BETTING_CHAIN_ID = 88882 as const;
+
+// Reverse lookup: keccak256(marketTypeName) → display key used by MARKET_META.
+const MARKET_TYPE_HASH_TO_KEY: Record<string, string> = {
+  [keccak256(toBytes("WINNER"))]: "winner",
+  [keccak256(toBytes("GOALS_TOTAL"))]: "goalstotal",
+  [keccak256(toBytes("BOTH_SCORE"))]: "bothscore",
+  [keccak256(toBytes("CORRECT_SCORE"))]: "correctscore",
+  [keccak256(toBytes("FIRST_SCORER"))]: "firstscorer",
+  [keccak256(toBytes("HALFTIME"))]: "halftime",
+};
 
 interface MatchMarketsListProps {
   contractAddress?: Address;
@@ -59,10 +73,6 @@ export interface MarketSelection {
   totalPool: bigint;
 }
 
-function normalizeMarketKey(s: string): string {
-  return s.toLowerCase().replace(/[_\s-]/g, "");
-}
-
 function formatLine(line: number, marketKey: string): string | null {
   if (line === 0) return null;
   if (marketKey === "goalstotal") return `O/U ${(line / 10).toFixed(1)}`;
@@ -76,9 +86,19 @@ interface MarketRowProps {
 }
 
 function MarketRow({ contractAddress, marketId, onBet }: MarketRowProps) {
-  const { data, isLoading } = useBettingMatchReadGetFootballMarket({
+  const { data, isLoading, error } = useBettingMatchReadGetMarketInfo({
     address: contractAddress,
     args: [BigInt(marketId)],
+    chainId: BETTING_CHAIN_ID,
+  });
+
+  // eslint-disable-next-line no-console
+  console.log("[MarketRow]", {
+    contractAddress,
+    marketId,
+    isLoading,
+    error: error?.message,
+    data,
   });
 
   if (isLoading || !data) {
@@ -96,25 +116,26 @@ function MarketRow({ contractAddress, marketId, onBet }: MarketRowProps) {
     );
   }
 
-  const [marketTypeStr, line, , state, , , totalPool] = data as readonly [
-    string,
-    number,
-    number,
+  // getMarketInfo returns: (bytes32 marketType, uint8 state, uint32 currentOdds, uint64 result, uint256 totalPool)
+  const [marketTypeHash, state, , , totalPool] = data as readonly [
+    `0x${string}`,
     number,
     number,
     bigint,
     bigint,
   ];
 
-  const key = normalizeMarketKey(marketTypeStr);
+  const key = MARKET_TYPE_HASH_TO_KEY[marketTypeHash.toLowerCase()] ?? "unknown";
   const meta = MARKET_META[key] ?? {
-    label: marketTypeStr,
+    label: "Unknown market",
     hint: "",
     icon: Trophy,
   };
   const Icon = meta.icon;
   const stateLabel = STATE_LABELS[state] ?? "—";
   const stateColors = STATE_COLORS[stateLabel] ?? STATE_COLORS.Inactive;
+  // Line is no longer returned by getMarketInfo — set to 0 (display omitted for non-OU markets anyway).
+  const line = 0;
   const lineLabel = formatLine(line, key);
   const isOpen = state === 1;
   const canBet = isOpen && SUPPORTED_BET_KEYS.has(key);
@@ -224,6 +245,7 @@ export function MatchMarketsList({
 
   const { data: marketCountData, isLoading } = useBettingMatchReadMarketCount({
     address: contractAddress,
+    chainId: BETTING_CHAIN_ID,
     query: { enabled: !!contractAddress },
   });
 

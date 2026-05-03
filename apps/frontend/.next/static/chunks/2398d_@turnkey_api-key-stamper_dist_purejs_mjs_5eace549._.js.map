@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"file":"purejs.mjs","sources":["file:///home/helder/Documents/chiliztv.com/node_modules/.pnpm/%40turnkey%2Bapi-key-stamper%400.4.7/node_modules/%40turnkey/api-key-stamper/src/purejs.ts"],"sourcesContent":["unable to read source [project]/node_modules/.pnpm/@turnkey+api-key-stamper@0.4.7/node_modules/@turnkey/api-key-stamper/src/purejs.ts"],"names":[],"mappings":";;;;;;;;;MAIa,cAAc,GAAG,OAAO,KAIpC,KAAqB;IACpB,MAAM,SAAS,qNAAG,OAAI,CAAC,YAAY,CAAC,KAAK,CAAC,UAAU,EAAE,IAAI,CAAC,CAAC;;IAG5D,MAAM,eAAe,oOAAG,wBAAA,AAAqB,EAAC,SAAS,CAAC,CAAC;IAEzD,IAAI,eAAe,IAAI,KAAK,CAAC,SAAS,EAAE;QACtC,MAAM,IAAI,KAAK,CACb,CAA2C,wCAAA,EAAA,KAAK,CAAC,SAAS,CAAS,MAAA,EAAA,eAAe,CAAE,CAAA,CACrF,CAAC;KACH;IAED,MAAM,IAAI,kPAAG,aAAA,AAAU,EAAE,EAAC,MAAM,CAAC,KAAK,CAAC,OAAO,CAAC,CAAC,MAAM,EAAE,CAAC;IACzD,MAAM,SAAS,qNAAG,OAAI,CAAC,IAAI,CAAC,IAAI,EAAE,KAAK,CAAC,UAAU,CAAC,CAAC;IACpD,OAAO,SAAS,CAAC,QAAQ,EAAE,CAAC;AAC9B","ignoreList":[0],"debugId":null}}]
-}

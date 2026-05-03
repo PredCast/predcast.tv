@@ -10,8 +10,6 @@ import {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 export const bettingMatchAbi = [
-  { type: 'constructor', inputs: [], stateMutability: 'nonpayable' },
-  { type: 'receive', stateMutability: 'payable' },
   {
     type: 'function',
     inputs: [],
@@ -29,50 +27,15 @@ export const bettingMatchAbi = [
   {
     type: 'function',
     inputs: [],
-    name: 'MARKET_BOTH_SCORE',
-    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'MARKET_CORRECT_SCORE',
-    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'MARKET_FIRST_SCORER',
-    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'MARKET_GOALS_TOTAL',
-    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'MARKET_HALFTIME',
-    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'MARKET_WINNER',
-    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
     name: 'MAX_ODDS',
     outputs: [{ name: '', internalType: 'uint32', type: 'uint32' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MIN_NET_STAKE',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'view',
   },
   {
@@ -113,7 +76,7 @@ export const bettingMatchAbi = [
   {
     type: 'function',
     inputs: [],
-    name: 'TREASURY_ROLE',
+    name: 'SWAP_ROUTER_ROLE',
     outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
     stateMutability: 'view',
   },
@@ -123,16 +86,6 @@ export const bettingMatchAbi = [
     name: 'UPGRADE_INTERFACE_VERSION',
     outputs: [{ name: '', internalType: 'string', type: 'string' }],
     stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [
-      { name: 'marketType', internalType: 'bytes32', type: 'bytes32' },
-      { name: 'initialOdds', internalType: 'uint32', type: 'uint32' },
-    ],
-    name: 'addMarket',
-    outputs: [],
-    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -176,6 +129,17 @@ export const bettingMatchAbi = [
     type: 'function',
     inputs: [
       { name: 'marketId', internalType: 'uint256', type: 'uint256' },
+      { name: 'start', internalType: 'uint256', type: 'uint256' },
+      { name: 'end', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'claimRange',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
       { name: 'betIndex', internalType: 'uint256', type: 'uint256' },
     ],
     name: 'claimRefund',
@@ -195,24 +159,6 @@ export const bettingMatchAbi = [
     name: 'emergencyPause',
     outputs: [],
     stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [{ name: 'amount', internalType: 'uint256', type: 'uint256' }],
-    name: 'emergencyWithdraw',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
-    name: 'footballMarkets',
-    outputs: [
-      { name: 'marketType', internalType: 'bytes32', type: 'bytes32' },
-      { name: 'line', internalType: 'int16', type: 'int16' },
-      { name: 'maxSelections', internalType: 'uint8', type: 'uint8' },
-    ],
-    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -237,25 +183,6 @@ export const bettingMatchAbi = [
     inputs: [{ name: 'marketId', internalType: 'uint256', type: 'uint256' }],
     name: 'getCurrentOdds',
     outputs: [{ name: '', internalType: 'uint32', type: 'uint32' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [{ name: 'marketId', internalType: 'uint256', type: 'uint256' }],
-    name: 'getFootballMarket',
-    outputs: [
-      { name: 'marketTypeStr', internalType: 'string', type: 'string' },
-      { name: 'line', internalType: 'int16', type: 'int16' },
-      { name: 'maxSelections', internalType: 'uint8', type: 'uint8' },
-      {
-        name: 'state',
-        internalType: 'enum BettingMatch.MarketState',
-        type: 'uint8',
-      },
-      { name: 'currentOdds', internalType: 'uint32', type: 'uint32' },
-      { name: 'result', internalType: 'uint64', type: 'uint64' },
-      { name: 'totalPool', internalType: 'uint256', type: 'uint256' },
-    ],
     stateMutability: 'view',
   },
   {
@@ -297,6 +224,13 @@ export const bettingMatchAbi = [
       { name: 'result', internalType: 'uint64', type: 'uint64' },
       { name: 'totalPool', internalType: 'uint256', type: 'uint256' },
     ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'marketId', internalType: 'uint256', type: 'uint256' }],
+    name: 'getMarketLiability',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'view',
   },
   {
@@ -358,13 +292,12 @@ export const bettingMatchAbi = [
   },
   {
     type: 'function',
-    inputs: [
-      { name: '_matchName', internalType: 'string', type: 'string' },
-      { name: '_owner', internalType: 'address', type: 'address' },
+    inputs: [],
+    name: 'liquidityPool',
+    outputs: [
+      { name: '', internalType: 'contract ILiquidityPool', type: 'address' },
     ],
-    name: 'initialize',
-    outputs: [],
-    stateMutability: 'nonpayable',
+    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -378,6 +311,13 @@ export const bettingMatchAbi = [
     inputs: [],
     name: 'matchName',
     outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'maxAllowedOdds',
+    outputs: [{ name: '', internalType: 'uint32', type: 'uint32' }],
     stateMutability: 'view',
   },
   {
@@ -406,16 +346,41 @@ export const bettingMatchAbi = [
     inputs: [
       { name: 'marketId', internalType: 'uint256', type: 'uint256' },
       { name: 'selection', internalType: 'uint64', type: 'uint64' },
+      { name: 'grossAmount', internalType: 'uint256', type: 'uint256' },
     ],
-    name: 'placeBet',
+    name: 'placeBetUSDC',
     outputs: [],
-    stateMutability: 'payable',
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'user', internalType: 'address', type: 'address' },
+      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
+      { name: 'selection', internalType: 'uint64', type: 'uint64' },
+      { name: 'netStake', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'placeBetUSDCFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
     inputs: [],
     name: 'proxiableUUID',
     outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'quoteNetExposure',
+    outputs: [
+      { name: 'netExposure', internalType: 'uint256', type: 'uint256' },
+    ],
     stateMutability: 'view',
   },
   {
@@ -457,11 +422,32 @@ export const bettingMatchAbi = [
   },
   {
     type: 'function',
+    inputs: [{ name: '_pool', internalType: 'address', type: 'address' }],
+    name: 'setLiquidityPool',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     inputs: [
       { name: 'marketId', internalType: 'uint256', type: 'uint256' },
       { name: 'newOdds', internalType: 'uint32', type: 'uint32' },
     ],
     name: 'setMarketOdds',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'newMax', internalType: 'uint32', type: 'uint32' }],
+    name: 'setMaxAllowedOdds',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_usdcToken', internalType: 'address', type: 'address' }],
+    name: 'setUSDCToken',
     outputs: [],
     stateMutability: 'nonpayable',
   },
@@ -509,6 +495,13 @@ export const bettingMatchAbi = [
     name: 'upgradeToAndCall',
     outputs: [],
     stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'usdcToken',
+    outputs: [{ name: '', internalType: 'contract IERC20', type: 'address' }],
+    stateMutability: 'view',
   },
   {
     type: 'event',
@@ -561,6 +554,14 @@ export const bettingMatchAbi = [
       },
     ],
     name: 'Initialized',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'pool', internalType: 'address', type: 'address', indexed: true },
+    ],
+    name: 'LiquidityPoolSet',
   },
   {
     type: 'event',
@@ -675,6 +676,25 @@ export const bettingMatchAbi = [
       },
     ],
     name: 'MatchInitialized',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'oldMax',
+        internalType: 'uint32',
+        type: 'uint32',
+        indexed: false,
+      },
+      {
+        name: 'newMax',
+        internalType: 'uint32',
+        type: 'uint32',
+        indexed: false,
+      },
+    ],
+    name: 'MaxAllowedOddsSet',
   },
   {
     type: 'event',
@@ -856,6 +876,19 @@ export const bettingMatchAbi = [
     anonymous: false,
     inputs: [
       {
+        name: 'token',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'USDCTokenSet',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
         name: 'account',
         internalType: 'address',
         type: 'address',
@@ -918,7 +951,6 @@ export const bettingMatchAbi = [
     ],
     name: 'BetNotFound',
   },
-  { type: 'error', inputs: [], name: 'ContractNotPaused' },
   {
     type: 'error',
     inputs: [
@@ -930,14 +962,6 @@ export const bettingMatchAbi = [
   { type: 'error', inputs: [], name: 'EnforcedPause' },
   { type: 'error', inputs: [], name: 'ExpectedPause' },
   { type: 'error', inputs: [], name: 'FailedCall' },
-  {
-    type: 'error',
-    inputs: [
-      { name: 'required', internalType: 'uint256', type: 'uint256' },
-      { name: 'available', internalType: 'uint256', type: 'uint256' },
-    ],
-    name: 'InsufficientContractBalance',
-  },
   { type: 'error', inputs: [], name: 'InvalidInitialization' },
   {
     type: 'error',
@@ -963,11 +987,6 @@ export const bettingMatchAbi = [
   },
   {
     type: 'error',
-    inputs: [{ name: 'marketType', internalType: 'bytes32', type: 'bytes32' }],
-    name: 'InvalidMarketType',
-  },
-  {
-    type: 'error',
     inputs: [
       { name: 'odds', internalType: 'uint32', type: 'uint32' },
       { name: 'min', internalType: 'uint32', type: 'uint32' },
@@ -975,20 +994,7 @@ export const bettingMatchAbi = [
     ],
     name: 'InvalidOddsValue',
   },
-  {
-    type: 'error',
-    inputs: [
-      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
-      { name: 'selection', internalType: 'uint64', type: 'uint64' },
-      { name: 'maxAllowed', internalType: 'uint8', type: 'uint8' },
-    ],
-    name: 'InvalidSelection',
-  },
-  {
-    type: 'error',
-    inputs: [{ name: 'marketId', internalType: 'uint256', type: 'uint256' }],
-    name: 'MarketNotCancelled',
-  },
+  { type: 'error', inputs: [], name: 'LiquidityPoolNotConfigured' },
   {
     type: 'error',
     inputs: [{ name: 'marketId', internalType: 'uint256', type: 'uint256' }],
@@ -1013,12 +1019,18 @@ export const bettingMatchAbi = [
   { type: 'error', inputs: [], name: 'ReentrancyGuardReentrantCall' },
   {
     type: 'error',
-    inputs: [
-      { name: 'to', internalType: 'address', type: 'address' },
-      { name: 'amount', internalType: 'uint256', type: 'uint256' },
-    ],
-    name: 'TransferFailed',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'SafeERC20FailedOperation',
   },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'netStake', internalType: 'uint256', type: 'uint256' },
+      { name: 'minimum', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'StakeBelowMinimum',
+  },
+  { type: 'error', inputs: [], name: 'USDCNotConfigured' },
   { type: 'error', inputs: [], name: 'UUPSUnauthorizedCallContext' },
   {
     type: 'error',
@@ -1026,6 +1038,11 @@ export const bettingMatchAbi = [
     name: 'UUPSUnsupportedProxiableUUID',
   },
   { type: 'error', inputs: [], name: 'ZeroBetAmount' },
+  {
+    type: 'error',
+    inputs: [{ name: 'marketId', internalType: 'uint256', type: 'uint256' }],
+    name: 'ZeroNetExposure',
+  },
 ] as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1036,8 +1053,29 @@ export const bettingMatchFactoryAbi = [
   { type: 'constructor', inputs: [], stateMutability: 'nonpayable' },
   {
     type: 'function',
+    inputs: [],
+    name: 'BASKETBALL',
+    outputs: [{ name: '', internalType: 'uint8', type: 'uint8' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'FOOTBALL',
+    outputs: [{ name: '', internalType: 'uint8', type: 'uint8' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     inputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     name: 'allMatches',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'basketballImplementation',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
     stateMutability: 'view',
   },
@@ -1046,6 +1084,7 @@ export const bettingMatchFactoryAbi = [
     inputs: [
       { name: '_matchName', internalType: 'string', type: 'string' },
       { name: '_owner', internalType: 'address', type: 'address' },
+      { name: '_oracle', internalType: 'address', type: 'address' },
     ],
     name: 'createBasketballMatch',
     outputs: [{ name: 'proxy', internalType: 'address', type: 'address' }],
@@ -1056,10 +1095,18 @@ export const bettingMatchFactoryAbi = [
     inputs: [
       { name: '_matchName', internalType: 'string', type: 'string' },
       { name: '_owner', internalType: 'address', type: 'address' },
+      { name: '_oracle', internalType: 'address', type: 'address' },
     ],
     name: 'createFootballMatch',
     outputs: [{ name: 'proxy', internalType: 'address', type: 'address' }],
     stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'footballImplementation',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -1081,6 +1128,27 @@ export const bettingMatchFactoryAbi = [
         type: 'uint8',
       },
     ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'sport', internalType: 'uint8', type: 'uint8' }],
+    name: 'implementations',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '', internalType: 'address', type: 'address' }],
+    name: 'isMatch',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'liquidityPool',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
     stateMutability: 'view',
   },
   {
@@ -1112,10 +1180,87 @@ export const bettingMatchFactoryAbi = [
   },
   {
     type: 'function',
+    inputs: [{ name: 'newImpl', internalType: 'address', type: 'address' }],
+    name: 'setBasketballImplementation',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'newImpl', internalType: 'address', type: 'address' }],
+    name: 'setFootballImplementation',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_liquidityPool', internalType: 'address', type: 'address' },
+      { name: '_usdcToken', internalType: 'address', type: 'address' },
+      { name: '_swapRouter', internalType: 'address', type: 'address' },
+    ],
+    name: 'setWiring',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'swapRouter',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     inputs: [{ name: 'newOwner', internalType: 'address', type: 'address' }],
     name: 'transferOwnership',
     outputs: [],
     stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'usdcToken',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'oldImpl',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newImpl',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'BasketballImplementationUpdated',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'oldImpl',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newImpl',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'FootballImplementationUpdated',
   },
   {
     type: 'event',
@@ -1162,6 +1307,39 @@ export const bettingMatchFactoryAbi = [
     name: 'OwnershipTransferred',
   },
   {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'liquidityPool',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'usdcToken',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'swapRouter',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'WiringSet',
+  },
+  { type: 'error', inputs: [], name: 'InvalidAddress' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'matchAddress', internalType: 'address', type: 'address' },
+    ],
+    name: 'MatchNotFound',
+  },
+  {
     type: 'error',
     inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
     name: 'OwnableInvalidOwner',
@@ -1171,6 +1349,1391 @@ export const bettingMatchFactoryAbi = [
     inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
     name: 'OwnableUnauthorizedAccount',
   },
+  { type: 'error', inputs: [], name: 'WiringNotConfigured' },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// LiquidityPool
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const liquidityPoolAbi = [
+  { type: 'constructor', inputs: [], stateMutability: 'nonpayable' },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'BPS_DENOMINATOR',
+    outputs: [{ name: '', internalType: 'uint16', type: 'uint16' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DEFAULT_ADMIN_ROLE',
+    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MATCH_AUTHORIZER_ROLE',
+    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MATCH_ROLE',
+    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MAX_BPS_SETTABLE',
+    outputs: [{ name: '', internalType: 'uint16', type: 'uint16' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PAUSER_ROLE',
+    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'ROUTER_ROLE',
+    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'TREASURY_SHARE_BPS',
+    outputs: [{ name: '', internalType: 'uint16', type: 'uint16' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'UPGRADE_INTERFACE_VERSION',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'acceptTreasury',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'accruedTreasury',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'owner', internalType: 'address', type: 'address' },
+      { name: 'spender', internalType: 'address', type: 'address' },
+    ],
+    name: 'allowance',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'spender', internalType: 'address', type: 'address' },
+      { name: 'value', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'approve',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'asset',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'bettingMatch', internalType: 'address', type: 'address' },
+    ],
+    name: 'authorizeMatch',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'cancelTreasuryProposal',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'shares', internalType: 'uint256', type: 'uint256' }],
+    name: 'convertToAssets',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'assets', internalType: 'uint256', type: 'uint256' }],
+    name: 'convertToShares',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'decimals',
+    outputs: [{ name: '', internalType: 'uint8', type: 'uint8' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'assets', internalType: 'uint256', type: 'uint256' },
+      { name: 'receiver', internalType: 'address', type: 'address' },
+    ],
+    name: 'deposit',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'depositCooldownSeconds',
+    outputs: [{ name: '', internalType: 'uint48', type: 'uint48' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'freeBalance',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'role', internalType: 'bytes32', type: 'bytes32' }],
+    name: 'getRoleAdmin',
+    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'role', internalType: 'bytes32', type: 'bytes32' },
+      { name: 'account', internalType: 'address', type: 'address' },
+    ],
+    name: 'grantRole',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'role', internalType: 'bytes32', type: 'bytes32' },
+      { name: 'account', internalType: 'address', type: 'address' },
+    ],
+    name: 'hasRole',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'usdc_', internalType: 'contract IERC20', type: 'address' },
+      { name: 'admin_', internalType: 'address', type: 'address' },
+      { name: 'treasury_', internalType: 'address', type: 'address' },
+      { name: 'protocolFeeBps_', internalType: 'uint16', type: 'uint16' },
+      { name: 'maxMarketBps_', internalType: 'uint16', type: 'uint16' },
+      { name: 'maxMatchBps_', internalType: 'uint16', type: 'uint16' },
+      { name: 'cooldown_', internalType: 'uint48', type: 'uint48' },
+    ],
+    name: 'initialize',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'holder', internalType: 'address', type: 'address' }],
+    name: 'lastDepositAt',
+    outputs: [{ name: '', internalType: 'uint48', type: 'uint48' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'bettingMatch', internalType: 'address', type: 'address' },
+      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'marketLiability',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'bettingMatch', internalType: 'address', type: 'address' },
+    ],
+    name: 'matchLiability',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'maxBetAmount',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '', internalType: 'address', type: 'address' }],
+    name: 'maxDeposit',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'maxLiabilityPerMarketBps',
+    outputs: [{ name: '', internalType: 'uint16', type: 'uint16' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'maxLiabilityPerMatchBps',
+    outputs: [{ name: '', internalType: 'uint16', type: 'uint16' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '', internalType: 'address', type: 'address' }],
+    name: 'maxMint',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'maxRedeem',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'maxWithdraw',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'shares', internalType: 'uint256', type: 'uint256' },
+      { name: 'receiver', internalType: 'address', type: 'address' },
+    ],
+    name: 'mint',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'name',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'pause',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'paused',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'bettingMatch', internalType: 'address', type: 'address' },
+      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'stake', internalType: 'uint256', type: 'uint256' },
+      { name: 'releasedNetExposure', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'payRefund',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'bettingMatch', internalType: 'address', type: 'address' },
+      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'payout', internalType: 'uint256', type: 'uint256' },
+      { name: 'releasedNetExposure', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'payWinner',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'pendingTreasury',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'assets', internalType: 'uint256', type: 'uint256' }],
+    name: 'previewDeposit',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'shares', internalType: 'uint256', type: 'uint256' }],
+    name: 'previewMint',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'shares', internalType: 'uint256', type: 'uint256' }],
+    name: 'previewRedeem',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'assets', internalType: 'uint256', type: 'uint256' }],
+    name: 'previewWithdraw',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'newTreasury', internalType: 'address', type: 'address' }],
+    name: 'proposeTreasury',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'protocolFeeBps',
+    outputs: [{ name: '', internalType: 'uint16', type: 'uint16' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'proxiableUUID',
+    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'bettingMatch', internalType: 'address', type: 'address' },
+      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
+      { name: 'bettor', internalType: 'address', type: 'address' },
+      { name: 'netStake', internalType: 'uint256', type: 'uint256' },
+      { name: 'netExposure', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'recordBet',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'shares', internalType: 'uint256', type: 'uint256' },
+      { name: 'receiver', internalType: 'address', type: 'address' },
+      { name: 'owner', internalType: 'address', type: 'address' },
+    ],
+    name: 'redeem',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'role', internalType: 'bytes32', type: 'bytes32' },
+      { name: 'callerConfirmation', internalType: 'address', type: 'address' },
+    ],
+    name: 'renounceRole',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'bettingMatch', internalType: 'address', type: 'address' },
+    ],
+    name: 'revokeMatch',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'role', internalType: 'bytes32', type: 'bytes32' },
+      { name: 'account', internalType: 'address', type: 'address' },
+    ],
+    name: 'revokeRole',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'newSeconds', internalType: 'uint48', type: 'uint48' }],
+    name: 'setDepositCooldownSeconds',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'newMax', internalType: 'uint256', type: 'uint256' }],
+    name: 'setMaxBetAmount',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'newBps', internalType: 'uint16', type: 'uint16' }],
+    name: 'setMaxLiabilityPerMarketBps',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'newBps', internalType: 'uint16', type: 'uint16' }],
+    name: 'setMaxLiabilityPerMatchBps',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'newBps', internalType: 'uint16', type: 'uint16' }],
+    name: 'setProtocolFeeBps',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'bettingMatch', internalType: 'address', type: 'address' },
+      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'losingLiabilityToRelease',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      { name: 'losingNetStake', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'settleMarket',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'symbol',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'totalAssets',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'totalLiabilities',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'totalSupply',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'value', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'transfer',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'value', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'transferFrom',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'treasury',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'treasuryWithdrawable',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'unpause',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'newImplementation', internalType: 'address', type: 'address' },
+      { name: 'data', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'upgradeToAndCall',
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'utilization',
+    outputs: [{ name: '', internalType: 'uint16', type: 'uint16' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'assets', internalType: 'uint256', type: 'uint256' },
+      { name: 'receiver', internalType: 'address', type: 'address' },
+      { name: 'owner', internalType: 'address', type: 'address' },
+    ],
+    name: 'withdraw',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'amount', internalType: 'uint256', type: 'uint256' }],
+    name: 'withdrawTreasury',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'owner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'spender',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'value',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'Approval',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'bettingMatch',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'marketId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'bettor',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'netStake',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'netExposure',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'BetRecorded',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'sender',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'owner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'assets',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'shares',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'Deposit',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'oldSeconds',
+        internalType: 'uint48',
+        type: 'uint48',
+        indexed: false,
+      },
+      {
+        name: 'newSeconds',
+        internalType: 'uint48',
+        type: 'uint48',
+        indexed: false,
+      },
+    ],
+    name: 'DepositCooldownSet',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'version',
+        internalType: 'uint64',
+        type: 'uint64',
+        indexed: false,
+      },
+    ],
+    name: 'Initialized',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'bettingMatch',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'marketId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'releasedLiability',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'MarketSettled',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'bettingMatch',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'MatchAuthorized',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'bettingMatch',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'MatchRevoked',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'oldMax',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'newMax',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'MaxBetAmountSet',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'oldBps',
+        internalType: 'uint16',
+        type: 'uint16',
+        indexed: false,
+      },
+      {
+        name: 'newBps',
+        internalType: 'uint16',
+        type: 'uint16',
+        indexed: false,
+      },
+    ],
+    name: 'MaxLiabilityPerMarketSet',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'oldBps',
+        internalType: 'uint16',
+        type: 'uint16',
+        indexed: false,
+      },
+      {
+        name: 'newBps',
+        internalType: 'uint16',
+        type: 'uint16',
+        indexed: false,
+      },
+    ],
+    name: 'MaxLiabilityPerMatchSet',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'account',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Paused',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'oldBps',
+        internalType: 'uint16',
+        type: 'uint16',
+        indexed: false,
+      },
+      {
+        name: 'newBps',
+        internalType: 'uint16',
+        type: 'uint16',
+        indexed: false,
+      },
+    ],
+    name: 'ProtocolFeeSet',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'bettingMatch',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'marketId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      { name: 'to', internalType: 'address', type: 'address', indexed: true },
+      {
+        name: 'stake',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'releasedLiability',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'RefundPaid',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'role', internalType: 'bytes32', type: 'bytes32', indexed: true },
+      {
+        name: 'previousAdminRole',
+        internalType: 'bytes32',
+        type: 'bytes32',
+        indexed: true,
+      },
+      {
+        name: 'newAdminRole',
+        internalType: 'bytes32',
+        type: 'bytes32',
+        indexed: true,
+      },
+    ],
+    name: 'RoleAdminChanged',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'role', internalType: 'bytes32', type: 'bytes32', indexed: true },
+      {
+        name: 'account',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'sender',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'RoleGranted',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'role', internalType: 'bytes32', type: 'bytes32', indexed: true },
+      {
+        name: 'account',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'sender',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'RoleRevoked',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address', indexed: true },
+      { name: 'to', internalType: 'address', type: 'address', indexed: true },
+      {
+        name: 'value',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'Transfer',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'oldTreasury',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newTreasury',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'TreasuryAccepted',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'bettingMatch',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'marketId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'losingNetStake',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'treasuryShare',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'TreasuryAccrued',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'pending',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'TreasuryProposalCancelled',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'proposer',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'pending',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'TreasuryProposed',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'to', internalType: 'address', type: 'address', indexed: true },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'TreasuryWithdrawn',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'account',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Unpaused',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'implementation',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'Upgraded',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'bettingMatch',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'marketId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      { name: 'to', internalType: 'address', type: 'address', indexed: true },
+      {
+        name: 'payout',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'WinnerPaid',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'sender',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'receiver',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'owner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'assets',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'shares',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'Withdraw',
+  },
+  { type: 'error', inputs: [], name: 'AccessControlBadConfirmation' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'account', internalType: 'address', type: 'address' },
+      { name: 'neededRole', internalType: 'bytes32', type: 'bytes32' },
+    ],
+    name: 'AccessControlUnauthorizedAccount',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'target', internalType: 'address', type: 'address' }],
+    name: 'AddressEmptyCode',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'requested', internalType: 'uint256', type: 'uint256' },
+      { name: 'cap', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'BetAmountAboveCap',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'provided', internalType: 'uint16', type: 'uint16' },
+      { name: 'max', internalType: 'uint16', type: 'uint16' },
+    ],
+    name: 'BpsOutOfRange',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'holder', internalType: 'address', type: 'address' },
+      { name: 'unlocksAt', internalType: 'uint48', type: 'uint48' },
+    ],
+    name: 'CooldownActive',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'implementation', internalType: 'address', type: 'address' },
+    ],
+    name: 'ERC1967InvalidImplementation',
+  },
+  { type: 'error', inputs: [], name: 'ERC1967NonPayable' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'spender', internalType: 'address', type: 'address' },
+      { name: 'allowance', internalType: 'uint256', type: 'uint256' },
+      { name: 'needed', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'ERC20InsufficientAllowance',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'sender', internalType: 'address', type: 'address' },
+      { name: 'balance', internalType: 'uint256', type: 'uint256' },
+      { name: 'needed', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'ERC20InsufficientBalance',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'approver', internalType: 'address', type: 'address' }],
+    name: 'ERC20InvalidApprover',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'receiver', internalType: 'address', type: 'address' }],
+    name: 'ERC20InvalidReceiver',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'sender', internalType: 'address', type: 'address' }],
+    name: 'ERC20InvalidSender',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'spender', internalType: 'address', type: 'address' }],
+    name: 'ERC20InvalidSpender',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'receiver', internalType: 'address', type: 'address' },
+      { name: 'assets', internalType: 'uint256', type: 'uint256' },
+      { name: 'max', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'ERC4626ExceededMaxDeposit',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'receiver', internalType: 'address', type: 'address' },
+      { name: 'shares', internalType: 'uint256', type: 'uint256' },
+      { name: 'max', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'ERC4626ExceededMaxMint',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'owner', internalType: 'address', type: 'address' },
+      { name: 'shares', internalType: 'uint256', type: 'uint256' },
+      { name: 'max', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'ERC4626ExceededMaxRedeem',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'owner', internalType: 'address', type: 'address' },
+      { name: 'assets', internalType: 'uint256', type: 'uint256' },
+      { name: 'max', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'ERC4626ExceededMaxWithdraw',
+  },
+  { type: 'error', inputs: [], name: 'EnforcedPause' },
+  { type: 'error', inputs: [], name: 'ExpectedPause' },
+  { type: 'error', inputs: [], name: 'FailedCall' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'requested', internalType: 'uint256', type: 'uint256' },
+      { name: 'free', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'InsufficientFreeBalance',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'requested', internalType: 'uint256', type: 'uint256' },
+      { name: 'available', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'InsufficientTreasuryBalance',
+  },
+  { type: 'error', inputs: [], name: 'InvalidInitialization' },
+  { type: 'error', inputs: [], name: 'LiabilityUnderflow' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'requested', internalType: 'uint256', type: 'uint256' },
+      { name: 'cap', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'MarketLiabilityCapExceeded',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'requested', internalType: 'uint256', type: 'uint256' },
+      { name: 'cap', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'MatchLiabilityCapExceeded',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'bettingMatch', internalType: 'address', type: 'address' },
+    ],
+    name: 'MatchNotAuthorized',
+  },
+  { type: 'error', inputs: [], name: 'NoPendingTreasury' },
+  { type: 'error', inputs: [], name: 'NotInitializing' },
+  {
+    type: 'error',
+    inputs: [{ name: 'caller', internalType: 'address', type: 'address' }],
+    name: 'NotMatchAuthorizer',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'caller', internalType: 'address', type: 'address' },
+      { name: 'pending', internalType: 'address', type: 'address' },
+    ],
+    name: 'NotPendingTreasury',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'caller', internalType: 'address', type: 'address' },
+      { name: 'treasury', internalType: 'address', type: 'address' },
+    ],
+    name: 'NotTreasury',
+  },
+  { type: 'error', inputs: [], name: 'ReentrancyGuardReentrantCall' },
+  {
+    type: 'error',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'SafeERC20FailedOperation',
+  },
+  { type: 'error', inputs: [], name: 'UUPSUnauthorizedCallContext' },
+  {
+    type: 'error',
+    inputs: [{ name: 'slot', internalType: 'bytes32', type: 'bytes32' }],
+    name: 'UUPSUnsupportedProxiableUUID',
+  },
+  { type: 'error', inputs: [], name: 'ZeroAddress' },
+  { type: 'error', inputs: [], name: 'ZeroAmount' },
 ] as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1179,7 +2742,6 @@ export const bettingMatchFactoryAbi = [
 
 export const streamWalletAbi = [
   { type: 'constructor', inputs: [], stateMutability: 'nonpayable' },
-  { type: 'receive', stateMutability: 'payable' },
   {
     type: 'function',
     inputs: [],
@@ -1199,13 +2761,33 @@ export const streamWalletAbi = [
     inputs: [
       { name: 'amount', internalType: 'uint256', type: 'uint256' },
       { name: 'message', internalType: 'string', type: 'string' },
+      { name: 'amountOutMin', internalType: 'uint256', type: 'uint256' },
+      { name: 'deadline', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
     ],
     name: 'donate',
     outputs: [
       { name: 'platformFee', internalType: 'uint256', type: 'uint256' },
       { name: 'streamerAmount', internalType: 'uint256', type: 'uint256' },
     ],
-    stateMutability: 'payable',
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'donor', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'message', internalType: 'string', type: 'string' },
+      { name: 'amountOutMin', internalType: 'uint256', type: 'uint256' },
+      { name: 'deadline', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
+    ],
+    name: 'donateFor',
+    outputs: [
+      { name: 'platformFee', internalType: 'uint256', type: 'uint256' },
+      { name: 'streamerAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -1246,6 +2828,8 @@ export const streamWalletAbi = [
       { name: 'streamer_', internalType: 'address', type: 'address' },
       { name: 'treasury_', internalType: 'address', type: 'address' },
       { name: 'platformFeeBps_', internalType: 'uint16', type: 'uint16' },
+      { name: 'kayenRouter_', internalType: 'address', type: 'address' },
+      { name: 'usdc_', internalType: 'address', type: 'address' },
     ],
     name: 'initialize',
     outputs: [],
@@ -1256,6 +2840,13 @@ export const streamWalletAbi = [
     inputs: [{ name: 'user', internalType: 'address', type: 'address' }],
     name: 'isSubscribed',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'kayenRouter',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
     stateMutability: 'view',
   },
   {
@@ -1289,21 +2880,55 @@ export const streamWalletAbi = [
   {
     type: 'function',
     inputs: [
+      { name: 'donor', internalType: 'address', type: 'address' },
+      { name: 'totalUsdcAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'platformFee', internalType: 'uint256', type: 'uint256' },
+      { name: 'streamerAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'message', internalType: 'string', type: 'string' },
+    ],
+    name: 'recordDonationByRouter',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
       { name: 'subscriber', internalType: 'address', type: 'address' },
       { name: 'amount', internalType: 'uint256', type: 'uint256' },
       { name: 'duration', internalType: 'uint256', type: 'uint256' },
+      { name: 'amountOutMin', internalType: 'uint256', type: 'uint256' },
+      { name: 'deadline', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
     ],
     name: 'recordSubscription',
     outputs: [
       { name: 'platformFee', internalType: 'uint256', type: 'uint256' },
       { name: 'streamerAmount', internalType: 'uint256', type: 'uint256' },
     ],
-    stateMutability: 'payable',
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'subscriber', internalType: 'address', type: 'address' },
+      { name: 'totalUsdcAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'duration', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'recordSubscriptionByRouter',
+    outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
     inputs: [],
     name: 'renounceOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_swapRouter', internalType: 'address', type: 'address' }],
+    name: 'setSwapRouter',
     outputs: [],
     stateMutability: 'nonpayable',
   },
@@ -1324,6 +2949,13 @@ export const streamWalletAbi = [
       { name: 'expiryTime', internalType: 'uint256', type: 'uint256' },
       { name: 'active', internalType: 'bool', type: 'bool' },
     ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'swapRouter',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
     stateMutability: 'view',
   },
   {
@@ -1370,6 +3002,13 @@ export const streamWalletAbi = [
     name: 'upgradeToAndCall',
     outputs: [],
     stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'usdc',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -1521,6 +3160,25 @@ export const streamWalletAbi = [
     anonymous: false,
     inputs: [
       {
+        name: 'oldRouter',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newRouter',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'SwapRouterUpdated',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
         name: 'implementation',
         internalType: 'address',
         type: 'address',
@@ -1534,6 +3192,7 @@ export const streamWalletAbi = [
     inputs: [{ name: 'target', internalType: 'address', type: 'address' }],
     name: 'AddressEmptyCode',
   },
+  { type: 'error', inputs: [], name: 'DeadlinePassed' },
   {
     type: 'error',
     inputs: [
@@ -1544,10 +3203,13 @@ export const streamWalletAbi = [
   { type: 'error', inputs: [], name: 'ERC1967NonPayable' },
   { type: 'error', inputs: [], name: 'FailedCall' },
   { type: 'error', inputs: [], name: 'InsufficientBalance' },
+  { type: 'error', inputs: [], name: 'InvalidAddress' },
   { type: 'error', inputs: [], name: 'InvalidAmount' },
   { type: 'error', inputs: [], name: 'InvalidDuration' },
+  { type: 'error', inputs: [], name: 'InvalidFeeBps' },
   { type: 'error', inputs: [], name: 'InvalidInitialization' },
   { type: 'error', inputs: [], name: 'NotInitializing' },
+  { type: 'error', inputs: [], name: 'OnlyAuthorized' },
   { type: 'error', inputs: [], name: 'OnlyFactory' },
   { type: 'error', inputs: [], name: 'OnlyStreamer' },
   {
@@ -1561,6 +3223,12 @@ export const streamWalletAbi = [
     name: 'OwnableUnauthorizedAccount',
   },
   { type: 'error', inputs: [], name: 'ReentrancyGuardReentrantCall' },
+  {
+    type: 'error',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'SafeERC20FailedOperation',
+  },
+  { type: 'error', inputs: [], name: 'SwapSlippageExceeded' },
   { type: 'error', inputs: [], name: 'UUPSUnauthorizedCallContext' },
   {
     type: 'error',
@@ -1584,6 +3252,8 @@ export const streamWalletFactoryAbi = [
         internalType: 'uint16',
         type: 'uint16',
       },
+      { name: 'kayenRouter_', internalType: 'address', type: 'address' },
+      { name: 'usdc_', internalType: 'address', type: 'address' },
     ],
     stateMutability: 'nonpayable',
   },
@@ -1606,10 +3276,21 @@ export const streamWalletFactoryAbi = [
     inputs: [
       { name: 'streamer', internalType: 'address', type: 'address' },
       { name: 'message', internalType: 'string', type: 'string' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'amountOutMin', internalType: 'uint256', type: 'uint256' },
+      { name: 'deadline', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
     ],
     name: 'donateToStream',
     outputs: [{ name: 'wallet', internalType: 'address', type: 'address' }],
-    stateMutability: 'payable',
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'streamer', internalType: 'address', type: 'address' }],
+    name: 'getOrCreateWallet',
+    outputs: [{ name: 'wallet', internalType: 'address', type: 'address' }],
+    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -1635,6 +3316,13 @@ export const streamWalletFactoryAbi = [
   {
     type: 'function',
     inputs: [],
+    name: 'kayenRouter',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
     name: 'owner',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
     stateMutability: 'view',
@@ -1648,8 +3336,31 @@ export const streamWalletFactoryAbi = [
   },
   {
     type: 'function',
+    inputs: [
+      { name: 'newImplementation', internalType: 'address', type: 'address' },
+    ],
+    name: 'setImplementation',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'newRouter', internalType: 'address', type: 'address' }],
+    name: 'setKayenRouter',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     inputs: [{ name: 'newFeeBps', internalType: 'uint16', type: 'uint16' }],
     name: 'setPlatformFee',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_swapRouter', internalType: 'address', type: 'address' }],
+    name: 'setSwapRouter',
     outputs: [],
     stateMutability: 'nonpayable',
   },
@@ -1659,6 +3370,20 @@ export const streamWalletFactoryAbi = [
     name: 'setTreasury',
     outputs: [],
     stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'newUsdc', internalType: 'address', type: 'address' }],
+    name: 'setUsdc',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'streamWalletImplementation',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -1672,10 +3397,21 @@ export const streamWalletFactoryAbi = [
     inputs: [
       { name: 'streamer', internalType: 'address', type: 'address' },
       { name: 'duration', internalType: 'uint256', type: 'uint256' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'amountOutMin', internalType: 'uint256', type: 'uint256' },
+      { name: 'deadline', internalType: 'uint256', type: 'uint256' },
+      { name: 'token', internalType: 'address', type: 'address' },
     ],
     name: 'subscribeToStream',
     outputs: [{ name: 'wallet', internalType: 'address', type: 'address' }],
-    stateMutability: 'payable',
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'swapRouter',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -1688,6 +3424,23 @@ export const streamWalletFactoryAbi = [
     type: 'function',
     inputs: [],
     name: 'treasury',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'streamer', internalType: 'address', type: 'address' },
+      { name: 'newImplementation', internalType: 'address', type: 'address' },
+    ],
+    name: 'upgradeWallet',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'usdc',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
     stateMutability: 'view',
   },
@@ -1721,6 +3474,44 @@ export const streamWalletFactoryAbi = [
       },
     ],
     name: 'DonationProcessed',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'oldImplementation',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newImplementation',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'ImplementationUpdated',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'oldRouter',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newRouter',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'KayenRouterUpdated',
   },
   {
     type: 'event',
@@ -1809,6 +3600,25 @@ export const streamWalletFactoryAbi = [
     anonymous: false,
     inputs: [
       {
+        name: 'oldRouter',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newRouter',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'SwapRouterUpdated',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
         name: 'oldTreasury',
         internalType: 'address',
         type: 'address',
@@ -1822,6 +3632,50 @@ export const streamWalletFactoryAbi = [
       },
     ],
     name: 'TreasuryUpdated',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'oldUsdc',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newUsdc',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'UsdcUpdated',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'streamer',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'wallet',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newImplementation',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'WalletUpgraded',
   },
   { type: 'error', inputs: [], name: 'InvalidAddress' },
   { type: 'error', inputs: [], name: 'InvalidAmount' },
@@ -1838,6 +3692,12 @@ export const streamWalletFactoryAbi = [
     name: 'OwnableUnauthorizedAccount',
   },
   { type: 'error', inputs: [], name: 'ReentrancyGuardReentrantCall' },
+  {
+    type: 'error',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'SafeERC20FailedOperation',
+  },
+  { type: 'error', inputs: [], name: 'Unauthorized' },
   { type: 'error', inputs: [], name: 'WalletAlreadyExists' },
 ] as const
 
@@ -1869,66 +3729,21 @@ export const useBettingMatchReadDefaultAdminRole =
   })
 
 /**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"MARKET_BOTH_SCORE"`
- */
-export const useBettingMatchReadMarketBothScore =
-  /*#__PURE__*/ createUseReadContract({
-    abi: bettingMatchAbi,
-    functionName: 'MARKET_BOTH_SCORE',
-  })
-
-/**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"MARKET_CORRECT_SCORE"`
- */
-export const useBettingMatchReadMarketCorrectScore =
-  /*#__PURE__*/ createUseReadContract({
-    abi: bettingMatchAbi,
-    functionName: 'MARKET_CORRECT_SCORE',
-  })
-
-/**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"MARKET_FIRST_SCORER"`
- */
-export const useBettingMatchReadMarketFirstScorer =
-  /*#__PURE__*/ createUseReadContract({
-    abi: bettingMatchAbi,
-    functionName: 'MARKET_FIRST_SCORER',
-  })
-
-/**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"MARKET_GOALS_TOTAL"`
- */
-export const useBettingMatchReadMarketGoalsTotal =
-  /*#__PURE__*/ createUseReadContract({
-    abi: bettingMatchAbi,
-    functionName: 'MARKET_GOALS_TOTAL',
-  })
-
-/**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"MARKET_HALFTIME"`
- */
-export const useBettingMatchReadMarketHalftime =
-  /*#__PURE__*/ createUseReadContract({
-    abi: bettingMatchAbi,
-    functionName: 'MARKET_HALFTIME',
-  })
-
-/**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"MARKET_WINNER"`
- */
-export const useBettingMatchReadMarketWinner =
-  /*#__PURE__*/ createUseReadContract({
-    abi: bettingMatchAbi,
-    functionName: 'MARKET_WINNER',
-  })
-
-/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"MAX_ODDS"`
  */
 export const useBettingMatchReadMaxOdds = /*#__PURE__*/ createUseReadContract({
   abi: bettingMatchAbi,
   functionName: 'MAX_ODDS',
 })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"MIN_NET_STAKE"`
+ */
+export const useBettingMatchReadMinNetStake =
+  /*#__PURE__*/ createUseReadContract({
+    abi: bettingMatchAbi,
+    functionName: 'MIN_NET_STAKE',
+  })
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"MIN_ODDS"`
@@ -1975,12 +3790,12 @@ export const useBettingMatchReadResolverRole =
   })
 
 /**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"TREASURY_ROLE"`
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"SWAP_ROUTER_ROLE"`
  */
-export const useBettingMatchReadTreasuryRole =
+export const useBettingMatchReadSwapRouterRole =
   /*#__PURE__*/ createUseReadContract({
     abi: bettingMatchAbi,
-    functionName: 'TREASURY_ROLE',
+    functionName: 'SWAP_ROUTER_ROLE',
   })
 
 /**
@@ -1990,15 +3805,6 @@ export const useBettingMatchReadUpgradeInterfaceVersion =
   /*#__PURE__*/ createUseReadContract({
     abi: bettingMatchAbi,
     functionName: 'UPGRADE_INTERFACE_VERSION',
-  })
-
-/**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"footballMarkets"`
- */
-export const useBettingMatchReadFootballMarkets =
-  /*#__PURE__*/ createUseReadContract({
-    abi: bettingMatchAbi,
-    functionName: 'footballMarkets',
   })
 
 /**
@@ -2020,15 +3826,6 @@ export const useBettingMatchReadGetCurrentOdds =
   })
 
 /**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"getFootballMarket"`
- */
-export const useBettingMatchReadGetFootballMarket =
-  /*#__PURE__*/ createUseReadContract({
-    abi: bettingMatchAbi,
-    functionName: 'getFootballMarket',
-  })
-
-/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"getMarketCore"`
  */
 export const useBettingMatchReadGetMarketCore =
@@ -2044,6 +3841,15 @@ export const useBettingMatchReadGetMarketInfo =
   /*#__PURE__*/ createUseReadContract({
     abi: bettingMatchAbi,
     functionName: 'getMarketInfo',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"getMarketLiability"`
+ */
+export const useBettingMatchReadGetMarketLiability =
+  /*#__PURE__*/ createUseReadContract({
+    abi: bettingMatchAbi,
+    functionName: 'getMarketLiability',
   })
 
 /**
@@ -2082,6 +3888,15 @@ export const useBettingMatchReadHasRole = /*#__PURE__*/ createUseReadContract({
 })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"liquidityPool"`
+ */
+export const useBettingMatchReadLiquidityPool =
+  /*#__PURE__*/ createUseReadContract({
+    abi: bettingMatchAbi,
+    functionName: 'liquidityPool',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"marketCount"`
  */
 export const useBettingMatchReadMarketCount =
@@ -2096,6 +3911,15 @@ export const useBettingMatchReadMarketCount =
 export const useBettingMatchReadMatchName = /*#__PURE__*/ createUseReadContract(
   { abi: bettingMatchAbi, functionName: 'matchName' },
 )
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"maxAllowedOdds"`
+ */
+export const useBettingMatchReadMaxAllowedOdds =
+  /*#__PURE__*/ createUseReadContract({
+    abi: bettingMatchAbi,
+    functionName: 'maxAllowedOdds',
+  })
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"owner"`
@@ -2123,6 +3947,15 @@ export const useBettingMatchReadProxiableUuid =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"quoteNetExposure"`
+ */
+export const useBettingMatchReadQuoteNetExposure =
+  /*#__PURE__*/ createUseReadContract({
+    abi: bettingMatchAbi,
+    functionName: 'quoteNetExposure',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"sportType"`
  */
 export const useBettingMatchReadSportType = /*#__PURE__*/ createUseReadContract(
@@ -2139,19 +3972,17 @@ export const useBettingMatchReadSupportsInterface =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"usdcToken"`
+ */
+export const useBettingMatchReadUsdcToken = /*#__PURE__*/ createUseReadContract(
+  { abi: bettingMatchAbi, functionName: 'usdcToken' },
+)
+
+/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link bettingMatchAbi}__
  */
 export const useBettingMatchWriteundefined =
   /*#__PURE__*/ createUseWriteContract({ abi: bettingMatchAbi })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"addMarket"`
- */
-export const useBettingMatchWriteAddMarket =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: bettingMatchAbi,
-    functionName: 'addMarket',
-  })
 
 /**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"addMarketWithLine"`
@@ -2189,6 +4020,15 @@ export const useBettingMatchWriteClaimAll =
   })
 
 /**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"claimRange"`
+ */
+export const useBettingMatchWriteClaimRange =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: bettingMatchAbi,
+    functionName: 'claimRange',
+  })
+
+/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"claimRefund"`
  */
 export const useBettingMatchWriteClaimRefund =
@@ -2216,30 +4056,12 @@ export const useBettingMatchWriteEmergencyPause =
   })
 
 /**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"emergencyWithdraw"`
- */
-export const useBettingMatchWriteEmergencyWithdraw =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: bettingMatchAbi,
-    functionName: 'emergencyWithdraw',
-  })
-
-/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"grantRole"`
  */
 export const useBettingMatchWriteGrantRole =
   /*#__PURE__*/ createUseWriteContract({
     abi: bettingMatchAbi,
     functionName: 'grantRole',
-  })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"initialize"`
- */
-export const useBettingMatchWriteInitialize =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: bettingMatchAbi,
-    functionName: 'initialize',
   })
 
 /**
@@ -2252,12 +4074,21 @@ export const useBettingMatchWriteOpenMarket =
   })
 
 /**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"placeBet"`
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"placeBetUSDC"`
  */
-export const useBettingMatchWritePlaceBet =
+export const useBettingMatchWritePlaceBetUsdc =
   /*#__PURE__*/ createUseWriteContract({
     abi: bettingMatchAbi,
-    functionName: 'placeBet',
+    functionName: 'placeBetUSDC',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"placeBetUSDCFor"`
+ */
+export const useBettingMatchWritePlaceBetUsdcFor =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: bettingMatchAbi,
+    functionName: 'placeBetUSDCFor',
   })
 
 /**
@@ -2297,12 +4128,39 @@ export const useBettingMatchWriteRevokeRole =
   })
 
 /**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"setLiquidityPool"`
+ */
+export const useBettingMatchWriteSetLiquidityPool =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: bettingMatchAbi,
+    functionName: 'setLiquidityPool',
+  })
+
+/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"setMarketOdds"`
  */
 export const useBettingMatchWriteSetMarketOdds =
   /*#__PURE__*/ createUseWriteContract({
     abi: bettingMatchAbi,
     functionName: 'setMarketOdds',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"setMaxAllowedOdds"`
+ */
+export const useBettingMatchWriteSetMaxAllowedOdds =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: bettingMatchAbi,
+    functionName: 'setMaxAllowedOdds',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"setUSDCToken"`
+ */
+export const useBettingMatchWriteSetUsdcToken =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: bettingMatchAbi,
+    functionName: 'setUSDCToken',
   })
 
 /**
@@ -2346,15 +4204,6 @@ export const useBettingMatchSimulateundefined =
   /*#__PURE__*/ createUseSimulateContract({ abi: bettingMatchAbi })
 
 /**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"addMarket"`
- */
-export const useBettingMatchSimulateAddMarket =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: bettingMatchAbi,
-    functionName: 'addMarket',
-  })
-
-/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"addMarketWithLine"`
  */
 export const useBettingMatchSimulateAddMarketWithLine =
@@ -2391,6 +4240,15 @@ export const useBettingMatchSimulateClaimAll =
   })
 
 /**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"claimRange"`
+ */
+export const useBettingMatchSimulateClaimRange =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: bettingMatchAbi,
+    functionName: 'claimRange',
+  })
+
+/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"claimRefund"`
  */
 export const useBettingMatchSimulateClaimRefund =
@@ -2418,30 +4276,12 @@ export const useBettingMatchSimulateEmergencyPause =
   })
 
 /**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"emergencyWithdraw"`
- */
-export const useBettingMatchSimulateEmergencyWithdraw =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: bettingMatchAbi,
-    functionName: 'emergencyWithdraw',
-  })
-
-/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"grantRole"`
  */
 export const useBettingMatchSimulateGrantRole =
   /*#__PURE__*/ createUseSimulateContract({
     abi: bettingMatchAbi,
     functionName: 'grantRole',
-  })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"initialize"`
- */
-export const useBettingMatchSimulateInitialize =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: bettingMatchAbi,
-    functionName: 'initialize',
   })
 
 /**
@@ -2454,12 +4294,21 @@ export const useBettingMatchSimulateOpenMarket =
   })
 
 /**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"placeBet"`
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"placeBetUSDC"`
  */
-export const useBettingMatchSimulatePlaceBet =
+export const useBettingMatchSimulatePlaceBetUsdc =
   /*#__PURE__*/ createUseSimulateContract({
     abi: bettingMatchAbi,
-    functionName: 'placeBet',
+    functionName: 'placeBetUSDC',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"placeBetUSDCFor"`
+ */
+export const useBettingMatchSimulatePlaceBetUsdcFor =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: bettingMatchAbi,
+    functionName: 'placeBetUSDCFor',
   })
 
 /**
@@ -2499,12 +4348,39 @@ export const useBettingMatchSimulateRevokeRole =
   })
 
 /**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"setLiquidityPool"`
+ */
+export const useBettingMatchSimulateSetLiquidityPool =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: bettingMatchAbi,
+    functionName: 'setLiquidityPool',
+  })
+
+/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"setMarketOdds"`
  */
 export const useBettingMatchSimulateSetMarketOdds =
   /*#__PURE__*/ createUseSimulateContract({
     abi: bettingMatchAbi,
     functionName: 'setMarketOdds',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"setMaxAllowedOdds"`
+ */
+export const useBettingMatchSimulateSetMaxAllowedOdds =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: bettingMatchAbi,
+    functionName: 'setMaxAllowedOdds',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link bettingMatchAbi}__ and `functionName` set to `"setUSDCToken"`
+ */
+export const useBettingMatchSimulateSetUsdcToken =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: bettingMatchAbi,
+    functionName: 'setUSDCToken',
   })
 
 /**
@@ -2568,6 +4444,15 @@ export const useBettingMatchWatchInitialized =
   })
 
 /**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link bettingMatchAbi}__ and `eventName` set to `"LiquidityPoolSet"`
+ */
+export const useBettingMatchWatchLiquidityPoolSet =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: bettingMatchAbi,
+    eventName: 'LiquidityPoolSet',
+  })
+
+/**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link bettingMatchAbi}__ and `eventName` set to `"MarketCancelled"`
  */
 export const useBettingMatchWatchMarketCancelled =
@@ -2610,6 +4495,15 @@ export const useBettingMatchWatchMatchInitialized =
   /*#__PURE__*/ createUseWatchContractEvent({
     abi: bettingMatchAbi,
     eventName: 'MatchInitialized',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link bettingMatchAbi}__ and `eventName` set to `"MaxAllowedOddsSet"`
+ */
+export const useBettingMatchWatchMaxAllowedOddsSet =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: bettingMatchAbi,
+    eventName: 'MaxAllowedOddsSet',
   })
 
 /**
@@ -2685,6 +4579,15 @@ export const useBettingMatchWatchRoleRevoked =
   })
 
 /**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link bettingMatchAbi}__ and `eventName` set to `"USDCTokenSet"`
+ */
+export const useBettingMatchWatchUsdcTokenSet =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: bettingMatchAbi,
+    eventName: 'USDCTokenSet',
+  })
+
+/**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link bettingMatchAbi}__ and `eventName` set to `"Unpaused"`
  */
 export const useBettingMatchWatchUnpaused =
@@ -2709,12 +4612,48 @@ export const useBettingMatchFactoryReadundefined =
   /*#__PURE__*/ createUseReadContract({ abi: bettingMatchFactoryAbi })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchFactoryAbi}__ and `functionName` set to `"BASKETBALL"`
+ */
+export const useBettingMatchFactoryReadBasketball =
+  /*#__PURE__*/ createUseReadContract({
+    abi: bettingMatchFactoryAbi,
+    functionName: 'BASKETBALL',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchFactoryAbi}__ and `functionName` set to `"FOOTBALL"`
+ */
+export const useBettingMatchFactoryReadFootball =
+  /*#__PURE__*/ createUseReadContract({
+    abi: bettingMatchFactoryAbi,
+    functionName: 'FOOTBALL',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchFactoryAbi}__ and `functionName` set to `"allMatches"`
  */
 export const useBettingMatchFactoryReadAllMatches =
   /*#__PURE__*/ createUseReadContract({
     abi: bettingMatchFactoryAbi,
     functionName: 'allMatches',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchFactoryAbi}__ and `functionName` set to `"basketballImplementation"`
+ */
+export const useBettingMatchFactoryReadBasketballImplementation =
+  /*#__PURE__*/ createUseReadContract({
+    abi: bettingMatchFactoryAbi,
+    functionName: 'basketballImplementation',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchFactoryAbi}__ and `functionName` set to `"footballImplementation"`
+ */
+export const useBettingMatchFactoryReadFootballImplementation =
+  /*#__PURE__*/ createUseReadContract({
+    abi: bettingMatchFactoryAbi,
+    functionName: 'footballImplementation',
   })
 
 /**
@@ -2736,6 +4675,33 @@ export const useBettingMatchFactoryReadGetSportType =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchFactoryAbi}__ and `functionName` set to `"implementations"`
+ */
+export const useBettingMatchFactoryReadImplementations =
+  /*#__PURE__*/ createUseReadContract({
+    abi: bettingMatchFactoryAbi,
+    functionName: 'implementations',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchFactoryAbi}__ and `functionName` set to `"isMatch"`
+ */
+export const useBettingMatchFactoryReadIsMatch =
+  /*#__PURE__*/ createUseReadContract({
+    abi: bettingMatchFactoryAbi,
+    functionName: 'isMatch',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchFactoryAbi}__ and `functionName` set to `"liquidityPool"`
+ */
+export const useBettingMatchFactoryReadLiquidityPool =
+  /*#__PURE__*/ createUseReadContract({
+    abi: bettingMatchFactoryAbi,
+    functionName: 'liquidityPool',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchFactoryAbi}__ and `functionName` set to `"matchSportType"`
  */
 export const useBettingMatchFactoryReadMatchSportType =
@@ -2751,6 +4717,24 @@ export const useBettingMatchFactoryReadOwner =
   /*#__PURE__*/ createUseReadContract({
     abi: bettingMatchFactoryAbi,
     functionName: 'owner',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchFactoryAbi}__ and `functionName` set to `"swapRouter"`
+ */
+export const useBettingMatchFactoryReadSwapRouter =
+  /*#__PURE__*/ createUseReadContract({
+    abi: bettingMatchFactoryAbi,
+    functionName: 'swapRouter',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link bettingMatchFactoryAbi}__ and `functionName` set to `"usdcToken"`
+ */
+export const useBettingMatchFactoryReadUsdcToken =
+  /*#__PURE__*/ createUseReadContract({
+    abi: bettingMatchFactoryAbi,
+    functionName: 'usdcToken',
   })
 
 /**
@@ -2784,6 +4768,33 @@ export const useBettingMatchFactoryWriteRenounceOwnership =
   /*#__PURE__*/ createUseWriteContract({
     abi: bettingMatchFactoryAbi,
     functionName: 'renounceOwnership',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link bettingMatchFactoryAbi}__ and `functionName` set to `"setBasketballImplementation"`
+ */
+export const useBettingMatchFactoryWriteSetBasketballImplementation =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: bettingMatchFactoryAbi,
+    functionName: 'setBasketballImplementation',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link bettingMatchFactoryAbi}__ and `functionName` set to `"setFootballImplementation"`
+ */
+export const useBettingMatchFactoryWriteSetFootballImplementation =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: bettingMatchFactoryAbi,
+    functionName: 'setFootballImplementation',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link bettingMatchFactoryAbi}__ and `functionName` set to `"setWiring"`
+ */
+export const useBettingMatchFactoryWriteSetWiring =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: bettingMatchFactoryAbi,
+    functionName: 'setWiring',
   })
 
 /**
@@ -2829,6 +4840,33 @@ export const useBettingMatchFactorySimulateRenounceOwnership =
   })
 
 /**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link bettingMatchFactoryAbi}__ and `functionName` set to `"setBasketballImplementation"`
+ */
+export const useBettingMatchFactorySimulateSetBasketballImplementation =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: bettingMatchFactoryAbi,
+    functionName: 'setBasketballImplementation',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link bettingMatchFactoryAbi}__ and `functionName` set to `"setFootballImplementation"`
+ */
+export const useBettingMatchFactorySimulateSetFootballImplementation =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: bettingMatchFactoryAbi,
+    functionName: 'setFootballImplementation',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link bettingMatchFactoryAbi}__ and `functionName` set to `"setWiring"`
+ */
+export const useBettingMatchFactorySimulateSetWiring =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: bettingMatchFactoryAbi,
+    functionName: 'setWiring',
+  })
+
+/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link bettingMatchFactoryAbi}__ and `functionName` set to `"transferOwnership"`
  */
 export const useBettingMatchFactorySimulateTransferOwnership =
@@ -2842,6 +4880,24 @@ export const useBettingMatchFactorySimulateTransferOwnership =
  */
 export const useBettingMatchFactoryWatchundefined =
   /*#__PURE__*/ createUseWatchContractEvent({ abi: bettingMatchFactoryAbi })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link bettingMatchFactoryAbi}__ and `eventName` set to `"BasketballImplementationUpdated"`
+ */
+export const useBettingMatchFactoryWatchBasketballImplementationUpdated =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: bettingMatchFactoryAbi,
+    eventName: 'BasketballImplementationUpdated',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link bettingMatchFactoryAbi}__ and `eventName` set to `"FootballImplementationUpdated"`
+ */
+export const useBettingMatchFactoryWatchFootballImplementationUpdated =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: bettingMatchFactoryAbi,
+    eventName: 'FootballImplementationUpdated',
+  })
 
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link bettingMatchFactoryAbi}__ and `eventName` set to `"MatchCreated"`
@@ -2859,6 +4915,1213 @@ export const useBettingMatchFactoryWatchOwnershipTransferred =
   /*#__PURE__*/ createUseWatchContractEvent({
     abi: bettingMatchFactoryAbi,
     eventName: 'OwnershipTransferred',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link bettingMatchFactoryAbi}__ and `eventName` set to `"WiringSet"`
+ */
+export const useBettingMatchFactoryWatchWiringSet =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: bettingMatchFactoryAbi,
+    eventName: 'WiringSet',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__
+ */
+export const useLiquidityPoolReadundefined =
+  /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"BPS_DENOMINATOR"`
+ */
+export const useLiquidityPoolReadBpsDenominator =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'BPS_DENOMINATOR',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"DEFAULT_ADMIN_ROLE"`
+ */
+export const useLiquidityPoolReadDefaultAdminRole =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'DEFAULT_ADMIN_ROLE',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"MATCH_AUTHORIZER_ROLE"`
+ */
+export const useLiquidityPoolReadMatchAuthorizerRole =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'MATCH_AUTHORIZER_ROLE',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"MATCH_ROLE"`
+ */
+export const useLiquidityPoolReadMatchRole =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'MATCH_ROLE',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"MAX_BPS_SETTABLE"`
+ */
+export const useLiquidityPoolReadMaxBpsSettable =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'MAX_BPS_SETTABLE',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"PAUSER_ROLE"`
+ */
+export const useLiquidityPoolReadPauserRole =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'PAUSER_ROLE',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"ROUTER_ROLE"`
+ */
+export const useLiquidityPoolReadRouterRole =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'ROUTER_ROLE',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"TREASURY_SHARE_BPS"`
+ */
+export const useLiquidityPoolReadTreasuryShareBps =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'TREASURY_SHARE_BPS',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"UPGRADE_INTERFACE_VERSION"`
+ */
+export const useLiquidityPoolReadUpgradeInterfaceVersion =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'UPGRADE_INTERFACE_VERSION',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"accruedTreasury"`
+ */
+export const useLiquidityPoolReadAccruedTreasury =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'accruedTreasury',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"allowance"`
+ */
+export const useLiquidityPoolReadAllowance =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'allowance',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"asset"`
+ */
+export const useLiquidityPoolReadAsset = /*#__PURE__*/ createUseReadContract({
+  abi: liquidityPoolAbi,
+  functionName: 'asset',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"balanceOf"`
+ */
+export const useLiquidityPoolReadBalanceOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'balanceOf',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"convertToAssets"`
+ */
+export const useLiquidityPoolReadConvertToAssets =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'convertToAssets',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"convertToShares"`
+ */
+export const useLiquidityPoolReadConvertToShares =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'convertToShares',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"decimals"`
+ */
+export const useLiquidityPoolReadDecimals = /*#__PURE__*/ createUseReadContract(
+  { abi: liquidityPoolAbi, functionName: 'decimals' },
+)
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"depositCooldownSeconds"`
+ */
+export const useLiquidityPoolReadDepositCooldownSeconds =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'depositCooldownSeconds',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"freeBalance"`
+ */
+export const useLiquidityPoolReadFreeBalance =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'freeBalance',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"getRoleAdmin"`
+ */
+export const useLiquidityPoolReadGetRoleAdmin =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'getRoleAdmin',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"hasRole"`
+ */
+export const useLiquidityPoolReadHasRole = /*#__PURE__*/ createUseReadContract({
+  abi: liquidityPoolAbi,
+  functionName: 'hasRole',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"lastDepositAt"`
+ */
+export const useLiquidityPoolReadLastDepositAt =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'lastDepositAt',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"marketLiability"`
+ */
+export const useLiquidityPoolReadMarketLiability =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'marketLiability',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"matchLiability"`
+ */
+export const useLiquidityPoolReadMatchLiability =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'matchLiability',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"maxBetAmount"`
+ */
+export const useLiquidityPoolReadMaxBetAmount =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'maxBetAmount',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"maxDeposit"`
+ */
+export const useLiquidityPoolReadMaxDeposit =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'maxDeposit',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"maxLiabilityPerMarketBps"`
+ */
+export const useLiquidityPoolReadMaxLiabilityPerMarketBps =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'maxLiabilityPerMarketBps',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"maxLiabilityPerMatchBps"`
+ */
+export const useLiquidityPoolReadMaxLiabilityPerMatchBps =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'maxLiabilityPerMatchBps',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"maxMint"`
+ */
+export const useLiquidityPoolReadMaxMint = /*#__PURE__*/ createUseReadContract({
+  abi: liquidityPoolAbi,
+  functionName: 'maxMint',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"maxRedeem"`
+ */
+export const useLiquidityPoolReadMaxRedeem =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'maxRedeem',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"maxWithdraw"`
+ */
+export const useLiquidityPoolReadMaxWithdraw =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'maxWithdraw',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"name"`
+ */
+export const useLiquidityPoolReadName = /*#__PURE__*/ createUseReadContract({
+  abi: liquidityPoolAbi,
+  functionName: 'name',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"paused"`
+ */
+export const useLiquidityPoolReadPaused = /*#__PURE__*/ createUseReadContract({
+  abi: liquidityPoolAbi,
+  functionName: 'paused',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"pendingTreasury"`
+ */
+export const useLiquidityPoolReadPendingTreasury =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'pendingTreasury',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"previewDeposit"`
+ */
+export const useLiquidityPoolReadPreviewDeposit =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'previewDeposit',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"previewMint"`
+ */
+export const useLiquidityPoolReadPreviewMint =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'previewMint',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"previewRedeem"`
+ */
+export const useLiquidityPoolReadPreviewRedeem =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'previewRedeem',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"previewWithdraw"`
+ */
+export const useLiquidityPoolReadPreviewWithdraw =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'previewWithdraw',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"protocolFeeBps"`
+ */
+export const useLiquidityPoolReadProtocolFeeBps =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'protocolFeeBps',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"proxiableUUID"`
+ */
+export const useLiquidityPoolReadProxiableUuid =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'proxiableUUID',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"supportsInterface"`
+ */
+export const useLiquidityPoolReadSupportsInterface =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'supportsInterface',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"symbol"`
+ */
+export const useLiquidityPoolReadSymbol = /*#__PURE__*/ createUseReadContract({
+  abi: liquidityPoolAbi,
+  functionName: 'symbol',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"totalAssets"`
+ */
+export const useLiquidityPoolReadTotalAssets =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'totalAssets',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"totalLiabilities"`
+ */
+export const useLiquidityPoolReadTotalLiabilities =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'totalLiabilities',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"totalSupply"`
+ */
+export const useLiquidityPoolReadTotalSupply =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'totalSupply',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"treasury"`
+ */
+export const useLiquidityPoolReadTreasury = /*#__PURE__*/ createUseReadContract(
+  { abi: liquidityPoolAbi, functionName: 'treasury' },
+)
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"treasuryWithdrawable"`
+ */
+export const useLiquidityPoolReadTreasuryWithdrawable =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'treasuryWithdrawable',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"utilization"`
+ */
+export const useLiquidityPoolReadUtilization =
+  /*#__PURE__*/ createUseReadContract({
+    abi: liquidityPoolAbi,
+    functionName: 'utilization',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__
+ */
+export const useLiquidityPoolWriteundefined =
+  /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"acceptTreasury"`
+ */
+export const useLiquidityPoolWriteAcceptTreasury =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: liquidityPoolAbi,
+    functionName: 'acceptTreasury',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"approve"`
+ */
+export const useLiquidityPoolWriteApprove =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: liquidityPoolAbi,
+    functionName: 'approve',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"authorizeMatch"`
+ */
+export const useLiquidityPoolWriteAuthorizeMatch =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: liquidityPoolAbi,
+    functionName: 'authorizeMatch',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"cancelTreasuryProposal"`
+ */
+export const useLiquidityPoolWriteCancelTreasuryProposal =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: liquidityPoolAbi,
+    functionName: 'cancelTreasuryProposal',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"deposit"`
+ */
+export const useLiquidityPoolWriteDeposit =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: liquidityPoolAbi,
+    functionName: 'deposit',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"grantRole"`
+ */
+export const useLiquidityPoolWriteGrantRole =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: liquidityPoolAbi,
+    functionName: 'grantRole',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"initialize"`
+ */
+export const useLiquidityPoolWriteInitialize =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: liquidityPoolAbi,
+    functionName: 'initialize',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"mint"`
+ */
+export const useLiquidityPoolWriteMint = /*#__PURE__*/ createUseWriteContract({
+  abi: liquidityPoolAbi,
+  functionName: 'mint',
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"pause"`
+ */
+export const useLiquidityPoolWritePause = /*#__PURE__*/ createUseWriteContract({
+  abi: liquidityPoolAbi,
+  functionName: 'pause',
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"payRefund"`
+ */
+export const useLiquidityPoolWritePayRefund =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: liquidityPoolAbi,
+    functionName: 'payRefund',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"payWinner"`
+ */
+export const useLiquidityPoolWritePayWinner =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: liquidityPoolAbi,
+    functionName: 'payWinner',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"proposeTreasury"`
+ */
+export const useLiquidityPoolWriteProposeTreasury =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: liquidityPoolAbi,
+    functionName: 'proposeTreasury',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"recordBet"`
+ */
+export const useLiquidityPoolWriteRecordBet =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: liquidityPoolAbi,
+    functionName: 'recordBet',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"redeem"`
+ */
+export const useLiquidityPoolWriteRedeem = /*#__PURE__*/ createUseWriteContract(
+  { abi: liquidityPoolAbi, functionName: 'redeem' },
+)
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"renounceRole"`
+ */
+export const useLiquidityPoolWriteRenounceRole =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: liquidityPoolAbi,
+    functionName: 'renounceRole',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"revokeMatch"`
+ */
+export const useLiquidityPoolWriteRevokeMatch =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: liquidityPoolAbi,
+    functionName: 'revokeMatch',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"revokeRole"`
+ */
+export const useLiquidityPoolWriteRevokeRole =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: liquidityPoolAbi,
+    functionName: 'revokeRole',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"setDepositCooldownSeconds"`
+ */
+export const useLiquidityPoolWriteSetDepositCooldownSeconds =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: liquidityPoolAbi,
+    functionName: 'setDepositCooldownSeconds',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"setMaxBetAmount"`
+ */
+export const useLiquidityPoolWriteSetMaxBetAmount =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: liquidityPoolAbi,
+    functionName: 'setMaxBetAmount',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"setMaxLiabilityPerMarketBps"`
+ */
+export const useLiquidityPoolWriteSetMaxLiabilityPerMarketBps =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: liquidityPoolAbi,
+    functionName: 'setMaxLiabilityPerMarketBps',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"setMaxLiabilityPerMatchBps"`
+ */
+export const useLiquidityPoolWriteSetMaxLiabilityPerMatchBps =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: liquidityPoolAbi,
+    functionName: 'setMaxLiabilityPerMatchBps',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"setProtocolFeeBps"`
+ */
+export const useLiquidityPoolWriteSetProtocolFeeBps =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: liquidityPoolAbi,
+    functionName: 'setProtocolFeeBps',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"settleMarket"`
+ */
+export const useLiquidityPoolWriteSettleMarket =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: liquidityPoolAbi,
+    functionName: 'settleMarket',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"transfer"`
+ */
+export const useLiquidityPoolWriteTransfer =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: liquidityPoolAbi,
+    functionName: 'transfer',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"transferFrom"`
+ */
+export const useLiquidityPoolWriteTransferFrom =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: liquidityPoolAbi,
+    functionName: 'transferFrom',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"unpause"`
+ */
+export const useLiquidityPoolWriteUnpause =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: liquidityPoolAbi,
+    functionName: 'unpause',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"upgradeToAndCall"`
+ */
+export const useLiquidityPoolWriteUpgradeToAndCall =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: liquidityPoolAbi,
+    functionName: 'upgradeToAndCall',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"withdraw"`
+ */
+export const useLiquidityPoolWriteWithdraw =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: liquidityPoolAbi,
+    functionName: 'withdraw',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"withdrawTreasury"`
+ */
+export const useLiquidityPoolWriteWithdrawTreasury =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: liquidityPoolAbi,
+    functionName: 'withdrawTreasury',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__
+ */
+export const useLiquidityPoolSimulateundefined =
+  /*#__PURE__*/ createUseSimulateContract({ abi: liquidityPoolAbi })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"acceptTreasury"`
+ */
+export const useLiquidityPoolSimulateAcceptTreasury =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'acceptTreasury',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"approve"`
+ */
+export const useLiquidityPoolSimulateApprove =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'approve',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"authorizeMatch"`
+ */
+export const useLiquidityPoolSimulateAuthorizeMatch =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'authorizeMatch',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"cancelTreasuryProposal"`
+ */
+export const useLiquidityPoolSimulateCancelTreasuryProposal =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'cancelTreasuryProposal',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"deposit"`
+ */
+export const useLiquidityPoolSimulateDeposit =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'deposit',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"grantRole"`
+ */
+export const useLiquidityPoolSimulateGrantRole =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'grantRole',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"initialize"`
+ */
+export const useLiquidityPoolSimulateInitialize =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'initialize',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"mint"`
+ */
+export const useLiquidityPoolSimulateMint =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'mint',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"pause"`
+ */
+export const useLiquidityPoolSimulatePause =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'pause',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"payRefund"`
+ */
+export const useLiquidityPoolSimulatePayRefund =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'payRefund',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"payWinner"`
+ */
+export const useLiquidityPoolSimulatePayWinner =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'payWinner',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"proposeTreasury"`
+ */
+export const useLiquidityPoolSimulateProposeTreasury =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'proposeTreasury',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"recordBet"`
+ */
+export const useLiquidityPoolSimulateRecordBet =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'recordBet',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"redeem"`
+ */
+export const useLiquidityPoolSimulateRedeem =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'redeem',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"renounceRole"`
+ */
+export const useLiquidityPoolSimulateRenounceRole =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'renounceRole',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"revokeMatch"`
+ */
+export const useLiquidityPoolSimulateRevokeMatch =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'revokeMatch',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"revokeRole"`
+ */
+export const useLiquidityPoolSimulateRevokeRole =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'revokeRole',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"setDepositCooldownSeconds"`
+ */
+export const useLiquidityPoolSimulateSetDepositCooldownSeconds =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'setDepositCooldownSeconds',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"setMaxBetAmount"`
+ */
+export const useLiquidityPoolSimulateSetMaxBetAmount =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'setMaxBetAmount',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"setMaxLiabilityPerMarketBps"`
+ */
+export const useLiquidityPoolSimulateSetMaxLiabilityPerMarketBps =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'setMaxLiabilityPerMarketBps',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"setMaxLiabilityPerMatchBps"`
+ */
+export const useLiquidityPoolSimulateSetMaxLiabilityPerMatchBps =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'setMaxLiabilityPerMatchBps',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"setProtocolFeeBps"`
+ */
+export const useLiquidityPoolSimulateSetProtocolFeeBps =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'setProtocolFeeBps',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"settleMarket"`
+ */
+export const useLiquidityPoolSimulateSettleMarket =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'settleMarket',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"transfer"`
+ */
+export const useLiquidityPoolSimulateTransfer =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'transfer',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"transferFrom"`
+ */
+export const useLiquidityPoolSimulateTransferFrom =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'transferFrom',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"unpause"`
+ */
+export const useLiquidityPoolSimulateUnpause =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'unpause',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"upgradeToAndCall"`
+ */
+export const useLiquidityPoolSimulateUpgradeToAndCall =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'upgradeToAndCall',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"withdraw"`
+ */
+export const useLiquidityPoolSimulateWithdraw =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'withdraw',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link liquidityPoolAbi}__ and `functionName` set to `"withdrawTreasury"`
+ */
+export const useLiquidityPoolSimulateWithdrawTreasury =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: liquidityPoolAbi,
+    functionName: 'withdrawTreasury',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link liquidityPoolAbi}__
+ */
+export const useLiquidityPoolWatchundefined =
+  /*#__PURE__*/ createUseWatchContractEvent({ abi: liquidityPoolAbi })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link liquidityPoolAbi}__ and `eventName` set to `"Approval"`
+ */
+export const useLiquidityPoolWatchApproval =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: liquidityPoolAbi,
+    eventName: 'Approval',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link liquidityPoolAbi}__ and `eventName` set to `"BetRecorded"`
+ */
+export const useLiquidityPoolWatchBetRecorded =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: liquidityPoolAbi,
+    eventName: 'BetRecorded',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link liquidityPoolAbi}__ and `eventName` set to `"Deposit"`
+ */
+export const useLiquidityPoolWatchDeposit =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: liquidityPoolAbi,
+    eventName: 'Deposit',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link liquidityPoolAbi}__ and `eventName` set to `"DepositCooldownSet"`
+ */
+export const useLiquidityPoolWatchDepositCooldownSet =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: liquidityPoolAbi,
+    eventName: 'DepositCooldownSet',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link liquidityPoolAbi}__ and `eventName` set to `"Initialized"`
+ */
+export const useLiquidityPoolWatchInitialized =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: liquidityPoolAbi,
+    eventName: 'Initialized',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link liquidityPoolAbi}__ and `eventName` set to `"MarketSettled"`
+ */
+export const useLiquidityPoolWatchMarketSettled =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: liquidityPoolAbi,
+    eventName: 'MarketSettled',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link liquidityPoolAbi}__ and `eventName` set to `"MatchAuthorized"`
+ */
+export const useLiquidityPoolWatchMatchAuthorized =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: liquidityPoolAbi,
+    eventName: 'MatchAuthorized',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link liquidityPoolAbi}__ and `eventName` set to `"MatchRevoked"`
+ */
+export const useLiquidityPoolWatchMatchRevoked =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: liquidityPoolAbi,
+    eventName: 'MatchRevoked',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link liquidityPoolAbi}__ and `eventName` set to `"MaxBetAmountSet"`
+ */
+export const useLiquidityPoolWatchMaxBetAmountSet =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: liquidityPoolAbi,
+    eventName: 'MaxBetAmountSet',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link liquidityPoolAbi}__ and `eventName` set to `"MaxLiabilityPerMarketSet"`
+ */
+export const useLiquidityPoolWatchMaxLiabilityPerMarketSet =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: liquidityPoolAbi,
+    eventName: 'MaxLiabilityPerMarketSet',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link liquidityPoolAbi}__ and `eventName` set to `"MaxLiabilityPerMatchSet"`
+ */
+export const useLiquidityPoolWatchMaxLiabilityPerMatchSet =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: liquidityPoolAbi,
+    eventName: 'MaxLiabilityPerMatchSet',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link liquidityPoolAbi}__ and `eventName` set to `"Paused"`
+ */
+export const useLiquidityPoolWatchPaused =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: liquidityPoolAbi,
+    eventName: 'Paused',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link liquidityPoolAbi}__ and `eventName` set to `"ProtocolFeeSet"`
+ */
+export const useLiquidityPoolWatchProtocolFeeSet =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: liquidityPoolAbi,
+    eventName: 'ProtocolFeeSet',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link liquidityPoolAbi}__ and `eventName` set to `"RefundPaid"`
+ */
+export const useLiquidityPoolWatchRefundPaid =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: liquidityPoolAbi,
+    eventName: 'RefundPaid',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link liquidityPoolAbi}__ and `eventName` set to `"RoleAdminChanged"`
+ */
+export const useLiquidityPoolWatchRoleAdminChanged =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: liquidityPoolAbi,
+    eventName: 'RoleAdminChanged',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link liquidityPoolAbi}__ and `eventName` set to `"RoleGranted"`
+ */
+export const useLiquidityPoolWatchRoleGranted =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: liquidityPoolAbi,
+    eventName: 'RoleGranted',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link liquidityPoolAbi}__ and `eventName` set to `"RoleRevoked"`
+ */
+export const useLiquidityPoolWatchRoleRevoked =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: liquidityPoolAbi,
+    eventName: 'RoleRevoked',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link liquidityPoolAbi}__ and `eventName` set to `"Transfer"`
+ */
+export const useLiquidityPoolWatchTransfer =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: liquidityPoolAbi,
+    eventName: 'Transfer',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link liquidityPoolAbi}__ and `eventName` set to `"TreasuryAccepted"`
+ */
+export const useLiquidityPoolWatchTreasuryAccepted =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: liquidityPoolAbi,
+    eventName: 'TreasuryAccepted',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link liquidityPoolAbi}__ and `eventName` set to `"TreasuryAccrued"`
+ */
+export const useLiquidityPoolWatchTreasuryAccrued =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: liquidityPoolAbi,
+    eventName: 'TreasuryAccrued',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link liquidityPoolAbi}__ and `eventName` set to `"TreasuryProposalCancelled"`
+ */
+export const useLiquidityPoolWatchTreasuryProposalCancelled =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: liquidityPoolAbi,
+    eventName: 'TreasuryProposalCancelled',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link liquidityPoolAbi}__ and `eventName` set to `"TreasuryProposed"`
+ */
+export const useLiquidityPoolWatchTreasuryProposed =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: liquidityPoolAbi,
+    eventName: 'TreasuryProposed',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link liquidityPoolAbi}__ and `eventName` set to `"TreasuryWithdrawn"`
+ */
+export const useLiquidityPoolWatchTreasuryWithdrawn =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: liquidityPoolAbi,
+    eventName: 'TreasuryWithdrawn',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link liquidityPoolAbi}__ and `eventName` set to `"Unpaused"`
+ */
+export const useLiquidityPoolWatchUnpaused =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: liquidityPoolAbi,
+    eventName: 'Unpaused',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link liquidityPoolAbi}__ and `eventName` set to `"Upgraded"`
+ */
+export const useLiquidityPoolWatchUpgraded =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: liquidityPoolAbi,
+    eventName: 'Upgraded',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link liquidityPoolAbi}__ and `eventName` set to `"WinnerPaid"`
+ */
+export const useLiquidityPoolWatchWinnerPaid =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: liquidityPoolAbi,
+    eventName: 'WinnerPaid',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link liquidityPoolAbi}__ and `eventName` set to `"Withdraw"`
+ */
+export const useLiquidityPoolWatchWithdraw =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: liquidityPoolAbi,
+    eventName: 'Withdraw',
   })
 
 /**
@@ -2922,6 +6185,15 @@ export const useStreamWalletReadIsSubscribed =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"kayenRouter"`
+ */
+export const useStreamWalletReadKayenRouter =
+  /*#__PURE__*/ createUseReadContract({
+    abi: streamWalletAbi,
+    functionName: 'kayenRouter',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"lifetimeDonations"`
  */
 export const useStreamWalletReadLifetimeDonations =
@@ -2974,6 +6246,15 @@ export const useStreamWalletReadSubscriptions =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"swapRouter"`
+ */
+export const useStreamWalletReadSwapRouter =
+  /*#__PURE__*/ createUseReadContract({
+    abi: streamWalletAbi,
+    functionName: 'swapRouter',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"totalRevenue"`
  */
 export const useStreamWalletReadTotalRevenue =
@@ -3009,6 +6290,14 @@ export const useStreamWalletReadTreasury = /*#__PURE__*/ createUseReadContract({
 })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"usdc"`
+ */
+export const useStreamWalletReadUsdc = /*#__PURE__*/ createUseReadContract({
+  abi: streamWalletAbi,
+  functionName: 'usdc',
+})
+
+/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link streamWalletAbi}__
  */
 export const useStreamWalletWriteundefined =
@@ -3023,12 +6312,30 @@ export const useStreamWalletWriteDonate = /*#__PURE__*/ createUseWriteContract({
 })
 
 /**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"donateFor"`
+ */
+export const useStreamWalletWriteDonateFor =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: streamWalletAbi,
+    functionName: 'donateFor',
+  })
+
+/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"initialize"`
  */
 export const useStreamWalletWriteInitialize =
   /*#__PURE__*/ createUseWriteContract({
     abi: streamWalletAbi,
     functionName: 'initialize',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"recordDonationByRouter"`
+ */
+export const useStreamWalletWriteRecordDonationByRouter =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: streamWalletAbi,
+    functionName: 'recordDonationByRouter',
   })
 
 /**
@@ -3041,12 +6348,30 @@ export const useStreamWalletWriteRecordSubscription =
   })
 
 /**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"recordSubscriptionByRouter"`
+ */
+export const useStreamWalletWriteRecordSubscriptionByRouter =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: streamWalletAbi,
+    functionName: 'recordSubscriptionByRouter',
+  })
+
+/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"renounceOwnership"`
  */
 export const useStreamWalletWriteRenounceOwnership =
   /*#__PURE__*/ createUseWriteContract({
     abi: streamWalletAbi,
     functionName: 'renounceOwnership',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"setSwapRouter"`
+ */
+export const useStreamWalletWriteSetSwapRouter =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: streamWalletAbi,
+    functionName: 'setSwapRouter',
   })
 
 /**
@@ -3092,12 +6417,30 @@ export const useStreamWalletSimulateDonate =
   })
 
 /**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"donateFor"`
+ */
+export const useStreamWalletSimulateDonateFor =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: streamWalletAbi,
+    functionName: 'donateFor',
+  })
+
+/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"initialize"`
  */
 export const useStreamWalletSimulateInitialize =
   /*#__PURE__*/ createUseSimulateContract({
     abi: streamWalletAbi,
     functionName: 'initialize',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"recordDonationByRouter"`
+ */
+export const useStreamWalletSimulateRecordDonationByRouter =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: streamWalletAbi,
+    functionName: 'recordDonationByRouter',
   })
 
 /**
@@ -3110,12 +6453,30 @@ export const useStreamWalletSimulateRecordSubscription =
   })
 
 /**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"recordSubscriptionByRouter"`
+ */
+export const useStreamWalletSimulateRecordSubscriptionByRouter =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: streamWalletAbi,
+    functionName: 'recordSubscriptionByRouter',
+  })
+
+/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"renounceOwnership"`
  */
 export const useStreamWalletSimulateRenounceOwnership =
   /*#__PURE__*/ createUseSimulateContract({
     abi: streamWalletAbi,
     functionName: 'renounceOwnership',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"setSwapRouter"`
+ */
+export const useStreamWalletSimulateSetSwapRouter =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: streamWalletAbi,
+    functionName: 'setSwapRouter',
   })
 
 /**
@@ -3206,6 +6567,15 @@ export const useStreamWalletWatchSubscriptionRecorded =
   })
 
 /**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link streamWalletAbi}__ and `eventName` set to `"SwapRouterUpdated"`
+ */
+export const useStreamWalletWatchSwapRouterUpdated =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: streamWalletAbi,
+    eventName: 'SwapRouterUpdated',
+  })
+
+/**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link streamWalletAbi}__ and `eventName` set to `"Upgraded"`
  */
 export const useStreamWalletWatchUpgraded =
@@ -3257,12 +6627,30 @@ export const useStreamWalletFactoryReadImplementation =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"kayenRouter"`
+ */
+export const useStreamWalletFactoryReadKayenRouter =
+  /*#__PURE__*/ createUseReadContract({
+    abi: streamWalletFactoryAbi,
+    functionName: 'kayenRouter',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"owner"`
  */
 export const useStreamWalletFactoryReadOwner =
   /*#__PURE__*/ createUseReadContract({
     abi: streamWalletFactoryAbi,
     functionName: 'owner',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"streamWalletImplementation"`
+ */
+export const useStreamWalletFactoryReadStreamWalletImplementation =
+  /*#__PURE__*/ createUseReadContract({
+    abi: streamWalletFactoryAbi,
+    functionName: 'streamWalletImplementation',
   })
 
 /**
@@ -3275,12 +6663,30 @@ export const useStreamWalletFactoryReadStreamerWallets =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"swapRouter"`
+ */
+export const useStreamWalletFactoryReadSwapRouter =
+  /*#__PURE__*/ createUseReadContract({
+    abi: streamWalletFactoryAbi,
+    functionName: 'swapRouter',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"treasury"`
  */
 export const useStreamWalletFactoryReadTreasury =
   /*#__PURE__*/ createUseReadContract({
     abi: streamWalletFactoryAbi,
     functionName: 'treasury',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"usdc"`
+ */
+export const useStreamWalletFactoryReadUsdc =
+  /*#__PURE__*/ createUseReadContract({
+    abi: streamWalletFactoryAbi,
+    functionName: 'usdc',
   })
 
 /**
@@ -3308,12 +6714,39 @@ export const useStreamWalletFactoryWriteDonateToStream =
   })
 
 /**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"getOrCreateWallet"`
+ */
+export const useStreamWalletFactoryWriteGetOrCreateWallet =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: streamWalletFactoryAbi,
+    functionName: 'getOrCreateWallet',
+  })
+
+/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"renounceOwnership"`
  */
 export const useStreamWalletFactoryWriteRenounceOwnership =
   /*#__PURE__*/ createUseWriteContract({
     abi: streamWalletFactoryAbi,
     functionName: 'renounceOwnership',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"setImplementation"`
+ */
+export const useStreamWalletFactoryWriteSetImplementation =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: streamWalletFactoryAbi,
+    functionName: 'setImplementation',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"setKayenRouter"`
+ */
+export const useStreamWalletFactoryWriteSetKayenRouter =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: streamWalletFactoryAbi,
+    functionName: 'setKayenRouter',
   })
 
 /**
@@ -3326,12 +6759,30 @@ export const useStreamWalletFactoryWriteSetPlatformFee =
   })
 
 /**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"setSwapRouter"`
+ */
+export const useStreamWalletFactoryWriteSetSwapRouter =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: streamWalletFactoryAbi,
+    functionName: 'setSwapRouter',
+  })
+
+/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"setTreasury"`
  */
 export const useStreamWalletFactoryWriteSetTreasury =
   /*#__PURE__*/ createUseWriteContract({
     abi: streamWalletFactoryAbi,
     functionName: 'setTreasury',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"setUsdc"`
+ */
+export const useStreamWalletFactoryWriteSetUsdc =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: streamWalletFactoryAbi,
+    functionName: 'setUsdc',
   })
 
 /**
@@ -3350,6 +6801,15 @@ export const useStreamWalletFactoryWriteTransferOwnership =
   /*#__PURE__*/ createUseWriteContract({
     abi: streamWalletFactoryAbi,
     functionName: 'transferOwnership',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"upgradeWallet"`
+ */
+export const useStreamWalletFactoryWriteUpgradeWallet =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: streamWalletFactoryAbi,
+    functionName: 'upgradeWallet',
   })
 
 /**
@@ -3377,12 +6837,39 @@ export const useStreamWalletFactorySimulateDonateToStream =
   })
 
 /**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"getOrCreateWallet"`
+ */
+export const useStreamWalletFactorySimulateGetOrCreateWallet =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: streamWalletFactoryAbi,
+    functionName: 'getOrCreateWallet',
+  })
+
+/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"renounceOwnership"`
  */
 export const useStreamWalletFactorySimulateRenounceOwnership =
   /*#__PURE__*/ createUseSimulateContract({
     abi: streamWalletFactoryAbi,
     functionName: 'renounceOwnership',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"setImplementation"`
+ */
+export const useStreamWalletFactorySimulateSetImplementation =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: streamWalletFactoryAbi,
+    functionName: 'setImplementation',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"setKayenRouter"`
+ */
+export const useStreamWalletFactorySimulateSetKayenRouter =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: streamWalletFactoryAbi,
+    functionName: 'setKayenRouter',
   })
 
 /**
@@ -3395,12 +6882,30 @@ export const useStreamWalletFactorySimulateSetPlatformFee =
   })
 
 /**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"setSwapRouter"`
+ */
+export const useStreamWalletFactorySimulateSetSwapRouter =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: streamWalletFactoryAbi,
+    functionName: 'setSwapRouter',
+  })
+
+/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"setTreasury"`
  */
 export const useStreamWalletFactorySimulateSetTreasury =
   /*#__PURE__*/ createUseSimulateContract({
     abi: streamWalletFactoryAbi,
     functionName: 'setTreasury',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"setUsdc"`
+ */
+export const useStreamWalletFactorySimulateSetUsdc =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: streamWalletFactoryAbi,
+    functionName: 'setUsdc',
   })
 
 /**
@@ -3422,6 +6927,15 @@ export const useStreamWalletFactorySimulateTransferOwnership =
   })
 
 /**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"upgradeWallet"`
+ */
+export const useStreamWalletFactorySimulateUpgradeWallet =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: streamWalletFactoryAbi,
+    functionName: 'upgradeWallet',
+  })
+
+/**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link streamWalletFactoryAbi}__
  */
 export const useStreamWalletFactoryWatchundefined =
@@ -3434,6 +6948,24 @@ export const useStreamWalletFactoryWatchDonationProcessed =
   /*#__PURE__*/ createUseWatchContractEvent({
     abi: streamWalletFactoryAbi,
     eventName: 'DonationProcessed',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `eventName` set to `"ImplementationUpdated"`
+ */
+export const useStreamWalletFactoryWatchImplementationUpdated =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: streamWalletFactoryAbi,
+    eventName: 'ImplementationUpdated',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `eventName` set to `"KayenRouterUpdated"`
+ */
+export const useStreamWalletFactoryWatchKayenRouterUpdated =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: streamWalletFactoryAbi,
+    eventName: 'KayenRouterUpdated',
   })
 
 /**
@@ -3473,6 +7005,15 @@ export const useStreamWalletFactoryWatchSubscriptionProcessed =
   })
 
 /**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `eventName` set to `"SwapRouterUpdated"`
+ */
+export const useStreamWalletFactoryWatchSwapRouterUpdated =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: streamWalletFactoryAbi,
+    eventName: 'SwapRouterUpdated',
+  })
+
+/**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `eventName` set to `"TreasuryUpdated"`
  */
 export const useStreamWalletFactoryWatchTreasuryUpdated =
@@ -3481,115 +7022,20 @@ export const useStreamWalletFactoryWatchTreasuryUpdated =
     eventName: 'TreasuryUpdated',
   })
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// LiquidityPool
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `eventName` set to `"UsdcUpdated"`
+ */
+export const useStreamWalletFactoryWatchUsdcUpdated =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: streamWalletFactoryAbi,
+    eventName: 'UsdcUpdated',
+  })
 
-export const liquidityPoolAbi = [
-  { type: 'function', name: 'acceptTreasury', inputs: [], outputs: [], stateMutability: 'nonpayable' },
-  { type: 'function', name: 'accruedTreasury', inputs: [], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
-  { type: 'function', name: 'asset', inputs: [], outputs: [{ name: '', type: 'address', internalType: 'address' }], stateMutability: 'view' },
-  { type: 'function', name: 'authorizeMatch', inputs: [{ name: 'bettingMatch', type: 'address', internalType: 'address' }], outputs: [], stateMutability: 'nonpayable' },
-  { type: 'function', name: 'balanceOf', inputs: [{ name: 'account', type: 'address', internalType: 'address' }], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
-  { type: 'function', name: 'cancelTreasuryProposal', inputs: [], outputs: [], stateMutability: 'nonpayable' },
-  { type: 'function', name: 'convertToAssets', inputs: [{ name: 'shares', type: 'uint256', internalType: 'uint256' }], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
-  { type: 'function', name: 'convertToShares', inputs: [{ name: 'assets', type: 'uint256', internalType: 'uint256' }], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
-  { type: 'function', name: 'deposit', inputs: [{ name: 'assets', type: 'uint256', internalType: 'uint256' }, { name: 'receiver', type: 'address', internalType: 'address' }], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'nonpayable' },
-  { type: 'function', name: 'depositCooldownSeconds', inputs: [], outputs: [{ name: '', type: 'uint48', internalType: 'uint48' }], stateMutability: 'view' },
-  { type: 'function', name: 'freeBalance', inputs: [], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
-  { type: 'function', name: 'grantRole', inputs: [{ name: 'role', type: 'bytes32', internalType: 'bytes32' }, { name: 'account', type: 'address', internalType: 'address' }], outputs: [], stateMutability: 'nonpayable' },
-  { type: 'function', name: 'hasRole', inputs: [{ name: 'role', type: 'bytes32', internalType: 'bytes32' }, { name: 'account', type: 'address', internalType: 'address' }], outputs: [{ name: '', type: 'bool', internalType: 'bool' }], stateMutability: 'view' },
-  { type: 'function', name: 'lastDepositAt', inputs: [{ name: 'holder', type: 'address', internalType: 'address' }], outputs: [{ name: '', type: 'uint48', internalType: 'uint48' }], stateMutability: 'view' },
-  { type: 'function', name: 'marketLiability', inputs: [{ name: 'bettingMatch', type: 'address', internalType: 'address' }, { name: 'marketId', type: 'uint256', internalType: 'uint256' }], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
-  { type: 'function', name: 'matchLiability', inputs: [{ name: 'bettingMatch', type: 'address', internalType: 'address' }], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
-  { type: 'function', name: 'maxBetAmount', inputs: [], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
-  { type: 'function', name: 'maxLiabilityPerMarketBps', inputs: [], outputs: [{ name: '', type: 'uint16', internalType: 'uint16' }], stateMutability: 'view' },
-  { type: 'function', name: 'maxLiabilityPerMatchBps', inputs: [], outputs: [{ name: '', type: 'uint16', internalType: 'uint16' }], stateMutability: 'view' },
-  { type: 'function', name: 'mint', inputs: [{ name: 'shares', type: 'uint256', internalType: 'uint256' }, { name: 'receiver', type: 'address', internalType: 'address' }], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'nonpayable' },
-  { type: 'function', name: 'name', inputs: [], outputs: [{ name: '', type: 'string', internalType: 'string' }], stateMutability: 'view' },
-  { type: 'function', name: 'pause', inputs: [], outputs: [], stateMutability: 'nonpayable' },
-  { type: 'function', name: 'paused', inputs: [], outputs: [{ name: '', type: 'bool', internalType: 'bool' }], stateMutability: 'view' },
-  { type: 'function', name: 'previewDeposit', inputs: [{ name: 'assets', type: 'uint256', internalType: 'uint256' }], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
-  { type: 'function', name: 'previewMint', inputs: [{ name: 'shares', type: 'uint256', internalType: 'uint256' }], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
-  { type: 'function', name: 'previewRedeem', inputs: [{ name: 'shares', type: 'uint256', internalType: 'uint256' }], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
-  { type: 'function', name: 'previewWithdraw', inputs: [{ name: 'assets', type: 'uint256', internalType: 'uint256' }], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
-  { type: 'function', name: 'proposeTreasury', inputs: [{ name: 'newTreasury', type: 'address', internalType: 'address' }], outputs: [], stateMutability: 'nonpayable' },
-  { type: 'function', name: 'protocolFeeBps', inputs: [], outputs: [{ name: '', type: 'uint16', internalType: 'uint16' }], stateMutability: 'view' },
-  { type: 'function', name: 'redeem', inputs: [{ name: 'shares', type: 'uint256', internalType: 'uint256' }, { name: 'receiver', type: 'address', internalType: 'address' }, { name: 'owner', type: 'address', internalType: 'address' }], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'nonpayable' },
-  { type: 'function', name: 'revokeMatch', inputs: [{ name: 'bettingMatch', type: 'address', internalType: 'address' }], outputs: [], stateMutability: 'nonpayable' },
-  { type: 'function', name: 'revokeRole', inputs: [{ name: 'role', type: 'bytes32', internalType: 'bytes32' }, { name: 'account', type: 'address', internalType: 'address' }], outputs: [], stateMutability: 'nonpayable' },
-  { type: 'function', name: 'setDepositCooldownSeconds', inputs: [{ name: 'newSeconds', type: 'uint48', internalType: 'uint48' }], outputs: [], stateMutability: 'nonpayable' },
-  { type: 'function', name: 'setMaxBetAmount', inputs: [{ name: 'newMax', type: 'uint256', internalType: 'uint256' }], outputs: [], stateMutability: 'nonpayable' },
-  { type: 'function', name: 'setMaxLiabilityPerMarketBps', inputs: [{ name: 'newBps', type: 'uint16', internalType: 'uint16' }], outputs: [], stateMutability: 'nonpayable' },
-  { type: 'function', name: 'setMaxLiabilityPerMatchBps', inputs: [{ name: 'newBps', type: 'uint16', internalType: 'uint16' }], outputs: [], stateMutability: 'nonpayable' },
-  { type: 'function', name: 'setProtocolFeeBps', inputs: [{ name: 'newBps', type: 'uint16', internalType: 'uint16' }], outputs: [], stateMutability: 'nonpayable' },
-  { type: 'function', name: 'symbol', inputs: [], outputs: [{ name: '', type: 'string', internalType: 'string' }], stateMutability: 'view' },
-  { type: 'function', name: 'totalAssets', inputs: [], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
-  { type: 'function', name: 'totalLiabilities', inputs: [], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
-  { type: 'function', name: 'totalSupply', inputs: [], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
-  { type: 'function', name: 'treasury', inputs: [], outputs: [{ name: '', type: 'address', internalType: 'address' }], stateMutability: 'view' },
-  { type: 'function', name: 'treasuryWithdrawable', inputs: [], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
-  { type: 'function', name: 'unpause', inputs: [], outputs: [], stateMutability: 'nonpayable' },
-  { type: 'function', name: 'utilization', inputs: [], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'view' },
-  { type: 'function', name: 'withdraw', inputs: [{ name: 'assets', type: 'uint256', internalType: 'uint256' }, { name: 'receiver', type: 'address', internalType: 'address' }, { name: 'owner', type: 'address', internalType: 'address' }], outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }], stateMutability: 'nonpayable' },
-  { type: 'function', name: 'withdrawTreasury', inputs: [{ name: 'amount', type: 'uint256', internalType: 'uint256' }], outputs: [], stateMutability: 'nonpayable' },
-  // UUPS proxy functions
-  { type: 'function', name: 'UPGRADE_INTERFACE_VERSION', inputs: [], outputs: [{ name: '', type: 'string', internalType: 'string' }], stateMutability: 'view' },
-  { type: 'function', name: 'proxiableUUID', inputs: [], outputs: [{ name: '', type: 'bytes32', internalType: 'bytes32' }], stateMutability: 'view' },
-  { type: 'function', name: 'pendingTreasury', inputs: [], outputs: [{ name: '', type: 'address', internalType: 'address' }], stateMutability: 'view' },
-  { type: 'function', name: 'upgradeToAndCall', inputs: [{ name: 'newImplementation', type: 'address', internalType: 'address' }, { name: 'data', type: 'bytes', internalType: 'bytes' }], outputs: [], stateMutability: 'payable' },
-] as const
-
-// ─── Read hooks ───────────────────────────────────────────────────────────────
-
-export const useLiquidityPoolReadTotalAssets = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'totalAssets' })
-export const useLiquidityPoolReadFreeBalance = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'freeBalance' })
-export const useLiquidityPoolReadTotalLiabilities = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'totalLiabilities' })
-export const useLiquidityPoolReadUtilization = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'utilization' })
-export const useLiquidityPoolReadTotalSupply = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'totalSupply' })
-export const useLiquidityPoolReadBalanceOf = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'balanceOf' })
-export const useLiquidityPoolReadProtocolFeeBps = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'protocolFeeBps' })
-export const useLiquidityPoolReadMaxBetAmount = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'maxBetAmount' })
-export const useLiquidityPoolReadMaxLiabilityPerMarketBps = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'maxLiabilityPerMarketBps' })
-export const useLiquidityPoolReadMaxLiabilityPerMatchBps = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'maxLiabilityPerMatchBps' })
-export const useLiquidityPoolReadDepositCooldownSeconds = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'depositCooldownSeconds' })
-export const useLiquidityPoolReadPaused = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'paused' })
-export const useLiquidityPoolReadTreasury = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'treasury' })
-export const useLiquidityPoolReadAccruedTreasury = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'accruedTreasury' })
-export const useLiquidityPoolReadTreasuryWithdrawable = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'treasuryWithdrawable' })
-export const useLiquidityPoolReadAsset = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'asset' })
-export const useLiquidityPoolReadPreviewDeposit = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'previewDeposit' })
-export const useLiquidityPoolReadPreviewWithdraw = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'previewWithdraw' })
-export const useLiquidityPoolReadPreviewRedeem = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'previewRedeem' })
-export const useLiquidityPoolReadConvertToAssets = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'convertToAssets' })
-export const useLiquidityPoolReadConvertToShares = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'convertToShares' })
-export const useLiquidityPoolReadLastDepositAt = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'lastDepositAt' })
-export const useLiquidityPoolReadMarketLiability = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'marketLiability' })
-export const useLiquidityPoolReadMatchLiability = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'matchLiability' })
-export const useLiquidityPoolReadHasRole = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'hasRole' })
-
-// ─── Write hooks ──────────────────────────────────────────────────────────────
-
-export const useLiquidityPoolWriteDeposit = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'deposit' })
-export const useLiquidityPoolWriteWithdraw = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'withdraw' })
-export const useLiquidityPoolWriteRedeem = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'redeem' })
-export const useLiquidityPoolWriteMint = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'mint' })
-export const useLiquidityPoolWriteAuthorizeMatch = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'authorizeMatch' })
-export const useLiquidityPoolWriteRevokeMatch = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'revokeMatch' })
-export const useLiquidityPoolWriteSetProtocolFeeBps = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'setProtocolFeeBps' })
-export const useLiquidityPoolWriteSetMaxBetAmount = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'setMaxBetAmount' })
-export const useLiquidityPoolWriteSetMaxLiabilityPerMarketBps = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'setMaxLiabilityPerMarketBps' })
-export const useLiquidityPoolWriteSetMaxLiabilityPerMatchBps = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'setMaxLiabilityPerMatchBps' })
-export const useLiquidityPoolWriteSetDepositCooldownSeconds = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'setDepositCooldownSeconds' })
-export const useLiquidityPoolWritePause = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'pause' })
-export const useLiquidityPoolWriteUnpause = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'unpause' })
-export const useLiquidityPoolWriteProposeTreasury = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'proposeTreasury' })
-export const useLiquidityPoolWriteAcceptTreasury = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'acceptTreasury' })
-export const useLiquidityPoolWriteCancelTreasuryProposal = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'cancelTreasuryProposal' })
-export const useLiquidityPoolWriteWithdrawTreasury = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'withdrawTreasury' })
-export const useLiquidityPoolWriteGrantRole = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'grantRole' })
-export const useLiquidityPoolWriteRevokeRole = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'revokeRole' })
-export const useLiquidityPoolReadUpgradeInterfaceVersion = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'UPGRADE_INTERFACE_VERSION' })
-export const useLiquidityPoolReadProxiableUuid = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'proxiableUUID' })
-export const useLiquidityPoolReadPendingTreasury = /*#__PURE__*/ createUseReadContract({ abi: liquidityPoolAbi, functionName: 'pendingTreasury' })
-export const useLiquidityPoolWriteUpgradeToAndCall = /*#__PURE__*/ createUseWriteContract({ abi: liquidityPoolAbi, functionName: 'upgradeToAndCall' })
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `eventName` set to `"WalletUpgraded"`
+ */
+export const useStreamWalletFactoryWatchWalletUpgraded =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: streamWalletFactoryAbi,
+    eventName: 'WalletUpgraded',
+  })

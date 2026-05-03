@@ -218,6 +218,10 @@ export function useStreamWallet({ streamerAddress }: UseStreamWalletProps) {
     // Transaction functions (wrapped for error handling)
     // ============================================================
 
+    // NOTE: donateToStream / subscribeToStream now route through the Kayen swap router and
+    // accept any ERC20 (converted to USDC). The legacy native-CHZ flow no longer exists.
+    // Until the donation UI is rewritten to collect token + slippage + deadline, these calls
+    // pass placeholder values and will revert. Treat as a stub.
     const donate = useCallback(async (amount: string, message: string) => {
         if (!streamerAddress) {
             console.error('❌ Missing streamer address');
@@ -231,10 +235,18 @@ export function useStreamWallet({ streamerAddress }: UseStreamWalletProps) {
         }
 
         try {
+            const amountRaw = parseEther(amount);
+            const deadline = BigInt(Math.floor(Date.now() / 1000) + 60 * 10);
             donateWrite({
                 address: FACTORY_ADDRESS,
-                args: [streamerAddress, message],
-                value: parseEther(amount),
+                args: [
+                    streamerAddress,
+                    message,
+                    amountRaw,
+                    BigInt(0), // amountOutMin — TODO: compute from price feed
+                    deadline,
+                    '0x0000000000000000000000000000000000000000' as `0x${string}`, // token — TODO: pass real ERC20
+                ],
             });
         } catch (error: any) {
             console.error('❌ Error donating:', error);
@@ -260,10 +272,18 @@ export function useStreamWallet({ streamerAddress }: UseStreamWalletProps) {
 
         try {
             const durationSeconds = BigInt(durationDays * 24 * 60 * 60);
+            const amountRaw = parseEther(amount);
+            const deadline = BigInt(Math.floor(Date.now() / 1000) + 60 * 10);
             subscribeWrite({
                 address: FACTORY_ADDRESS,
-                args: [streamerAddress, durationSeconds],
-                value: parseEther(amount),
+                args: [
+                    streamerAddress,
+                    durationSeconds,
+                    amountRaw,
+                    BigInt(0), // amountOutMin — TODO
+                    deadline,
+                    '0x0000000000000000000000000000000000000000' as `0x${string}`, // token — TODO
+                ],
             });
         } catch (error: any) {
             console.error('❌ Error subscribing:', error);

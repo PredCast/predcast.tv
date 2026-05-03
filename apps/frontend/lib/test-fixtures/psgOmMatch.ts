@@ -7,7 +7,7 @@ import type {
 export const TEST_MATCH_ID = 999999;
 
 export const TEST_BETTING_CONTRACT_ADDRESS =
-  "0xc56a3684419c80B4c179cD92d87165fdbAFbBe1e" as const;
+  "0x3712A2c066F7dF1dEB72FBe39FDEc2d299Eb6183" as const;
 
 const TEST_KICKOFF_AT = "2099-12-31T20:00:00.000Z";
 

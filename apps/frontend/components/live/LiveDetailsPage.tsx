@@ -31,6 +31,13 @@ export default function LiveDetailsPage({ id }: LiveDetailsPageProps) {
   const { data: matchDataFromApi, isLoading: loadingFromApi, error: queryError } = useMatch(id);
   const matchData = isTestMatch ? TEST_MATCH : matchDataFromApi;
   const loading = isTestMatch ? false : loadingFromApi;
+
+  // eslint-disable-next-line no-console
+  console.log("[LiveDetailsPage]", {
+    id,
+    isTestMatch,
+    contractAddress: matchData?.contractAddress,
+  });
   const searchParams = useSearchParams();
   const initialStreamId = searchParams.get("streamId") ?? undefined;
 

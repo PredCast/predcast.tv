@@ -215,7 +215,12 @@ export default function PredictionsDialog({
         predictedTeam
       });
 
-      await placeBet(marketId, outcome, amountInCHZ.toString());
+      // BettingMatch now takes USDC raw (6 decimals). predictionAmount is in USD,
+      // so 1 USD ≈ 1 USDC for bet sizing purposes. The chzPrice/amountInCHZ path is
+      // legacy from the native-CHZ flow and should be removed when this dialog is
+      // wired up to the new live page. Caller must approve USDC for matchContract first.
+      const grossAmountUsdcRaw = BigInt(Math.round(Number(predictionAmount) * 1e6));
+      await placeBet(marketId, outcome, grossAmountUsdcRaw);
     } catch (err) {
       console.error("Error placing bet:", err);
       setErrorMessage(err instanceof Error ? err.message : "Unknown error");

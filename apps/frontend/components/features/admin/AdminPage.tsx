@@ -1,12 +1,20 @@
 "use client";
 
-import { useState } from "react";
-import { useReadContract } from "wagmi";
+import { useEffect, useState } from "react";
+import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
-import { Copy, ExternalLink } from "lucide-react";
+import { Copy, ExternalLink, CheckCircle2, XCircle, Loader2, ShieldCheck, ShieldAlert } from "lucide-react";
+import { keccak256, toBytes } from "viem";
 import { chilizConfig, networkType } from "@/config/chiliz.config";
 import { ReadCard, WriteCard, AbiFn } from "./FunctionCard";
 import type { Abi } from "viem";
+
+const MATCH_ROLE = keccak256(toBytes("MATCH_ROLE"));
+
+const explorerTxUrl = (hash: string) =>
+  networkType === "mainnet"
+    ? `https://explorer.chiliz.com/tx/${hash}`
+    : `https://spicy-explorer.chiliz.com/tx/${hash}`;
 
 import BettingMatchFactoryJSON from "@/artifacts/BettingMatchFactory.json";
 import BettingMatchJSON from "@/artifacts/BettingMatch.json";
@@ -716,6 +724,134 @@ function FunctionGroup({
   );
 }
 
+// ─── Quick-action: authorize a match in the LiquidityPool ─────────────────────
+
+function AuthorizeMatchQuickAction({ matchAddress }: { matchAddress: `0x${string}` }) {
+  const poolAddr = chilizConfig.liquidityPool;
+  const enabled =
+    matchAddress !== "0x0000000000000000000000000000000000000000" &&
+    poolAddr !== "0x0000000000000000000000000000000000000000";
+
+  const { data: isAuthorized, isLoading: isChecking, refetch } = useReadContract({
+    abi: POOL_ABI,
+    address: poolAddr,
+    functionName: "hasRole",
+    args: [MATCH_ROLE, matchAddress],
+    query: { enabled },
+  });
+
+  const { writeContract, data: hash, isPending, error: writeError, reset } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+
+  useEffect(() => {
+    if (isSuccess) refetch();
+  }, [isSuccess, refetch]);
+
+  const onAuthorize = () => {
+    reset();
+    writeContract({
+      abi: POOL_ABI,
+      address: poolAddr,
+      functionName: "authorizeMatch",
+      args: [matchAddress],
+    });
+  };
+
+  const authorized = isAuthorized === true;
+  const isBusy = isPending || isConfirming;
+
+  if (!enabled) return null;
+
+  return (
+    <div
+      className="flex flex-col gap-3 p-4 rounded-lg mb-6"
+      style={{
+        background: authorized ? "rgba(0,200,83,0.06)" : "rgba(234,179,8,0.06)",
+        border: `1px solid ${authorized ? "rgba(0,200,83,0.25)" : "rgba(234,179,8,0.3)"}`,
+      }}
+    >
+      <div className="flex items-start gap-3">
+        <div className="flex-shrink-0 mt-0.5">
+          {isChecking ? (
+            <Loader2 size={16} className="animate-spin" style={{ color: "#888" }} />
+          ) : authorized ? (
+            <ShieldCheck size={16} style={{ color: "#00C853" }} />
+          ) : (
+            <ShieldAlert size={16} style={{ color: "#EAB308" }} />
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div
+            className="text-[12px] font-bold uppercase tracking-[0.08em] mb-1"
+            style={{
+              color: authorized ? "#00C853" : "#EAB308",
+              fontFamily: "'Barlow', sans-serif",
+            }}
+          >
+            {isChecking
+              ? "Checking authorization..."
+              : authorized
+              ? "Match authorized in Liquidity Pool"
+              : "Match NOT authorized in Liquidity Pool"}
+          </div>
+          <p className="text-[11px]" style={{ color: "#888" }}>
+            {authorized
+              ? "This match has MATCH_ROLE on the pool — recordBet, payWinner and payRefund are allowed."
+              : "Without MATCH_ROLE on the pool, every bet on this match will revert with MatchNotAuthorized. Click below to grant it (requires MATCH_AUTHORIZER_ROLE)."}
+          </p>
+        </div>
+      </div>
+
+      {!authorized && !isChecking && (
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            onClick={onAuthorize}
+            disabled={isBusy}
+            className="flex items-center gap-2 px-4 py-2 rounded text-[12px] font-bold transition-opacity"
+            style={{
+              background: "#E8001D",
+              color: "#fff",
+              opacity: isBusy ? 0.7 : 1,
+              cursor: isBusy ? "not-allowed" : "pointer",
+              fontFamily: "'Barlow', sans-serif",
+              letterSpacing: "0.05em",
+            }}
+          >
+            {isBusy && <Loader2 size={13} className="animate-spin" />}
+            {isPending ? "Confirm in wallet..." : isConfirming ? "Confirming..." : "Authorize this match"}
+          </button>
+
+          {isSuccess && hash && (
+            <a
+              href={explorerTxUrl(hash)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-[11px]"
+              style={{ color: "#00C853" }}
+            >
+              <CheckCircle2 size={13} />
+              Authorized — View tx
+              <ExternalLink size={10} />
+            </a>
+          )}
+        </div>
+      )}
+
+      {writeError && (
+        <div
+          className="flex items-start gap-2 p-3 rounded"
+          style={{ background: "rgba(232,0,29,0.08)", border: "1px solid rgba(232,0,29,0.2)" }}
+        >
+          <XCircle size={13} className="mt-0.5 flex-shrink-0" style={{ color: "#E8001D" }} />
+          <p className="text-[11px] font-mono break-all" style={{ color: "#ff6b6b" }}>
+            {writeError.message.slice(0, 400)}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Panels ───────────────────────────────────────────────────────────────────
 
 function BettingFactoryPanel() {
@@ -787,7 +923,10 @@ function BettingMatchPanel() {
       </div>
 
       {contractAddress !== "0x0000000000000000000000000000000000000000" && (
-        <AddressBar label="BettingMatch (proxy)" address={contractAddress} />
+        <>
+          <AddressBar label="BettingMatch (proxy)" address={contractAddress} />
+          <AuthorizeMatchQuickAction matchAddress={contractAddress} />
+        </>
       )}
 
       <FunctionGroup title="View Functions" badge="READ" functions={BETTING_MATCH_READ} abi={MATCH_ABI} address={contractAddress} type="read" />

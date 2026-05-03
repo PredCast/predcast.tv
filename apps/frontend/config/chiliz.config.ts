@@ -14,6 +14,7 @@ export interface ChilizNetworkConfig {
     bettingContract: `0x${string}`; // Legacy (deprecated)
     bettingMatchFactory: `0x${string}`;
     streamWalletFactory: `0x${string}`;
+    liquidityPool: `0x${string}`;
     tokens: ChilizToken[];
 }
 
@@ -218,11 +219,24 @@ const MAINNET_BETTING_FACTORY = (process.env.NEXT_PUBLIC_BETTING_MATCH_FACTORY_A
 const TESTNET_STREAM_WALLET_FACTORY = (process.env.NEXT_PUBLIC_STREAM_WALLET_FACTORY_ADDRESS || '0x0000000000000000000000000000000000000000') as `0x${string}`;
 const MAINNET_STREAM_WALLET_FACTORY = (process.env.NEXT_PUBLIC_STREAM_WALLET_FACTORY_ADDRESS_MAINNET || '0x0000000000000000000000000000000000000000') as `0x${string}`;
 
+// Liquidity pool — always the proxy address (users interact with the proxy, not the implementation)
+const TESTNET_LIQUIDITY_POOL = (
+    process.env.NEXT_PUBLIC_LIQUIDITY_POOL_PROXY ||
+    process.env.NEXT_PUBLIC_LIQUIDITY_POOL_ADDRESS ||
+    '0x0000000000000000000000000000000000000000'
+) as `0x${string}`;
+const MAINNET_LIQUIDITY_POOL = (
+    process.env.NEXT_PUBLIC_LIQUIDITY_POOL_PROXY_MAINNET ||
+    process.env.NEXT_PUBLIC_LIQUIDITY_POOL_ADDRESS_MAINNET ||
+    '0x0000000000000000000000000000000000000000'
+) as `0x${string}`;
+
 const TESTNET_CONFIG: ChilizNetworkConfig = {
     rpcUrl: 'https://spicy-rpc.chiliz.com',
     bettingContract: TESTNET_BETTING_CONTRACT,
     bettingMatchFactory: TESTNET_BETTING_FACTORY,
     streamWalletFactory: TESTNET_STREAM_WALLET_FACTORY,
+    liquidityPool: TESTNET_LIQUIDITY_POOL,
     tokens: TESTNET_TOKENS.map(token => ({
         ...token,
         tokenAddress: token.testnetTokenAddress
@@ -234,6 +248,7 @@ const MAINNET_CONFIG: ChilizNetworkConfig = {
     bettingContract: MAINNET_BETTING_CONTRACT,
     bettingMatchFactory: MAINNET_BETTING_FACTORY,
     streamWalletFactory: MAINNET_STREAM_WALLET_FACTORY,
+    liquidityPool: MAINNET_LIQUIDITY_POOL,
     tokens: MAINNET_TOKENS
 };
 

@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":["file:///home/helder/Documents/chiliztv.com/apps/frontend/components/SplineBackground.tsx"],"sourcesContent":["// components/SplineBackground.tsx\n'use client';\n\nimport Spline from '@splinetool/react-spline';\n\nexport default function SplineBackground() {\n  return (\n    <div className=\"absolute inset-0 z-0 pointer-events-none\">\n      <Spline scene=\"https://prod.spline.design/mUccT9dDKFJmWUhl/scene.splinecode\" />\n    </div>\n  );\n}"],"names":[],"mappings":"AAAA,kCAAkC;;;;;AAGlC;AAFA;;;AAIe,SAAS;IACtB,qBACE,4TAAC;QAAI,WAAU;kBACb,cAAA,4TAAC,uXAAA,CAAA,UAAM;YAAC,OAAM;;;;;;;;;;;AAGpB;KANwB","debugId":null}}]
-}

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { type Address } from "viem";
-import { useBalance } from "wagmi";
+import { erc20Abi, maxUint256, parseUnits, type Address } from "viem";
+import { useBalance, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { TrendingUp, ExternalLink, CheckCircle2 } from "lucide-react";
 import {
   Dialog,
@@ -11,10 +11,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useBettingMatch } from "@/hooks/useBettingMatch";
-import { useLiquidityPoolReadAsset } from "@/lib/contracts/generated";
-import { chilizConfig } from "@/config/chiliz.config";
 import type { MarketSelection } from "./MatchMarketsList";
-import { BET_TOKEN_SYMBOL, formatBetAmount } from "./utils/betToken";
+import { BET_TOKEN_DECIMALS, BET_TOKEN_SYMBOL, formatBetAmount } from "./utils/betToken";
 
 interface MarketBetDialogProps {
   open: boolean;
@@ -90,24 +88,47 @@ export function MarketBetDialog({
     [selection, homeTeam, awayTeam],
   );
 
-  const { data: betTokenAddress } = useLiquidityPoolReadAsset({
-    address: chilizConfig.liquidityPool,
-  });
-
-  const { data: balanceData } = useBalance({
-    address: walletAddress as `0x${string}` | undefined,
-    token: betTokenAddress as `0x${string}` | undefined,
-    query: { enabled: !!walletAddress && !!betTokenAddress },
-  });
-  const balance = balanceData ? Number(balanceData.formatted) : 0;
-
-  const { placeBet, betState } = useBettingMatch(
+  const { placeBet, betState, usdcToken } = useBettingMatch(
     contractAddress,
     walletAddress as `0x${string}`,
     selection?.marketId ?? 0,
   );
+  const betTokenAddress = usdcToken;
+
+  const { data: balanceData } = useBalance({
+    address: walletAddress as `0x${string}` | undefined,
+    token: betTokenAddress,
+    query: { enabled: !!walletAddress && !!betTokenAddress },
+  });
+  const balance = balanceData ? Number(balanceData.formatted) : 0;
+
+  const { data: allowanceData, refetch: refetchAllowance } = useReadContract({
+    abi: erc20Abi,
+    address: betTokenAddress,
+    functionName: "allowance",
+    args: walletAddress && betTokenAddress
+      ? [walletAddress as `0x${string}`, contractAddress]
+      : undefined,
+    query: { enabled: !!walletAddress && !!betTokenAddress },
+  });
+  const allowance = (allowanceData as bigint | undefined) ?? BigInt(0);
+
+  const {
+    writeContract: writeApprove,
+    data: approveTxHash,
+    isPending: isApprovePending,
+    error: approveError,
+  } = useWriteContract();
+  const { isLoading: isApproveConfirming, isSuccess: isApproveSuccess } =
+    useWaitForTransactionReceipt({ hash: approveTxHash });
+
+  useEffect(() => {
+    if (isApproveSuccess) refetchAllowance();
+  }, [isApproveSuccess, refetchAllowance]);
+
   const { isPending, isConfirming, isSuccess, txHash, error: txError } = betState;
-  const isLoading = isPending || isConfirming;
+  const isApproving = isApprovePending || isApproveConfirming;
+  const isLoading = isPending || isConfirming || isApproving;
   const isMarketOpen = selection?.state === 1;
 
   // Reset form when dialog closes or market changes
@@ -122,21 +143,35 @@ export function MarketBetDialog({
   useEffect(() => {
     if (txError) {
       setErrorMessage(txError.message ?? "Transaction failed");
+    } else if (approveError) {
+      setErrorMessage(approveError.message ?? "Approval failed");
     }
-  }, [txError]);
+  }, [txError, approveError]);
 
   if (!selection) return null;
 
   const numericAmount = Number(amount);
   const isValidAmount = !Number.isNaN(numericAmount) && numericAmount >= MIN_BET;
+  const amountUsdcRaw = isValidAmount ? parseUnits(amount, BET_TOKEN_DECIMALS) : BigInt(0);
+  const needsApproval = isValidAmount && allowance < amountUsdcRaw;
   const canSubmit =
-    selectedOutcome !== null && isValidAmount && isMarketOpen && !isLoading && !!walletAddress;
+    selectedOutcome !== null && isValidAmount && isMarketOpen && !isLoading && !!walletAddress && !!betTokenAddress;
 
   const handleSubmit = () => {
     if (!canSubmit || selectedOutcome === null) return;
     setErrorMessage(null);
     try {
-      placeBet(selection.marketId, selectedOutcome, amount);
+      if (needsApproval) {
+        if (!betTokenAddress) return;
+        writeApprove({
+          abi: erc20Abi,
+          address: betTokenAddress,
+          functionName: "approve",
+          args: [contractAddress, maxUint256],
+        });
+        return;
+      }
+      placeBet(selection.marketId, selectedOutcome, amountUsdcRaw);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Unknown error");
     }
@@ -388,13 +423,19 @@ export function MarketBetDialog({
                 (e.currentTarget as HTMLButtonElement).style.background = "#E8001D";
               }}
             >
-              {isPending
-                ? "Confirm in wallet…"
-                : isConfirming
-                  ? "Placing bet…"
-                  : !walletAddress
-                    ? "Connect wallet"
-                    : "Place bet"}
+              {isApprovePending
+                ? "Confirm approval…"
+                : isApproveConfirming
+                  ? "Approving USDC…"
+                  : isPending
+                    ? "Confirm in wallet…"
+                    : isConfirming
+                      ? "Placing bet…"
+                      : !walletAddress
+                        ? "Connect wallet"
+                        : needsApproval
+                          ? `Approve ${BET_TOKEN_SYMBOL}`
+                          : "Place bet"}
             </button>
           </div>
         )}
