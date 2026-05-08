@@ -107,6 +107,46 @@ export const SORT_OPTIONS: SortOption[] = [
   { value: "league_desc", label: "League ↓" },
 ];
 
+/** A homogeneous bucket of matches for one league, ready to render. */
+export interface LeagueGroup {
+  leagueId: number;
+  leagueName: string;
+  leagueLogo: string | null;
+  matches: FlatMatch[];
+}
+
+/**
+ * Bucket matches by league, preserving the input order within each bucket.
+ * Buckets themselves are sorted by league name `asc` or `desc`. Returns a
+ * fresh array — does not mutate `matches`.
+ */
+export function groupByLeague(
+  matches: FlatMatch[],
+  direction: "asc" | "desc" = "asc",
+): LeagueGroup[] {
+  const map = new Map<number, LeagueGroup>();
+  for (const m of matches) {
+    let bucket = map.get(m.leagueId);
+    if (!bucket) {
+      bucket = {
+        leagueId: m.leagueId,
+        leagueName: m.leagueName,
+        leagueLogo: m.leagueLogo,
+        matches: [],
+      };
+      map.set(m.leagueId, bucket);
+    }
+    bucket.matches.push(m);
+  }
+  const groups = Array.from(map.values());
+  groups.sort((a, b) =>
+    direction === "asc"
+      ? a.leagueName.localeCompare(b.leagueName)
+      : b.leagueName.localeCompare(a.leagueName),
+  );
+  return groups;
+}
+
 export function sortMatches(matches: FlatMatch[], mode: SortMode): FlatMatch[] {
   const cp = matches.slice();
   switch (mode) {

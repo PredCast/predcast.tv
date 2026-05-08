@@ -42,7 +42,9 @@ export function DiscoverTicker({
 
   return (
     <div
-      className="relative z-[4] overflow-hidden border-y border-[#1E1E1E] bg-[#111] py-[14px]"
+      // Sticks just under the global Header (sticky top-0 / ~72px tall) so
+      // the live action stays visible while the user scrolls the page.
+      className="sticky top-[72px] z-40 overflow-hidden border-y border-[#1E1E1E] bg-[#111]/95 py-[14px] backdrop-blur-sm"
       style={{
         maskImage:
           "linear-gradient(90deg, transparent, black 6%, black 94%, transparent)",
