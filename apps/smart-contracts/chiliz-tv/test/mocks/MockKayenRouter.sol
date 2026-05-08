@@ -41,7 +41,6 @@ contract MockKayenRouter is IKayenMasterRouterV2, IKayenRouter {
     function swapExactETHForTokens(
         uint256 amountOutMin,
         address[] calldata path,
-        bool, /* receiveUnwrappedToken */
         address to,
         uint256 deadline
     ) external payable override returns (uint256[] memory amounts) {
@@ -69,7 +68,6 @@ contract MockKayenRouter is IKayenMasterRouterV2, IKayenRouter {
     function swapETHForExactTokens(
         uint256 amountOut,
         address[] calldata path,
-        bool, /* receiveUnwrappedToken */
         address to,
         uint256 deadline
     ) external payable override returns (uint256[] memory amounts) {

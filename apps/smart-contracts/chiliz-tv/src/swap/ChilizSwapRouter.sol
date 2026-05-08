@@ -700,7 +700,10 @@ contract ChilizSwapRouter is ReentrancyGuard, Ownable {
     }
 
     /**
-     * @dev Swap exact native CHZ to USDC via Kayen master router
+     * @dev Swap exact native CHZ to USDC via the configured master router.
+     *      Uses the standard Uniswap-V2 `swapExactETHForTokens` 4-arg
+     *      signature — see IKayenMasterRouterV2 for why we abandoned the
+     *      Kayen-V1 5-arg variant (Spicy testnet routers don't implement it).
      */
     function _swapCHZToUSDC(
         uint256 chzAmount,
@@ -714,7 +717,6 @@ contract ChilizSwapRouter is ReentrancyGuard, Ownable {
         uint256[] memory amounts = masterRouter.swapExactETHForTokens{value: chzAmount}(
             amountOutMin,
             path,
-            false,
             address(this),
             deadline
         );
