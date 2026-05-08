@@ -1,27 +1,27 @@
 {
   "network": "chilizTestnet",
   "chainId": 88882,
-  "timestamp": "2026-05-05T14:22:28Z",
+  "timestamp": "2026-05-08T09:13:28Z",
   "contracts": [
     {
       "name": "BettingMatchFactory",
-      "address": "0xe4d5b8f638453e03d44c7076ba4238786830e059"
+      "address": "0x5c15b24b0fffb7052af6b09a5ec83f0b3cdd1d5e"
     },
     {
       "name": "StreamWalletFactory",
-      "address": "0xba5fc6e0398ba0542af34a150cab0c140e9ed302"
+      "address": "0xcd41f0ac10714283d0f1ca08de670600c912d4b0"
     },
     {
       "name": "ChilizSwapRouter",
-      "address": "0x2775bc4225fe7fcf1c5508ae082a93b33d7bc11e"
+      "address": "0xf4972961aaf69e48ce57c3c056886507a5d36942"
     },
     {
       "name": "LiquidityPool",
-      "address": "0x26d8d42f0eeb9df8b3a28995df876317aa7b95f2"
+      "address": "0x744ddbdb4bb9b3b9eb3e1631c5e3b2b693397e85"
     },
     {
       "name": "ERC1967Proxy",
-      "address": "0xd0f3516d2339fa371c22040e234d9551141e8201"
+      "address": "0x62ef4d70c1b0d6ce0f028c85f57189909ea9fa73"
     }
   ]
 }

@@ -70,17 +70,37 @@ contract FootballMatch is BettingMatch {
      * @param initialOdds Initial odds (x10000)
      * @param line Line value (e.g., 25 = 2.5 goals, 0 = no line)
      */
-    function addMarketWithLine(bytes32 marketType, uint32 initialOdds, int16 line) 
-        external 
-        override 
-        onlyRole(ADMIN_ROLE) 
+    function addMarketWithLine(bytes32 marketType, uint32 initialOdds, int16 line)
+        external
+        override
+        onlyRole(ADMIN_ROLE)
     {
+        _addFootballMarket(marketType, initialOdds, line);
+    }
+
+    /// @notice Add multiple football markets in a single tx.
+    /// @dev    Parallel arrays — `marketTypes[i]` paired with `initialOdds[i]`
+    ///         and `lines[i]`. Reverts on first invalid entry; nothing
+    ///         partially added.
+    function addMarketsBatch(
+        bytes32[] calldata marketTypes,
+        uint32[]  calldata initialOdds,
+        int16[]   calldata lines
+    ) external onlyRole(ADMIN_ROLE) {
+        uint256 n = marketTypes.length;
+        if (n != initialOdds.length || n != lines.length) revert ArrayLengthMismatch();
+        for (uint256 i; i < n; ++i) {
+            _addFootballMarket(marketTypes[i], initialOdds[i], lines[i]);
+        }
+    }
+
+    function _addFootballMarket(bytes32 marketType, uint32 initialOdds, int16 line) internal {
         _validateOdds(initialOdds);
-        
+
         uint8 maxSelections = _getMaxSelections(marketType);
-        
+
         uint256 marketId = marketCount++;
-        
+
         _marketCores[marketId] = MarketCore({
             state: MarketState.Inactive,
             result: 0,
@@ -88,16 +108,16 @@ contract FootballMatch is BettingMatch {
             resolvedAt: 0,
             totalPool: 0
         });
-        
+
         footballMarkets[marketId] = FootballMarket({
             marketType: marketType,
             line: line,
             maxSelections: maxSelections
         });
-        
+
         _getOrCreateOddsIndex(marketId, initialOdds);
         _oddsRegistries[marketId].currentIndex = 1;
-        
+
         emit MarketCreated(marketId, _marketTypeToString(marketType), initialOdds);
     }
 

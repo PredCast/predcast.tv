@@ -80,11 +80,38 @@ contract BasketballMatch is BettingMatch {
      * @param line Line value
      * @param quarter Quarter (1-4, 0 = full game)
      */
-    function addMarketWithQuarter(bytes32 marketType, uint32 initialOdds, int16 line, uint8 quarter) 
-        external 
-        onlyRole(ADMIN_ROLE) 
+    function addMarketWithQuarter(bytes32 marketType, uint32 initialOdds, int16 line, uint8 quarter)
+        external
+        onlyRole(ADMIN_ROLE)
     {
         _addMarketInternal(marketType, initialOdds, line, quarter);
+    }
+
+    /// @notice Add multiple basketball markets in a single tx (full-game; quarter=0).
+    function addMarketsBatch(
+        bytes32[] calldata marketTypes,
+        uint32[]  calldata initialOdds,
+        int16[]   calldata lines
+    ) external onlyRole(ADMIN_ROLE) {
+        uint256 n = marketTypes.length;
+        if (n != initialOdds.length || n != lines.length) revert ArrayLengthMismatch();
+        for (uint256 i; i < n; ++i) {
+            _addMarketInternal(marketTypes[i], initialOdds[i], lines[i], 0);
+        }
+    }
+
+    /// @notice Add multiple basketball markets in a single tx with per-market quarter.
+    function addMarketsBatchWithQuarter(
+        bytes32[] calldata marketTypes,
+        uint32[]  calldata initialOdds,
+        int16[]   calldata lines,
+        uint8[]   calldata quarters
+    ) external onlyRole(ADMIN_ROLE) {
+        uint256 n = marketTypes.length;
+        if (n != initialOdds.length || n != lines.length || n != quarters.length) revert ArrayLengthMismatch();
+        for (uint256 i; i < n; ++i) {
+            _addMarketInternal(marketTypes[i], initialOdds[i], lines[i], quarters[i]);
+        }
     }
 
     function _addMarketInternal(bytes32 marketType, uint32 initialOdds, int16 line, uint8 quarter) internal {

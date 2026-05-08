@@ -197,6 +197,7 @@ abstract contract BettingMatch is
     error MaxOddsEntriesReached(uint256 marketId);
     error USDCNotConfigured();
     error LiquidityPoolNotConfigured();
+    error ArrayLengthMismatch();
 
     // ═══════════════════════════════════════════════════════════════════════
     // MODIFIERS
@@ -355,6 +356,40 @@ abstract contract BettingMatch is
     function closeMarket(uint256 marketId)
         external validMarket(marketId) onlyRole(ADMIN_ROLE)
     { _transitionMarketState(marketId, MarketState.Closed); }
+
+    /// @notice Open multiple markets in a single tx. Idempotent: silently skips
+    ///         markets already in the Open state. Other invalid transitions
+    ///         still revert via `_transitionMarketState`.
+    function openMarketsBatch(uint256[] calldata marketIds)
+        external
+        onlyRole(ADMIN_ROLE)
+    {
+        uint256 n = marketIds.length;
+        for (uint256 i; i < n; ++i) {
+            uint256 mid = marketIds[i];
+            _validMarket(mid);
+            if (_marketCores[mid].state == MarketState.Open) continue;
+            _transitionMarketState(mid, MarketState.Open);
+        }
+    }
+
+    /// @notice Close multiple markets in a single tx. Idempotent: silently skips
+    ///         markets already Closed / Resolved / Cancelled — useful as the
+    ///         first step of a mass-resolve flow regardless of which markets
+    ///         the operator already closed manually.
+    function closeMarketsBatch(uint256[] calldata marketIds)
+        external
+        onlyRole(ADMIN_ROLE)
+    {
+        uint256 n = marketIds.length;
+        for (uint256 i; i < n; ++i) {
+            uint256 mid = marketIds[i];
+            _validMarket(mid);
+            MarketState s = _marketCores[mid].state;
+            if (s == MarketState.Closed || s == MarketState.Resolved || s == MarketState.Cancelled) continue;
+            _transitionMarketState(mid, MarketState.Closed);
+        }
+    }
 
     function cancelMarket(uint256 marketId, string calldata reason)
         external validMarket(marketId) onlyRole(ADMIN_ROLE)
@@ -520,6 +555,26 @@ abstract contract BettingMatch is
         validMarket(marketId)
         onlyRole(RESOLVER_ROLE)
     {
+        _resolveMarketInternal(marketId, result);
+    }
+
+    /// @notice Resolve multiple markets in a single tx with paired results.
+    /// @dev    Each market must be in Closed state — call `closeMarketsBatch`
+    ///         first. Reverts on the first invalid market/result; nothing is
+    ///         partially resolved.
+    function resolveMarketsBatch(uint256[] calldata marketIds, uint64[] calldata results)
+        external
+        onlyRole(RESOLVER_ROLE)
+    {
+        uint256 n = marketIds.length;
+        if (n != results.length) revert ArrayLengthMismatch();
+        for (uint256 i; i < n; ++i) {
+            _validMarket(marketIds[i]);
+            _resolveMarketInternal(marketIds[i], results[i]);
+        }
+    }
+
+    function _resolveMarketInternal(uint256 marketId, uint64 result) internal {
         MarketCore storage core = _marketCores[marketId];
         if (core.state != MarketState.Closed) {
             revert InvalidMarketState(marketId, core.state, MarketState.Closed);
