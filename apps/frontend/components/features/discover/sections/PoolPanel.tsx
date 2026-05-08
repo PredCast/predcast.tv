@@ -77,7 +77,7 @@ export function PoolPanel() {
     <>
       <section
         id="pool"
-        className="relative z-[4] mx-auto max-w-[1400px] px-8 pb-20 sm:px-14 sm:pb-28"
+        className="relative z-[4] mx-auto max-w-[1400px] px-8 pb-20 pt-20 sm:px-14 sm:pb-28 sm:pt-28"
       >
         <SectionHead
           eyebrow="Liquidity · USDC · On-chain"

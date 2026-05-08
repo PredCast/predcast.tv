@@ -1,3 +1,5 @@
+import { NumberTicker } from "@/components/ui/number-ticker";
+
 export function OddsPill({
   label,
   value,
@@ -27,7 +29,7 @@ export function OddsPill({
         {label}
       </span>
       <span style={{ color: trendColor || (accent ? "#E8001D" : "#fff") }}>
-        {value.toFixed(2)}
+        <NumberTicker value={value} decimalPlaces={2} />
         {trend === "up" && <span className="ml-1 text-[#2dd4a4]">▲</span>}
         {trend === "down" && <span className="ml-1 text-[#FF1737]">▼</span>}
       </span>

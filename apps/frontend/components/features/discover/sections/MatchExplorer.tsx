@@ -1,14 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   EmptyState,
   FilterBar,
+  LeagueSection,
   MatchCard,
   leagueKey,
   type TabDescriptor,
 } from "../components";
 import {
+  groupByLeague,
   isLive,
   sortMatches,
   type FlatMatch,
@@ -16,7 +19,6 @@ import {
   type MatchTab,
   type SortMode,
 } from "../domain";
-import { SectionHead } from "./SectionHead";
 
 const FINISHED_STATUSES = new Set(["FT", "AET", "PEN"]);
 
@@ -24,12 +26,15 @@ export function MatchExplorer({
   matches,
   leagues,
   now,
+  isLoading = false,
 }: {
   matches: FlatMatch[];
   leagues: LeagueDto[];
   /** `null` until the client clock has been initialised post-hydration. */
   now: Date | null;
+  isLoading?: boolean;
 }) {
+  const router = useRouter();
   const [tab, setTab] = useState<MatchTab>("all");
   const [league, setLeague] = useState<string | null>(null);
   const [sort, setSort] = useState<SortMode>("time_asc");
@@ -53,6 +58,22 @@ export function MatchExplorer({
     return sortMatches(arr, sort);
   }, [matches, tab, league, sort, showFinished]);
 
+  // `league_*` sort modes switch the layout from a flat grid to per-league
+  // sections. Memoised so we don't rebucket on every parent re-render.
+  const grouped = sort === "league_asc" || sort === "league_desc";
+  const groups = useMemo(
+    () =>
+      grouped
+        ? groupByLeague(filtered, sort === "league_asc" ? "asc" : "desc")
+        : null,
+    [grouped, filtered, sort],
+  );
+
+  const goToMatch = useCallback(
+    (m: FlatMatch) => router.push(`/live/${m.id}`),
+    [router],
+  );
+
   const tabs: TabDescriptor[] = [
     { key: "all", label: "All", count: matches.length },
     { key: "live", label: "Live", count: liveCount },
@@ -61,20 +82,6 @@ export function MatchExplorer({
 
   return (
     <section id="explorer" className="relative z-[4]">
-      <div className="mx-auto max-w-[1400px] px-8 pb-12 pt-16 sm:px-14 sm:pb-16 sm:pt-24">
-        <SectionHead
-          eyebrow="Match explorer"
-          title={
-            <>
-              Browse the action.
-              <br />
-              <span className="text-[#E8001D]">Pick your moment.</span>
-            </>
-          }
-          lead="Filter, sort, predict. Every match is a smart-contract market on Chiliz Chain. Live cards stream into the pool in real time."
-        />
-      </div>
-
       <FilterBar
         tabs={tabs}
         activeTab={tab}
@@ -88,20 +95,50 @@ export function MatchExplorer({
         onToggleFinished={() => setShowFinished((v) => !v)}
       />
 
-      <div className="mx-auto max-w-[1400px] px-8 pb-20 pt-10 sm:px-14 sm:pb-28">
+      <div className="mx-auto max-w-[1400px] px-8 pb-20 pt-12 sm:px-14 sm:pb-28 sm:pt-16">
         {filtered.length === 0 ? (
-          <EmptyState
-            label={
-              tab === "live"
-                ? "No live matches right now"
-                : "Nothing matches that filter"
-            }
-            hint="Try clearing the league or switching tab."
-          />
+          isLoading ? (
+            <EmptyState
+              label="Loading matches"
+              hint="Fetching live fixtures from the network…"
+            />
+          ) : matches.length === 0 ? (
+            <EmptyState
+              label="No matches available"
+              hint="Live data is unavailable. Check back at kickoff."
+            />
+          ) : (
+            <EmptyState
+              label={
+                tab === "live"
+                  ? "No live matches right now"
+                  : "Nothing matches that filter"
+              }
+              hint="Try clearing the league or switching tab."
+            />
+          )
+        ) : groups ? (
+          groups.map((g) => (
+            <LeagueSection
+              key={g.leagueId}
+              league={g.leagueName}
+              logo={g.leagueLogo}
+              matches={g.matches}
+              now={now}
+              onPredict={goToMatch}
+              onWatch={goToMatch}
+            />
+          ))
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((m) => (
-              <MatchCard key={m.id} match={m} now={now} />
+              <MatchCard
+                key={m.id}
+                match={m}
+                now={now}
+                onPredict={goToMatch}
+                onWatch={goToMatch}
+              />
             ))}
           </div>
         )}
