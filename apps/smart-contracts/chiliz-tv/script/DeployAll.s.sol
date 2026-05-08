@@ -154,10 +154,12 @@ contract DeployAll is Script {
             adminAddress != treasury,
             "ADMIN_ADDRESS and SAFE_ADDRESS MUST be distinct (pool role separation)"
         );
-        require(
-            kayenMasterRouter != kayenRouter,
-            "KAYEN_MASTER_ROUTER and KAYEN_ROUTER MUST be distinct (different signatures)"
-        );
+        // NOTE: previously required `masterRouter != tokenRouter` because the
+        // Kayen V1 master router exposed a different `swapExactETHForTokens`
+        // signature. On Spicy testnet none of the deployed routers ship that
+        // V1 variant — they're all standard Uniswap-V2 forks (selector
+        // 0x7ff36ab5). Both fields can therefore safely point at the same
+        // V2 router.
 
         platformFeeBps      = uint16(_envUintOr("PLATFORM_FEE_BPS",        500));
         // PROTOCOL_FEE_BPS is deprecated — bettors pay no placement fee in
@@ -369,10 +371,18 @@ contract DeployAll is Script {
         pool.grantRole(pauserRole, adminAddress);
         console.log("  granted DEFAULT_ADMIN_ROLE + PAUSER_ROLE to:", adminAddress);
 
-        // Now renounce the deployer's grants. AccessControl.renounceRole
-        // requires `account == _msgSender()`, so this is the only safe path.
-        pool.renounceRole(pauserRole, deployer);
-        pool.renounceRole(adminRole,  deployer);
+        // Renounce the deployer's grants ONLY when the deployer differs from
+        // the intended admin. If they happen to be the same EOA (a common
+        // misconfiguration on testnet), grant + renounce nets to zero and
+        // the pool ends up with no admin forever. Skip the renounce in that
+        // case so the live admin keeps control.
+        if (deployer != adminAddress) {
+            pool.renounceRole(pauserRole, deployer);
+            pool.renounceRole(adminRole,  deployer);
+            console.log("  renounced deployer's pool roles");
+        } else {
+            console.log("  deployer == adminAddress -- skipped renounce to avoid losing the role");
+        }
         console.log("  renounced deployer's pool roles");
 
         console.log("");
