@@ -1,14 +1,14 @@
 import { injectable } from 'tsyringe';
 import { createWalletClient, createPublicClient, http, keccak256, toBytes } from 'viem';
 import { privateKeyToAccount, nonceManager } from 'viem/accounts';
-import { chiliz } from 'viem/chains';
 import { chilizConfig, networkType } from '../../config/chiliz.config';
-import { FACTORY_ABI, FOOTBALL_MATCH_ABI } from '@chiliztv/blockchain';
-import { baseSepolia } from '@chiliztv/blockchain';
+import { FACTORY_ABI, FOOTBALL_MATCH_ABI, chainFor } from '@chiliztv/blockchain';
 import { logger } from '../../logging/logger';
 
-const FACTORY_ADDRESS = (process.env.BETTING_MATCH_FACTORY_ADDRESS ||
-    '0x9b94425D6c877B479a5943e82c3bA6e6C6Ec4462') as `0x${string}`;
+if (!process.env.BETTING_MATCH_FACTORY_ADDRESS) {
+    throw new Error('BETTING_MATCH_FACTORY_ADDRESS env var is required');
+}
+const FACTORY_ADDRESS = process.env.BETTING_MATCH_FACTORY_ADDRESS as `0x${string}`;
 const ADMIN_PRIVATE_KEY = process.env.ADMIN_PRIVATE_KEY as `0x${string}`;
 const ADMIN_ADDRESS = process.env.ADMIN_ADDRESS as `0x${string}`;
 
@@ -55,8 +55,7 @@ export class BettingContractDeploymentAdapter {
             throw new Error('ADMIN_PRIVATE_KEY environment variable is required');
         }
 
-        // Use testnet (baseSepolia) or mainnet (chiliz) based on environment
-        const chain = networkType === 'testnet' ? baseSepolia : chiliz;
+        const chain = chainFor(networkType);
         const account = privateKeyToAccount(ADMIN_PRIVATE_KEY, { nonceManager });
 
         this.walletClient = createWalletClient({
@@ -101,7 +100,7 @@ export class BettingContractDeploymentAdapter {
             // Wait for transaction receipt
             const receipt = await this.publicClient.waitForTransactionReceipt({
                 hash,
-                timeout: 120_000, // 2 minutes (Base Sepolia can be slow)
+                timeout: 120_000,
             });
 
             // Extract the proxy address from the MatchCreated event

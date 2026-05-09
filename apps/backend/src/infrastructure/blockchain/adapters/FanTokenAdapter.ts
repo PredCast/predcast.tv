@@ -1,19 +1,9 @@
 import { injectable } from 'tsyringe';
-import { createPublicClient, http, defineChain } from 'viem';
-import { chiliz } from 'viem/chains';
+import { createPublicClient, http } from 'viem';
 import { chilizConfig, networkType } from '../../config/chiliz.config';
-import { ERC20_ABI } from '@chiliztv/blockchain';
+import { ERC20_ABI, chainFor } from '@chiliztv/blockchain';
 import { logger } from '../../logging';
 import { IFanTokenRepository, UserTokenBalance } from '@chiliztv/domain/fan-tokens/repositories/IFanTokenRepository';
-
-const baseSepolia = defineChain({
-  id: 84532,
-  name: 'Base Sepolia',
-  nativeCurrency: { decimals: 18, name: 'Ether', symbol: 'ETH' },
-  rpcUrls: { default: { http: ['https://sepolia.base.org'] } },
-  blockExplorers: { default: { name: 'BaseScan', url: 'https://sepolia.basescan.org' } },
-  testnet: true,
-});
 
 const FEATURED_THRESHOLD = 100;
 
@@ -26,7 +16,7 @@ export class FanTokenAdapter implements IFanTokenRepository {
   private publicClient;
 
   constructor() {
-    const chain = networkType === 'testnet' ? baseSepolia : chiliz;
+    const chain = chainFor(networkType);
     this.publicClient = createPublicClient({
       chain,
       transport: http(chilizConfig.rpcUrl)

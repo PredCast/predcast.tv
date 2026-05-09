@@ -2,25 +2,17 @@
  * Cancels stuck pending transactions by replacing them with 0-value self-transfers
  * at a higher gas price. Run this when "replacement transaction underpriced" errors occur.
  *
- * Since Base Sepolia's public RPC doesn't expose mempool state reliably,
- * this script also proactively cancels N future nonces to clear any hidden stuck txs.
+ * Spicy public RPC may not expose mempool state reliably; this script proactively
+ * cancels N future nonces to clear any hidden stuck txs.
  */
 import * as dotenv from 'dotenv';
 dotenv.config();
 
 import { createWalletClient, createPublicClient, http, parseGwei } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import { defineChain } from 'viem';
+import { chainFor } from '@chiliztv/blockchain';
 
-const baseSepolia = defineChain({
-    id: 84532,
-    name: 'Base Sepolia',
-    nativeCurrency: { decimals: 18, name: 'Ether', symbol: 'ETH' },
-    rpcUrls: { default: { http: ['https://sepolia.base.org'] } },
-    blockExplorers: { default: { name: 'BaseScan', url: 'https://sepolia.basescan.org' } },
-    testnet: true,
-});
-
+const chain = chainFor((process.env.NETWORK === 'mainnet' ? 'mainnet' : 'testnet'));
 const ADMIN_PRIVATE_KEY = process.env.ADMIN_PRIVATE_KEY as `0x${string}`;
 
 // How many nonces to proactively clear starting from current latest nonce
@@ -30,8 +22,8 @@ async function main() {
     if (!ADMIN_PRIVATE_KEY) throw new Error('ADMIN_PRIVATE_KEY not set');
 
     const account = privateKeyToAccount(ADMIN_PRIVATE_KEY);
-    const publicClient = createPublicClient({ chain: baseSepolia, transport: http() });
-    const walletClient = createWalletClient({ account, chain: baseSepolia, transport: http() });
+    const publicClient = createPublicClient({ chain: chain, transport: http() });
+    const walletClient = createWalletClient({ account, chain: chain, transport: http() });
 
     const latestNonce = await publicClient.getTransactionCount({ address: account.address, blockTag: 'latest' });
     const pendingNonce = await publicClient.getTransactionCount({ address: account.address, blockTag: 'pending' });

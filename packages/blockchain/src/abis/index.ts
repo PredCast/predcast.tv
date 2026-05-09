@@ -1,5 +1,18 @@
 import { parseAbiItem } from 'viem';
 
+// Full ABIs sourced from the Foundry build artifacts (kept in sync via
+// `pnpm artifacts:sync` at the repo root).
+export {
+    LIQUIDITY_POOL_ABI,
+    CHILIZ_SWAP_ROUTER_ABI,
+    STREAM_WALLET_ABI,
+    STREAM_WALLET_FACTORY_ABI,
+    BETTING_MATCH_FACTORY_ABI,
+    BETTING_MATCH_ABI,
+    FOOTBALL_MATCH_FULL_ABI,
+    BASKETBALL_MATCH_ABI,
+} from './contracts';
+
 // ERC20 ABI for reading token balances
 export const ERC20_ABI = [
     {

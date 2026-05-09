@@ -7,3 +7,6 @@ export { streamRoutes } from './stream.routes';
 export { streamWalletRoutes } from './stream-wallet.routes';
 export { fanTokensRoutes } from './fan-tokens.routes';
 export { followRoutes } from './follow.routes';
+export { poolRoutes } from './pool.routes';
+export { betRoutes } from './bet.routes';
+export { userRoutes } from './user.routes';

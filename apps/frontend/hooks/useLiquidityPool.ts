@@ -19,6 +19,18 @@ import {
   useLiquidityPoolReadPreviewDeposit,
   useLiquidityPoolReadPreviewWithdraw,
   useLiquidityPoolReadConvertToAssets,
+  useLiquidityPoolReadConvertToShares,
+  useLiquidityPoolReadPreviewMint,
+  useLiquidityPoolReadPreviewRedeem,
+  useLiquidityPoolReadAccruedTreasury,
+  useLiquidityPoolReadTreasuryShareBps,
+  useLiquidityPoolReadLpWithdrawalFeeBps,
+  useLiquidityPoolReadTreasury,
+  useLiquidityPoolReadPendingTreasury,
+  useLiquidityPoolReadLastDepositAt,
+  useLiquidityPoolReadCostBasis,
+  useLiquidityPoolReadMaxLiabilityPerMarketBps,
+  useLiquidityPoolReadMaxLiabilityPerMatchBps,
   useLiquidityPoolWriteDeposit,
   useLiquidityPoolWriteWithdraw,
   useLiquidityPoolWriteRedeem,
@@ -42,6 +54,14 @@ export interface PoolStats {
   maxBetAmount: bigint | undefined;
   depositCooldownSeconds: number | undefined;
   isPaused: boolean | undefined;
+  // ── New: pool economics surface for the LP-position UI + APY workflow ──
+  treasuryShareBps: number | undefined;
+  lpWithdrawalFeeBps: number | undefined;
+  accruedTreasury: bigint | undefined;
+  treasury: Address | undefined;
+  pendingTreasury: Address | undefined;
+  maxLiabilityPerMarketBps: number | undefined;
+  maxLiabilityPerMatchBps: number | undefined;
 }
 
 interface TxState {
@@ -60,9 +80,17 @@ export interface UseLiquidityPoolReturn {
 
   // Per-user reads
   sharesOf: (holder: Address) => bigint | undefined;
+  costBasisOf: (holder: Address) => bigint | undefined;
+  lastDepositAtOf: (holder: Address) => number | undefined;
+
+  // Conversions / previews (stateless — argument-driven via the previewAmount
+  // / previewShares args passed to the hook).
   previewDeposit: (assets: bigint) => bigint | undefined;
   previewWithdraw: (assets: bigint) => bigint | undefined;
   convertToAssets: (shares: bigint) => bigint | undefined;
+  convertToShares: (assets: bigint) => bigint | undefined;
+  previewMint: (shares: bigint) => bigint | undefined;
+  previewRedeem: (shares: bigint) => bigint | undefined;
 
   // Writes
   deposit: (assets: bigint, receiver: Address) => void;
@@ -78,6 +106,7 @@ export function useLiquidityPool(
   poolAddress: Address,
   userAddress?: Address,
   previewAssetsAmount?: bigint,
+  previewSharesAmount?: bigint,
 ): UseLiquidityPoolReturn {
 
   // ── Pool stats ──────────────────────────────────────────────────────────────
@@ -91,14 +120,36 @@ export function useLiquidityPool(
   const { data: depositCooldownSeconds, isLoading: l8, refetch: r8 } = useLiquidityPoolReadDepositCooldownSeconds({ address: poolAddress, chainId: CHAIN_ID });
   const { data: isPaused, isLoading: l9, refetch: r9 } = useLiquidityPoolReadPaused({ address: poolAddress, chainId: CHAIN_ID });
 
+  // ── Pool economics (added in Lot 3) ─────────────────────────────────────────
+  const { data: treasuryShareBps, refetch: rTsh } = useLiquidityPoolReadTreasuryShareBps({ address: poolAddress, chainId: CHAIN_ID });
+  const { data: lpWithdrawalFeeBps, refetch: rLwf } = useLiquidityPoolReadLpWithdrawalFeeBps({ address: poolAddress, chainId: CHAIN_ID });
+  const { data: accruedTreasury, refetch: rAcc } = useLiquidityPoolReadAccruedTreasury({ address: poolAddress, chainId: CHAIN_ID });
+  const { data: treasury, refetch: rTr } = useLiquidityPoolReadTreasury({ address: poolAddress, chainId: CHAIN_ID });
+  const { data: pendingTreasury, refetch: rPt } = useLiquidityPoolReadPendingTreasury({ address: poolAddress, chainId: CHAIN_ID });
+  const { data: maxLiabilityPerMarketBps, refetch: rLm } = useLiquidityPoolReadMaxLiabilityPerMarketBps({ address: poolAddress, chainId: CHAIN_ID });
+  const { data: maxLiabilityPerMatchBps, refetch: rLM } = useLiquidityPoolReadMaxLiabilityPerMatchBps({ address: poolAddress, chainId: CHAIN_ID });
+
   // ── Per-user reads ──────────────────────────────────────────────────────────
-  const { data: sharesData } = useLiquidityPoolReadBalanceOf({
+  const { data: sharesData, refetch: refetchShares } = useLiquidityPoolReadBalanceOf({
+    address: poolAddress,
+    args: userAddress ? [userAddress] : undefined,
+    chainId: CHAIN_ID,
+    query: { enabled: !!userAddress },
+  });
+  const { data: costBasisData, refetch: refetchCostBasis } = useLiquidityPoolReadCostBasis({
+    address: poolAddress,
+    args: userAddress ? [userAddress] : undefined,
+    chainId: CHAIN_ID,
+    query: { enabled: !!userAddress },
+  });
+  const { data: lastDepositAtData, refetch: refetchLastDeposit } = useLiquidityPoolReadLastDepositAt({
     address: poolAddress,
     args: userAddress ? [userAddress] : undefined,
     chainId: CHAIN_ID,
     query: { enabled: !!userAddress },
   });
 
+  // ── Stateless asset/share conversions ──────────────────────────────────────
   const { data: previewDepositData } = useLiquidityPoolReadPreviewDeposit({
     address: poolAddress,
     args: previewAssetsAmount !== undefined ? [previewAssetsAmount] : undefined,
@@ -120,9 +171,30 @@ export function useLiquidityPool(
     query: { enabled: sharesData !== undefined },
   });
 
+  const { data: convertToSharesData } = useLiquidityPoolReadConvertToShares({
+    address: poolAddress,
+    args: previewAssetsAmount !== undefined ? [previewAssetsAmount] : undefined,
+    chainId: CHAIN_ID,
+    query: { enabled: previewAssetsAmount !== undefined },
+  });
+
+  const { data: previewMintData } = useLiquidityPoolReadPreviewMint({
+    address: poolAddress,
+    args: previewSharesAmount !== undefined ? [previewSharesAmount] : undefined,
+    chainId: CHAIN_ID,
+    query: { enabled: previewSharesAmount !== undefined },
+  });
+
+  const { data: previewRedeemData } = useLiquidityPoolReadPreviewRedeem({
+    address: poolAddress,
+    args: previewSharesAmount !== undefined ? [previewSharesAmount] : undefined,
+    chainId: CHAIN_ID,
+    query: { enabled: previewSharesAmount !== undefined },
+  });
+
   // ── Write hooks ─────────────────────────────────────────────────────────────
   const { writeContract: writeDeposit, data: depositHash, isPending: depositPending, error: depositError } = useLiquidityPoolWriteDeposit();
-  const { data: depositReceipt, isLoading: depositConfirming, isSuccess: depositSuccess } = useWaitForTransactionReceipt({ hash: depositHash });
+  const { isLoading: depositConfirming, isSuccess: depositSuccess } = useWaitForTransactionReceipt({ hash: depositHash });
 
   const { writeContract: writeWithdraw, data: withdrawHash, isPending: withdrawPending, error: withdrawError } = useLiquidityPoolWriteWithdraw();
   const { isLoading: withdrawConfirming, isSuccess: withdrawSuccess } = useWaitForTransactionReceipt({ hash: withdrawHash });
@@ -133,9 +205,11 @@ export function useLiquidityPool(
   // ── Auto-refetch after successful tx ────────────────────────────────────────
   useEffect(() => {
     if (depositSuccess || withdrawSuccess || redeemSuccess) {
-      r1(); r2(); r3(); r4(); r5(); refetchConvert();
+      r1(); r2(); r3(); r4(); r5();
+      refetchConvert(); refetchShares(); refetchCostBasis(); refetchLastDeposit();
+      rAcc();
     }
-  }, [depositSuccess, withdrawSuccess, redeemSuccess, r1, r2, r3, r4, r5, refetchConvert]);
+  }, [depositSuccess, withdrawSuccess, redeemSuccess, r1, r2, r3, r4, r5, refetchConvert, refetchShares, refetchCostBasis, refetchLastDeposit, rAcc]);
 
   // ── Write functions ─────────────────────────────────────────────────────────
   const deposit = useCallback(
@@ -161,7 +235,8 @@ export function useLiquidityPool(
 
   const refetchStats = useCallback(() => {
     r1(); r2(); r3(); r4(); r5(); r6(); r7(); r8(); r9();
-  }, [r1, r2, r3, r4, r5, r6, r7, r8, r9]);
+    rTsh(); rLwf(); rAcc(); rTr(); rPt(); rLm(); rLM();
+  }, [r1, r2, r3, r4, r5, r6, r7, r8, r9, rTsh, rLwf, rAcc, rTr, rPt, rLm, rLM]);
 
   return {
     stats: {
@@ -174,14 +249,26 @@ export function useLiquidityPool(
       maxBetAmount: maxBetAmount as bigint | undefined,
       depositCooldownSeconds: depositCooldownSeconds !== undefined ? Number(depositCooldownSeconds) : undefined,
       isPaused: isPaused as boolean | undefined,
+      treasuryShareBps: treasuryShareBps !== undefined ? Number(treasuryShareBps) : undefined,
+      lpWithdrawalFeeBps: lpWithdrawalFeeBps !== undefined ? Number(lpWithdrawalFeeBps) : undefined,
+      accruedTreasury: accruedTreasury as bigint | undefined,
+      treasury: treasury as Address | undefined,
+      pendingTreasury: pendingTreasury as Address | undefined,
+      maxLiabilityPerMarketBps: maxLiabilityPerMarketBps !== undefined ? Number(maxLiabilityPerMarketBps) : undefined,
+      maxLiabilityPerMatchBps: maxLiabilityPerMatchBps !== undefined ? Number(maxLiabilityPerMatchBps) : undefined,
     },
     isLoadingStats: l1 || l2 || l3 || l4 || l5 || l6 || l7 || l8 || l9,
     refetchStats,
 
     sharesOf: () => sharesData as bigint | undefined,
+    costBasisOf: () => costBasisData as bigint | undefined,
+    lastDepositAtOf: () => lastDepositAtData !== undefined ? Number(lastDepositAtData) : undefined,
     previewDeposit: () => previewDepositData as bigint | undefined,
     previewWithdraw: () => previewWithdrawData as bigint | undefined,
     convertToAssets: () => convertToAssetsData as bigint | undefined,
+    convertToShares: () => convertToSharesData as bigint | undefined,
+    previewMint: () => previewMintData as bigint | undefined,
+    previewRedeem: () => previewRedeemData as bigint | undefined,
 
     deposit,
     withdraw,

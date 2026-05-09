@@ -19,6 +19,23 @@ import { IFanTokenRepository } from '@chiliztv/domain/fan-tokens/repositories/IF
 import { FanTokenAdapter } from '../infrastructure/blockchain/adapters/FanTokenAdapter';
 import { IFollowRepository } from '@chiliztv/domain/follows/repositories/IFollowRepository';
 import { SupabaseFollowRepository } from '../infrastructure/persistence/repositories/SupabaseFollowRepository';
+
+// ─── Blockchain-indexing repositories ───────────────────────────────────────
+import { IIndexerCheckpointRepository } from '@chiliztv/domain/blockchain-indexing/repositories/IIndexerCheckpointRepository';
+import { SupabaseIndexerCheckpointRepository } from '../infrastructure/persistence/repositories/SupabaseIndexerCheckpointRepository';
+import { IBetRepository } from '@chiliztv/domain/blockchain-indexing/repositories/IBetRepository';
+import { SupabaseBetRepository } from '../infrastructure/persistence/repositories/SupabaseBetRepository';
+import { IPoolEventRepository } from '@chiliztv/domain/blockchain-indexing/repositories/IPoolEventRepository';
+import { SupabasePoolEventRepository } from '../infrastructure/persistence/repositories/SupabasePoolEventRepository';
+import { IMarketEventRepository } from '@chiliztv/domain/blockchain-indexing/repositories/IMarketEventRepository';
+import { SupabaseMarketEventRepository } from '../infrastructure/persistence/repositories/SupabaseMarketEventRepository';
+import { ILpPositionRepository } from '@chiliztv/domain/blockchain-indexing/repositories/ILpPositionRepository';
+import { SupabaseLpPositionRepository } from '../infrastructure/persistence/repositories/SupabaseLpPositionRepository';
+import { IWiringAlertRepository } from '@chiliztv/domain/blockchain-indexing/repositories/IWiringAlertRepository';
+import { SupabaseWiringAlertRepository } from '../infrastructure/persistence/repositories/SupabaseWiringAlertRepository';
+import { IPoolApyRepository } from '@chiliztv/domain/blockchain-indexing/repositories/IPoolApyRepository';
+import { SupabasePoolApyRepository } from '../infrastructure/persistence/repositories/SupabasePoolApyRepository';
+
 import { ISubscriptionChecker } from '@chiliztv/domain/shared/ports/ISubscriptionChecker';
 import { SubscriptionChecker } from '../infrastructure/services/SubscriptionChecker';
 import { IFootballApiService } from '@chiliztv/domain/shared/ports/IFootballApiService';
@@ -98,6 +115,13 @@ import { GetIsFollowingUseCase } from '../application/follows/use-cases/GetIsFol
 import { GetFollowerCountUseCase } from '../application/follows/use-cases/GetFollowerCountUseCase';
 import { GetFollowedStreamersUseCase } from '../application/follows/use-cases/GetFollowedStreamersUseCase';
 
+// ─── Application — Pool ──────────────────────────────────────────────────────
+import { ComputeApyUseCase } from '../application/pool/use-cases/ComputeApyUseCase';
+import { GetLatestApyUseCase } from '../application/pool/use-cases/GetLatestApyUseCase';
+
+// ─── Application — Bets ──────────────────────────────────────────────────────
+import { GetUserBetsUseCase } from '../application/bets/use-cases/GetUserBetsUseCase';
+
 // ─── Infrastructure — Scheduling ─────────────────────────────────────────────
 import { JobScheduler } from '../infrastructure/scheduling/JobScheduler';
 import { SyncMatchesJob } from '../infrastructure/scheduling/jobs/SyncMatchesJob';
@@ -105,6 +129,7 @@ import { ResolveMarketsJob } from '../infrastructure/scheduling/jobs/ResolveMark
 import { CleanupStreamsJob } from '../infrastructure/scheduling/jobs/CleanupStreamsJob';
 import { StaleStreamCleanupJob } from '../infrastructure/scheduling/jobs/StaleStreamCleanupJob';
 import { SettlePredictionsJob } from '../infrastructure/scheduling/jobs/SettlePredictionsJob';
+import { ComputeApyJob } from '../infrastructure/scheduling/jobs/ComputeApyJob';
 import { ViewerReconcileJob } from '../infrastructure/scheduling/jobs/ViewerReconcileJob';
 
 // ─── Infrastructure — Services ───────────────────────────────────────────────
@@ -113,8 +138,11 @@ import { StreamLifecycleService } from '../infrastructure/services/StreamLifecyc
 
 // ─── Infrastructure — Blockchain ─────────────────────────────────────────────
 import { BlockchainEventListener } from '../infrastructure/blockchain/BlockchainEventListener';
+import { BettingMatchFactoryIndexer } from '../infrastructure/blockchain/indexers/BettingMatchFactoryIndexer';
+import { BettingMatchEventIndexer } from '../infrastructure/blockchain/indexers/BettingMatchEventIndexer';
+import { LiquidityPoolIndexer } from '../infrastructure/blockchain/indexers/LiquidityPoolIndexer';
+import { ChilizSwapRouterIndexer } from '../infrastructure/blockchain/indexers/ChilizSwapRouterIndexer';
 import { StreamWalletIndexer } from '../infrastructure/blockchain/indexers/StreamWalletIndexer';
-import { BettingEventIndexer } from '../infrastructure/blockchain/indexers/BettingEventIndexer';
 
 // ─── Presentation — Controllers ──────────────────────────────────────────────
 import { PredictionController } from '../presentation/http/controllers/prediction.controller';
@@ -127,6 +155,9 @@ import { StreamWalletController } from '../presentation/http/controllers/stream-
 import { FanTokensController } from '../presentation/http/controllers/fan-tokens.controller';
 import { FollowController } from '../presentation/http/controllers/follow.controller';
 import { MediamtxWebhookController } from '../presentation/http/controllers/mediamtx-webhook.controller';
+import { PoolController } from '../presentation/http/controllers/pool.controller';
+import { BetController } from '../presentation/http/controllers/bet.controller';
+import { UserController } from '../presentation/http/controllers/user.controller';
 
 // ─── Presentation — CLI Commands ─────────────────────────────────────────────
 import { DeployMissingContractsCommand } from '../presentation/cli/commands/DeployMissingContractsCommand';
@@ -153,6 +184,15 @@ export function setupDependencyInjection(): void {
   container.registerSingleton<IFanTokenRepository>(TOKENS.IFanTokenRepository, FanTokenAdapter);
   container.registerSingleton<IFollowRepository>(TOKENS.IFollowRepository, SupabaseFollowRepository);
   container.registerSingleton<ISubscriptionChecker>(TOKENS.ISubscriptionChecker, SubscriptionChecker);
+
+  // ─── 1b. Repositories — blockchain indexing ────────────────────────────────
+  container.registerSingleton<IIndexerCheckpointRepository>(TOKENS.IIndexerCheckpointRepository, SupabaseIndexerCheckpointRepository);
+  container.registerSingleton<IBetRepository>(TOKENS.IBetRepository, SupabaseBetRepository);
+  container.registerSingleton<IPoolEventRepository>(TOKENS.IPoolEventRepository, SupabasePoolEventRepository);
+  container.registerSingleton<IMarketEventRepository>(TOKENS.IMarketEventRepository, SupabaseMarketEventRepository);
+  container.registerSingleton<ILpPositionRepository>(TOKENS.ILpPositionRepository, SupabaseLpPositionRepository);
+  container.registerSingleton<IWiringAlertRepository>(TOKENS.IWiringAlertRepository, SupabaseWiringAlertRepository);
+  container.registerSingleton<IPoolApyRepository>(TOKENS.IPoolApyRepository, SupabasePoolApyRepository);
 
   // ─── 2. Blockchain Adapters ─────────────────────────────────────────────────
   container.registerSingleton(TokenBalanceAdapter);
@@ -220,6 +260,13 @@ export function setupDependencyInjection(): void {
   container.registerSingleton(GetFollowerCountUseCase);
   container.registerSingleton(GetFollowedStreamersUseCase);
 
+  // ─── 11b. Use Cases — Pool (APY) ───────────────────────────────────────────
+  container.registerSingleton(ComputeApyUseCase);
+  container.registerSingleton(GetLatestApyUseCase);
+
+  // ─── 11c. Use Cases — Bets ─────────────────────────────────────────────────
+  container.registerSingleton(GetUserBetsUseCase);
+
   // ─── 12. Infrastructure — Scheduling ───────────────────────────────────────
   container.registerSingleton(SyncMatchesJob);
   container.registerSingleton(ResolveMarketsJob);
@@ -227,6 +274,7 @@ export function setupDependencyInjection(): void {
   container.registerSingleton(StaleStreamCleanupJob);
   container.registerSingleton(SettlePredictionsJob);
   container.registerSingleton(ViewerReconcileJob);
+  container.registerSingleton(ComputeApyJob);
   container.registerSingleton(JobScheduler);
 
   // ─── 13. Infrastructure — Services ─────────────────────────────────────────
@@ -235,8 +283,11 @@ export function setupDependencyInjection(): void {
 
   // ─── 14. Infrastructure — Blockchain ───────────────────────────────────────
   container.registerSingleton(BlockchainEventListener);
+  container.registerSingleton(BettingMatchFactoryIndexer);
+  container.registerSingleton(BettingMatchEventIndexer);
+  container.registerSingleton(LiquidityPoolIndexer);
+  container.registerSingleton(ChilizSwapRouterIndexer);
   container.registerSingleton(StreamWalletIndexer);
-  container.registerSingleton(BettingEventIndexer);
 
   // ─── 15. Presentation — CLI Commands ───────────────────────────────────────
   container.registerSingleton(DeployMissingContractsCommand);
@@ -254,6 +305,9 @@ export function setupDependencyInjection(): void {
   container.registerSingleton(StreamWalletController);
   container.registerSingleton(FanTokensController);
   container.registerSingleton(FollowController);
+  container.registerSingleton(PoolController);
+  container.registerSingleton(BetController);
+  container.registerSingleton(UserController);
 }
 
 export { container };

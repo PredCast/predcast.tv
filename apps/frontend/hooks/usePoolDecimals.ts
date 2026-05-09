@@ -15,11 +15,12 @@ import { chilizConfig } from '@/config/chiliz.config';
 /**
  * Single source of truth for the pool's underlying-asset and share decimals.
  *
- * Why a hook (not a constant): the on-chain test USDC on Spicy is 18-decimal
- * to match Chiliz Chain conventions, while real (Circle) USDC is 6-decimal.
- * Hardcoding either number breaks one environment, so we read both from the
- * pool itself: `pool.asset()` → `asset.decimals()` for the underlying, and
- * `pool.decimals()` for the ERC4626 share token (asset decimals + offset).
+ * Why a hook (not a constant): both Spicy testnet USDC (`0x66f3ee96…`) and the
+ * real Circle USDC are 6 decimals today, but reading from `pool.asset()` keeps
+ * us safe if the pool ever switches assets or a future testnet ships a
+ * different precision. We resolve `pool.asset() → asset.decimals()` for the
+ * underlying and `pool.decimals()` for the ERC4626 share token (asset
+ * decimals + the 6-dp inflation-attack offset).
  *
  * Returns `undefined` for either field while the reads are in flight; callers
  * should render placeholders (e.g. "—") and skip parsing until both resolve.

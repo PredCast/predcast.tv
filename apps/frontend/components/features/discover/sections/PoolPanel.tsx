@@ -2,8 +2,11 @@
 
 import { useState } from "react";
 import { formatUnits, type Address } from "viem";
+import { Info } from "lucide-react";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { useLiquidityPool } from "@/hooks/useLiquidityPool";
+import { useLpPosition, formatCooldown } from "@/hooks/useLpPosition";
+import { useApyFromBackend, formatApy } from "@/hooks/useApyFromBackend";
 import { usePoolDecimals } from "@/hooks/usePoolDecimals";
 import { chilizConfig } from "@/config/chiliz.config";
 import { PoolDepositDialog } from "../components";
@@ -17,7 +20,6 @@ const POOL_DESIGN_FALLBACK = {
   utilization: "40.2%",
   free: "$2.88M",
   feeBps: 25,
-  apy: "18.4%",
 } as const;
 
 function fmtUsdc(value: bigint | undefined, decimals: number | undefined): string | null {
@@ -25,7 +27,13 @@ function fmtUsdc(value: bigint | undefined, decimals: number | undefined): strin
   const n = Number(formatUnits(value, decimals));
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
   if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
-  return `$${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+  return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function fmtUsdcExact(value: bigint | undefined, decimals: number | undefined, frac = 2): string {
+  if (value === undefined || decimals === undefined) return "—";
+  const n = Number(formatUnits(value, decimals));
+  return `$${n.toLocaleString("en-US", { minimumFractionDigits: frac, maximumFractionDigits: frac })}`;
 }
 
 function fmtPct(util: bigint | undefined): string | null {
@@ -39,7 +47,9 @@ interface PoolDataView {
   utilization: string;
   free: string;
   feeBps: number;
-  apy: string;
+  apyLabel: string;
+  apyNoisy: boolean;
+  apyAvailable: boolean;
 }
 
 function usePoolView(): { data: PoolDataView; configured: boolean } {
@@ -48,9 +58,13 @@ function usePoolView(): { data: PoolDataView; configured: boolean } {
   const userAddress = primaryWallet?.address as Address | undefined;
   const { stats } = useLiquidityPool(poolAddress, userAddress);
   const { assetDecimals } = usePoolDecimals();
+  const { data: apyData } = useApyFromBackend();
 
   const configured =
     poolAddress !== "0x0000000000000000000000000000000000000000";
+
+  // Prefer the longer 30-day window for the headline number — smoother.
+  const headline = apyData?.apy30d ?? apyData?.apy7d ?? null;
 
   const data: PoolDataView = {
     tvl: fmtUsdc(stats.totalAssets, assetDecimals) ?? POOL_DESIGN_FALLBACK.tvl,
@@ -62,8 +76,9 @@ function usePoolView(): { data: PoolDataView; configured: boolean } {
     free:
       fmtUsdc(stats.freeBalance, assetDecimals) ?? POOL_DESIGN_FALLBACK.free,
     feeBps: stats.protocolFeeBps ?? POOL_DESIGN_FALLBACK.feeBps,
-    // No on-chain APY source — design value stays as a placeholder.
-    apy: POOL_DESIGN_FALLBACK.apy,
+    apyLabel: formatApy(headline),
+    apyNoisy: headline?.noisy ?? false,
+    apyAvailable: headline !== null,
   };
 
   return { data, configured };
@@ -72,6 +87,8 @@ function usePoolView(): { data: PoolDataView; configured: boolean } {
 export function PoolPanel() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { data } = usePoolView();
+  const { primaryWallet } = useDynamicContext();
+  const userAddress = primaryWallet?.address as Address | undefined;
 
   return (
     <>
@@ -91,12 +108,105 @@ export function PoolPanel() {
           lead="Liquidity providers earn yield from every losing prediction. No transaction fees, no middleman — just on-chain mechanics on Chiliz Chain."
         />
         <PoolBento data={data} onJoin={() => setDialogOpen(true)} />
+        {userAddress && <YourLpPosition userAddress={userAddress} />}
       </section>
       <PoolDepositDialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
       />
     </>
+  );
+}
+
+/**
+ * Bottom strip of cards rendered only when the connected wallet holds shares.
+ * Pulls cost basis, unrealized gain, withdrawal fee preview, and cooldown
+ * countdown from `useLpPosition`. Hidden entirely (not rendered greyed-out)
+ * when shares is 0 — keeps the panel uncluttered for non-LP visitors.
+ */
+function YourLpPosition({ userAddress }: { userAddress: Address }) {
+  const { assetDecimals } = usePoolDecimals();
+  const {
+    shares,
+    assetsValue,
+    costBasis,
+    unrealizedGain,
+    withdrawalFeePreview,
+    cooldownRemainingSec,
+    canWithdraw,
+  } = useLpPosition(userAddress);
+
+  // Render nothing while loading or when the user has no position.
+  if (shares === undefined || shares === BigInt(0)) return null;
+
+  const gainPositive = unrealizedGain !== undefined && unrealizedGain > BigInt(0);
+
+  return (
+    <div className="mt-12">
+      <div className="font-mono-ctv mb-4 flex items-center gap-2.5 text-[10px] font-bold uppercase tracking-[0.16em] text-[#E8001D]">
+        <span aria-hidden className="block h-0.5 w-4 bg-[#E8001D]" />
+        Your LP position
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <PositionCard
+          label="Your stake"
+          value={fmtUsdcExact(assetsValue, assetDecimals)}
+          sub="USDC value"
+        />
+        <PositionCard
+          label="Cost basis"
+          value={fmtUsdcExact(costBasis, assetDecimals)}
+          sub="Total deposited"
+        />
+        <PositionCard
+          label="Unrealized gain"
+          value={fmtUsdcExact(unrealizedGain, assetDecimals)}
+          sub={
+            gainPositive && withdrawalFeePreview !== undefined
+              ? `~${fmtUsdcExact(withdrawalFeePreview, assetDecimals)} fee on exit`
+              : "Flat or losing — no fee on exit"
+          }
+          valueColor={gainPositive ? "#2dd4a4" : undefined}
+        />
+        <PositionCard
+          label={canWithdraw ? "Withdraw" : "Cooldown"}
+          value={canWithdraw ? "Unlocked" : formatCooldown(cooldownRemainingSec)}
+          sub={canWithdraw ? "Ready to withdraw" : "Until next withdrawal"}
+          valueColor={canWithdraw ? "#2dd4a4" : "#F5C518"}
+        />
+      </div>
+    </div>
+  );
+}
+
+function PositionCard({
+  label,
+  value,
+  sub,
+  valueColor,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  valueColor?: string;
+}) {
+  return (
+    <div className="rounded-xl border border-[#1E1E1E] bg-[#111] p-5">
+      <div className="font-mono-ctv mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-white/45">
+        {label}
+      </div>
+      <div
+        className="font-display text-[24px] font-extrabold leading-none tracking-[-0.02em]"
+        style={{ color: valueColor ?? "#fff" }}
+      >
+        {value}
+      </div>
+      {sub && (
+        <div className="font-mono-ctv mt-2 text-[10px] uppercase tracking-[0.12em] text-white/40">
+          {sub}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -193,8 +303,20 @@ function PoolBento({
             />
             Protocol fee {(data.feeBps / 100).toFixed(2)}%
           </span>
-          <span className="font-mono-ctv inline-flex items-center gap-2 rounded-md border border-[#1E1E1E] px-3 py-2 text-[10px] uppercase tracking-[0.14em] text-[#2dd4a4]">
-            APY {data.apy} · trailing 30d
+          <span
+            className="font-mono-ctv inline-flex items-center gap-2 rounded-md border border-[#1E1E1E] px-3 py-2 text-[10px] uppercase tracking-[0.14em]"
+            style={{ color: data.apyAvailable ? "#2dd4a4" : "#666" }}
+            title={
+              data.apyAvailable
+                ? data.apyNoisy
+                  ? "APY may be noisy — large deposit/withdraw inside the window."
+                  : "Trailing 30-day APY computed from on-chain price-per-share."
+                : "APY unavailable — needs at least 7 days of pool history."
+            }
+          >
+            APY {data.apyLabel}
+            {data.apyAvailable && <span className="text-[9px] opacity-60">· trailing 30d</span>}
+            {data.apyNoisy && <Info size={10} className="opacity-60" aria-hidden />}
           </span>
         </div>
       </div>

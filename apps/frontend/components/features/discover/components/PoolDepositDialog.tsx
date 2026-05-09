@@ -5,15 +5,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { erc20Abi, formatUnits, parseUnits, type Address } from "viem";
 import { useBalance, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
-import { ArrowDownUp, ChevronDown, Loader2, Wallet, X } from "lucide-react";
+import { ArrowDownUp, ChevronDown, Info, Loader2, Wallet, X } from "lucide-react";
 import { useLiquidityPool, type UseLiquidityPoolReturn } from "@/hooks/useLiquidityPool";
+import { useLpPosition, formatCooldown } from "@/hooks/useLpPosition";
 import { useChilizSwapRouter } from "@/hooks/useChilizSwapRouter";
 import { useKayenQuote } from "@/hooks/useKayenQuote";
 import { usePoolDecimals } from "@/hooks/usePoolDecimals";
 import { chilizConfig } from "@/config/chiliz.config";
+import { decodeContractError } from "@/lib/contracts/errors";
 import { NetworkGuard } from "@/components/web3/NetworkGuard";
 
 interface PoolDepositDialogProps {
@@ -44,7 +47,7 @@ function formatAtomic(value: bigint | undefined, decimals: number | undefined, f
 function formatShares(value: bigint | undefined, decimals: number | undefined): string {
   if (value === undefined || decimals === undefined) return "—";
   const n = Number(formatUnits(value, decimals));
-  return n.toLocaleString("en-US", { maximumFractionDigits: 4 });
+  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function tokenDecimals(t: DepositToken, usdcDecimals: number | undefined): number | undefined {
@@ -104,6 +107,18 @@ export function PoolDepositDialog({ open, onClose }: PoolDepositDialogProps) {
   const userAssets = convertToAssets(BigInt(0));
   const previewSharesForDeposit = previewDeposit(BigInt(0));
   const previewSharesForWithdraw = previewWithdraw(BigInt(0));
+
+  // ── LP position view (cost basis, gain, cooldown) ──────────────────────
+  // The cooldown blocks withdrawals for `depositCooldownSeconds` seconds
+  // after the most recent Deposit — a re-entrancy-style anti-MEV guard
+  // borrowed from the contract. UI surfaces a countdown when active.
+  const lp = useLpPosition(userAddress);
+  const cooldownActive = lp.cooldownRemainingSec > 0;
+  const cooldownLabel = formatCooldown(lp.cooldownRemainingSec);
+  // Default cooldown is 1 hour (3600s) on Spicy. Read from chain so it
+  // automatically adapts if governance ever changes the value.
+  const cooldownSec = stats.depositCooldownSeconds ?? 3600;
+  const cooldownDisplay = formatCooldown(cooldownSec) || "1h 00m 00s";
 
   // Multi-token deposit goes through the swap router; allowance + transferFrom
   // target is always the router (CHZ uses msg.value and needs no allowance).
@@ -177,6 +192,25 @@ export function PoolDepositDialog({ open, onClose }: PoolDepositDialogProps) {
       setShowTokenList(false);
     }
   }, [open]);
+
+  // Lock background scroll while the modal is open. Without this the page
+  // can scroll behind the dialog (and on iOS the rubber-band can drift the
+  // backdrop). Restored on unmount / close.
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [open]);
+
+  // The portal target is `document.body`; on SSR (Next's first render)
+  // we don't have a DOM yet, so we gate on a "mounted" flag.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // ── FanX/Kayen quote for non-USDC deposits ─────────────────────────────
   const quoteTokenIn: Address | undefined =
@@ -302,7 +336,7 @@ export function PoolDepositDialog({ open, onClose }: PoolDepositDialogProps) {
     }
   };
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
   // Available tokens: USDC (always), CHZ (native), then chiliz fan tokens with
   // a configured address on the active network.
@@ -319,9 +353,13 @@ export function PoolDepositDialog({ open, onClose }: PoolDepositDialogProps) {
       ? formatShares(previewSharesForDeposit, shareDecimals)
       : formatShares(previewSharesForWithdraw, shareDecimals);
 
-  return (
+  // Render in a body-level portal so the dialog is detached from any
+  // ancestor's stacking context (sticky headers, transformed wrappers, etc.).
+  // The high z-index sits above shadcn/sonner toasts (z-[100]) and the
+  // Dynamic Labs auth widget while staying below browser-native popovers.
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
       style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}
       onClick={onClose}
     >
@@ -535,7 +573,7 @@ export function PoolDepositDialog({ open, onClose }: PoolDepositDialogProps) {
               </div>
 
               <div className="grid grid-cols-3 gap-3 text-center pt-2" style={{ borderTop: "1px solid #1A1A1A" }}>
-                <Stat label="TVL" value={`$${formatAtomic(stats.totalAssets, usdcDecimals, 0)}`} />
+                <Stat label="TVL" value={`$${formatAtomic(stats.totalAssets, usdcDecimals, 2)}`} />
                 <Stat
                   label="Util."
                   value={
@@ -576,12 +614,79 @@ export function PoolDepositDialog({ open, onClose }: PoolDepositDialogProps) {
                 </div>
               )}
 
-              {(approveError || depositState.error || withdrawState.error) && (
+              {(() => {
+                const err = approveError || depositState.error || withdrawState.error;
+                if (!err) return null;
+                const decoded = decodeContractError(err);
+                const palette =
+                  decoded.severity === "info"
+                    ? { bg: "rgba(120,120,120,0.10)", border: "rgba(120,120,120,0.35)", fg: "#bbb" }
+                    : decoded.severity === "warning"
+                      ? { bg: "rgba(245,197,24,0.08)", border: "rgba(245,197,24,0.30)", fg: "#F5C518" }
+                      : { bg: "rgba(232,0,29,0.08)", border: "rgba(232,0,29,0.25)", fg: "#F88" };
+                return (
+                  <div
+                    className="rounded-md p-3 text-[11px]"
+                    style={{ background: palette.bg, border: `1px solid ${palette.border}`, color: palette.fg }}
+                  >
+                    <div className="font-bold">{decoded.title}</div>
+                    {decoded.description && (
+                      <div className="mt-0.5 opacity-80">{decoded.description}</div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Withdraw-only banners: cooldown countdown + estimated fee/gain. */}
+              {mode === "withdraw" && cooldownActive && (
                 <div
                   className="rounded-md p-3 text-[11px]"
-                  style={{ background: "rgba(232,0,29,0.08)", border: "1px solid rgba(232,0,29,0.25)", color: "#F88" }}
+                  style={{ background: "rgba(245,197,24,0.08)", border: "1px solid rgba(245,197,24,0.3)", color: "#F5C518" }}
                 >
-                  {(approveError || depositState.error || withdrawState.error)?.message?.slice(0, 200)}
+                  Cooldown active — withdrawals unlock in{" "}
+                  <span className="font-mono" style={{ color: "#fff" }}>{cooldownLabel}</span>.
+                </div>
+              )}
+              {mode === "withdraw" && !cooldownActive && lp.shares !== undefined && lp.shares > BigInt(0) && (
+                <div
+                  className="rounded-md p-3 text-[11px] space-y-1"
+                  style={{ background: "#0A0A0A", border: "1px solid #1E1E1E", color: "#888" }}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="uppercase tracking-[0.1em]" style={{ color: "#666" }}>Unrealized gain</span>
+                    <span className="font-mono" style={{ color: lp.unrealizedGain && lp.unrealizedGain > BigInt(0) ? "#2dd4a4" : "#888" }}>
+                      {formatAtomic(lp.unrealizedGain, usdcDecimals)} USDC
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="uppercase tracking-[0.1em]" style={{ color: "#666" }}>Fee on exit (gain only)</span>
+                    <span className="font-mono" style={{ color: "#fff" }}>
+                      {formatAtomic(lp.withdrawalFeePreview, usdcDecimals)} USDC
+                      {stats.lpWithdrawalFeeBps !== undefined && (
+                        <span className="ml-1 text-[9px]" style={{ color: "#555" }}>
+                          @ {(stats.lpWithdrawalFeeBps / 100).toFixed(2)}%
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Deposit-only info: small "i" badge surfacing the lock-in upfront
+                  so users learn the cooldown before they sign rather than after
+                  they try to withdraw. The duration is read on-chain (defaults
+                  to 1h on Spicy). */}
+              {mode === "deposit" && (
+                <div
+                  className="flex items-center gap-2 rounded-md px-3 py-2 text-[10px]"
+                  style={{ background: "#0A0A0A", border: "1px solid #1E1E1E", color: "#888" }}
+                >
+                  <Info size={12} style={{ color: "#F5C518", flexShrink: 0 }} aria-hidden />
+                  <span style={{ fontFamily: "'Barlow', sans-serif" }}>
+                    Heads-up — depositing locks your stake for{" "}
+                    <span className="font-mono font-bold" style={{ color: "#F5C518" }}>{cooldownDisplay}</span>{" "}
+                    before withdrawal becomes available.
+                  </span>
                 </div>
               )}
 
@@ -616,12 +721,13 @@ export function PoolDepositDialog({ open, onClose }: PoolDepositDialogProps) {
                     insufficientShares ||
                     swapPathMissing ||
                     usdcZeroBalance ||
-                    stats.isPaused === true
+                    stats.isPaused === true ||
+                    (mode === "withdraw" && cooldownActive)
                   }
                   className="w-full flex items-center justify-center gap-2 py-3 rounded text-[12px] font-bold uppercase tracking-[0.08em] transition-all"
                   style={{
                     background:
-                      txPending || insufficientBalance || insufficientShares || swapPathMissing || usdcZeroBalance || stats.isPaused
+                      txPending || insufficientBalance || insufficientShares || swapPathMissing || usdcZeroBalance || stats.isPaused || (mode === "withdraw" && cooldownActive)
                         ? "#3A3A3A"
                         : "#E8001D",
                     color: "#fff",
@@ -643,6 +749,8 @@ export function PoolDepositDialog({ open, onClose }: PoolDepositDialogProps) {
                     `Insufficient ${tokenLabel(token)}`
                   ) : insufficientShares ? (
                     "Insufficient Stake"
+                  ) : mode === "withdraw" && cooldownActive ? (
+                    `Locked · ${cooldownLabel}`
                   ) : mode === "deposit" ? (
                     `Deposit ${tokenLabel(token)}`
                   ) : (
@@ -654,7 +762,8 @@ export function PoolDepositDialog({ open, onClose }: PoolDepositDialogProps) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

@@ -22,6 +22,7 @@ import { useChilizSwapRouter } from "@/hooks/useChilizSwapRouter";
 import { useKayenQuote } from "@/hooks/useKayenQuote";
 import { usePoolDecimals } from "@/hooks/usePoolDecimals";
 import { chilizConfig } from "@/config/chiliz.config";
+import { decodeContractError } from "@/lib/contracts/errors";
 import { NetworkGuard } from "@/components/web3/NetworkGuard";
 
 interface StreamWalletButtonProps {
@@ -174,13 +175,13 @@ export default function StreamWalletButton({
     }, [isApproveSuccess, refetchAllowance]);
 
     useEffect(() => {
-        if (donateState.error) {
-            setErrorMessage(donateState.error.message ?? "Donation failed");
-        } else if (approveError) {
-            setErrorMessage(approveError.message ?? "Approval failed");
-        } else {
+        const err = donateState.error ?? approveError;
+        if (!err) {
             setErrorMessage(null);
+            return;
         }
+        const decoded = decodeContractError(err);
+        setErrorMessage(decoded.description ? `${decoded.title} — ${decoded.description}` : decoded.title);
     }, [donateState.error, approveError]);
 
     useEffect(() => {

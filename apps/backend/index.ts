@@ -11,7 +11,7 @@ import { JobScheduler, BlockchainEventListener } from './src/infrastructure/serv
 import { CleanupOldMatchesUseCase } from './src/application/matches/use-cases/CleanupOldMatchesUseCase';
 config();
 setupDependencyInjection();
-import { authRoutes, predictionRoutes, matchRoutes, chatRoutes, waitlistRoutes, streamRoutes, streamWalletRoutes, fanTokensRoutes, followRoutes } from './src/presentation/http/routes';
+import { authRoutes, predictionRoutes, matchRoutes, chatRoutes, waitlistRoutes, streamRoutes, streamWalletRoutes, fanTokensRoutes, followRoutes, poolRoutes, betRoutes, userRoutes } from './src/presentation/http/routes';
 import { mediamtxWebhookRoutes } from './src/presentation/http/routes/mediamtx-webhook.routes';
 
 const app = express();
@@ -56,6 +56,9 @@ app.get('/health', (req, res) => {
 // Public stream routes (no auth needed to view streams)
 app.use('/stream', streamRoutes);
 
+// Public pool stats — APY snapshots, no auth required
+app.use('/pool', poolRoutes);
+
 // Internal — mediamtx calls this to validate publishers
 app.use('/mediamtx', mediamtxWebhookRoutes);
 
@@ -69,6 +72,8 @@ app.use('/stream-wallet', streamWalletRoutes);
 app.use('/fan-tokens', fanTokensRoutes);
 
 app.use('/predictions', predictionsLimiter, predictionRoutes);
+app.use('/bets', betRoutes);
+app.use('/users', userRoutes);
 
 app.get('/supabase-status', (req, res) => {
     res.json({
