@@ -9,6 +9,15 @@ export const TOKENS = {
   IFollowRepository:       Symbol.for('IFollowRepository'),
   IFanTokenRepository:     Symbol.for('IFanTokenRepository'),
 
+  // Repositories — blockchain indexing
+  IIndexerCheckpointRepository: Symbol.for('IIndexerCheckpointRepository'),
+  IBetRepository:               Symbol.for('IBetRepository'),
+  IPoolEventRepository:         Symbol.for('IPoolEventRepository'),
+  IMarketEventRepository:       Symbol.for('IMarketEventRepository'),
+  ILpPositionRepository:        Symbol.for('ILpPositionRepository'),
+  IWiringAlertRepository:       Symbol.for('IWiringAlertRepository'),
+  IPoolApyRepository:           Symbol.for('IPoolApyRepository'),
+
   // Ports — external services
   IFootballApiService:     Symbol.for('IFootballApiService'),
   IBlockchainService:      Symbol.for('IBlockchainService'),

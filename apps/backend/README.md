@@ -32,12 +32,12 @@ src/
 
 ## 🚀 Features
 
-### ⚡ Blockchain Integration (Chiliz/Base Sepolia)
+### ⚡ Blockchain Integration (Chiliz Spicy 88882 / Chiliz Mainnet 88888)
 - ✅ **Smart Contract Deployment**: Automated deployment of betting contracts
-- ✅ **Event Indexing**: Real-time indexing of on-chain events (bets, donations, subscriptions)
+- ✅ **Event Indexing**: Real-time indexing of on-chain events via 5 dedicated indexers (factory + match + pool + router + stream wallets)
 - ✅ **Market Resolution**: Automatic settlement of betting markets
 - ✅ **Stream Monetization**: Donations and subscriptions with platform fees
-- ✅ **Multi-network Support**: Chiliz mainnet and Base Sepolia testnet
+- ✅ **APY computation**: Trailing 7d / 30d snapshots persisted by `ComputeApyJob`
 
 ### 📺 Live Streaming System
 - ✅ **HLS Streaming**: HTTP Live Streaming with adaptive bitrate
@@ -139,7 +139,7 @@ Import the complete API collection with all endpoints:
 - OR Node.js v18+ with pnpm
 - Supabase account (cloud or local)
 - API-Football API key
-- Chiliz/Base Sepolia RPC access (for blockchain features)
+- Chiliz Spicy testnet (88882) or Chiliz mainnet (88888) RPC access
 - Wallet with private key for contract deployment
 
 ### Docker Setup (Recommended)
@@ -260,20 +260,99 @@ The application runs several cron jobs automatically:
 | ResolveMarkets | Every 60 min | Resolve finished matches on-chain |
 | SettlePredictions | Every 5 min | Settle user predictions |
 | CleanupStreams | Every hour | Clean up old ended streams |
+| StaleStreamCleanup | Every hour | Drop streams orphaned from MediaMTX |
+| ViewerReconcile | Every minute | Reconcile concurrent-viewer counters |
+| ComputeApy | Every 15 min | Compute LP APY snapshots (7d / 30d) |
+
+`ComputeApyJob` reads `totalAssets()` and `totalSupply()` from the
+`LiquidityPool` at the block boundaries `now`, `now - 7 days`, `now - 30 days`
+(via binary search on `eth_getBlockByNumber`) and writes the result into
+`pool_apy_snapshots`. The frontend reads the latest row via `GET /pool/apy`.
 
 ## 🎛️ Blockchain Event Indexers
 
-Two indexers run continuously to listen to blockchain events:
+Five indexers run in parallel under [`BlockchainEventListener`](src/infrastructure/blockchain/BlockchainEventListener.ts).
+Every indexer extends [`BaseIndexer`](src/infrastructure/blockchain/indexers/BaseIndexer.ts),
+which handles polling cadence, the persistent checkpoint cursor, and the
+re-org safety margin (`head − INDEXER_REORG_DEPTH`, default 5 blocks).
 
-### StreamWalletIndexer
-- **Events**: DonationProcessed, SubscriptionProcessed, StreamWalletCreated
-- **Polling**: Every 6 seconds
-- **Features**: Platform fee calculation, chat notifications, subscription expiry checks
+| Indexer | Watches | Writes to |
+|---|---|---|
+| `BettingMatchFactoryIndexer` | factory `MatchCreated` + post-deploy wiring read-back | `wiring_alerts` (read-only flagging — never auto-fixes) |
+| `BettingMatchEventIndexer` | every `BettingMatch` proxy: `BetPlaced`, `Payout`, `Refund`, `MarketCreated`, `MarketStateChanged`, `OddsUpdated`, `MarketResolved`, `MarketCancelled` | `bets` (status PENDING → WON/LOST/REFUNDED), `market_events`, `predictions` (legacy mirror), `chat_messages` (system messages) |
+| `LiquidityPoolIndexer` | pool `Deposit`, `Withdraw`, `BetRecorded`, `MarketSettled`, `WinnerPaid`, `RefundPaid`, `TreasuryAccrued`, `LpWithdrawalFeeAccrued`, `Paused`/`Unpaused`, `*Set` | `pool_events`, `lp_positions` (cost-basis tracking) |
+| `ChilizSwapRouterIndexer` | router `BetPlacedVia*`, `DonationWith*`, `SubscriptionWith*`, `LiquidityDepositedWith*` | `pool_events` (audit only — pool-side accounting comes from `LiquidityPoolIndexer`) |
+| `StreamWalletIndexer` | factory `StreamWalletCreated` (discovery) + each wallet's `DonationReceived`, `SubscriptionRecorded`, `RevenueWithdrawn`, `PlatformFeeCollected` | `stream_wallets`, `donations`, `subscriptions`, `chat_messages` |
 
-### BettingEventIndexer
-- **Events**: BetPlaced
-- **Polling**: Every 6 seconds
-- **Features**: Prediction creation, odds tracking, chat bet messages
+### Persistence
+
+Six indexer-owned tables, all idempotent on `(tx_hash, log_index)` :
+
+- `indexer_checkpoints` — one row per indexer, holds the last successfully indexed block
+- `bets` — per-bet on-chain bookkeeping (joins `matches` via `contract_address`)
+- `pool_events` — generic audit log for `LiquidityPool` + `ChilizSwapRouter`
+- `market_events` — per-market state-change audit
+- `lp_positions` — denormalised holder view (shares + cost basis + last deposit)
+- `wiring_alerts` — unresolved post-deploy wiring problems
+
+Migrations live in [`src/infrastructure/database/migrations/`](src/infrastructure/database/migrations/) :
+
+```bash
+# Apply against your Supabase via psql or the SQL editor
+psql "$SUPABASE_URL" -f src/infrastructure/database/migrations/011_indexer_tables.sql
+psql "$SUPABASE_URL" -f src/infrastructure/database/migrations/012_pool_apy_snapshots.sql
+```
+
+### Operations
+
+**Restart from scratch** (full backfill from `head − INDEXER_DEFAULT_LOOKBACK`,
+default 1000 blocks) :
+
+```sql
+TRUNCATE TABLE indexer_checkpoints;
+-- optionally also truncate the indexed tables for a clean slate:
+TRUNCATE TABLE bets, pool_events, market_events, lp_positions, wiring_alerts;
+```
+
+The next start of the back will pick up from `head − INDEXER_DEFAULT_LOOKBACK`
+on every indexer. Use `INDEXER_DEFAULT_LOOKBACK=200000 pnpm dev` for a
+deeper backfill.
+
+**Restart a single indexer** :
+
+```sql
+DELETE FROM indexer_checkpoints WHERE indexer_name = 'LiquidityPool';
+```
+
+Indexer names: `BettingMatchFactory`, `BettingMatchEvent`, `LiquidityPool`,
+`ChilizSwapRouter`, `StreamWallet`.
+
+**Tuning knobs** (env vars, all optional) :
+
+| Var | Default | What it does |
+|---|---|---|
+| `INDEXER_REORG_DEPTH` | `5` | Blocks left under `head` untouched. Chiliz IBFT finalises in ~2 s, so 5 is plenty. |
+| `INDEXER_DEFAULT_LOOKBACK` | `1000` | Where to start when no checkpoint row exists. Bump for backfills. |
+| `CHILIZ_RPC_URL` | chain default | Override the public RPC with a private endpoint if you hit rate limits. |
+
+**Debugging a missed event** :
+
+1. Check `indexer_checkpoints` — is `last_block` advancing?
+   ```sql
+   SELECT indexer_name, last_block, updated_at FROM indexer_checkpoints ORDER BY indexer_name;
+   ```
+2. Compare with `eth_blockNumber` on the chain (same explorer link as the
+   contract address). A growing gap means the indexer is choking on a
+   batch — check the backend logs for `getLogs` errors.
+3. Confirm the event is actually emitted on-chain via the explorer's
+   "Events" tab on the contract address.
+4. If the event is on-chain but missing from your DB, re-run the indexer
+   over the affected range :
+   ```sql
+   UPDATE indexer_checkpoints SET last_block = <block_before_the_event> WHERE indexer_name = 'BettingMatchEvent';
+   ```
+   Restart the back. The `(tx_hash, log_index)` PK guarantees idempotency,
+   so re-running is safe.
 
 ## 📊 Tech Stack
 
@@ -342,9 +421,11 @@ If you encounter dependency injection errors:
 3. Ensure all tables exist with correct names (`live_streams`, not `streams`)
 
 ### Blockchain Indexer Issues
-1. Check RPC URL is accessible
-2. Verify contract addresses are correct for your network
-3. Check logs for event indexing status
+1. **Backend won't start with Zod errors mentioning `BETTING_MATCH_FACTORY_ADDRESS`/etc.** — env vars are unconditionally required (no silent `0x000…` fallback). Copy the testnet block from `.env.example` and restart.
+2. **`indexer_checkpoints.last_block` not advancing** — check the backend logs for `getLogs` errors. Public Spicy RPC sometimes throttles wide ranges; lower the lookback (`INDEXER_DEFAULT_LOOKBACK=200`) or set `CHILIZ_RPC_URL` to a private endpoint.
+3. **Events on-chain but missing from DB** — re-run the indexer over the affected range by rewinding `indexer_checkpoints.last_block`. The `(tx_hash, log_index)` PK makes the replay idempotent.
+4. **`wiring_alerts` rows present after a deploy** — the matching `BettingMatch` proxy is missing one of `setUSDCToken` / `setLiquidityPool` / `pool.authorizeMatch` / `grantRole(SWAP_ROUTER_ROLE, …)`. Inspect `missing_steps` JSONB and fix via Foundry script. Mark resolved with `UPDATE wiring_alerts SET resolved_at = now() WHERE match_address = '0x…'`.
+5. **APY endpoint returns `null` even after 7+ days** — `ComputeApyJob` needs `totalSupply()` > 0 at both block boundaries. Empty pool → `pps` undefined → snapshot skipped. Deposit a few USDC and wait one cycle.
 
 ### Streaming Not Working
 1. Verify FFmpeg is installed: `ffmpeg -version`

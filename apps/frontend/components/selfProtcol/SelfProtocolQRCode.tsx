@@ -7,10 +7,12 @@ import { countries } from "@selfxyz/core";
 
 interface SelfProtocolQRCodeProps {
   onClose?: () => void;
+  onSuccess?: () => void;
 }
 
 export default function SelfProtocolQRCode({
   onClose,
+  onSuccess,
 }: Readonly<SelfProtocolQRCodeProps>) {
 
   const { primaryWallet } = useDynamicContext();
@@ -21,7 +23,7 @@ export default function SelfProtocolQRCode({
   };
 
   const handleSuccessfulVerification = () => {
-    console.log("Identity verified successfully");
+    onSuccess?.();
     handleClose();
   };
 

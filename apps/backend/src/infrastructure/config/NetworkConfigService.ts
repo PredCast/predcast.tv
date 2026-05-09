@@ -1,16 +1,7 @@
 import { injectable } from 'tsyringe';
 import { INetworkConfig } from '@chiliztv/domain/shared/ports/INetworkConfig';
+import { chilizSpicy, chilizMainnet } from '@chiliztv/blockchain';
 import { env } from './environment';
-
-const RPC_URLS: Record<string, string> = {
-    mainnet: 'https://rpc.ankr.com/chiliz',
-    testnet: 'https://sepolia.base.org',
-};
-
-const CHAIN_IDS: Record<string, number> = {
-    mainnet: 88888,  // Chiliz mainnet
-    testnet: 84532,  // Base Sepolia
-};
 
 @injectable()
 export class NetworkConfigService implements INetworkConfig {
@@ -18,14 +9,23 @@ export class NetworkConfigService implements INetworkConfig {
     readonly chainId: number;
     readonly bettingFactoryAddress: string;
     readonly streamWalletFactoryAddress: string;
+    readonly liquidityPoolAddress: string;
+    readonly swapRouterAddress: string;
+    readonly usdcAddress: string;
+    readonly wchzAddress: string;
     readonly adminPrivateKey: string;
 
     constructor() {
-        const network = env.NETWORK ?? 'testnet';
-        this.rpcUrl                   = RPC_URLS[network] ?? RPC_URLS.testnet;
-        this.chainId                  = CHAIN_IDS[network] ?? CHAIN_IDS.testnet;
-        this.bettingFactoryAddress    = env.BETTING_MATCH_FACTORY_ADDRESS;
-        this.streamWalletFactoryAddress = env.STREAM_WALLET_FACTORY_ADDRESS;
-        this.adminPrivateKey          = env.ADMIN_PRIVATE_KEY;
+        const isMainnet = env.NETWORK === 'mainnet';
+        const chain = isMainnet ? chilizMainnet : chilizSpicy;
+        this.rpcUrl = env.CHILIZ_RPC_URL ?? chain.rpcUrls.default.http[0];
+        this.chainId = chain.id;
+        this.bettingFactoryAddress      = isMainnet ? (env.BETTING_MATCH_FACTORY_ADDRESS_MAINNET ?? '') : env.BETTING_MATCH_FACTORY_ADDRESS;
+        this.streamWalletFactoryAddress = isMainnet ? (env.STREAM_WALLET_FACTORY_ADDRESS_MAINNET ?? '') : env.STREAM_WALLET_FACTORY_ADDRESS;
+        this.liquidityPoolAddress       = isMainnet ? (env.LIQUIDITY_POOL_PROXY_MAINNET ?? '') : env.LIQUIDITY_POOL_PROXY;
+        this.swapRouterAddress          = isMainnet ? (env.CHILIZ_SWAP_ROUTER_ADDRESS_MAINNET ?? '') : env.CHILIZ_SWAP_ROUTER_ADDRESS;
+        this.usdcAddress                = isMainnet ? (env.USDC_ADDRESS_MAINNET ?? '') : env.USDC_ADDRESS;
+        this.wchzAddress                = isMainnet ? (env.WCHZ_ADDRESS_MAINNET ?? '') : env.WCHZ_ADDRESS;
+        this.adminPrivateKey            = env.ADMIN_PRIVATE_KEY;
     }
 }

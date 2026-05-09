@@ -159,13 +159,13 @@ export const FAN_TOKEN_ASSETS: FanTokenAsset[] = [
     gradient: { from: "#6F0028", via: "#4a001a", to: "#26000e" },
   },
   {
-    symbol: "BFC",
+    symbol: "BENFICA",
     name: "Benfica",
     logo: "/benfica.png",
     gradient: { from: "#A50000", via: "#6e0000", to: "#3a0000" },
   },
   {
-    symbol: "SEV",
+    symbol: "SEVILLA",
     name: "Sevilla",
     logo: "/sevilla.png",
     gradient: { from: "#D00027", via: "#8a001a", to: "#4d000e" },

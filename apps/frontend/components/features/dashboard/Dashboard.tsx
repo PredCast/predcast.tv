@@ -1,192 +1,115 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useUserUpdateRequest, useDynamicContext } from "@dynamic-labs/sdk-react-core";
-import { useFanTokens } from "@/hooks/useFanTokens";
-import { useBalance } from "wagmi";
-import {
-  useUserPredictions,
-  useUserPredictionStats,
-  useDonorHistory,
-  useSubscriberHistory,
-  useFollowedStreamers,
-} from "@/hooks/api";
-import { usePortfolioCalculation } from "./hooks";
-import { formatNumber as utilFormatNumber } from "./utils";
-import { DashboardHeader, UserProfileCard, StatsCardsSection, FanTokensTab, PredictionsTab, TransactionsTab, SubscriptionsTab, FollowingTab } from "./sections";
+import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useBalance } from 'wagmi';
+import { useFanTokens } from '@/hooks/useFanTokens';
+import { useLpPosition } from '@/hooks/useLpPosition';
+import { PoolDepositDialog } from '@/components/features/discover/components/PoolDepositDialog';
+import { useDashboardUser } from './hooks/useDashboardUser';
+import { useIsStreamer } from './hooks/useIsStreamer';
+import { useMyBets } from './hooks/useMyBets';
+import { useDashboardStats } from './hooks/useDashboardStats';
+import { useDashboardActivity } from './hooks/useDashboardActivity';
+import { useDashboardStreamers } from './hooks/useDashboardStreamers';
+import { usePortfolioCalculation } from './hooks/usePortfolioCalculation';
+import { DashboardHero } from './sections/DashboardHero';
+import { QuickActionsStrip, type QuickActionKey } from './sections/QuickActionsStrip';
+import { StatsHero } from './sections/StatsHero';
+import { LpPositionPanel } from './sections/LpPositionPanel';
+import { MyBetsSection } from './sections/MyBetsSection';
+import { MainTabs } from './sections/MainTabs';
+import { StreamerRevenuePanel } from './sections/StreamerRevenuePanel';
+import type { TokenCardData } from './components/TokenCardDash';
 
-interface UserMetadata {
-  winRate?: number;
+function scrollToId(id: string): void {
+    if (typeof window === 'undefined') return;
+    const el = document.getElementById(id);
+    if (!el) return;
+    const y = el.getBoundingClientRect().top + window.scrollY - 40;
+    window.scrollTo({ top: y, behavior: 'smooth' });
 }
 
-interface User {
-  userId?: string;
-  username?: string;
-  metadata?: UserMetadata;
-}
-
-/**
- * @notice Main dashboard component
- * @dev Orchestrates all dashboard sections and data fetching
- */
+/** Single profile / portfolio surface — orchestrates every dashboard section. */
 export function Dashboard() {
-  const [isClient, setIsClient] = useState(false);
+    const router = useRouter();
+    const user = useDashboardUser();
+    const { isStreamer } = useIsStreamer({ wallet: user.wallet });
+    const lp = useLpPosition(user.wallet);
+    const stats = useDashboardStats({ wallet: user.wallet });
+    const myBets = useMyBets({ user: user.wallet, filter: 'all', limit: 200 });
+    const activity = useDashboardActivity({ wallet: user.wallet });
+    const streamers = useDashboardStreamers({ userId: user.userId, wallet: user.wallet });
 
-  const { primaryWallet, user } = useDynamicContext() as {
-    primaryWallet?: { address?: string };
-    user?: User;
-  };
-  const { updateUserWithModal } = useUserUpdateRequest();
+    // Token holdings + prices for the Fan Tokens tab.
+    const { tokenBalances } = useFanTokens(user.wallet, !!user.wallet);
+    const { data: chzBal } = useBalance({ address: user.wallet });
+    const { realFanTokens } = usePortfolioCalculation(tokenBalances, chzBal?.formatted, user.wallet);
 
-  const walletAddress = primaryWallet?.address;
-  const username = user?.username || "Unknown User";
-  const userId = user?.userId || "";
+    const tokens: ReadonlyArray<TokenCardData> = useMemo(
+        () =>
+            realFanTokens.map((t) => ({
+                sym: t.symbol,
+                name: t.team,
+                logo: t.logo,
+                qty: t.quantity,
+                priceUSD: t.currentPrice > 0 ? t.currentPrice : null,
+                change24h: typeof t.change === 'number' ? t.change : null,
+                spark: null,
+            })),
+        [realFanTokens],
+    );
 
-  const { totalBalance: fanTokenBalance, tokenBalances, isLoading: isLoadingFanTokens } = useFanTokens(
-    walletAddress,
-    !!walletAddress
-  );
+    const [poolDialogOpen, setPoolDialogOpen] = useState(false);
 
-  const { data: chzBalanceData } = useBalance({
-    address: walletAddress as `0x${string}` | undefined,
-  });
+    const handleQuickAction = (key: QuickActionKey) => {
+        switch (key) {
+            case 'discover':
+                router.push('/browse');
+                return;
+            case 'pool':
+            case 'swap':
+                scrollToId('pool');
+                return;
+            case 'bets':
+                scrollToId('bets');
+                return;
+            case 'withdraw':
+                scrollToId('streamer-revenue');
+                return;
+        }
+    };
 
-  const { data: predictions = [], isLoading: isLoadingPredictions } = useUserPredictions(userId);
-  const { data: statsData } = useUserPredictionStats(userId);
+    const goToDiscover = () => router.push('/browse');
+    const openPool = () => setPoolDialogOpen(true);
 
-  const userStats = {
-    totalPredictions: statsData?.totalPredictions || 0,
-    totalWins: statsData?.totalWins || 0,
-    totalLosses: statsData?.totalLosses || 0,
-    activePredictions: statsData?.activePredictions || 0,
-    winRate: statsData?.winRate || 0,
-  };
-
-  const { data: donationsData, isLoading: isLoadingDonations } = useDonorHistory(walletAddress || "");
-  const { data: subscriptionsData, isLoading: isLoadingSubscriptions } = useSubscriberHistory(
-    walletAddress || ""
-  );
-
-  const donations = donationsData?.donations || [];
-  const subscriptions = subscriptionsData?.subscriptions || [];
-  const isLoadingTransactions = isLoadingDonations || isLoadingSubscriptions;
-
-  const { portfolioValue, realFanTokens, isLoadingPrices } = usePortfolioCalculation(
-    tokenBalances,
-    chzBalanceData?.formatted,
-    walletAddress
-  );
-
-  const { data: followedStreamers = [], isLoading: isLoadingFollows } = useFollowedStreamers(userId || undefined);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  const formatNumber = (num: number) => utilFormatNumber(num, isClient);
-
-  return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="container mx-auto px-4 sm:px-6 py-6">
-        <DashboardHeader username={isClient ? username : "..."} />
-
-        <UserProfileCard
-          username={isClient ? username : "..."}
-          walletAddress={walletAddress}
-          userStats={userStats}
-          userId={userId || undefined}
-          onEditUsername={() => updateUserWithModal(["username"])}
-        />
-
-        <StatsCardsSection
-          fanTokenBalance={fanTokenBalance}
-          portfolioValue={portfolioValue}
-          activePredictions={userStats.activePredictions}
-          walletAddress={walletAddress}
-          isLoadingFanTokens={isLoadingFanTokens}
-          formatNumber={formatNumber}
-        />
-
-        <Tabs defaultValue="tokens" className="w-full">
-          <TabsList className="grid grid-cols-5 w-full bg-[#1a1919] border-white/10 mb-4">
-            <TabsTrigger
-              value="tokens"
-              className="data-[state=active]:bg-primary text-white"
-            >
-              Fan Tokens
-            </TabsTrigger>
-            <TabsTrigger
-              value="history"
-              className="data-[state=active]:bg-primary text-white"
-            >
-              Predictions
-            </TabsTrigger>
-            <TabsTrigger
-              value="transactions"
-              className="data-[state=active]:bg-primary text-white"
-            >
-              Transactions
-            </TabsTrigger>
-            <TabsTrigger
-              value="subscriptions"
-              className="data-[state=active]:bg-primary text-white"
-            >
-              Subscriptions
-            </TabsTrigger>
-            <TabsTrigger
-              value="following"
-              className="data-[state=active]:bg-primary text-white"
-            >
-              Following
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="tokens">
-            <FanTokensTab
-              isLoading={isLoadingFanTokens}
-              realFanTokens={realFanTokens}
-              walletAddress={walletAddress}
-              formatNumber={formatNumber}
-              isLoadingPrices={isLoadingPrices}
+    return (
+        <main className="relative">
+            <DashboardHero user={user} />
+            <QuickActionsStrip isStreamer={isStreamer} onAction={handleQuickAction} />
+            <StatsHero stats={stats.data} onPlaceFirstBet={goToDiscover} onJoinPool={openPool} />
+            <LpPositionPanel lp={lp} onDeposit={openPool} onWithdraw={openPool} />
+            <MyBetsSection
+                bets={myBets.data?.bets ?? []}
+                onPlaceFirstBet={goToDiscover}
+                onWatchLive={goToDiscover}
             />
-          </TabsContent>
-
-          <TabsContent value="history">
-            <PredictionsTab
-              isLoading={isLoadingPredictions}
-              predictions={predictions}
-              walletAddress={walletAddress}
+            <MainTabs
+                tokens={tokens}
+                activity={activity.rows}
+                followed={streamers.followed}
+                subscribed={streamers.subscribed}
+                onSwap={openPool}
+                onPlaceFirstBet={goToDiscover}
+                onBrowseStreamers={goToDiscover}
             />
-          </TabsContent>
+            {isStreamer && (
+                <div id="streamer-revenue">
+                    <StreamerRevenuePanel wallet={user.wallet} />
+                </div>
+            )}
 
-          <TabsContent value="transactions">
-            <TransactionsTab
-              isLoading={isLoadingTransactions}
-              donations={donations}
-              subscriptions={subscriptions}
-              walletAddress={walletAddress}
-            />
-          </TabsContent>
-
-          <TabsContent value="subscriptions">
-            <SubscriptionsTab
-              isLoading={isLoadingTransactions}
-              subscriptions={subscriptions}
-              walletAddress={walletAddress}
-            />
-          </TabsContent>
-
-          <TabsContent value="following">
-            <FollowingTab
-              follows={followedStreamers}
-              subscriptions={subscriptions}
-              userId={userId}
-              isLoading={isLoadingFollows}
-            />
-          </TabsContent>
-        </Tabs>
-      </div>
-    </div>
-  );
+            <PoolDepositDialog open={poolDialogOpen} onClose={() => setPoolDialogOpen(false)} />
+        </main>
+    );
 }

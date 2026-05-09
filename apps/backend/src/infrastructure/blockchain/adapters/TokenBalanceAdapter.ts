@@ -1,8 +1,7 @@
 import { injectable } from 'tsyringe';
 import { createPublicClient, http } from 'viem';
-import { chiliz } from 'viem/chains';
 import { chilizConfig, ChilizToken, networkType } from '../../config/chiliz.config';
-import { baseSepolia } from '@chiliztv/blockchain';
+import { chainFor } from '@chiliztv/blockchain';
 import { logger } from '../../logging/logger';
 
 export interface TokenBalance {
@@ -37,8 +36,7 @@ export class TokenBalanceAdapter {
     constructor() {
         this.SUPPORTED_TOKENS = chilizConfig.tokens;
 
-        // Use testnet (baseSepolia) or mainnet (chiliz) based on environment
-        const chain = networkType === 'testnet' ? baseSepolia : chiliz;
+        const chain = chainFor(networkType);
 
         this.client = createPublicClient({
             chain,

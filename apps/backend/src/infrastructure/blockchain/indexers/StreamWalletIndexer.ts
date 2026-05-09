@@ -1,369 +1,329 @@
 import { injectable, inject } from 'tsyringe';
-import { createPublicClient, http, parseAbiItem, Log, defineChain } from 'viem';
-import { chiliz } from 'viem/chains';
-import { chilizConfig, networkType } from '../../config/chiliz.config';
+import { createPublicClient, http, parseAbiItem, type Log } from 'viem';
+import { chainFor } from '@chiliztv/blockchain';
+import { networkType } from '../../config/chiliz.config';
 import { supabaseClient as supabase } from '../../database/supabase/client';
 import { logger } from '../../logging/logger';
 import { TOKENS } from '@chiliztv/domain/shared/tokens';
+import { INetworkConfig } from '@chiliztv/domain/shared/ports/INetworkConfig';
+import { IIndexerCheckpointRepository } from '@chiliztv/domain/blockchain-indexing/repositories/IIndexerCheckpointRepository';
 import { IStreamWalletRepository } from '@chiliztv/domain/stream-wallet/repositories/IStreamWalletRepository';
 import { IChatRepository } from '@chiliztv/domain/chat/repositories/IChatRepository';
 import { Donation } from '@chiliztv/domain/stream-wallet/entities/Donation';
 import { Subscription } from '@chiliztv/domain/stream-wallet/entities/Subscription';
 import { ChatMessage, MessageType } from '@chiliztv/domain/chat/entities/ChatMessage';
+import { BaseIndexer } from './BaseIndexer';
+import { getTokenDecimals } from '../utils/getTokenDecimals';
 
-const FACTORY_ADDRESS = (process.env.STREAM_WALLET_FACTORY_ADDRESS ||
-    '0x7310cE3bD564fA63587a388b87a8C973a0BA3d7B') as `0x${string}`;
+const STREAM_WALLET_CREATED = parseAbiItem(
+    'event StreamWalletCreated(address indexed streamer, address indexed wallet)',
+);
+const DONATION_RECEIVED = parseAbiItem(
+    'event DonationReceived(address indexed donor, uint256 amount, string message, uint256 platformFee, uint256 streamerAmount)',
+);
+const SUBSCRIPTION_RECORDED = parseAbiItem(
+    'event SubscriptionRecorded(address indexed subscriber, uint256 amount, uint256 duration, uint256 expiryTime)',
+);
+const REVENUE_WITHDRAWN = parseAbiItem(
+    'event RevenueWithdrawn(address indexed streamer, uint256 amount)',
+);
+const PLATFORM_FEE_COLLECTED = parseAbiItem(
+    'event PlatformFeeCollected(uint256 amount, address indexed treasury)',
+);
 
-const DONATION_EVENT = parseAbiItem('event DonationProcessed(address indexed streamer, address indexed donor, uint256 amount, string message)');
-const SUBSCRIPTION_EVENT = parseAbiItem('event SubscriptionProcessed(address indexed streamer, address indexed subscriber, uint256 amount)');
-const WALLET_CREATED_EVENT = parseAbiItem('event StreamWalletCreated(address indexed streamer, address indexed wallet)');
+const FACTORY_EVENTS = [STREAM_WALLET_CREATED];
+const WALLET_EVENTS = [
+    DONATION_RECEIVED,
+    SUBSCRIPTION_RECORDED,
+    REVENUE_WITHDRAWN,
+    PLATFORM_FEE_COLLECTED,
+];
 
-const baseSepolia = defineChain({
-    id: 84532,
-    name: 'Base Sepolia',
-    nativeCurrency: { decimals: 18, name: 'Ether', symbol: 'ETH' },
-    rpcUrls: { default: { http: ['https://sepolia.base.org'] } },
-    blockExplorers: { default: { name: 'BaseScan', url: 'https://sepolia.basescan.org' } },
-    testnet: true,
-});
-
-const POLLING_INTERVAL_MS = 6000;
-const EXPIRY_CHECK_INTERVAL_MS = 60000;
-const PLATFORM_FEE_BPS = 500;
+const EXPIRY_CHECK_INTERVAL_MS = 60_000;
 
 /**
- * Stream Wallet Indexer
- * Listens to blockchain events for donations, subscriptions and wallet creations.
- * Writes via domain repositories — never calls use-cases.
+ * Indexes the StreamWalletFactory + every StreamWallet proxy it creates.
+ *
+ * Source of truth for donations/subscriptions is the *wallet* contract (richer
+ * payload — split fee/streamer amount on donation, expiryTime on sub) — not
+ * the factory's DonationProcessed/SubscriptionProcessed events, which would
+ * duplicate-write the same tx_hash with a different log_index. The factory
+ * is only used for wallet discovery (StreamWalletCreated).
  */
 @injectable()
-export class StreamWalletIndexer {
-    private publicClient;
-    private isRunning = false;
-    private lastIndexedBlock: bigint = BigInt(0);
-    private pollingTimer: ReturnType<typeof setInterval> | null = null;
+export class StreamWalletIndexer extends BaseIndexer {
+    private readonly factoryAddress: `0x${string}`;
+    private knownWallets = new Set<`0x${string}`>();
     private expiryCheckTimer: ReturnType<typeof setInterval> | null = null;
+    private usdcDecimalsCache: number | null = null;
 
     constructor(
+        @inject(TOKENS.IIndexerCheckpointRepository)
+        checkpoints: IIndexerCheckpointRepository,
         @inject(TOKENS.IStreamWalletRepository)
         private readonly streamWalletRepository: IStreamWalletRepository,
         @inject(TOKENS.IChatRepository)
         private readonly chatRepository: IChatRepository,
+        @inject(TOKENS.INetworkConfig)
+        private readonly network: INetworkConfig,
     ) {
-        const chain = networkType === 'testnet' ? baseSepolia : chiliz;
-        this.publicClient = createPublicClient({
-            chain,
-            transport: http(chilizConfig.rpcUrl)
+        const factoryAddress = network.streamWalletFactoryAddress as `0x${string}`;
+        super({
+            name: 'StreamWallet',
+            contractAddress: factoryAddress,
+            client: createPublicClient({
+                chain: chainFor(networkType),
+                transport: http(network.rpcUrl),
+            }),
+            checkpoints,
         });
-        logger.info('StreamWalletIndexer initialized', { network: networkType, chain: chain.name });
+        this.factoryAddress = factoryAddress;
     }
 
     async start(): Promise<void> {
-        if (this.isRunning) {
-            logger.warn('StreamWalletIndexer already running');
-            return;
-        }
-
-        logger.info('Starting Stream Wallet event indexing');
-        this.isRunning = true;
-
-        try {
-            const currentBlock = await this.publicClient.getBlockNumber();
-            this.lastIndexedBlock = currentBlock - BigInt(10000);
-
-            logger.info('Starting from block', { block: this.lastIndexedBlock.toString() });
-
-            await this.indexHistoricalEvents();
-            this.startPollingNewEvents();
-            this.startExpiredSubscriptionsCheck();
-
-            logger.info('Stream Wallet event indexing started successfully');
-        } catch (error) {
-            this.isRunning = false;
-            logger.error('Failed to start Stream Wallet event indexing', {
-                error: error instanceof Error ? error.message : 'Unknown error'
-            });
-            throw error;
-        }
+        await this.hydrateKnownWallets();
+        await super.start();
+        this.startExpiredSubscriptionsCheck();
     }
 
     stop(): void {
-        if (!this.isRunning) {
-            return;
-        }
-
-        logger.info('Stopping Stream Wallet event indexing');
-
-        if (this.pollingTimer) {
-            clearInterval(this.pollingTimer);
-            this.pollingTimer = null;
-        }
         if (this.expiryCheckTimer) {
             clearInterval(this.expiryCheckTimer);
             this.expiryCheckTimer = null;
         }
-
-        this.isRunning = false;
+        super.stop();
     }
 
-    private async indexHistoricalEvents(): Promise<void> {
-        try {
-            const currentBlock = await this.publicClient.getBlockNumber();
-            const fromBlock = this.lastIndexedBlock;
-            const toBlock = currentBlock;
+    protected async processBatch(fromBlock: bigint, toBlock: bigint): Promise<void> {
+        // Phase 1: factory events (wallet discovery).
+        const factoryLogs = await this.client.getLogs({
+            address: this.factoryAddress,
+            events: FACTORY_EVENTS,
+            fromBlock,
+            toBlock,
+        });
 
-            logger.info('Indexing historical events', { fromBlock: fromBlock.toString(), toBlock: toBlock.toString() });
-
-            const [donationLogs, subscriptionLogs, walletCreatedLogs] = await Promise.all([
-                this.publicClient.getLogs({ address: FACTORY_ADDRESS, event: DONATION_EVENT, fromBlock, toBlock }),
-                this.publicClient.getLogs({ address: FACTORY_ADDRESS, event: SUBSCRIPTION_EVENT, fromBlock, toBlock }),
-                this.publicClient.getLogs({ address: FACTORY_ADDRESS, event: WALLET_CREATED_EVENT, fromBlock, toBlock })
-            ]);
-
-            logger.info('Found historical events', {
-                donations: donationLogs.length,
-                subscriptions: subscriptionLogs.length,
-                walletCreations: walletCreatedLogs.length
-            });
-
-            for (const log of donationLogs) await this.indexDonationEvent(log as any);
-            for (const log of subscriptionLogs) await this.indexSubscriptionEvent(log as any);
-            for (const log of walletCreatedLogs) await this.indexWalletCreatedEvent(log as any);
-
-            this.lastIndexedBlock = toBlock;
-            logger.info('Historical events indexed');
-        } catch (error) {
-            logger.error('Error indexing historical events', {
-                error: error instanceof Error ? error.message : 'Unknown error'
-            });
-        }
-    }
-
-    private startPollingNewEvents(): void {
-        logger.info('Polling for new events', { intervalMs: POLLING_INTERVAL_MS });
-
-        this.pollingTimer = setInterval(async () => {
+        const factoryBlockTs = await this.resolveBlockTimestamps(factoryLogs);
+        for (const log of factoryLogs) {
             try {
-                const currentBlock = await this.publicClient.getBlockNumber();
-                if (currentBlock <= this.lastIndexedBlock) return;
-
-                const fromBlock = this.lastIndexedBlock + BigInt(1);
-                const toBlock = currentBlock;
-
-                const [donationLogs, subscriptionLogs, walletCreatedLogs] = await Promise.all([
-                    this.publicClient.getLogs({ address: FACTORY_ADDRESS, event: DONATION_EVENT, fromBlock, toBlock }),
-                    this.publicClient.getLogs({ address: FACTORY_ADDRESS, event: SUBSCRIPTION_EVENT, fromBlock, toBlock }),
-                    this.publicClient.getLogs({ address: FACTORY_ADDRESS, event: WALLET_CREATED_EVENT, fromBlock, toBlock })
-                ]);
-
-                const totalNew = donationLogs.length + subscriptionLogs.length + walletCreatedLogs.length;
-                if (totalNew > 0) {
-                    logger.info('New events detected', { count: totalNew, blocks: `${fromBlock}-${toBlock}` });
-                }
-
-                for (const log of donationLogs) await this.indexDonationEvent(log as any);
-                for (const log of subscriptionLogs) await this.indexSubscriptionEvent(log as any);
-                for (const log of walletCreatedLogs) await this.indexWalletCreatedEvent(log as any);
-
-                this.lastIndexedBlock = toBlock;
-            } catch (error) {
-                logger.error('Error polling events', {
-                    error: error instanceof Error ? error.message : 'Unknown error'
+                await this.handleFactoryLog(log, factoryBlockTs);
+            } catch (err) {
+                logger.error(`${this.indexerName}: factory log failed`, {
+                    txHash: log.transactionHash,
+                    error: err instanceof Error ? err.message : String(err),
                 });
             }
-        }, POLLING_INTERVAL_MS);
-    }
+        }
 
-    private startExpiredSubscriptionsCheck(): void {
-        logger.info('Starting expired subscriptions check', { intervalMs: EXPIRY_CHECK_INTERVAL_MS });
+        // Phase 2: wallet events. Listening to the union of all known wallets
+        // in a single getLogs keeps the RPC call count flat regardless of how
+        // many streamers exist.
+        if (this.knownWallets.size === 0) return;
 
-        this.expiryCheckTimer = setInterval(async () => {
+        const usdcDecimals = await this.getUsdcDecimals();
+        const walletLogs = await this.client.getLogs({
+            address: Array.from(this.knownWallets),
+            events: WALLET_EVENTS,
+            fromBlock,
+            toBlock,
+        });
+        const walletBlockTs = await this.resolveBlockTimestamps(walletLogs);
+
+        for (const log of walletLogs) {
             try {
-                await this.updateExpiredSubscriptions();
-            } catch (error) {
-                logger.error('Error updating expired subscriptions', {
-                    error: error instanceof Error ? error.message : 'Unknown error'
+                await this.handleWalletLog(log, walletBlockTs, usdcDecimals);
+            } catch (err) {
+                logger.error(`${this.indexerName}: wallet log failed`, {
+                    eventName: (log as { eventName?: string }).eventName,
+                    txHash: log.transactionHash,
+                    error: err instanceof Error ? err.message : String(err),
                 });
             }
-        }, EXPIRY_CHECK_INTERVAL_MS);
-
-        this.updateExpiredSubscriptions().catch(err => logger.error('Error on initial expiry check', { error: err.message }));
-    }
-
-    private async updateExpiredSubscriptions(): Promise<void> {
-        try {
-            const count = await this.streamWalletRepository.markExpiredSubscriptions();
-            if (count > 0) {
-                logger.info('Marked subscriptions as expired', { count });
-            }
-        } catch (err) {
-            logger.error('Error in updateExpiredSubscriptions', {
-                error: err instanceof Error ? err.message : 'Unknown error'
-            });
         }
     }
 
-    async indexWalletCreatedEvent(log: Log): Promise<void> {
-        try {
-            const { args, transactionHash } = log as any;
-            if (!args || !transactionHash) {
-                logger.error('Invalid wallet created event log', { log });
+    private async handleFactoryLog(log: Log, blockTimestamps: Map<bigint, Date>): Promise<void> {
+        const eventName = (log as { eventName?: string }).eventName;
+        const args = (log as { args?: Record<string, unknown> }).args;
+        if (eventName !== 'StreamWalletCreated' || !args || !log.transactionHash) return;
+
+        const streamer = (args.streamer as string).toLowerCase();
+        const wallet = (args.wallet as string).toLowerCase();
+
+        if (await this.streamWalletRepository.findStreamWalletByTransactionHash(log.transactionHash)) {
+            this.knownWallets.add(wallet as `0x${string}`);
+            return;
+        }
+        await this.streamWalletRepository.saveStreamWallet(streamer, wallet, log.transactionHash);
+        this.knownWallets.add(wallet as `0x${string}`);
+        logger.info(`${this.indexerName}: discovered wallet`, { streamer, wallet });
+    }
+
+    private async handleWalletLog(
+        log: Log,
+        blockTimestamps: Map<bigint, Date>,
+        usdcDecimals: number,
+    ): Promise<void> {
+        const eventName = (log as { eventName?: string }).eventName;
+        const args = (log as { args?: Record<string, unknown> }).args;
+        if (!eventName || !args || !log.transactionHash || log.logIndex == null || log.blockNumber == null) {
+            return;
+        }
+        const blockTimestamp = blockTimestamps.get(log.blockNumber) ?? new Date();
+        const walletAddress = (log.address as string).toLowerCase();
+        const streamerAddress = await this.lookupStreamerForWallet(walletAddress);
+
+        switch (eventName) {
+            case 'DonationReceived':
+                await this.handleDonation(args, log.transactionHash, streamerAddress, walletAddress, blockTimestamp, usdcDecimals);
                 return;
-            }
-
-            const { streamer, wallet } = args;
-
-            const exists = await this.streamWalletRepository.findStreamWalletByTransactionHash(transactionHash);
-            if (exists) {
-                logger.debug('Wallet creation already indexed', { txHash: transactionHash });
+            case 'SubscriptionRecorded':
+                await this.handleSubscription(args, log.transactionHash, streamerAddress, walletAddress, blockTimestamp, usdcDecimals);
                 return;
-            }
-
-            await this.streamWalletRepository.saveStreamWallet(streamer, wallet, transactionHash);
-            logger.info('Indexed wallet creation', { streamer, wallet });
-        } catch (error) {
-            logger.error('Error in indexWalletCreatedEvent', {
-                error: error instanceof Error ? error.message : 'Unknown error'
-            });
+            case 'RevenueWithdrawn':
+                logger.info(`${this.indexerName}: RevenueWithdrawn`, {
+                    streamer: streamerAddress,
+                    amount: (args.amount as bigint).toString(),
+                    txHash: log.transactionHash,
+                });
+                return;
+            case 'PlatformFeeCollected':
+                // Audit-only — already accounted in donations.platform_fee.
+                return;
+            default:
+                return;
         }
     }
 
-    async indexDonationEvent(log: Log): Promise<void> {
-        try {
-            const { args, transactionHash } = log as any;
-            if (!args || !transactionHash) {
-                logger.error('Invalid donation event log', { log });
-                return;
-            }
+    private async handleDonation(
+        args: Record<string, unknown>,
+        txHash: string,
+        streamerAddress: string | null,
+        walletAddress: string,
+        blockTimestamp: Date,
+        usdcDecimals: number,
+    ): Promise<void> {
+        const a = args as unknown as {
+            donor: string;
+            amount: bigint;
+            message: string;
+            platformFee: bigint;
+            streamerAmount: bigint;
+        };
 
-            const { streamer, donor, amount, message } = args;
+        if (await this.streamWalletRepository.findDonationByTransactionHash(txHash)) {
+            return;
+        }
+        if (!streamerAddress) {
+            logger.warn(`${this.indexerName}: donation on unknown wallet`, { walletAddress, txHash });
+            return;
+        }
 
-            const exists = await this.streamWalletRepository.findDonationByTransactionHash(transactionHash);
-            if (exists) {
-                logger.debug('Donation already indexed', { txHash: transactionHash });
-                return;
-            }
+        const decimals = 10 ** usdcDecimals;
+        const donation = Donation.create({
+            streamerAddress,
+            donorAddress: a.donor,
+            streamWalletAddress: walletAddress,
+            amount: (Number(a.amount) / decimals).toString(),
+            platformFee: (Number(a.platformFee) / decimals).toString(),
+            streamerAmount: (Number(a.streamerAmount) / decimals).toString(),
+            message: a.message || undefined,
+            transactionHash: txHash,
+            timestamp: blockTimestamp,
+        });
+        await this.streamWalletRepository.saveDonation(donation);
 
-            const receipt = await this.publicClient.getTransactionReceipt({ hash: transactionHash as `0x${string}` });
-            const block = await this.publicClient.getBlock({ blockHash: receipt.blockHash });
-
-            const amountBigInt = BigInt(amount);
-            const platformFee = (amountBigInt * BigInt(PLATFORM_FEE_BPS)) / BigInt(10000);
-            const streamerAmount = amountBigInt - platformFee;
-
-            const streamWalletAddress = await this.getStreamerWallet(streamer);
-
-            const donation = Donation.create({
-                streamerAddress: streamer,
-                donorAddress: donor,
-                streamWalletAddress: streamWalletAddress ?? undefined,
-                amount: (Number(amountBigInt) / 1e18).toString(),
-                platformFee: (Number(platformFee) / 1e18).toString(),
-                streamerAmount: (Number(streamerAmount) / 1e18).toString(),
-                message: message || undefined,
-                transactionHash,
-                timestamp: new Date(Number(block.timestamp) * 1000),
-            });
-
-            await this.streamWalletRepository.saveDonation(donation);
-            logger.info('Indexed donation', { txHash: transactionHash.slice(0, 10), amount: (Number(amountBigInt) / 1e18).toFixed(4) });
-
-            const activeStream = await this.getActiveStreamForStreamer(streamer.toLowerCase(), streamWalletAddress?.toLowerCase() ?? null);
-            if (activeStream) {
-                await this.insertChatMessageForStreamerEvent(
-                    activeStream.matchId,
-                    'donation',
-                    donor.toLowerCase(),
-                    (Number(amountBigInt) / 1e18).toString(),
-                    message || undefined,
-                    activeStream.streamId
-                );
-            } else {
-                logger.warn('No active stream found for donation, skipping chat message', { streamer });
-            }
-        } catch (error) {
-            logger.error('Error indexing donation event', {
-                error: error instanceof Error ? error.message : 'Unknown error'
-            });
+        const activeStream = await this.findActiveStream(streamerAddress, walletAddress);
+        if (activeStream) {
+            await this.postChatEvent('donation', activeStream, a.donor, (Number(a.amount) / decimals).toString(), a.message);
         }
     }
 
-    async indexSubscriptionEvent(log: Log): Promise<void> {
-        try {
-            const { args, transactionHash } = log as any;
-            if (!args || !transactionHash) {
-                logger.error('Invalid subscription event log', { log });
-                return;
-            }
+    private async handleSubscription(
+        args: Record<string, unknown>,
+        txHash: string,
+        streamerAddress: string | null,
+        walletAddress: string,
+        blockTimestamp: Date,
+        usdcDecimals: number,
+    ): Promise<void> {
+        const a = args as unknown as {
+            subscriber: string;
+            amount: bigint;
+            duration: bigint;
+            expiryTime: bigint;
+        };
 
-            const { streamer, subscriber, amount } = args;
+        if (await this.streamWalletRepository.findSubscriptionByTransactionHash(txHash)) {
+            return;
+        }
+        if (!streamerAddress) {
+            logger.warn(`${this.indexerName}: subscription on unknown wallet`, { walletAddress, txHash });
+            return;
+        }
 
-            const exists = await this.streamWalletRepository.findSubscriptionByTransactionHash(transactionHash);
-            if (exists) {
-                logger.debug('Subscription already indexed', { txHash: transactionHash });
-                return;
-            }
+        const decimals = 10 ** usdcDecimals;
+        const PLATFORM_FEE_BPS = 500;
+        const platformFee = (a.amount * BigInt(PLATFORM_FEE_BPS)) / BigInt(10_000);
+        const streamerAmount = a.amount - platformFee;
+        const startDate = blockTimestamp;
+        const endDate = new Date(Number(a.expiryTime) * 1000);
 
-            const receipt = await this.publicClient.getTransactionReceipt({ hash: transactionHash as `0x${string}` });
-            const block = await this.publicClient.getBlock({ blockHash: receipt.blockHash });
+        const subscription = Subscription.create({
+            streamerAddress,
+            subscriberAddress: a.subscriber,
+            streamWalletAddress: walletAddress,
+            durationSeconds: Number(a.duration),
+            amount: (Number(a.amount) / decimals).toString(),
+            platformFee: (Number(platformFee) / decimals).toString(),
+            streamerAmount: (Number(streamerAmount) / decimals).toString(),
+            startDate,
+            endDate,
+            transactionHash: txHash,
+            status: 'active',
+        });
+        await this.streamWalletRepository.saveSubscription(subscription);
 
-            const amountBigInt = BigInt(amount);
-            const platformFee = (amountBigInt * BigInt(PLATFORM_FEE_BPS)) / BigInt(10000);
-            const streamerAmount = amountBigInt - platformFee;
-
-            const streamWalletAddress = await this.getStreamerWallet(streamer);
-
-            const durationSeconds = 30 * 24 * 60 * 60;
-            const startDate = new Date(Number(block.timestamp) * 1000);
-            const endDate = new Date(startDate.getTime() + durationSeconds * 1000);
-
-            const subscription = Subscription.create({
-                streamerAddress: streamer,
-                subscriberAddress: subscriber,
-                streamWalletAddress: streamWalletAddress ?? undefined,
-                durationSeconds,
-                amount: (Number(amountBigInt) / 1e18).toString(),
-                platformFee: (Number(platformFee) / 1e18).toString(),
-                streamerAmount: (Number(streamerAmount) / 1e18).toString(),
-                startDate,
-                endDate,
-                transactionHash,
-                status: 'active',
-            });
-
-            await this.streamWalletRepository.saveSubscription(subscription);
-            logger.info('Indexed subscription', { txHash: transactionHash.slice(0, 10), amount: (Number(amountBigInt) / 1e18).toFixed(4) });
-
-            const activeStream = await this.getActiveStreamForStreamer(streamer.toLowerCase(), streamWalletAddress?.toLowerCase() ?? null);
-            if (activeStream) {
-                await this.insertChatMessageForStreamerEvent(
-                    activeStream.matchId,
-                    'subscription',
-                    subscriber.toLowerCase(),
-                    (Number(amountBigInt) / 1e18).toString(),
-                    undefined,
-                    activeStream.streamId
-                );
-            } else {
-                logger.warn('No active stream found for subscription, skipping chat message', { streamer });
-            }
-        } catch (error) {
-            logger.error('Error indexing subscription event', {
-                error: error instanceof Error ? error.message : 'Unknown error'
-            });
+        const activeStream = await this.findActiveStream(streamerAddress, walletAddress);
+        if (activeStream) {
+            await this.postChatEvent('subscription', activeStream, a.subscriber, (Number(a.amount) / decimals).toString());
         }
     }
 
-    private async getActiveStreamForStreamer(
+    private async hydrateKnownWallets(): Promise<void> {
+        const { data, error } = await supabase
+            .from('stream_wallets')
+            .select('wallet_address');
+        if (error) {
+            logger.error(`${this.indexerName}: failed to hydrate known wallets`, { error: error.message });
+            return;
+        }
+        for (const row of data ?? []) {
+            if (row.wallet_address) {
+                this.knownWallets.add((row.wallet_address as string).toLowerCase() as `0x${string}`);
+            }
+        }
+        logger.info(`${this.indexerName}: hydrated ${this.knownWallets.size} known wallets`);
+    }
+
+    private async lookupStreamerForWallet(walletAddress: string): Promise<string | null> {
+        const { data, error } = await supabase
+            .from('stream_wallets')
+            .select('streamer_address')
+            .eq('wallet_address', walletAddress.toLowerCase())
+            .maybeSingle();
+        if (error || !data) return null;
+        return (data.streamer_address as string).toLowerCase();
+    }
+
+    private async findActiveStream(
         streamerAddress: string,
-        streamWalletAddress: string | null
+        walletAddress: string,
     ): Promise<{ matchId: number; streamId: string } | null> {
         try {
-            const addresses = [streamerAddress.toLowerCase()];
-            if (streamWalletAddress) addresses.push(streamWalletAddress.toLowerCase());
-
-            const conditions = addresses.map(a => `streamer_wallet_address.ilike.${a}`).join(',');
-
+            const conditions = [streamerAddress, walletAddress]
+                .map((a) => `streamer_wallet_address.ilike.${a.toLowerCase()}`)
+                .join(',');
             const { data, error } = await supabase
                 .from('live_streams')
                 .select('id, match_id')
@@ -371,7 +331,6 @@ export class StreamWalletIndexer {
                 .order('created_at', { ascending: false })
                 .limit(1)
                 .single();
-
             if (error || !data) return null;
             return { matchId: data.match_id, streamId: data.id };
         } catch {
@@ -379,104 +338,61 @@ export class StreamWalletIndexer {
         }
     }
 
-    private async getUsernameForWallet(walletAddress: string): Promise<string | null> {
-        try {
-            const addrPattern = walletAddress.toLowerCase();
-            const { data: chatMessages } = await supabase
-                .from('chat_messages')
-                .select('username')
-                .ilike('wallet_address', addrPattern)
-                .not('username', 'eq', 'System')
-                .order('created_at', { ascending: false })
-                .limit(1);
-
-            if (chatMessages?.[0]?.username) return chatMessages[0].username;
-
-            const { data: predRows } = await supabase
-                .from('predictions')
-                .select('username')
-                .ilike('wallet_address', addrPattern)
-                .order('created_at', { ascending: false })
-                .limit(1);
-
-            if (predRows?.[0]?.username) return predRows[0].username;
-
-            const { data: connectedRows } = await supabase
-                .from('chat_connected_users')
-                .select('username')
-                .ilike('wallet_address', addrPattern)
-                .not('username', 'eq', 'System')
-                .order('last_activity', { ascending: false })
-                .limit(1);
-
-            return connectedRows?.[0]?.username ?? null;
-        } catch {
-            return null;
-        }
-    }
-
-    private async insertChatMessageForStreamerEvent(
-        matchId: number,
+    private async postChatEvent(
         type: 'donation' | 'subscription',
+        active: { matchId: number; streamId: string },
         userAddress: string,
         amount: string,
-        extraMessage?: string,
-        streamId?: string
+        extra?: string,
     ): Promise<void> {
         try {
-            const displayName = await this.getUsernameForWallet(userAddress)
-                ?? `${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
-            const amountFormatted = parseFloat(amount).toFixed(4);
-            const messageText = type === 'donation'
-                ? `🎁 ${displayName} donated ${amountFormatted} CHZ${extraMessage ? `: "${extraMessage}"` : ''}`
-                : `⭐ ${displayName} subscribed for ${amountFormatted} CHZ`;
+            const display = `${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
+            const formatted = parseFloat(amount).toFixed(2);
+            const message = type === 'donation'
+                ? `🎁 ${display} donated ${formatted} USDC${extra ? `: "${extra}"` : ''}`
+                : `⭐ ${display} subscribed for ${formatted} USDC`;
 
-            const baseProps = {
-                matchId,
+            await this.chatRepository.saveMessage(ChatMessage.create({
+                matchId: active.matchId,
                 userId: 'system',
                 walletAddress: userAddress,
                 username: 'System',
-                message: messageText,
+                message,
                 type: MessageType.SYSTEM,
-                systemType: type, // 'donation' | 'subscription'
+                systemType: type,
                 isFeatured: false,
-            };
-
-            if (streamId) {
-                // Post only to the stream chat — stream_id = <uuid>
-                await this.chatRepository.saveMessage(ChatMessage.create({ ...baseProps, streamId }));
-                logger.info(`Chat message posted for ${type}`, { matchId, streamId });
-            } else {
-                logger.warn(`No streamId for ${type} chat message, message not posted`, { matchId });
-            }
+                streamId: active.streamId,
+            }));
         } catch (err) {
-            logger.error(`Error inserting chat message for ${type}`, {
-                error: err instanceof Error ? err.message : 'Unknown error'
+            logger.error(`${this.indexerName}: chat ${type} message failed`, {
+                error: err instanceof Error ? err.message : String(err),
             });
         }
     }
 
-    private async getStreamerWallet(streamerAddress: string): Promise<string | null> {
-        try {
-            const wallet = await this.publicClient.readContract({
-                address: FACTORY_ADDRESS,
-                abi: [{
-                    name: 'getWallet',
-                    type: 'function',
-                    stateMutability: 'view',
-                    inputs: [{ name: 'streamer', type: 'address' }],
-                    outputs: [{ name: 'wallet', type: 'address' }]
-                }],
-                functionName: 'getWallet',
-                args: [streamerAddress as `0x${string}`]
-            });
+    private startExpiredSubscriptionsCheck(): void {
+        this.expiryCheckTimer = setInterval(async () => {
+            try {
+                const count = await this.streamWalletRepository.markExpiredSubscriptions();
+                if (count > 0) {
+                    logger.info(`${this.indexerName}: marked ${count} subscriptions as expired`);
+                }
+            } catch (err) {
+                logger.error(`${this.indexerName}: expiry check failed`, {
+                    error: err instanceof Error ? err.message : String(err),
+                });
+            }
+        }, EXPIRY_CHECK_INTERVAL_MS);
+    }
 
-            return wallet as string;
-        } catch (error) {
-            logger.error('Error getting streamer wallet', {
-                error: error instanceof Error ? error.message : 'Unknown error'
-            });
-            return null;
+    private async getUsdcDecimals(): Promise<number> {
+        if (this.usdcDecimalsCache !== null) return this.usdcDecimalsCache;
+        if (!this.network.usdcAddress) {
+            this.usdcDecimalsCache = 6;
+            return 6;
         }
+        const decimals = await getTokenDecimals(this.client, this.network.usdcAddress as `0x${string}`);
+        this.usdcDecimalsCache = decimals;
+        return decimals;
     }
 }

@@ -1,10 +1,8 @@
 import { injectable } from 'tsyringe';
 import { createWalletClient, createPublicClient, http } from 'viem';
 import { privateKeyToAccount, nonceManager } from 'viem/accounts';
-import { chiliz } from 'viem/chains';
 import { chilizConfig, networkType } from '../../config/chiliz.config';
-import { baseSepolia } from '@chiliztv/blockchain';
-import { FOOTBALL_MATCH_ABI } from '@chiliztv/blockchain';
+import { chainFor, chilizSpicy, chilizMainnet, FOOTBALL_MATCH_ABI } from '@chiliztv/blockchain';
 import type { ExtendedOdds } from '../../external/types/ApiFootball.types';
 import { logger } from '../../logging/logger';
 
@@ -45,13 +43,13 @@ function getRepresentativeOdds(extendedOdds: ExtendedOdds | null): { marketId: n
 export class MarketOddsAdapter {
     private walletClient: ReturnType<typeof createWalletClient>;
     private publicClient: ReturnType<typeof createPublicClient>;
-    private chain: typeof baseSepolia | typeof chiliz;
+    private chain: typeof chilizSpicy | typeof chilizMainnet;
 
     constructor() {
         if (!ADMIN_PRIVATE_KEY) {
             throw new Error('ADMIN_PRIVATE_KEY required for market odds sync');
         }
-        this.chain = networkType === 'testnet' ? baseSepolia : chiliz;
+        this.chain = chainFor(networkType);
         const account = privateKeyToAccount(ADMIN_PRIVATE_KEY, { nonceManager });
         this.walletClient = createWalletClient({
             account,

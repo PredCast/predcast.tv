@@ -29,6 +29,7 @@ import { useChilizSwapRouter } from "@/hooks/useChilizSwapRouter";
 import { useKayenQuote } from "@/hooks/useKayenQuote";
 import { usePoolDecimals } from "@/hooks/usePoolDecimals";
 import { chilizConfig } from "@/config/chiliz.config";
+import { decodeContractError } from "@/lib/contracts/errors";
 import { NetworkGuard } from "@/components/web3/NetworkGuard";
 
 interface StreamSubscriptionButtonProps {
@@ -170,13 +171,13 @@ export default function StreamSubscriptionButton({
     }, [isApproveSuccess, refetchAllowance]);
 
     useEffect(() => {
-        if (subscribeState.error) {
-            setErrorMessage(subscribeState.error.message ?? "Subscription failed");
-        } else if (approveError) {
-            setErrorMessage(approveError.message ?? "Approval failed");
-        } else {
+        const err = subscribeState.error ?? approveError;
+        if (!err) {
             setErrorMessage(null);
+            return;
         }
+        const decoded = decodeContractError(err);
+        setErrorMessage(decoded.description ? `${decoded.title} — ${decoded.description}` : decoded.title);
     }, [subscribeState.error, approveError]);
 
     useEffect(() => {

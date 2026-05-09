@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { erc20Abi, formatUnits, maxUint256, parseUnits, type Address } from "viem";
 import { useBalance, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { TrendingUp, ExternalLink, CheckCircle2, ChevronDown } from "lucide-react";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -14,9 +15,11 @@ import { useChilizSwapRouter } from "@/hooks/useChilizSwapRouter";
 import { useKayenQuote } from "@/hooks/useKayenQuote";
 import { usePoolDecimals } from "@/hooks/usePoolDecimals";
 import { chilizConfig } from "@/config/chiliz.config";
+import { decodeContractError } from "@/lib/contracts/errors";
 import { NetworkGuard } from "@/components/web3/NetworkGuard";
 import {
   useBettingMatchReadQuoteNetExposure,
+  useBettingMatchWatchBetPlaced,
   useLiquidityPoolReadFreeBalance,
 } from "@/lib/contracts/generated";
 import type { MarketSelection } from "./MatchMarketsList";
@@ -263,6 +266,67 @@ export function MarketBetDialog({
   const isLoading = isPending || isConfirming || isApproving;
   const isMarketOpen = selection?.state === 1;
 
+  // Live confirmation: watch BetPlaced filtered to this user + market. Receipt
+  // success already proves the tx was mined, but the event watcher gives a
+  // belt-and-braces cross-check that the contract actually emitted the bet
+  // (and lets the indexer-driven my-bets page show the row immediately).
+  const [eventConfirmed, setEventConfirmed] = useState(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useBettingMatchWatchBetPlaced({
+    address: contractAddress,
+    chainId: chilizConfig.chainId,
+    args: walletAddress && selection
+      ? { marketId: BigInt(selection.marketId), user: walletAddress as Address }
+      : undefined,
+    enabled: open && isSuccess && !eventConfirmed,
+    onLogs(logs) {
+      // The wagmi-generated watcher fires only for matching (user, marketId)
+      // logs thanks to the `args` filter — any hit is ours.
+      if (logs.length > 0) setEventConfirmed(true);
+    },
+  });
+
+  // Auto-close: 1.5s after isSuccess so the user sees the success state and
+  // can click the explorer link, then dismiss. We don't wait for the event
+  // confirm to close (RPC public can drop subscriptions), but if the event
+  // arrives faster we close on it instead.
+  useEffect(() => {
+    if (!open) {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
+      setEventConfirmed(false);
+      return;
+    }
+    if (!isSuccess) return;
+    if (closeTimerRef.current) return;
+    const delayMs = eventConfirmed ? 1_200 : 4_000;
+    closeTimerRef.current = setTimeout(() => {
+      onClose();
+      closeTimerRef.current = null;
+    }, delayMs);
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
+    };
+  }, [open, isSuccess, eventConfirmed, onClose]);
+
+  // Sonner toast on success (rendered above the dialog by the global Toaster).
+  const toastFiredRef = useRef(false);
+  useEffect(() => {
+    if (isSuccess && !toastFiredRef.current) {
+      toast.success("Bet placed", {
+        description: txHash ? `${txHash.slice(0, 10)}…${txHash.slice(-8)}` : undefined,
+      });
+      toastFiredRef.current = true;
+    }
+    if (!open) toastFiredRef.current = false;
+  }, [isSuccess, txHash, open]);
+
   // Reset form when dialog closes or market changes
   useEffect(() => {
     if (!open) {
@@ -274,13 +338,13 @@ export function MarketBetDialog({
   }, [open, selection?.marketId]);
 
   useEffect(() => {
-    if (txError) {
-      setErrorMessage(txError.message ?? "Transaction failed");
-    } else if (approveError) {
-      setErrorMessage(approveError.message ?? "Approval failed");
-    } else {
+    const err = txError ?? approveError;
+    if (!err) {
       setErrorMessage(null);
+      return;
     }
+    const decoded = decodeContractError(err);
+    setErrorMessage(decoded.description ? `${decoded.title} — ${decoded.description}` : decoded.title);
   }, [txError, approveError]);
 
   if (!selection) return null;
@@ -330,7 +394,8 @@ export function MarketBetDialog({
         deadline,
       });
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Unknown error");
+      const decoded = decodeContractError(err);
+      setErrorMessage(decoded.description ? `${decoded.title} — ${decoded.description}` : decoded.title);
     }
   };
 

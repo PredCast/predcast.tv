@@ -1,10 +1,8 @@
 import { injectable } from 'tsyringe';
 import { createWalletClient, createPublicClient, http } from 'viem';
 import { privateKeyToAccount, nonceManager } from 'viem/accounts';
-import { chiliz } from 'viem/chains';
 import { chilizConfig, networkType } from '../../config/chiliz.config';
-import { baseSepolia } from '@chiliztv/blockchain';
-import { FOOTBALL_MATCH_ABI } from '@chiliztv/blockchain';
+import { chainFor, chilizSpicy, chilizMainnet, FOOTBALL_MATCH_ABI } from '@chiliztv/blockchain';
 import { logger } from '../../logging/logger';
 
 const ADMIN_PRIVATE_KEY = process.env.ADMIN_PRIVATE_KEY as `0x${string}`;
@@ -24,13 +22,13 @@ function delay(ms: number = TX_DELAY_MS): Promise<void> {
 export class MatchResolutionAdapter {
     private walletClient: ReturnType<typeof createWalletClient>;
     private publicClient: ReturnType<typeof createPublicClient>;
-    private chain: typeof baseSepolia | typeof chiliz;
+    private chain: typeof chilizSpicy | typeof chilizMainnet;
 
     constructor() {
         if (!ADMIN_PRIVATE_KEY) {
             throw new Error('ADMIN_PRIVATE_KEY environment variable is required for match resolution');
         }
-        this.chain = networkType === 'testnet' ? baseSepolia : chiliz;
+        this.chain = chainFor(networkType);
         const account = privateKeyToAccount(ADMIN_PRIVATE_KEY, { nonceManager });
         this.walletClient = createWalletClient({
             account,

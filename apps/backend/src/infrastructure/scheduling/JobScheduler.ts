@@ -6,6 +6,7 @@ import { CleanupStreamsJob } from './jobs/CleanupStreamsJob';
 import { StaleStreamCleanupJob } from './jobs/StaleStreamCleanupJob';
 import { SettlePredictionsJob } from './jobs/SettlePredictionsJob';
 import { ViewerReconcileJob } from './jobs/ViewerReconcileJob';
+import { ComputeApyJob } from './jobs/ComputeApyJob';
 import { logger } from '../logging/logger';
 
 /**
@@ -23,7 +24,8 @@ export class JobScheduler {
         private readonly cleanupStreamsJob: CleanupStreamsJob,
         private readonly staleStreamCleanupJob: StaleStreamCleanupJob,
         private readonly settlePredictionsJob: SettlePredictionsJob,
-        private readonly viewerReconcileJob: ViewerReconcileJob
+        private readonly viewerReconcileJob: ViewerReconcileJob,
+        private readonly computeApyJob: ComputeApyJob,
     ) {}
 
     /**
@@ -68,6 +70,12 @@ export class JobScheduler {
             'SettlePredictions',
             this.settlePredictionsJob.getIntervalMs(),
             () => this.settlePredictionsJob.execute()
+        );
+
+        this.startIntervalJob(
+            'ComputeApy',
+            this.computeApyJob.getIntervalMs(),
+            () => this.computeApyJob.execute()
         );
 
         logger.info('Job scheduler started successfully');

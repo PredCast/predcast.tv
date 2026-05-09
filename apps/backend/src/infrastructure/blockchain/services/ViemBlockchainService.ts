@@ -7,7 +7,6 @@ import {
     toBytes,
 } from 'viem';
 import { privateKeyToAccount, nonceManager } from 'viem/accounts';
-import { chiliz } from 'viem/chains';
 import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { INetworkConfig } from '@chiliztv/domain/shared/ports/INetworkConfig';
 import {
@@ -15,8 +14,7 @@ import {
     DeployContractResult,
 } from '@chiliztv/domain/shared/ports/IBlockchainService';
 import { ExtendedOdds } from '@chiliztv/domain/shared/ports/IFootballApiService';
-import { FACTORY_ABI, FOOTBALL_MATCH_ABI } from '@chiliztv/blockchain';
-import { baseSepolia } from '@chiliztv/blockchain';
+import { FACTORY_ABI, FOOTBALL_MATCH_ABI, chainFor } from '@chiliztv/blockchain';
 import { logger } from '../../logging/logger';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -56,7 +54,7 @@ export class ViemBlockchainService implements IBlockchainService {
             throw new Error('INetworkConfig.adminPrivateKey is required');
         }
 
-        const chain   = config.chainId === 88888 ? chiliz : baseSepolia;
+        const chain   = chainFor(config.chainId === 88888 ? 'mainnet' : 'testnet');
         this.account  = privateKeyToAccount(config.adminPrivateKey as `0x${string}`, { nonceManager });
 
         this.walletClient = createWalletClient({
