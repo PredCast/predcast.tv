@@ -137,7 +137,9 @@ export function StreamerStudioRevenuePanel({ wallet }: StreamerStudioRevenuePane
                 ) : (
                     <div className="flex flex-col">
                         {recentDonations.map((d) => {
-                            const amount = Number(d.amount) / 10 ** (assetDecimals ?? 6);
+                            // Indexer pre-divides by 10**decimals before persisting,
+                            // so `d.amount` is already in USDC.
+                            const amount = Number(d.amount ?? 0);
                             const profile = donorProfiles?.get(d.donorAddress.toLowerCase()) ?? null;
                             return (
                                 <div
@@ -159,7 +161,7 @@ export function StreamerStudioRevenuePanel({ wallet }: StreamerStudioRevenuePane
                                             className="font-display text-[18px] font-extrabold leading-none tracking-[-0.01em]"
                                             style={{ color: '#2dd4a4' }}
                                         >
-                                            +{fmtUsd(amount, { dp: 0 })}
+                                            +{fmtUsd(amount, { dp: amount > 0 && amount < 1 ? 4 : 2 })}
                                         </div>
                                     </div>
                                 </div>

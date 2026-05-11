@@ -18,6 +18,7 @@ import {
   StreamerModalHeader,
   StreamerModalShell,
   StreamerStrip,
+  StreamerSuccessStep,
   TokenChipDisplay,
   TokenPickerSheet,
   buildStreamerTokenList,
@@ -190,14 +191,44 @@ export function DonationModal({
     setErrorMessage(decoded.description ? `${decoded.title} — ${decoded.description}` : decoded.title);
   }, [donateState.error, approveError]);
 
+  // Snapshot at tx confirm so the success view stays stable across resets.
+  const [successSnapshot, setSuccessSnapshot] = useState<
+    | {
+          amountUsd: number | null;
+          tokenAmount: number;
+          tokenSymbol: string;
+          message: string;
+          txHash?: `0x${string}`;
+      }
+    | null
+  >(null);
+
   useEffect(() => {
-    if (donateState.isSuccess) {
-      onClose();
-      setAmount("5");
-      setMessage("");
+    if (donateState.isSuccess && !successSnapshot) {
+      setSuccessSnapshot({
+        amountUsd: usdcEquivalent,
+        tokenAmount: numericAmount,
+        tokenSymbol,
+        message,
+        txHash: donateState.txHash,
+      });
       setErrorMessage(null);
     }
-  }, [donateState.isSuccess, onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [donateState.isSuccess]);
+
+  const handleCloseFromSuccess = () => {
+    setSuccessSnapshot(null);
+    setAmount("5");
+    setMessage("");
+    onClose();
+  };
+  const handleAnother = () => {
+    setSuccessSnapshot(null);
+    setAmount("5");
+    setMessage("");
+    setErrorMessage(null);
+  };
 
   const isLoading =
     donateState.isPending ||
@@ -249,6 +280,56 @@ export function DonationModal({
       : usdcEquivalent !== null
         ? `≈ ${fmtUsd(usdcEquivalent)} USDC`
         : "FanX quote pending…";
+
+  if (successSnapshot) {
+    const fmtUsdInline = (n: number) =>
+      "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtTokInline = (n: number, dp: number) =>
+      n.toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp });
+    return (
+      <StreamerModalShell open={open} onClose={handleCloseFromSuccess} ariaTitle="Tip sent">
+        <StreamerModalHeader
+          eyebrow="On-chain · Settled"
+          title={
+            <>
+              Thanks for the <span className="text-[#E8001D]">tip.</span>
+            </>
+          }
+          onClose={handleCloseFromSuccess}
+        />
+        <StreamerSuccessStep
+          title="Tip sent."
+          lead={
+            <>
+              {streamerName} just received your support.
+              <br />
+              The amount lands in their StreamWallet within seconds.
+            </>
+          }
+          txHash={successSnapshot.txHash}
+          summary={[
+            {
+              label: "Amount",
+              value:
+                successSnapshot.amountUsd !== null
+                  ? fmtUsdInline(successSnapshot.amountUsd)
+                  : `${fmtTokInline(successSnapshot.tokenAmount, successSnapshot.tokenSymbol === "CHZ" ? 0 : 2)} $${successSnapshot.tokenSymbol}`,
+            },
+            { label: "Token", value: `$${successSnapshot.tokenSymbol}` },
+            {
+              label: "Note",
+              value: successSnapshot.message
+                ? `“${successSnapshot.message.slice(0, 24)}${successSnapshot.message.length > 24 ? "…" : ""}”`
+                : "—",
+            },
+          ]}
+          onAnother={handleAnother}
+          onClose={handleCloseFromSuccess}
+          anotherLabel="Send another"
+        />
+      </StreamerModalShell>
+    );
+  }
 
   return (
     <StreamerModalShell open={open} onClose={onClose} ariaTitle="Donate to streamer">

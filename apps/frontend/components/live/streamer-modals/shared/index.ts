@@ -5,6 +5,7 @@ export { StreamerStrip } from "./StreamerStrip";
 export { FeeBreakdown } from "./FeeBreakdown";
 export { InsufficientBalanceBanner } from "./InsufficientBalanceBanner";
 export { SettlementFooter } from "./SettlementFooter";
+export { StreamerSuccessStep } from "./StreamerSuccessStep";
 export { TokenChipDisplay } from "./TokenChipDisplay";
 export { TokenPickerSheet } from "./TokenPickerSheet";
 export {

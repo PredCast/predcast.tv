@@ -19,6 +19,7 @@ import {
   StreamerModalHeader,
   StreamerModalShell,
   StreamerStrip,
+  StreamerSuccessStep,
   TokenPickerSheet,
   buildStreamerTokenList,
   decimalsFor,
@@ -212,12 +213,33 @@ export function SubscriptionModal({
     setErrorMessage(decoded.description ? `${decoded.title} — ${decoded.description}` : decoded.title);
   }, [subscribeState.error, approveError]);
 
+  // Snapshot at tx confirm so the success view stays stable across resets.
+  const [successSnapshot, setSuccessSnapshot] = useState<
+    | { months: number; totalUsd: number; tokenSymbol: string; txHash?: `0x${string}` }
+    | null
+  >(null);
+
   useEffect(() => {
-    if (subscribeState.isSuccess) {
-      onClose();
+    if (subscribeState.isSuccess && !successSnapshot) {
+      setSuccessSnapshot({
+        months,
+        totalUsd,
+        tokenSymbol,
+        txHash: subscribeState.txHash,
+      });
       setErrorMessage(null);
     }
-  }, [subscribeState.isSuccess, onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subscribeState.isSuccess]);
+
+  const handleCloseFromSuccess = () => {
+    setSuccessSnapshot(null);
+    onClose();
+  };
+  const handleAnother = () => {
+    setSuccessSnapshot(null);
+    setErrorMessage(null);
+  };
 
   const isLoading =
     subscribeState.isPending ||
@@ -269,6 +291,42 @@ export function SubscriptionModal({
 
   // Prefer to gate behind the already-subscribed banner before showing the form.
   const renderBody = !isAlreadySubscribed;
+
+  if (successSnapshot) {
+    return (
+      <StreamerModalShell open={open} onClose={handleCloseFromSuccess} ariaTitle="Subscribed">
+        <StreamerModalHeader
+          eyebrow="On-chain · Settled"
+          title={
+            <>
+              You&apos;re <span className="text-[#E8001D]">subscribed.</span>
+            </>
+          }
+          onClose={handleCloseFromSuccess}
+        />
+        <StreamerSuccessStep
+          title="Subscribed."
+          lead={
+            <>
+              You now have access to {streamerName}&apos;s perks for{" "}
+              {successSnapshot.months} {successSnapshot.months === 1 ? "month" : "months"}.
+              <br />
+              No auto-renew — you keep control.
+            </>
+          }
+          txHash={successSnapshot.txHash}
+          summary={[
+            { label: "Duration", value: `${successSnapshot.months} mo` },
+            { label: "Total", value: fmtUsd(successSnapshot.totalUsd) },
+            { label: "Token", value: `$${successSnapshot.tokenSymbol}` },
+          ]}
+          onAnother={handleAnother}
+          onClose={handleCloseFromSuccess}
+          anotherLabel="Subscribe again"
+        />
+      </StreamerModalShell>
+    );
+  }
 
   return (
     <StreamerModalShell open={open} onClose={onClose} ariaTitle="Subscribe to streamer">

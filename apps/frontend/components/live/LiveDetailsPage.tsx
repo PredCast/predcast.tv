@@ -381,6 +381,7 @@ export default function LiveDetailsPage({ id }: LiveDetailsPageProps) {
           streamerHandle={streamForDonateSubscribe.streamerName}
         />
       )}
+
     </div>
   );
 }

@@ -94,7 +94,9 @@ export function useDashboardActivity({ wallet }: UseDashboardActivityArgs): UseD
             }
         }
 
-        // Donations — display the streamer's resolved name when available.
+        // Donations — `amount` is already a decimal USDC string (the
+        // indexer divides by 10**decimals before persisting), so we use it
+        // verbatim and do NOT apply `rawToUsd` again.
         for (const d of donations.data?.donations ?? []) {
             const profile = recipientProfiles?.get(d.streamerAddress.toLowerCase()) ?? null;
             out.push({
@@ -102,12 +104,12 @@ export function useDashboardActivity({ wallet }: UseDashboardActivityArgs): UseD
                 t: new Date(d.timestamp).getTime(),
                 type: 'donation',
                 label: `Donation to ${displayName(profile, d.streamerAddress)}`,
-                amountUSDC: -rawToUsd(d.amount, assetDecimals),
+                amountUSDC: -Number(d.amount ?? 0),
                 ref: shortRef(d.transactionHash),
             });
         }
 
-        // Subscriptions — same display-name strategy.
+        // Subscriptions — same convention: `amount` is already decimal USDC.
         for (const s of subs.data?.subscriptions ?? []) {
             const days = Math.round(s.durationSeconds / 86_400);
             const profile = recipientProfiles?.get(s.streamerAddress.toLowerCase()) ?? null;
@@ -116,7 +118,7 @@ export function useDashboardActivity({ wallet }: UseDashboardActivityArgs): UseD
                 t: new Date(s.startDate).getTime(),
                 type: 'subscription',
                 label: `Subscribed to ${displayName(profile, s.streamerAddress)} · ${days}d`,
-                amountUSDC: -rawToUsd(s.amount, assetDecimals),
+                amountUSDC: -Number(s.amount ?? 0),
                 ref: shortRef(s.transactionHash),
             });
         }
