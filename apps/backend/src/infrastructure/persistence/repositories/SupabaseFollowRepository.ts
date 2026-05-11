@@ -1,7 +1,7 @@
 import { injectable } from 'tsyringe';
 import { supabaseClient as supabase } from '../../database/supabase/client';
 import { Follow } from '@chiliztv/domain/follows/entities/Follow';
-import { IFollowRepository } from '@chiliztv/domain/follows/repositories/IFollowRepository';
+import { FindFollowsOptions, IFollowRepository } from '@chiliztv/domain/follows/repositories/IFollowRepository';
 import { logger } from '../../logging/logger';
 
 interface FollowRow {
@@ -77,12 +77,13 @@ export class SupabaseFollowRepository implements IFollowRepository {
     return count ?? 0;
   }
 
-  async getFollowedStreamers(followerId: string): Promise<Follow[]> {
+  async getFollowedStreamers(followerId: string, options: FindFollowsOptions): Promise<Follow[]> {
     const { data: rows, error } = await supabase
       .from('streamer_follows')
       .select('*')
       .eq('follower_id', followerId)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(options.offset, options.offset + options.limit - 1);
 
     if (error) {
       logger.error('Failed to get followed streamers', { error: error.message });
@@ -90,6 +91,31 @@ export class SupabaseFollowRepository implements IFollowRepository {
     }
 
     return rows ? rows.map(row => this.toDomain(row)) : [];
+  }
+
+  async countFollowedStreamers(followerId: string): Promise<number> {
+    const { count, error } = await supabase
+      .from('streamer_follows')
+      .select('id', { count: 'exact', head: true })
+      .eq('follower_id', followerId);
+
+    if (error) {
+      logger.error('Failed to count followed streamers', { error: error.message });
+      throw new Error('Failed to count followed streamers');
+    }
+    return count ?? 0;
+  }
+
+  async getFollowedStreamerIds(followerId: string): Promise<ReadonlySet<string>> {
+    const { data, error } = await supabase
+      .from('streamer_follows')
+      .select('streamer_id')
+      .eq('follower_id', followerId);
+    if (error) {
+      logger.error('Failed to load followed streamer ids', { error: error.message });
+      throw new Error('Failed to load followed streamer ids');
+    }
+    return new Set((data ?? []).map((row: { streamer_id: string }) => row.streamer_id));
   }
 
   private toDomain(row: FollowRow): Follow {

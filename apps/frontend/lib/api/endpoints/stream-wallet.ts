@@ -1,57 +1,53 @@
 import { apiClient } from '../client';
 import { Donation, Subscription, StreamerStats } from '@/models/stream-wallet.model';
 
-/**
- * @notice Stream wallet API endpoints with type-safe methods
- * @dev All methods use the centralized API client with JWT auth
- */
+export interface PaginatedDonations {
+  success: boolean;
+  donations: Donation[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface PaginatedSubscriptions {
+  success: boolean;
+  subscriptions: Subscription[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface PageParams {
+  limit?: number;
+  offset?: number;
+}
+
+function paginationQuery(params?: PageParams): string {
+  if (!params) return '';
+  const search = new URLSearchParams();
+  if (params.limit !== undefined) search.set('limit', String(params.limit));
+  if (params.offset !== undefined) search.set('offset', String(params.offset));
+  const s = search.toString();
+  return s ? `?${s}` : '';
+}
+
 export const streamWalletApi = {
-  /**
-   * @notice Fetches all donations for a streamer
-   * @param streamerAddress Streamer's wallet address
-   * @return Promise resolving to donations array
-   */
-  getStreamerDonations: (streamerAddress: string): Promise<{ success: boolean; donations: Donation[]; count: number }> =>
-    apiClient.get<{ success: boolean; donations: Donation[]; count: number }>(`/stream-wallet/donations/${streamerAddress}`),
+  getStreamerDonations: (streamerAddress: string, params?: PageParams): Promise<PaginatedDonations> =>
+    apiClient.get<PaginatedDonations>(`/stream-wallet/donations/${streamerAddress}${paginationQuery(params)}`),
 
-  /**
-   * @notice Fetches all subscriptions for a streamer
-   * @param streamerAddress Streamer's wallet address
-   * @return Promise resolving to subscriptions array
-   */
-  getStreamerSubscriptions: (streamerAddress: string): Promise<{ success: boolean; subscriptions: Subscription[]; count: number }> =>
-    apiClient.get<{ success: boolean; subscriptions: Subscription[]; count: number }>(`/stream-wallet/subscriptions/${streamerAddress}`),
+  getStreamerSubscriptions: (streamerAddress: string, params?: PageParams): Promise<PaginatedSubscriptions> =>
+    apiClient.get<PaginatedSubscriptions>(`/stream-wallet/subscriptions/${streamerAddress}${paginationQuery(params)}`),
 
-  /**
-   * @notice Fetches earnings statistics for a streamer
-   * @param streamerAddress Streamer's wallet address
-   * @return Promise resolving to streamer stats
-   */
   getStreamerStats: (streamerAddress: string): Promise<{ success: boolean; stats: StreamerStats }> =>
     apiClient.get<{ success: boolean; stats: StreamerStats }>(`/stream-wallet/stats/${streamerAddress}`),
 
-  /**
-   * @notice Fetches donation history for a donor
-   * @param donorAddress Donor's wallet address
-   * @return Promise resolving to donations array
-   */
-  getDonorHistory: (donorAddress: string): Promise<{ success: boolean; donations: Donation[]; count: number }> =>
-    apiClient.get<{ success: boolean; donations: Donation[]; count: number }>(`/stream-wallet/donor/${donorAddress}/donations`),
+  getDonorHistory: (donorAddress: string, params?: PageParams): Promise<PaginatedDonations> =>
+    apiClient.get<PaginatedDonations>(`/stream-wallet/donor/${donorAddress}/donations${paginationQuery(params)}`),
 
-  /**
-   * @notice Fetches subscription history for a subscriber
-   * @param subscriberAddress Subscriber's wallet address
-   * @return Promise resolving to subscriptions array
-   */
-  getSubscriberHistory: (subscriberAddress: string): Promise<{ success: boolean; subscriptions: Subscription[]; count: number }> =>
-    apiClient.get<{ success: boolean; subscriptions: Subscription[]; count: number }>(`/stream-wallet/subscriber/${subscriberAddress}/subscriptions`),
+  getSubscriberHistory: (subscriberAddress: string, params?: PageParams): Promise<PaginatedSubscriptions> =>
+    apiClient.get<PaginatedSubscriptions>(`/stream-wallet/subscriber/${subscriberAddress}/subscriptions${paginationQuery(params)}`),
 
-  /**
-   * @notice Self-onboards a streamer: deploys a `StreamWallet` proxy via
-   * the platform admin signer (gas paid by the platform). Idempotent —
-   * returns the existing proxy address with `created: false` if one is
-   * already deployed for this address.
-   */
+  /** Self-onboards a streamer: deploys a `StreamWallet` proxy via the platform admin signer. Idempotent. */
   deployStreamerWallet: (streamerAddress: string): Promise<{ success: boolean; wallet: string; created: boolean }> =>
     apiClient.post<{ success: boolean; wallet: string; created: boolean }>(`/stream-wallet/deploy/${streamerAddress}`, {}),
 };

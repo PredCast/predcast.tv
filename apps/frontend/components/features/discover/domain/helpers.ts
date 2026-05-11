@@ -5,14 +5,17 @@ import type {
   SortOption,
   StreamerCard,
 } from "./types";
-
-const LIVE_STATUSES = new Set(["1H", "2H", "ET", "BT", "P", "LIVE"]);
+import { classifyStatus } from "@chiliztv/domain/matches/policies/BettablePolicy";
 
 const clamp = (v: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, v));
 
+// Source de vérité dans le domain — interdit d'importer LIVE_STATUSES local
+// (ESLint rule `no-restricted-imports` dans eslint.config.mjs). Le set
+// historique côté front oubliait `HT`, ce qui motivait toute la refonte
+// no-live-betting.
 export function isLive(status: string): boolean {
-  return LIVE_STATUSES.has(status);
+  return classifyStatus(status) === "live";
 }
 
 /**

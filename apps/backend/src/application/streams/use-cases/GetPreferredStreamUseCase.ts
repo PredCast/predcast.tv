@@ -33,8 +33,7 @@ export class GetPreferredStreamUseCase {
     }
 
     if (userId) {
-      const follows = await this.followRepository.getFollowedStreamers(userId);
-      const followedIds = new Set(follows.map(f => f.toJSON().streamerId));
+      const followedIds = await this.followRepository.getFollowedStreamerIds(userId);
       const followedStream = candidates.find(s => followedIds.has(s.getStreamerId()));
       if (followedStream) {
         return { stream: followedStream, source: 'followed' };

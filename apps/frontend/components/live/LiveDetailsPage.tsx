@@ -168,13 +168,13 @@ export default function LiveDetailsPage({ id }: LiveDetailsPageProps) {
           No on-chain match deployed yet
         </p>
         <p className="mb-4 text-[12px] text-white/55">
-          /live/999999 binds to <code>factory.getAllMatches().at(-1)</code>. Create a match in <code>/admin</code> first.
+          /live/999999 binds to <code>factory.getAllMatches().at(-1)</code>. Deploy a match on-chain via the smart-contract scripts before opening this route.
         </p>
         <button
-          onClick={() => router.push("/admin")}
+          onClick={() => router.push("/browse")}
           className="font-mono-ctv inline-flex items-center justify-center gap-2 rounded-md bg-[#E8001D] px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-white transition-colors hover:bg-[#FF1737]"
         >
-          Open /admin
+          Back to discover
         </button>
       </CenterPanel>
     );
@@ -286,6 +286,7 @@ export default function LiveDetailsPage({ id }: LiveDetailsPageProps) {
               homeTeam={matchData.homeTeam}
               awayTeam={matchData.awayTeam}
               matchOdds={matchData.odds}
+              match={{ status: matchData.status, kickoffAt: matchData.startTime }}
             />
 
             {/* Mobile chat — anchored card */}

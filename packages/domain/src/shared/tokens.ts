@@ -9,6 +9,7 @@ export const TOKENS = {
   IFollowRepository:       Symbol.for('IFollowRepository'),
   IFanTokenRepository:     Symbol.for('IFanTokenRepository'),
   IUserProfileRepository:  Symbol.for('IUserProfileRepository'),
+  ITokenPriceRepository:   Symbol.for('ITokenPriceRepository'),
 
   // Repositories — blockchain indexing
   IIndexerCheckpointRepository: Symbol.for('IIndexerCheckpointRepository'),
@@ -32,6 +33,12 @@ export const TOKENS = {
 
   // Ports — cross-domain
   ISubscriptionChecker:    Symbol.for('ISubscriptionChecker'),
+
+  // Ports — observability
+  IIncidentReporter:       Symbol.for('IIncidentReporter'),
+
+  // Ports — time
+  IClock:                  Symbol.for('IClock'),
 } as const;
 
 export type TokenKey = keyof typeof TOKENS;

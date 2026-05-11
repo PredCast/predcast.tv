@@ -6,7 +6,7 @@ import { usePoolDecimals } from '@/hooks/usePoolDecimals';
 import { displayName } from '@/lib/display/userDisplay';
 import { useMyBets } from './useMyBets';
 import type { ActivityRow, ActivityType } from '../domain/activity';
-import type { MyBet } from '../domain/bets';
+import { fmtSelection, type MyBet } from '../domain/bets';
 
 interface UseDashboardActivityArgs {
     readonly wallet: `0x${string}` | undefined;
@@ -31,7 +31,7 @@ function betLabel(b: MyBet): string {
     const home = b.match?.homeTeamName;
     const away = b.match?.awayTeamName;
     const matchPart = home && away ? `${home} vs ${away}` : 'Unknown match';
-    const sel = b.selection === '0' ? 'Home' : b.selection === '1' ? 'Draw' : b.selection === '2' ? 'Away' : `Sel #${b.selection}`;
+    const sel = fmtSelection(b.selection, home, away, b.marketType, b.line);
     return `${matchPart} — ${sel}`;
 }
 
@@ -48,9 +48,14 @@ function betToActivityType(status: MyBet['status']): ActivityType {
 /** Merges bets, donations and subs into a single feed sorted desc. */
 export function useDashboardActivity({ wallet }: UseDashboardActivityArgs): UseDashboardActivityResult {
     const { assetDecimals } = usePoolDecimals();
-    const bets = useMyBets({ user: wallet, filter: 'all', limit: 200 });
-    const donations = useDonorHistory(wallet ?? '');
-    const subs = useSubscriberHistory(wallet ?? '');
+    // Activity aggregates 3 sources client-side. Cap each at 50 — gives a
+    // 4× cost reduction vs the previous `limit: 200`, with the trade-off
+    // that a user with > 50 events in a single source loses the oldest.
+    // Real merged pagination is out of scope (would need a dedicated
+    // /activity endpoint with UNION ALL + cursor).
+    const bets = useMyBets({ user: wallet, filter: 'all', limit: 50 });
+    const donations = useDonorHistory(wallet ?? '', { limit: 50 });
+    const subs = useSubscriberHistory(wallet ?? '', { limit: 50 });
 
     // Resolve streamer (recipient) names for all donations + subs so the
     // row labels read "Donation to maxime" instead of "Donation to 0xa689…".

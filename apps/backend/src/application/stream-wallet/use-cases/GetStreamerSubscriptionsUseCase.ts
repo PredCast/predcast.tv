@@ -3,6 +3,17 @@ import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { Subscription } from '@chiliztv/domain/stream-wallet/entities/Subscription';
 import { IStreamWalletRepository } from '@chiliztv/domain/stream-wallet/repositories/IStreamWalletRepository';
 
+export interface GetStreamerSubscriptionsQuery {
+  readonly streamerAddress: string;
+  readonly limit: number;
+  readonly offset: number;
+}
+
+export interface GetStreamerSubscriptionsResult {
+  readonly items: Subscription[];
+  readonly total: number;
+}
+
 @injectable()
 export class GetStreamerSubscriptionsUseCase {
   constructor(
@@ -10,7 +21,14 @@ export class GetStreamerSubscriptionsUseCase {
     private readonly streamWalletRepository: IStreamWalletRepository
   ) {}
 
-  async execute(streamerAddress: string): Promise<Subscription[]> {
-    return await this.streamWalletRepository.findSubscriptionsByStreamer(streamerAddress);
+  async execute(query: GetStreamerSubscriptionsQuery): Promise<GetStreamerSubscriptionsResult> {
+    const [items, total] = await Promise.all([
+      this.streamWalletRepository.findSubscriptionsByStreamer(query.streamerAddress, {
+        limit: query.limit,
+        offset: query.offset,
+      }),
+      this.streamWalletRepository.countSubscriptionsByStreamer(query.streamerAddress),
+    ]);
+    return { items, total };
   }
 }

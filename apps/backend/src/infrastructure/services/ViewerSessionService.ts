@@ -1,5 +1,7 @@
-import { injectable } from 'tsyringe';
+import { inject, injectable } from 'tsyringe';
 import { supabaseClient as supabase } from '../database/supabase/client';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
+import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import { logger } from '../logging/logger';
 
 @injectable()
@@ -7,13 +9,17 @@ export class ViewerSessionService {
   // Throttle thumbnail uploads per stream (in-memory, single-process)
   private readonly thumbnailLastUpload = new Map<string, number>();
 
+  constructor(
+    @inject(TOKENS.IClock) private readonly clock: IClock,
+  ) {}
+
   async join(streamId: string, sessionToken: string): Promise<void> {
     try {
       // Upsert session — detect if INSERT (new viewer) vs UPDATE (heartbeat)
       const { error } = await supabase
         .from('viewer_sessions')
         .upsert(
-          { stream_id: streamId, session_token: sessionToken, last_heartbeat_at: new Date().toISOString() },
+          { stream_id: streamId, session_token: sessionToken, last_heartbeat_at: this.clock.now().toISOString() },
           { onConflict: 'session_token', ignoreDuplicates: false }
         );
 
@@ -41,7 +47,7 @@ export class ViewerSessionService {
 
   // Purges stale sessions + recomputes COUNT(*) → updates viewer_count (triggers Realtime)
   async reconcileCount(streamId: string): Promise<void> {
-    const staleThreshold = new Date(Date.now() - 45_000).toISOString();
+    const staleThreshold = new Date(this.clock.now().getTime() - 45_000).toISOString();
 
     await supabase
       .from('viewer_sessions')
@@ -86,8 +92,9 @@ export class ViewerSessionService {
 
   isThumbnailThrottled(streamId: string, throttleMs = 15_000): boolean {
     const last = this.thumbnailLastUpload.get(streamId);
-    if (last && Date.now() - last < throttleMs) return true;
-    this.thumbnailLastUpload.set(streamId, Date.now());
+    const now = this.clock.now().getTime();
+    if (last && now - last < throttleMs) return true;
+    this.thumbnailLastUpload.set(streamId, now);
     return false;
   }
 }

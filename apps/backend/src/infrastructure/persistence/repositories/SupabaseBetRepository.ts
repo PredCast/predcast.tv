@@ -1,9 +1,26 @@
 import { injectable } from 'tsyringe';
 import { supabaseClient as supabase } from '../../database/supabase/client';
-import { FindBetsByUserOptions, IBetRepository } from '@chiliztv/domain/blockchain-indexing/repositories/IBetRepository';
+import { BetCounts, BetFilter, FindBetsByUserOptions, IBetRepository } from '@chiliztv/domain/blockchain-indexing/repositories/IBetRepository';
 import { Bet, BetUpdate } from '@chiliztv/domain/blockchain-indexing/entities/Bet';
 import { BetWithMatchInfo } from '@chiliztv/domain/blockchain-indexing/entities/BetWithMatchInfo';
 import { logger } from '../../logging/logger';
+
+/**
+ * Single source of truth for translating a `BetFilter` to SQL predicates.
+ * Used by both `findByUser` (listing) and `countByUser` (total) so the two
+ * never diverge — a discrepancy here renders "1-5 of 12" for a 3-row reality.
+ */
+function applyBetFilter<Q extends { eq: (col: string, val: string) => Q; is: (col: string, val: null) => Q }>(query: Q, filter: BetFilter | undefined): Q {
+    if (!filter || filter === 'all') return query;
+    switch (filter) {
+        case 'pending':    return query.eq('status', 'PENDING');
+        case 'won':        return query.eq('status', 'WON');
+        case 'lost':       return query.eq('status', 'LOST');
+        case 'refunded':   return query.eq('status', 'REFUNDED');
+        case 'claimable':  return query.eq('status', 'WON').is('claimed_at', null);
+        case 'refundable': return query.eq('status', 'REFUNDED').is('refunded_at', null);
+    }
+}
 
 interface BetRow {
     tx_hash: string;
@@ -191,9 +208,7 @@ export class SupabaseBetRepository implements IBetRepository {
             .order('placed_at', { ascending: false })
             .range(options.offset, options.offset + options.limit - 1);
 
-        if (options.status) {
-            query = query.eq('status', options.status);
-        }
+        query = applyBetFilter(query, options.filter);
 
         const { data, error } = await query;
 
@@ -203,6 +218,46 @@ export class SupabaseBetRepository implements IBetRepository {
         }
 
         return (data ?? []).map((row) => toDomain(row as BetRow));
+    }
+
+    /**
+     * Counts the rows the user would see for the given filter. Does NOT apply
+     * limit/offset — the page size only applies to the listing, never to the
+     * count that feeds "1-5 of N" or the tab badges.
+     */
+    async countByUser(userAddress: string, filter?: BetFilter): Promise<number> {
+        let query = supabase
+            .from('bets')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_address', userAddress.toLowerCase());
+
+        query = applyBetFilter(query, filter);
+
+        const { count, error } = await query;
+        if (error) {
+            logger.error('Failed to count bets by user', { userAddress, filter, error: error.message });
+            throw new Error('Failed to count bets');
+        }
+        return count ?? 0;
+    }
+
+    /**
+     * Counts per filter bucket. Fires 7 head-only queries in parallel —
+     * cheaper than reading rows + grouping client-side, and the SQL planner
+     * uses the `(user_address, status)` index.
+     */
+    async countByUserStatuses(userAddress: string): Promise<BetCounts> {
+        const filters: BetFilter[] = ['all', 'pending', 'won', 'lost', 'refunded', 'claimable', 'refundable'];
+        const counts = await Promise.all(filters.map((f) => this.countByUser(userAddress, f)));
+        return {
+            all:        counts[0],
+            pending:    counts[1],
+            won:        counts[2],
+            lost:       counts[3],
+            refunded:   counts[4],
+            claimable:  counts[5],
+            refundable: counts[6],
+        };
     }
 
     async findByUserWithMatchInfo(

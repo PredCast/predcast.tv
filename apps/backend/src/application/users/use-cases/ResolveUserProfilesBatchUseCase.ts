@@ -3,6 +3,7 @@ import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { UserProfile } from '@chiliztv/domain/users/entities/UserProfile';
 import { IUserProfileRepository } from '@chiliztv/domain/users/repositories/IUserProfileRepository';
 import { MultiSourceUserDisplayFallback } from '../../../infrastructure/persistence/repositories/MultiSourceUserDisplayFallback';
+import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import { logger } from '../../../infrastructure/logging/logger';
 
 const MAX_BATCH = 50;
@@ -23,6 +24,8 @@ export class ResolveUserProfilesBatchUseCase {
         private readonly users: IUserProfileRepository,
         @inject(MultiSourceUserDisplayFallback)
         private readonly fallback: MultiSourceUserDisplayFallback,
+        @inject(TOKENS.IClock)
+        private readonly clock: IClock,
     ) {}
 
     async execute(
@@ -43,7 +46,7 @@ export class ResolveUserProfilesBatchUseCase {
                 walletAddress: addr,
                 username: hit?.username ?? cached.get(addr)?.username ?? null,
                 avatarUrl: cached.get(addr)?.avatarUrl ?? null,
-                updatedAt: new Date(),
+                updatedAt: this.clock.now(),
             });
             result.set(addr, profile);
             if (hit) {

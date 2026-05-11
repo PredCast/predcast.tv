@@ -55,17 +55,30 @@ export function isBetOnHiddenMarket(bet: Pick<MyBet, 'marketType'>): boolean {
     return isHiddenMarketByHash(hash ?? undefined);
 }
 
+/** Filter chips — `claimable` / `refundable` are derived (status + null timestamp). */
+export type BetFilter = 'all' | 'pending' | 'won' | 'lost' | 'refunded' | 'claimable' | 'refundable';
+
+export interface BetCounts {
+    readonly all: number;
+    readonly pending: number;
+    readonly won: number;
+    readonly lost: number;
+    readonly refunded: number;
+    readonly claimable: number;
+    readonly refundable: number;
+}
+
 export interface MyBetsResponse {
     readonly success: boolean;
     readonly bets: ReadonlyArray<MyBet>;
-    readonly count: number;
+    /** Total rows matching the active filter — independent of limit/offset. */
+    readonly total: number;
+    /** Counts per `BetFilter` bucket — feeds the tab badges. */
+    readonly statusCounts: BetCounts;
     readonly limit: number;
     readonly offset: number;
     readonly timestamp: number;
 }
-
-/** Filter chips — `claimable` / `refundable` are derived (no indexer field). */
-export type BetFilter = 'all' | 'pending' | 'won' | 'lost' | 'claimable' | 'refundable';
 
 /** WON bet whose payout hasn't been collected (server-only check). */
 export function isClaimable(bet: MyBet): boolean {
@@ -162,35 +175,11 @@ export function fmtStake(rawAmount: string, decimals: number | undefined, fracti
 }
 
 /**
- * Apply a filter chip to the bets list. `claimable` / `refundable` collapse
- * once the user has just claimed/refunded — the overlay (when supplied)
- * suppresses bets that are pending the indexer's confirmation.
+ * Client-side bet counts for fully-loaded slices (e.g. `MyBetsOnMatch` —
+ * one match's bets fit in a single fetch). For the paginated My Bets feed,
+ * use `statusCounts` returned by the `/bets` endpoint instead — the page
+ * doesn't have the global view.
  */
-export function applyBetFilter(
-    bets: ReadonlyArray<MyBet>,
-    filter: BetFilter,
-    overlay?: ClaimOverlay,
-): ReadonlyArray<MyBet> {
-    switch (filter) {
-        case 'all':         return bets;
-        case 'pending':     return bets.filter((b) => b.status === 'PENDING');
-        case 'won':         return bets.filter((b) => b.status === 'WON');
-        case 'lost':        return bets.filter((b) => b.status === 'LOST');
-        case 'claimable':   return bets.filter((b) => isClaimableNow(b, overlay));
-        case 'refundable':  return bets.filter((b) => isRefundableNow(b, overlay));
-        default:            return bets;
-    }
-}
-
-export interface BetCounts {
-    readonly all: number;
-    readonly pending: number;
-    readonly won: number;
-    readonly lost: number;
-    readonly claimable: number;
-    readonly refundable: number;
-}
-
 export function computeBetCounts(
     bets: ReadonlyArray<MyBet>,
     overlay?: ClaimOverlay,
@@ -200,6 +189,7 @@ export function computeBetCounts(
         pending:    bets.filter((b) => b.status === 'PENDING').length,
         won:        bets.filter((b) => b.status === 'WON').length,
         lost:       bets.filter((b) => b.status === 'LOST').length,
+        refunded:   bets.filter((b) => b.status === 'REFUNDED').length,
         claimable:  bets.filter((b) => isClaimableNow(b, overlay)).length,
         refundable: bets.filter((b) => isRefundableNow(b, overlay)).length,
     };
@@ -208,6 +198,9 @@ export function computeBetCounts(
 /**
  * Sum of unclaimed payouts (feeds ClaimAllBanner). Excludes bets the user
  * has already locally-claimed so the banner total ticks down immediately.
+ * Falls back to `stake × odds` when `payout` is null — the Payout event only
+ * fires at claim time, but a WON bet's expected payout is deterministic from
+ * `netStake × oddsX10000` (mirror of BetRow's "$0.28 Won" display).
  */
 export function sumClaimablePayouts(
     bets: ReadonlyArray<MyBet>,
@@ -217,5 +210,9 @@ export function sumClaimablePayouts(
     if (decimals === undefined) return 0;
     return bets
         .filter((b) => isClaimableNow(b, overlay))
-        .reduce((acc, b) => acc + (b.payout ? Number(b.payout) / 10 ** decimals : 0), 0);
+        .reduce((acc, b) => {
+            if (b.payout) return acc + Number(b.payout) / 10 ** decimals;
+            const stake = Number(b.netStake) / 10 ** decimals;
+            return acc + stake * (b.oddsX10000 / 10_000);
+        }, 0);
 }

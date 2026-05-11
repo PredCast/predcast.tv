@@ -2,6 +2,42 @@
 
 Node.js backend with Clean Architecture for live football match streaming, real-time chat, blockchain-based betting, and fan engagement on Chiliz network.
 
+## Live betting policy — disabled
+
+Aucun pari ne peut être posé pendant qu'un match est in-play (`1H`, `HT`,
+`2H`, `ET`, `BT`, `P`, `LIVE`, `SUSP`, `INT`) ni dans les 120 secondes
+précédant le coup d'envoi. Defense-in-depth à 4 couches : job back qui
+ferme les markets on-chain, garde-fou front, `require` contrat, indexer
+qui alerte en cas de leak. Source de vérité : [`BettablePolicy`](../../packages/domain/src/matches/policies/BettablePolicy.ts).
+
+Détails et procédure d'incident : [`docs/runbook-no-live-betting.md`](../../docs/runbook-no-live-betting.md).
+Smoke test : [`SMOKE_no_live_betting.md`](./SMOKE_no_live_betting.md).
+
+## Token prices cache
+
+Endpoint public `/prices` (et `/prices/:symbol`) servi depuis la table
+`token_prices` mise à jour toutes les 5 min par `RefreshTokenPricesJob`.
+Pyth Hermes prioritaire pour CHZ, CoinGecko pour les 25 fan tokens (1 call
+batché). Catalogue canonical : [`packages/shared/src/tokens/priceCatalog.ts`](../../packages/shared/src/tokens/priceCatalog.ts).
+Variables d'env :
+
+- `PRICE_FEED_JOB_INTERVAL_MS` — refresh interval en ms (default 300000, min 60000).
+- `PYTH_CHZ_PRICE_FEED_ID` — feed ID Pyth Hermes pour CHZ/USD. Si absent ou
+  invalide, CHZ retombe silencieusement sur CoinGecko au tick suivant.
+
+Smoke test : [`SMOKE_token_prices.md`](./SMOKE_token_prices.md).
+Migration à appliquer manuellement sur Supabase : [`migrations/015_token_prices.sql`](./src/infrastructure/database/migrations/015_token_prices.sql).
+
+## Testing matches — 4 levels
+
+The codebase exposes four complementary layers for testing match-related
+behaviour. Each layer serves a distinct workflow; none replaces the others.
+
+- **L1 — TypeScript fixtures** (`src/testing/fixtures/match.fixtures.ts`). Pure factories returning a valid `Match` entity in every status (NS / 1H / HT / 2H / ET / BT / P / SUSP / INT / FT / AET / PEN / PST / CANC / ABD / AWD / WO). Use in unit tests via `matchFixture.halftime({ score: { home: 3, away: 2 } })`. Zero I/O.
+- **L2 — CLI scenarios** (`pnpm match:scenario list` / `pnpm match:scenario run <name> [--no-deploy]`). Composable, idempotent scripts that hit the real Supabase + (optionally) deploy contracts. Index in [`SMOKE.md`](./SMOKE.md). Use `pnpm match:reset` to nuke fixture rows (IDs 999000-999999).
+- **L3 — `IClock` + `MockClock`** (`src/testing/clock/MockClock.ts`). Production code calls `clock.now()` instead of `new Date()`. Tests inject a `MockClock` and `advanceBySec(120)` to walk time deterministically. An ESLint guard (`no-restricted-syntax`) forbids `new Date()` / `Date.now()` in `src/{application,infrastructure,presentation}/`.
+- **L4 — Local integration suite** (`pnpm test:integration`). Spawns Anvil + uses local Supabase, applies migrations, runs the no-live-betting / resolve-finished / cancel-flow checks against real txs. Runbook: [`SMOKE_integration.md`](./SMOKE_integration.md). Skipped automatically when Foundry or Supabase CLI is missing.
+
 ## 🏗️ Architecture
 
 This project follows **Clean Architecture** principles with four distinct layers:

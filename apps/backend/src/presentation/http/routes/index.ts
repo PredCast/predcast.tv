@@ -10,3 +10,4 @@ export { followRoutes } from './follow.routes';
 export { poolRoutes } from './pool.routes';
 export { betRoutes } from './bet.routes';
 export { userRoutes } from './user.routes';
+export { pricesRoutes } from './prices.routes';

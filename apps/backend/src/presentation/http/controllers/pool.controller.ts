@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
+import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import { GetLatestApyUseCase } from '../../../application/pool/use-cases/GetLatestApyUseCase';
 import { PoolApySnapshot } from '@chiliztv/domain/blockchain-indexing/entities/PoolApySnapshot';
 
@@ -24,6 +26,8 @@ export class PoolController {
     constructor(
         @inject(GetLatestApyUseCase)
         private readonly getLatestApyUseCase: GetLatestApyUseCase,
+        @inject(TOKENS.IClock)
+        private readonly clock: IClock,
     ) {}
 
     async getApy(_req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -36,7 +40,7 @@ export class PoolController {
                 success: true,
                 apy7d: serialize(result.apy7d),
                 apy30d: serialize(result.apy30d),
-                timestamp: Date.now(),
+                timestamp: this.clock.now().getTime(),
             });
         } catch (error) {
             next(error);

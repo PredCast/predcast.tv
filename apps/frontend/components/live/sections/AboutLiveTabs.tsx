@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { Address } from "viem";
 import { useMyBetsOnMatch } from "@/components/features/dashboard/hooks/useMyBetsOnMatch";
 import type { MatchOdds } from "@/types/api.types";
-import { MatchMarketsList } from "../MatchMarketsList";
+import { MatchMarketsList, type MatchBettableContext } from "../MatchMarketsList";
 import { MyBetsOnMatch } from "../MyBetsOnMatch";
 
 type Tab = "markets" | "mybets";
@@ -15,6 +15,7 @@ interface AboutLiveTabsProps {
   homeTeam?: string;
   awayTeam?: string;
   matchOdds?: MatchOdds;
+  match?: MatchBettableContext;
 }
 
 interface TabButtonProps {
@@ -52,6 +53,7 @@ export function AboutLiveTabs({
   homeTeam,
   awayTeam,
   matchOdds,
+  match,
 }: AboutLiveTabsProps) {
   const [tab, setTab] = useState<Tab>("markets");
 
@@ -86,6 +88,7 @@ export function AboutLiveTabs({
           homeTeam={homeTeam}
           awayTeam={awayTeam}
           matchOdds={matchOdds}
+          match={match}
         />
       ) : (
         <MyBetsOnMatch

@@ -6,11 +6,13 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
-  "dependencies": {},
   "devDependencies": {
     "@types/node": "^20.19.33",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "vitest": "^4.1.5"
   }
 }

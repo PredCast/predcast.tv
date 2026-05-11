@@ -154,6 +154,7 @@ export class LiquidityPoolIndexer extends BaseIndexer {
         if (!eventName || !args || !log.transactionHash || log.logIndex == null || log.blockNumber == null) {
             return;
         }
+        // eslint-disable-next-line no-restricted-syntax -- indexer block timestamp fallback
         const blockTimestamp = blockTimestamps.get(log.blockNumber) ?? new Date();
         const coords = {
             transactionHash: log.transactionHash as `0x${string}`,

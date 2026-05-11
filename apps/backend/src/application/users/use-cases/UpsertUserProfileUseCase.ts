@@ -3,6 +3,7 @@ import { isAddress } from 'viem';
 import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { UserProfile } from '@chiliztv/domain/users/entities/UserProfile';
 import { IUserProfileRepository } from '@chiliztv/domain/users/repositories/IUserProfileRepository';
+import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 
 const USERNAME_PATTERN = /^[A-Za-z0-9._-]{1,30}$/;
 
@@ -28,6 +29,8 @@ export class UpsertUserProfileUseCase {
     constructor(
         @inject(TOKENS.IUserProfileRepository)
         private readonly users: IUserProfileRepository,
+        @inject(TOKENS.IClock)
+        private readonly clock: IClock,
     ) {}
 
     async execute(input: UpsertUserProfileInput): Promise<UserProfile> {
@@ -40,7 +43,7 @@ export class UpsertUserProfileUseCase {
             walletAddress: input.walletAddress,
             username,
             avatarUrl,
-            updatedAt: new Date(),
+            updatedAt: this.clock.now(),
         });
         await this.users.upsert(profile);
         return profile;

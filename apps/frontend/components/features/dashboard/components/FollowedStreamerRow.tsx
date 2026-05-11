@@ -1,7 +1,7 @@
 'use client';
 
 import { Avatar } from './Avatar';
-import type { FollowedStreamer } from '../hooks/useDashboardStreamers';
+import type { FollowedStreamer } from '../domain/streamers';
 
 interface FollowedStreamerRowProps {
     readonly streamer: FollowedStreamer;

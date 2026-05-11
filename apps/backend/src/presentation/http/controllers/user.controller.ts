@@ -1,11 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { supabaseClient as supabase } from '../../../infrastructure/database/supabase/client';
 import { logger } from '../../../infrastructure/logging/logger';
 import { ResolveUserProfileUseCase } from '../../../application/users/use-cases/ResolveUserProfileUseCase';
 import { ResolveUserProfilesBatchUseCase } from '../../../application/users/use-cases/ResolveUserProfilesBatchUseCase';
 import { UpsertUserProfileUseCase } from '../../../application/users/use-cases/UpsertUserProfileUseCase';
 import type { UserProfile } from '@chiliztv/domain/users/entities/UserProfile';
+import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 
 const BUCKET = 'avatars';
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -28,6 +30,8 @@ export class UserController {
         private readonly resolveProfilesBatch: ResolveUserProfilesBatchUseCase,
         @inject(UpsertUserProfileUseCase)
         private readonly upsertProfile: UpsertUserProfileUseCase,
+        @inject(TOKENS.IClock)
+        private readonly clock: IClock,
     ) {}
 
     /** GET /users/by-wallet/:address — resolves a wallet to its display profile. */
@@ -153,7 +157,7 @@ export class UserController {
             // query strings. The `version` field below lets the client append
             // its own cache-buster at render time.
             const url = urlData.publicUrl;
-            const version = Date.now();
+            const version = this.clock.now().getTime();
 
             // Mirror the new URL into `users.avatar_url` so server-side
             // consumers (chat events, dashboard list views) pick it up.
@@ -209,7 +213,7 @@ export class UserController {
                     error: mirrorErr instanceof Error ? mirrorErr.message : String(mirrorErr),
                 });
             }
-            res.json({ success: true, timestamp: Date.now() });
+            res.json({ success: true, timestamp: this.clock.now().getTime() });
         } catch (error) {
             next(error);
         }

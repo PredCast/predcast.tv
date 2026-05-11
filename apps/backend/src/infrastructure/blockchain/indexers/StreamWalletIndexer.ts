@@ -167,6 +167,7 @@ export class StreamWalletIndexer extends BaseIndexer {
         if (!eventName || !args || !log.transactionHash || log.logIndex == null || log.blockNumber == null) {
             return;
         }
+        // eslint-disable-next-line no-restricted-syntax -- indexer block timestamp fallback
         const blockTimestamp = blockTimestamps.get(log.blockNumber) ?? new Date();
         const walletAddress = (log.address as string).toLowerCase();
         const streamerAddress = await this.lookupStreamerForWallet(walletAddress);

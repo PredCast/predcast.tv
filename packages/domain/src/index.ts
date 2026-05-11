@@ -12,11 +12,20 @@ export * from './shared/ports/ISchedulerService';
 export * from './shared/ports/ISubscriptionChecker';
 export * from './shared/ports/IFootballApiService';
 export * from './shared/ports/IBlockchainService';
+export * from './shared/ports/IIncidentReporter';
+export * from './shared/ports/IPriceFeedService';
+export * from './shared/ports/IClock';
 
 // Matches
 export * from './matches/entities/Match';
 export * from './matches/repositories/IMatchRepository';
 export * from './matches/value-objects/MatchFetchWindow';
+export * from './matches/policies/BettablePolicy';
+export * from './matches/policies/MatchStatusKind';
+
+// Prices
+export * from './prices/entities/TokenPrice';
+export * from './prices/repositories/ITokenPriceRepository';
 
 // Predictions
 export * from './predictions/entities/Prediction';
@@ -40,6 +49,9 @@ export * from './follows/repositories/IFollowRepository';
 // Streams
 export * from './streams/entities/Stream';
 export * from './streams/repositories/IStreamRepository';
+
+// Blockchain indexing — policies
+export * from './blockchain-indexing/policies/selectionToBetLabel';
 
 // Stream wallet
 export * from './stream-wallet/entities/Donation';

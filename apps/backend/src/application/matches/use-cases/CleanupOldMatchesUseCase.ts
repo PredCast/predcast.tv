@@ -4,6 +4,7 @@ import { IMatchRepository } from '@chiliztv/domain/matches/repositories/IMatchRe
 import { IBetRepository } from '@chiliztv/domain/blockchain-indexing/repositories/IBetRepository';
 import { IPredictionRepository } from '@chiliztv/domain/predictions/repositories/IPredictionRepository';
 import { MatchFetchWindow } from '@chiliztv/domain/matches/value-objects/MatchFetchWindow';
+import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 
 /**
  * Cleanup Old Matches Use Case
@@ -25,6 +26,7 @@ export class CleanupOldMatchesUseCase {
         @inject(TOKENS.IMatchRepository) private readonly matchRepository: IMatchRepository,
         @inject(TOKENS.IBetRepository) private readonly betRepository: IBetRepository,
         @inject(TOKENS.IPredictionRepository) private readonly predictionRepository: IPredictionRepository,
+        @inject(TOKENS.IClock) private readonly clock: IClock,
     ) {}
 
     async execute(before: Date): Promise<number> {
@@ -47,6 +49,6 @@ export class CleanupOldMatchesUseCase {
      * Retention policy still applies — referenced matches are preserved.
      */
     async cleanupOutside24Hours(): Promise<number> {
-        return this.execute(MatchFetchWindow.cleanupBefore(new Date()));
+        return this.execute(MatchFetchWindow.cleanupBefore(this.clock.now()));
     }
 }

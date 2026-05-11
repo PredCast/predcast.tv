@@ -5,6 +5,7 @@ import { IFootballApiService, RawMatch, ExtendedOdds } from '@chiliztv/domain/sh
 import { IBlockchainService } from '@chiliztv/domain/shared/ports/IBlockchainService';
 import { MatchFetchWindow } from '@chiliztv/domain/matches/value-objects/MatchFetchWindow';
 import { Match, MatchOdds } from '@chiliztv/domain/matches/entities/Match';
+import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 
 export interface SyncMatchesResult {
     matchesFetched: number;
@@ -31,7 +32,9 @@ export class SyncMatchesUseCase {
         @inject(TOKENS.IFootballApiService)
         private readonly footballApiService: IFootballApiService,
         @inject(TOKENS.IBlockchainService)
-        private readonly blockchainService: IBlockchainService
+        private readonly blockchainService: IBlockchainService,
+        @inject(TOKENS.IClock)
+        private readonly clock: IClock,
     ) {}
 
     async execute(): Promise<SyncMatchesResult> {
@@ -105,7 +108,7 @@ export class SyncMatchesUseCase {
             odds:                   matchOdds,
             bettingContractAddress: existing.getBettingContractAddress(),
             createdAt:              existingJson.createdAt,
-            updatedAt:              new Date(),
+            updatedAt:              this.clock.now(),
         });
 
         await this.matchRepository.update(updated);
@@ -165,7 +168,7 @@ export class SyncMatchesUseCase {
             const matchWithContract = Match.reconstitute({
                 ...saved.toJSON(),
                 bettingContractAddress: contractAddress,
-                updatedAt: new Date(),
+                updatedAt: this.clock.now(),
             });
             await this.matchRepository.update(matchWithContract);
 

@@ -47,3 +47,4 @@ export {
   useWaitlistStats,
   useJoinWaitlist,
 } from './useWaitlist';
+export { usePrices, usePrice } from './usePrices';

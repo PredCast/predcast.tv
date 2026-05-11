@@ -1,14 +1,24 @@
 import { injectable, inject } from 'tsyringe';
-import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import * as readline from 'readline';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { IMatchRepository } from '@chiliztv/domain/matches/repositories/IMatchRepository';
-import { BettingContractDeploymentAdapter } from '../../../infrastructure/blockchain/adapters/BettingContractDeploymentAdapter';
 import { Match } from '@chiliztv/domain/matches/entities/Match';
+import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
+import { BettingContractDeploymentAdapter } from '../../../infrastructure/blockchain/adapters/BettingContractDeploymentAdapter';
+import { matchFixture } from '../../../testing/fixtures/match.fixtures';
 import { logger } from '../../../infrastructure/logging/logger';
 
 /**
- * Test Match Lifecycle Command
- * Interactive script to test match creation, status updates, and contract deployment
+ * Interactive lifecycle helper around the legacy fixture (api_football_id =
+ * 999004, Inter vs AC Milan). Surface unchanged from the historical CLI;
+ * internals now route through:
+ *   - `matchFixture.upcoming(...)` for the initial create (no duplicated
+ *     `Match.create` payload),
+ *   - `transitionStatus(...)` for the status updates,
+ *   - `IClock` for every "the present moment" lookup.
+ *
+ * For richer scenarios (HT, kickoff buffer, CANC, multi-match), use
+ * `pnpm match:scenario`.
  */
 @injectable()
 export class TestMatchLifecycleCommand {
@@ -25,7 +35,8 @@ export class TestMatchLifecycleCommand {
 
     constructor(
         @inject(TOKENS.IMatchRepository) private readonly matchRepository: IMatchRepository,
-        @inject(BettingContractDeploymentAdapter) private readonly deploymentAdapter: BettingContractDeploymentAdapter
+        @inject(BettingContractDeploymentAdapter) private readonly deploymentAdapter: BettingContractDeploymentAdapter,
+        @inject(TOKENS.IClock) private readonly clock: IClock,
     ) {}
 
     private ask(question: string): Promise<string> {
@@ -51,177 +62,94 @@ export class TestMatchLifecycleCommand {
     }
 
     private async createTestMatch(): Promise<void> {
-        const matchDate = new Date();
-        matchDate.setHours(matchDate.getHours() + 2);
-
-        // Create match entity
-        const match = Match.create({
-            id: this.TEST_MATCH_ID,
+        const kickoff = new Date(this.clock.now().getTime() + 2 * 60 * 60_000);
+        const match = matchFixture.upcoming({
             apiFootballId: this.TEST_MATCH_ID,
-            homeTeamId: 5,
-            homeTeamName: 'Inter',
-            homeTeamLogo: '',
-            awayTeamId: 7,
-            awayTeamName: 'Ac milan',
-            awayTeamLogo: '',
-            leagueId: 3,
-            leagueName: 'Serie A',
-            leagueLogo: '',
-            leagueCountry: 'France',
-            season: new Date().getFullYear(),
-            matchDate,
-            status: 'NS',
+            homeTeam: { id: 5, name: 'Inter' },
+            awayTeam: { id: 7, name: 'AC Milan' },
+            league: { id: 3, name: 'Serie A', country: 'Italy' },
+            kickoffAt: kickoff,
             venue: 'San Siro',
-            // Wrap the legacy 1X2 odds in the new per-market shape so the entity
-            // accepts them. The deployment adapter still consumes the flat object below.
-            odds: {
-                winner: {
-                    homeWin: this.DEFAULT_ODDS.homeWin,
-                    draw: this.DEFAULT_ODDS.draw,
-                    awayWin: this.DEFAULT_ODDS.awayWin,
-                },
-                goalsTotal: { line: 2.5, over: this.DEFAULT_ODDS.over25, under: this.DEFAULT_ODDS.under25 },
-                bothScore: { yes: this.DEFAULT_ODDS.bttsYes, no: this.DEFAULT_ODDS.bttsNo },
-            },
         });
-
-        // Save match
         await this.matchRepository.save(match);
 
-        // Deploy contract
-        const matchName = `INTER vs ACM`;
+        const matchName = 'INTER vs ACM';
         const ownerAddress = this.deploymentAdapter.getAdminAddress();
-
         logger.info('Deploying FootballMatch contract');
         const contractAddress = await this.deploymentAdapter.deployFootballMatch(matchName, ownerAddress);
-
-        // Setup markets
         await this.deploymentAdapter.setupDefaultMarkets(contractAddress, this.DEFAULT_ODDS);
 
-        // Update match with contract address
-        const matchJson = match.toJSON();
-        const matchWithContract = Match.reconstitute({
-            id: matchJson.id,
-            apiFootballId: matchJson.apiFootballId,
-            homeTeamId: matchJson.homeTeam.id,
-            homeTeamName: matchJson.homeTeam.name,
-            homeTeamLogo: matchJson.homeTeam.logo,
-            awayTeamId: matchJson.awayTeam.id,
-            awayTeamName: matchJson.awayTeam.name,
-            awayTeamLogo: matchJson.awayTeam.logo,
-            leagueId: matchJson.league.id,
-            leagueName: matchJson.league.name,
-            leagueLogo: matchJson.league.logo,
-            leagueCountry: matchJson.league.country,
-            season: matchJson.season,
-            status: matchJson.status,
-            matchDate: new Date(matchJson.matchDate),
-            venue: matchJson.venue,
-            homeScore: matchJson.score?.home,
-            awayScore: matchJson.score?.away,
-            odds: matchJson.odds,
-            bettingContractAddress: contractAddress,
-            createdAt: new Date(matchJson.createdAt),
-            updatedAt: new Date(matchJson.updatedAt)
-        });
-        await this.matchRepository.update(matchWithContract);
-
+        const updated = this.cloneWith(match, { bettingContractAddress: contractAddress });
+        await this.matchRepository.update(updated);
         logger.info('Test match created and contract deployed', {
             apiFootballId: this.TEST_MATCH_ID,
-            contractAddress
+            contractAddress,
         });
     }
 
-    private async setMatchLive(apiFootballId: number): Promise<void> {
+    private async transitionStatus(
+        apiFootballId: number,
+        status: string,
+        score?: { home: number; away: number },
+    ): Promise<void> {
         const match = await this.matchRepository.findByApiFootballId(apiFootballId);
-        if (!match) {
-            throw new Error(`Match ${apiFootballId} not found`);
-        }
-
-        const matchJson = match.toJSON();
-        const updatedMatch = Match.reconstitute({
-            id: matchJson.id,
-            apiFootballId: matchJson.apiFootballId,
-            homeTeamId: matchJson.homeTeam.id,
-            homeTeamName: matchJson.homeTeam.name,
-            homeTeamLogo: matchJson.homeTeam.logo,
-            awayTeamId: matchJson.awayTeam.id,
-            awayTeamName: matchJson.awayTeam.name,
-            awayTeamLogo: matchJson.awayTeam.logo,
-            leagueId: matchJson.league.id,
-            leagueName: matchJson.league.name,
-            leagueLogo: matchJson.league.logo,
-            leagueCountry: matchJson.league.country,
-            season: matchJson.season,
-            status: '1H',
-            matchDate: new Date(matchJson.matchDate),
-            venue: matchJson.venue,
-            homeScore: 0,
-            awayScore: 0,
-            odds: matchJson.odds,
-            bettingContractAddress: matchJson.bettingContractAddress,
-            createdAt: new Date(matchJson.createdAt),
-            updatedAt: new Date()
-        });
-
-        await this.matchRepository.update(updatedMatch);
-        logger.info('Match set to live', { apiFootballId, period: '1H', score: '0-0' });
-    }
-
-    private async setMatchFinished(apiFootballId: number, homeScore: number, awayScore: number): Promise<void> {
-        const match = await this.matchRepository.findByApiFootballId(apiFootballId);
-        if (!match) {
-            throw new Error(`Match ${apiFootballId} not found`);
-        }
-
-        const matchJson = match.toJSON();
-        const updatedMatch = Match.reconstitute({
-            id: matchJson.id,
-            apiFootballId: matchJson.apiFootballId,
-            homeTeamId: matchJson.homeTeam.id,
-            homeTeamName: matchJson.homeTeam.name,
-            homeTeamLogo: matchJson.homeTeam.logo,
-            awayTeamId: matchJson.awayTeam.id,
-            awayTeamName: matchJson.awayTeam.name,
-            awayTeamLogo: matchJson.awayTeam.logo,
-            leagueId: matchJson.league.id,
-            leagueName: matchJson.league.name,
-            leagueLogo: matchJson.league.logo,
-            leagueCountry: matchJson.league.country,
-            season: matchJson.season,
-            status: 'FT',
-            matchDate: new Date(matchJson.matchDate),
-            venue: matchJson.venue,
-            homeScore,
-            awayScore,
-            odds: matchJson.odds,
-            bettingContractAddress: matchJson.bettingContractAddress,
-            createdAt: new Date(matchJson.createdAt),
-            updatedAt: new Date()
-        });
-
-        await this.matchRepository.update(updatedMatch);
-        logger.info('Match set to finished', {
+        if (!match) throw new Error(`Match ${apiFootballId} not found`);
+        const updated = this.cloneWith(match, { status, score });
+        await this.matchRepository.update(updated);
+        logger.info('Match transitioned', {
             apiFootballId,
-            status: 'FT',
-            score: `${homeScore}-${awayScore}`,
-            note: 'The sync-matches cron will resolve markets on-chain after next sync run'
+            status,
+            score: score ? `${score.home}-${score.away}` : '—',
+        });
+    }
+
+    /**
+     * Reconstitute the match with the same identity + the override applied.
+     * The match entity exposes only flat-prop setters for `score` / `status`
+     * via `updateScore` / `updateStatus`, so a full reconstitute is used here
+     * to capture all overrides in one shot.
+     */
+    private cloneWith(
+        match: Match,
+        override: { status?: string; score?: { home: number; away: number }; bettingContractAddress?: string },
+    ): Match {
+        const json = match.toJSON();
+        return Match.reconstitute({
+            id: json.id,
+            apiFootballId: json.apiFootballId,
+            homeTeamId: json.homeTeam.id,
+            homeTeamName: json.homeTeam.name,
+            homeTeamLogo: json.homeTeam.logo,
+            awayTeamId: json.awayTeam.id,
+            awayTeamName: json.awayTeam.name,
+            awayTeamLogo: json.awayTeam.logo,
+            leagueId: json.league.id,
+            leagueName: json.league.name,
+            leagueLogo: json.league.logo,
+            leagueCountry: json.league.country,
+            season: json.season,
+            status: override.status ?? json.status,
+            matchDate: new Date(json.matchDate),
+            venue: json.venue,
+            homeScore: override.score?.home ?? json.score?.home,
+            awayScore: override.score?.away ?? json.score?.away,
+            odds: json.odds,
+            bettingContractAddress: override.bettingContractAddress ?? json.bettingContractAddress,
+            createdAt: new Date(json.createdAt),
+            updatedAt: this.clock.now(),
         });
     }
 
     private async showStatus(apiFootballId: number): Promise<void> {
         const match = await this.matchRepository.findByApiFootballId(apiFootballId);
-        if (!match) {
-            throw new Error(`Match ${apiFootballId} not found`);
-        }
-
-        const matchJson = match.toJSON();
+        if (!match) throw new Error(`Match ${apiFootballId} not found`);
+        const json = match.toJSON();
         logger.info('Match status', {
-            match: `${matchJson.homeTeam.name} vs ${matchJson.awayTeam.name}`,
-            apiFootballId: matchJson.apiFootballId,
-            status: matchJson.status,
-            score: `${matchJson.homeScore ?? '-'} - ${matchJson.awayScore ?? '-'}`,
-            contract: matchJson.bettingContractAddress ?? '(none)'
+            match: `${json.homeTeam.name} vs ${json.awayTeam.name}`,
+            apiFootballId: json.apiFootballId,
+            status: json.status,
+            score: `${json.score?.home ?? '-'} - ${json.score?.away ?? '-'}`,
+            contract: json.bettingContractAddress ?? '(none)',
         });
     }
 
@@ -229,34 +157,31 @@ export class TestMatchLifecycleCommand {
         for (;;) {
             this.printMenu();
             const choice = await this.ask('Your choice (1/2/3/4/q): ');
-
             if (choice === 'q' || choice === 'Q') {
                 logger.info('Goodbye');
                 return;
             }
-
             try {
                 if (choice === '1') {
                     await this.createTestMatch();
                 } else if (choice === '2') {
-                    await this.setMatchLive(this.TEST_MATCH_ID);
+                    await this.transitionStatus(this.TEST_MATCH_ID, '1H', { home: 0, away: 0 });
                 } else if (choice === '3') {
-                    const scoreInput = await this.ask('Score (e.g. 2 1 for 2-1): ');
-                    const parts = scoreInput.split(/\s+/);
+                    const parts = (await this.ask('Score (e.g. 2 1 for 2-1): ')).split(/\s+/);
                     const h = parseInt(parts[0] ?? '0', 10);
                     const a = parseInt(parts[1] ?? '0', 10);
                     if (Number.isNaN(h) || Number.isNaN(a)) {
                         logger.warn('Enter two numbers (e.g. 2 1)');
                     } else {
-                        await this.setMatchFinished(this.TEST_MATCH_ID, h, a);
+                        await this.transitionStatus(this.TEST_MATCH_ID, 'FT', { home: h, away: a });
                     }
                 } else if (choice === '4') {
                     await this.showStatus(this.TEST_MATCH_ID);
                 } else {
                     logger.warn('Invalid choice. Type 1, 2, 3, 4 or q');
                 }
-            } catch (err: any) {
-                logger.error('Error in interactive menu', { error: err?.message ?? err });
+            } catch (err) {
+                logger.error('Error in interactive menu', { error: err instanceof Error ? err.message : String(err) });
             }
         }
     }
@@ -274,49 +199,33 @@ export class TestMatchLifecycleCommand {
         switch (command) {
             case 'create':
                 await this.createTestMatch();
-                break;
-
+                return;
             case 'live':
-                await this.setMatchLive(getMatchId());
-                break;
-
+                await this.transitionStatus(getMatchId(), '1H', { home: 0, away: 0 });
+                return;
             case 'finished': {
-                let id: number;
-                let h: number;
-                let a: number;
-
-                if (args.length === 3) {
-                    id = parseInt(args[0]!, 10);
-                    h = parseInt(args[1]!, 10);
-                    a = parseInt(args[2]!, 10);
-                } else if (args.length === 2) {
-                    id = this.TEST_MATCH_ID;
-                    h = parseInt(args[0]!, 10);
-                    a = parseInt(args[1]!, 10);
-                } else {
-                    throw new Error('Usage: finished [id] <home_score> <away_score>');
-                }
-
+                const [idOrH, hOrA, maybeA] = args;
+                const id = args.length === 3 ? parseInt(idOrH ?? '', 10) : this.TEST_MATCH_ID;
+                const h = parseInt((args.length === 3 ? hOrA : idOrH) ?? '', 10);
+                const a = parseInt((args.length === 3 ? maybeA : hOrA) ?? '', 10);
                 if (Number.isNaN(id) || Number.isNaN(h) || Number.isNaN(a)) {
                     throw new Error('Usage: finished [id] <home_score> <away_score>');
                 }
-
-                await this.setMatchFinished(id, h, a);
-                break;
+                await this.transitionStatus(id, 'FT', { home: h, away: a });
+                return;
             }
-
             case 'status':
                 await this.showStatus(getMatchId());
-                break;
-
+                return;
             default:
                 logger.info('Usage:');
-                logger.info('  npx ts-node src/presentation/cli/test-match-lifecycle.ts           # Interactive menu');
+                logger.info('  npx ts-node src/presentation/cli/test-match-lifecycle.ts           # Interactive');
                 logger.info('  npx ts-node src/presentation/cli/test-match-lifecycle.ts create');
                 logger.info('  npx ts-node src/presentation/cli/test-match-lifecycle.ts live [id]');
                 logger.info('  npx ts-node src/presentation/cli/test-match-lifecycle.ts finished [id] <home> <away>');
                 logger.info('  npx ts-node src/presentation/cli/test-match-lifecycle.ts status [id]');
                 logger.info(`[id] default = ${this.TEST_MATCH_ID}`);
+                logger.info('For richer scenarios (HT/CANC/multi-match), see `pnpm match:scenario list`.');
                 throw new Error('Invalid command');
         }
     }
@@ -324,18 +233,14 @@ export class TestMatchLifecycleCommand {
     async execute(argv: string[]): Promise<void> {
         try {
             const command = argv[2]?.toLowerCase();
-
             if (!command) {
-                // Interactive menu
                 await this.executeInteractive();
             } else {
-                // CLI mode
-                const args = argv.slice(3);
-                await this.executeCli(command, args);
+                await this.executeCli(command, argv.slice(3));
             }
         } catch (error) {
             logger.error('Test match lifecycle command failed', {
-                error: error instanceof Error ? error.message : 'Unknown error'
+                error: error instanceof Error ? error.message : 'Unknown error',
             });
             throw error;
         }

@@ -1,7 +1,9 @@
-import { injectable } from 'tsyringe';
+import { inject, injectable } from 'tsyringe';
 import { supabaseClient as supabase } from '../../database/supabase/client';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { UserProfile } from '@chiliztv/domain/users/entities/UserProfile';
 import { IUserProfileRepository } from '@chiliztv/domain/users/repositories/IUserProfileRepository';
+import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import { logger } from '../../logging/logger';
 
 interface UserRow {
@@ -22,6 +24,10 @@ function toDomain(row: UserRow): UserProfile {
 
 @injectable()
 export class SupabaseUserProfileRepository implements IUserProfileRepository {
+    constructor(
+        @inject(TOKENS.IClock) private readonly clock: IClock,
+    ) {}
+
     async findByWalletAddress(walletAddress: string): Promise<UserProfile | null> {
         const addr = walletAddress.toLowerCase();
         const { data, error } = await supabase
@@ -65,7 +71,7 @@ export class SupabaseUserProfileRepository implements IUserProfileRepository {
                     wallet_address: profile.walletAddress,
                     username: profile.username,
                     avatar_url: profile.avatarUrl,
-                    updated_at: new Date().toISOString(),
+                    updated_at: this.clock.now().toISOString(),
                 },
                 { onConflict: 'wallet_address' },
             );

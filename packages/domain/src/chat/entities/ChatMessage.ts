@@ -26,7 +26,16 @@ export interface ChatMessageProps {
 export class ChatMessage {
   private constructor(private readonly props: ChatMessageProps) {}
 
+  /**
+   * Invariant — bet notifications (`type=SYSTEM, systemType='bet'`) must
+   * target the per-match general channel only (`streamId` null/undefined).
+   */
   static create(props: Omit<ChatMessageProps, 'id' | 'timestamp'>): ChatMessage {
+    if (props.systemType === 'bet' && props.streamId != null) {
+      throw new Error(
+        'ChatMessage invariant: bet notifications must target the general match channel (streamId === null).',
+      );
+    }
     return new ChatMessage({
       ...props,
       id: crypto.randomUUID(),

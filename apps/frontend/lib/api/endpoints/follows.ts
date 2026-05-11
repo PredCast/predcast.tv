@@ -13,7 +13,18 @@ interface FollowResponse { success: boolean; follow: FollowDto }
 interface UnfollowResponse { success: boolean; message: string }
 interface IsFollowingResponse { success: boolean; isFollowing: boolean }
 interface FollowerCountResponse { success: boolean; count: number }
-interface FollowedStreamersResponse { success: boolean; follows: FollowDto[] }
+export interface FollowedStreamersResponse {
+  success: boolean;
+  follows: FollowDto[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface FollowsPageParams {
+  limit?: number;
+  offset?: number;
+}
 
 export const followsApi = {
   follow: async (followerId: string, streamerId: string, streamerName: string): Promise<FollowResponse> => {
@@ -36,7 +47,11 @@ export const followsApi = {
     return await apiClient.get<FollowerCountResponse>(`/follows/count/${encodeURIComponent(streamerId)}`);
   },
 
-  getFollowedStreamers: async (followerId: string): Promise<FollowedStreamersResponse> => {
-    return await apiClient.get<FollowedStreamersResponse>(`/follows/following/${encodeURIComponent(followerId)}`);
+  getFollowedStreamers: async (followerId: string, params?: FollowsPageParams): Promise<FollowedStreamersResponse> => {
+    const q = new URLSearchParams();
+    if (params?.limit !== undefined) q.set('limit', String(params.limit));
+    if (params?.offset !== undefined) q.set('offset', String(params.offset));
+    const suffix = q.toString() ? `?${q.toString()}` : '';
+    return await apiClient.get<FollowedStreamersResponse>(`/follows/following/${encodeURIComponent(followerId)}${suffix}`);
   },
 };

@@ -5,13 +5,15 @@ import cors from "cors";
 import http from 'http';
 import { config } from 'dotenv';
 import { securityHeadersMiddleware, env, setupDependencyInjection, container } from './src/infrastructure/config';
-import { logger, requestLogger } from './src/infrastructure/logging';
+import { logger, createRequestLogger } from './src/infrastructure/logging';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
+import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import { errorHandler, authenticate, globalLimiter, authLimiter, predictionsLimiter, chatLimiter } from './src/presentation/http/middlewares';
 import { JobScheduler, BlockchainEventListener } from './src/infrastructure/services';
 import { CleanupOldMatchesUseCase } from './src/application/matches/use-cases/CleanupOldMatchesUseCase';
 config();
 setupDependencyInjection();
-import { authRoutes, predictionRoutes, matchRoutes, chatRoutes, waitlistRoutes, streamRoutes, streamWalletRoutes, fanTokensRoutes, followRoutes, poolRoutes, betRoutes, userRoutes } from './src/presentation/http/routes';
+import { authRoutes, predictionRoutes, matchRoutes, chatRoutes, waitlistRoutes, streamRoutes, streamWalletRoutes, fanTokensRoutes, followRoutes, poolRoutes, betRoutes, userRoutes, pricesRoutes } from './src/presentation/http/routes';
 import { mediamtxWebhookRoutes } from './src/presentation/http/routes/mediamtx-webhook.routes';
 
 const app = express();
@@ -39,7 +41,7 @@ app.use(cors({
 app.use(globalLimiter);
 
 // Request logging with correlation IDs
-app.use(requestLogger);
+app.use(createRequestLogger(container.resolve<IClock>(TOKENS.IClock)));
 
 // Public routes (no authentication required)
 app.use('/auth', authLimiter, authRoutes);
@@ -58,6 +60,9 @@ app.use('/stream', streamRoutes);
 
 // Public pool stats — APY snapshots, no auth required
 app.use('/pool', poolRoutes);
+
+// Public token prices — CoinGecko/Pyth cache, no auth required
+app.use('/prices', pricesRoutes);
 
 // Internal — mediamtx calls this to validate publishers
 app.use('/mediamtx', mediamtxWebhookRoutes);

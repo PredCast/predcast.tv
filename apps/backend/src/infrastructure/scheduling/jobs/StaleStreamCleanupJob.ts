@@ -1,8 +1,9 @@
-import { injectable } from 'tsyringe';
+import { inject, injectable } from 'tsyringe';
 import { container } from '../../config/di-container';
 import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { StreamLifecycleService } from '../../services/StreamLifecycleService';
 import { IStreamRepository } from '@chiliztv/domain/streams/repositories/IStreamRepository';
+import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import { logger } from '../../logging/logger';
 
 /**
@@ -14,6 +15,10 @@ import { logger } from '../../logging/logger';
 export class StaleStreamCleanupJob {
   private readonly schedule = '*/3 * * * *'; // Every 3 minutes
 
+  constructor(
+    @inject(TOKENS.IClock) private readonly clock: IClock,
+  ) {}
+
   getSchedule(): string {
     return this.schedule;
   }
@@ -24,7 +29,7 @@ export class StaleStreamCleanupJob {
       const streamRepository = container.resolve<IStreamRepository>(TOKENS.IStreamRepository);
 
       // Timeout = 5 minutes — tolerates OBS reconnects and brief network cuts
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      const fiveMinutesAgo = new Date(this.clock.now().getTime() - 5 * 60 * 1000);
       const staleStreams = await streamRepository.findStaleLiveStreams(fiveMinutesAgo);
 
       if (staleStreams.length === 0) return;

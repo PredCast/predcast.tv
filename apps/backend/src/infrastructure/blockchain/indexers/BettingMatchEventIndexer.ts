@@ -20,6 +20,11 @@ import { ChatMessage, MessageType } from '@chiliztv/domain/chat/entities/ChatMes
 import { BaseIndexer } from './BaseIndexer';
 import { getTokenDecimals } from '../utils/getTokenDecimals';
 import { ResolveUserProfileUseCase } from '../../../application/users/use-cases/ResolveUserProfileUseCase';
+import { IIncidentReporter } from '@chiliztv/domain/shared/ports/IIncidentReporter';
+import { classifyStatus } from '@chiliztv/domain/matches/policies/BettablePolicy';
+import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
+import type { IBlockchainService } from '@chiliztv/domain/shared/ports/IBlockchainService';
+import { selectionToBetLabel } from '@chiliztv/domain/blockchain-indexing/policies/selectionToBetLabel';
 
 const BET_PLACED = parseAbiItem(
     'event BetPlaced(uint256 indexed marketId, address indexed user, uint256 betIndex, uint256 amount, uint64 selection, uint32 odds, uint16 oddsIndex)',
@@ -64,7 +69,9 @@ interface TeamJson {
 }
 
 interface MatchWithContract {
+    id: number;
     api_football_id: number;
+    status: string;
     home_team: TeamJson | string;
     away_team: TeamJson | string;
     match_date: string;
@@ -112,6 +119,12 @@ export class BettingMatchEventIndexer extends BaseIndexer {
         private readonly network: INetworkConfig,
         @inject(ResolveUserProfileUseCase)
         private readonly resolveProfile: ResolveUserProfileUseCase,
+        @inject(TOKENS.IIncidentReporter)
+        private readonly incidentReporter: IIncidentReporter,
+        @inject(TOKENS.IClock)
+        private readonly clock: IClock,
+        @inject(TOKENS.IBlockchainService)
+        private readonly blockchain: IBlockchainService,
     ) {
         super({
             name: 'BettingMatchEvent',
@@ -170,6 +183,7 @@ export class BettingMatchEventIndexer extends BaseIndexer {
         if (!eventName || !args || !log.transactionHash || log.logIndex == null || log.blockNumber == null) {
             return;
         }
+        // eslint-disable-next-line no-restricted-syntax -- indexer block timestamp fallback
         const blockTimestamp = blockTimestamps.get(log.blockNumber) ?? new Date();
         const coords: EventCoords = {
             transactionHash: log.transactionHash as `0x${string}`,
@@ -227,26 +241,20 @@ export class BettingMatchEventIndexer extends BaseIndexer {
             }
             case 'MarketCreated': {
                 const a = args as { marketId: bigint; marketType: string; initialOdds: number };
-                // The MarketCreated event doesn't include `line`. We do a one-off
-                // read of `getFootballMarket(marketId)` here so the front can
-                // render line-aware labels (Over 2.5 goals) for GOALS_TOTAL bets.
+                // The MarketCreated event does not include `line`. A one-off
+                // read on the port enriches the payload so GOALS_TOTAL bets
+                // can render "Over/Under 2.5" labels. Basketball matches
+                // throw here (no `getFootballMarket`); the catch keeps
+                // `line` / `maxSelections` null and `BackfillMarketLinesJob`
+                // skips them too.
                 let line: number | null = null;
+                let maxSelections: number | null = null;
                 try {
-                    const result = await this.client.readContract({
-                        address: contractAddress as `0x${string}`,
-                        abi: [
-                            parseAbiItem(
-                                'function getFootballMarket(uint256) view returns (string,int16,uint8,uint8,uint32,uint64,uint256)',
-                            ),
-                        ],
-                        functionName: 'getFootballMarket',
-                        args: [a.marketId],
-                    }) as readonly [string, number, number, number, number, bigint, bigint];
-                    line = Number(result[1]);
+                    const fm = await this.blockchain.readFootballMarket(contractAddress, a.marketId);
+                    line = fm.line;
+                    maxSelections = fm.maxSelections;
                 } catch (err) {
-                    // Basketball matches don't expose getFootballMarket — that's fine,
-                    // line stays null. Same for read errors against non-FootballMatch contracts.
-                    logger.debug('getFootballMarket read failed (likely non-football)', {
+                    logger.debug('readFootballMarket failed (likely non-football)', {
                         contractAddress,
                         marketId: a.marketId.toString(),
                         error: err instanceof Error ? err.message : String(err),
@@ -257,7 +265,7 @@ export class BettingMatchEventIndexer extends BaseIndexer {
                     contractAddress,
                     marketId: a.marketId,
                     eventName,
-                    payload: { marketType: a.marketType, initialOdds: a.initialOdds, line },
+                    payload: { marketType: a.marketType, initialOdds: a.initialOdds, line, maxSelections },
                 });
                 return;
             }
@@ -326,31 +334,116 @@ export class BettingMatchEventIndexer extends BaseIndexer {
             return;
         }
 
-        await this.mirrorToPredictionsTable(args, coords, match, usdcDecimals);
-        await this.postBetChatMessage(args, match, usdcDecimals);
+        // Couche 4 du defense-in-depth no-live-betting : si on observe un bet
+        // sur un match in-play / blocked, les couches 1-3 ont échoué. Alerter
+        // (no-op log-only par défaut — Sentry plug à brancher plus tard).
+        await this.maybeReportLiveBetIncident(args, coords, match);
+
+        // Resolve marketContext once — both mirror and chat message need the
+        // marketType. Self-heal if missing (indexer started after deploy block).
+        let ctx = await this.marketEvents.findMarketContext(contractAddress, args.marketId);
+        if (!ctx) {
+            try {
+                const onchain = await this.blockchain.readFootballMarket(contractAddress, args.marketId);
+                if (onchain.marketType) {
+                    await this.marketEvents.upsertSyntheticMarketCreated({
+                        contractAddress,
+                        marketId: args.marketId,
+                        marketType: onchain.marketType,
+                        line: onchain.line || null,
+                        maxSelections: onchain.maxSelections,
+                        blockNumber: coords.blockNumber,
+                    });
+                    ctx = { marketType: onchain.marketType, line: onchain.line || null };
+                }
+            } catch (err) {
+                logger.warn(`${this.indexerName}: self-heal MarketCreated failed`, {
+                    contractAddress, marketId: args.marketId.toString(),
+                    error: err instanceof Error ? err.message : String(err),
+                });
+            }
+        }
+        const label = selectionToBetLabel({
+            marketType: ctx?.marketType ?? 'WINNER',
+            selection: Number(args.selection),
+            line: ctx?.line ?? null,
+            homeTeam: this.teamName(match.home_team),
+            awayTeam: this.teamName(match.away_team),
+        });
+        const marketType = ctx?.marketType ?? 'WINNER';
+
+        await this.mirrorToPredictionsTable(args, coords, match, label, marketType);
+        await this.postBetChatMessage(args, match, usdcDecimals, label);
+    }
+
+    private async maybeReportLiveBetIncident(
+        args: BetPlacedArgs,
+        coords: EventCoords,
+        match: MatchWithContract,
+    ): Promise<void> {
+        const kind = classifyStatus(match.status);
+        if (kind !== 'live' && kind !== 'blocked') return;
+
+        // Filter sur les events récents (< 1h) pour éviter les faux positifs
+        // au backfill historique d'un range de blocs ancien.
+        const ageMs = this.clock.now().getTime() - coords.blockTimestamp.getTime();
+        if (ageMs > 60 * 60_000) {
+            logger.debug(`${this.indexerName}: skip live_bet_incident on stale block`, {
+                txHash: coords.transactionHash, ageMs,
+            });
+            return;
+        }
+
+        try {
+            await this.incidentReporter.reportLiveBetIncident({
+                txHash: coords.transactionHash,
+                blockNumber: Number(coords.blockNumber),
+                blockTimestamp: coords.blockTimestamp,
+                user: args.user,
+                amount: args.amount.toString(),
+                contractAddress: match.betting_contract_address,
+                marketId: Number(args.marketId),
+                matchId: match.id ?? null,
+                matchStatus: match.status,
+            });
+        } catch (err) {
+            logger.warn(`${this.indexerName}: incident reporter failed`, {
+                error: err instanceof Error ? err.message : String(err),
+            });
+        }
     }
 
     /**
-     * Legacy mirror: writes a row to `predictions` so the existing UI keeps
-     * showing on-chain bets. Skipped if a matching tx_hash row already exists
-     * (avoids duplicate on the API-direct path that creates predictions before
-     * the tx is mined).
+     * Legacy mirror to `predictions` for `WINNER` / `HALFTIME` bets only — the
+     * schema's `predictionType='match_winner'` cannot host GOALS_TOTAL or
+     * BOTH_SCORE selections without breaking semantics. Modern dashboards read
+     * from `bets` (joined with `market_events`) so non-WINNER bets remain
+     * displayed via that path.
+     *
+     * TODO(legacy): `predictions.predictionType` collapses WINNER+HALFTIME
+     * into a single bucket — schema needs an enum widening to distinguish
+     * full-time vs halftime 1X2.
      */
     private async mirrorToPredictionsTable(
         args: BetPlacedArgs,
         coords: EventCoords,
         match: MatchWithContract,
-        usdcDecimals: number,
+        label: { subType: string; display: string },
+        marketType: string,
     ): Promise<void> {
+        if (marketType !== 'WINNER' && marketType !== 'HALFTIME') {
+            logger.debug(`${this.indexerName}: skip predictions mirror for non-WINNER market`, {
+                txHash: coords.transactionHash,
+                marketType,
+            });
+            return;
+        }
+
         const txHash = TransactionHash.create(coords.transactionHash);
         const existing = await this.predictions.findByTransactionHash(txHash);
         if (existing) return;
 
-        const { subType, team } = this.selectionToPrediction(Number(args.selection), match);
         const oddsValue = Math.max(1.01, Number(args.odds) / 10000);
-        // Route through the centralized resolver so the `users` cache stays
-        // authoritative — first hits the PK lookup, then falls back to
-        // chat/predictions/streams, and self-warms the cache on success.
         const profile = await this.resolveProfile.execute(args.user);
         const username = profile.username
             ?? `${args.user.slice(0, 6)}...${args.user.slice(-4)}`;
@@ -363,8 +456,8 @@ export class BettingMatchEventIndexer extends BaseIndexer {
             matchId: match.api_football_id,
             matchName: `${this.teamName(match.home_team)} vs ${this.teamName(match.away_team)}`,
             predictionType: 'match_winner',
-            predictionValue: subType,
-            predictedTeam: team,
+            predictionValue: label.subType,
+            predictedTeam: label.display,
             odds: Odds.create(oddsValue),
             status: PredictionStatus.PENDING,
             transactionHash: txHash,
@@ -376,8 +469,6 @@ export class BettingMatchEventIndexer extends BaseIndexer {
         try {
             await this.predictions.save(prediction);
         } catch (err) {
-            // Race against the API-direct flow: if a row was created between
-            // our SELECT and INSERT, ignore the duplicate-key error.
             logger.debug(`${this.indexerName}: prediction mirror skipped`, {
                 txHash: coords.transactionHash,
                 error: err instanceof Error ? err.message : String(err),
@@ -389,16 +480,19 @@ export class BettingMatchEventIndexer extends BaseIndexer {
         args: BetPlacedArgs,
         match: MatchWithContract,
         usdcDecimals: number,
+        label: { subType: string; display: string },
     ): Promise<void> {
-        const { subType, team } = this.selectionToPrediction(Number(args.selection), match);
         const formatted = (Number(args.amount) / 10 ** usdcDecimals).toFixed(2);
         try {
+            // Invariant — bet notifications target the per-match general
+            // channel only (streamId === null). Enforced at the ChatMessage
+            // entity level.
             const message = ChatMessage.create({
                 matchId: match.api_football_id,
                 userId: 'system',
                 walletAddress: 'system',
                 username: 'System',
-                message: `🎯 New prediction: ${formatted} USDC on ${team || subType}`,
+                message: `🎯 New prediction: ${formatted} USDC on ${label.display}`,
                 type: MessageType.SYSTEM,
                 systemType: 'bet',
                 isFeatured: false,
@@ -414,21 +508,10 @@ export class BettingMatchEventIndexer extends BaseIndexer {
     private async getBettingContracts(): Promise<MatchWithContract[]> {
         const { data, error } = await supabase
             .from('matches')
-            .select('api_football_id, home_team, away_team, match_date, betting_contract_address, odds')
+            .select('id, api_football_id, status, home_team, away_team, match_date, betting_contract_address, odds')
             .not('betting_contract_address', 'is', null);
         if (error || !data?.length) return [];
         return data as MatchWithContract[];
-    }
-
-    private selectionToPrediction(selection: number, match: MatchWithContract): { subType: string; team: string } {
-        const homeName = this.teamName(match.home_team);
-        const awayName = this.teamName(match.away_team);
-        switch (selection) {
-            case 0: return { subType: 'home', team: homeName };
-            case 1: return { subType: 'draw', team: 'Draw' };
-            case 2: return { subType: 'away', team: awayName };
-            default: return { subType: `selection-${selection}`, team: `Selection ${selection}` };
-        }
     }
 
     private teamName(team: TeamJson | string): string {

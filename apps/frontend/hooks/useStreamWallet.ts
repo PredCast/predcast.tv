@@ -68,20 +68,24 @@ export function useStreamWallet({ streamerAddress }: UseStreamWalletProps) {
     // happens to be 18-decimal; mainnet (Circle) USDC is 6-decimal.
     const { assetDecimals } = usePoolDecimals();
 
-    // Backend data using React Query hooks
+    // Backend data using React Query hooks. We only need a peek at the most
+    // recent rows + the totals for the stats — fetch a small page rather than
+    // pulling the full history on every dashboard render.
     const {
         data: donationsData,
         isLoading: isLoadingDonations,
         refetch: refetchDonations,
-    } = useStreamerDonations(streamerAddress || '');
+    } = useStreamerDonations(streamerAddress || '', { limit: 5, offset: 0 });
     const {
         data: subscriptionsData,
         isLoading: isLoadingSubscriptions,
         refetch: refetchSubscriptions,
-    } = useStreamerSubscriptions(streamerAddress || '');
+    } = useStreamerSubscriptions(streamerAddress || '', { limit: 5, offset: 0 });
 
     const donations = donationsData?.donations || [];
     const subscriptions = subscriptionsData?.subscriptions || [];
+    const totalDonationsCount = donationsData?.total ?? 0;
+    const totalSubscribersCount = subscriptionsData?.total ?? 0;
     const isLoadingBackend = isLoadingDonations || isLoadingSubscriptions;
 
     // ============================================================
@@ -169,8 +173,8 @@ export function useStreamWallet({ streamerAddress }: UseStreamWalletProps) {
 
     const statistics: Statistics = {
         totalRevenue: fmtUsdc(totalRevenue as bigint | undefined),
-        totalDonations: donations.length,
-        totalSubscribers: totalSubscribers ? Number(totalSubscribers) : subscriptions.length,
+        totalDonations: totalDonationsCount,
+        totalSubscribers: totalSubscribers ? Number(totalSubscribers) : totalSubscribersCount,
         totalWithdrawn: fmtUsdc(totalWithdrawn as bigint | undefined),
         availableBalance: fmtUsdc(availableBalance as bigint | undefined),
         platformFeeBps: platformFeeBps ? Number(platformFeeBps) / 100 : 5,

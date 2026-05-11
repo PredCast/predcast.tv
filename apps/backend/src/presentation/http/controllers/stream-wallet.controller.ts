@@ -6,6 +6,7 @@ import { GetStreamerStatsUseCase } from '../../../application/stream-wallet/use-
 import { GetDonorHistoryUseCase } from '../../../application/stream-wallet/use-cases/GetDonorHistoryUseCase';
 import { GetSubscriberHistoryUseCase } from '../../../application/stream-wallet/use-cases/GetSubscriberHistoryUseCase';
 import { DeployStreamerWalletUseCase } from '../../../application/stream-wallet/use-cases/DeployStreamerWalletUseCase';
+import { parsePagination } from '../helpers/parsePagination';
 
 @injectable()
 export class StreamWalletController {
@@ -27,12 +28,15 @@ export class StreamWalletController {
   async getStreamerDonations(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { streamerAddress } = req.params;
-      const donations = await this.getStreamerDonationsUseCase.execute(streamerAddress);
+      const { limit, offset } = parsePagination(req);
+      const { items, total } = await this.getStreamerDonationsUseCase.execute({ streamerAddress, limit, offset });
 
       res.json({
         success: true,
-        donations: donations.map(d => d.toJSON()),
-        count: donations.length,
+        donations: items.map(d => d.toJSON()),
+        total,
+        limit,
+        offset,
       });
     } catch (error) {
       next(error);
@@ -42,12 +46,15 @@ export class StreamWalletController {
   async getStreamerSubscriptions(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { streamerAddress } = req.params;
-      const subscriptions = await this.getStreamerSubscriptionsUseCase.execute(streamerAddress);
+      const { limit, offset } = parsePagination(req);
+      const { items, total } = await this.getStreamerSubscriptionsUseCase.execute({ streamerAddress, limit, offset });
 
       res.json({
         success: true,
-        subscriptions: subscriptions.map(s => s.toJSON()),
-        count: subscriptions.length,
+        subscriptions: items.map(s => s.toJSON()),
+        total,
+        limit,
+        offset,
       });
     } catch (error) {
       next(error);
@@ -74,12 +81,15 @@ export class StreamWalletController {
   async getDonorHistory(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { donorAddress } = req.params;
-      const donations = await this.getDonorHistoryUseCase.execute(donorAddress);
+      const { limit, offset } = parsePagination(req);
+      const { items, total } = await this.getDonorHistoryUseCase.execute({ donorAddress, limit, offset });
 
       res.json({
         success: true,
-        donations: donations.map(d => d.toJSON()),
-        count: donations.length,
+        donations: items.map(d => d.toJSON()),
+        total,
+        limit,
+        offset,
       });
     } catch (error) {
       next(error);
@@ -109,12 +119,15 @@ export class StreamWalletController {
   async getSubscriberHistory(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { subscriberAddress } = req.params;
-      const subscriptions = await this.getSubscriberHistoryUseCase.execute(subscriberAddress);
+      const { limit, offset } = parsePagination(req);
+      const { items, total } = await this.getSubscriberHistoryUseCase.execute({ subscriberAddress, limit, offset });
 
       res.json({
         success: true,
-        subscriptions: subscriptions.map(s => s.toJSON()),
-        count: subscriptions.length,
+        subscriptions: items.map(s => s.toJSON()),
+        total,
+        limit,
+        offset,
       });
     } catch (error) {
       next(error);

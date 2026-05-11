@@ -1,10 +1,16 @@
-import { injectable } from 'tsyringe';
+import { inject, injectable } from 'tsyringe';
 import { supabaseClient as supabase } from '../../database/supabase/client';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { IIndexerCheckpointRepository } from '@chiliztv/domain/blockchain-indexing/repositories/IIndexerCheckpointRepository';
+import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import { logger } from '../../logging/logger';
 
 @injectable()
 export class SupabaseIndexerCheckpointRepository implements IIndexerCheckpointRepository {
+    constructor(
+        @inject(TOKENS.IClock) private readonly clock: IClock,
+    ) {}
+
     async getLastBlock(indexerName: string): Promise<bigint> {
         const { data, error } = await supabase
             .from('indexer_checkpoints')
@@ -29,7 +35,7 @@ export class SupabaseIndexerCheckpointRepository implements IIndexerCheckpointRe
                     indexer_name: indexerName,
                     contract_address: contractAddress ?? null,
                     last_block: lastBlock.toString(),
-                    updated_at: new Date().toISOString(),
+                    updated_at: this.clock.now().toISOString(),
                 },
                 { onConflict: 'indexer_name' },
             );

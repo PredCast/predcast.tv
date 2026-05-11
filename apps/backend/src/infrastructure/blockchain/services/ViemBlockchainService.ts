@@ -12,9 +12,13 @@ import { INetworkConfig } from '@chiliztv/domain/shared/ports/INetworkConfig';
 import {
     IBlockchainService,
     DeployContractResult,
+    CloseMarketsResult,
+    CancelMarketsResult,
+    FootballMarketView,
 } from '@chiliztv/domain/shared/ports/IBlockchainService';
 import { ExtendedOdds } from '@chiliztv/domain/shared/ports/IFootballApiService';
-import { FACTORY_ABI, FOOTBALL_MATCH_ABI, chainFor } from '@chiliztv/blockchain';
+// Full Foundry artifact — minimal `FOOTBALL_MATCH_ABI` lacks the batch fns.
+import { FACTORY_ABI, FOOTBALL_MATCH_FULL_ABI as FOOTBALL_MATCH_ABI, chainFor } from '@chiliztv/blockchain';
 import { logger } from '../../logging/logger';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -164,68 +168,108 @@ export class ViemBlockchainService implements IBlockchainService {
         awayScore: number
     ): Promise<number> {
         const addr = contractAddress as `0x${string}`;
-        let resolved = 0;
 
+        let count: number;
         try {
-            const count = Number(await this.publicClient.readContract({
+            count = Number(await this.publicClient.readContract({
                 address: addr, abi: FOOTBALL_MATCH_ABI, functionName: 'marketCount',
             }));
-            if (count === 0) return 0;
+        } catch (err: any) {
+            logger.error('resolveMarkets: failed to read marketCount', { contractAddress, error: err?.message ?? err });
+            return 0;
+        }
+        if (count === 0) return 0;
 
-            // Lifecycle reminder: Inactive(0) → Open(1) → Closed(3) → Resolved(4).
-            // `resolveMarket` requires state == Closed, so we must call
-            // `closeMarket` first when the market is still Open.
-            const MARKET_STATE_OPEN = 1;
-            const MARKET_STATE_CLOSED = 3;
+        // Lifecycle: Inactive(0) → Open(1) → Closed(3) → Resolved(4).
+        // Batch path: closeMarketsBatch (atomic across all Open markets),
+        // then resolveMarketsBatch (atomic across all Closed markets).
+        // Eliminates the race with concurrent ResolveMarketsJob /
+        // SyncMatchesJob ticks that previously left this method warning
+        // "Market not in Closed state" with state=Resolved.
+        const MARKET_STATE_OPEN = 1;
+        const MARKET_STATE_CLOSED = 3;
 
-            for (let id = 0; id < count; id++) {
-                try {
-                    let core = await this.publicClient.readContract({
-                        address: addr, abi: FOOTBALL_MATCH_ABI,
-                        functionName: 'getMarketCore', args: [BigInt(id)],
-                    }) as readonly [number, bigint, number, number, bigint];
-
-                    if (core[0] === MARKET_STATE_RESOLVED) continue;
-
-                    if (core[0] === MARKET_STATE_OPEN) {
-                        const closeHash = await this.walletClient.writeContract({
-                            chain: undefined,
-                            address: addr, abi: FOOTBALL_MATCH_ABI,
-                            functionName: 'closeMarket', args: [BigInt(id)],
-                        });
-                        await this.publicClient.waitForTransactionReceipt({ hash: closeHash, timeout: 90_000 });
-                        await delay();
-                        // Re-read so we don't pass `Inactive`/`Cancelled` etc. through to resolveMarket.
-                        core = await this.publicClient.readContract({
+        const readStates = async (): Promise<{ id: number; state: number }[]> =>
+            Promise.all(
+                Array.from({ length: count }, async (_, id) => {
+                    try {
+                        const core = await this.publicClient.readContract({
                             address: addr, abi: FOOTBALL_MATCH_ABI,
                             functionName: 'getMarketCore', args: [BigInt(id)],
-                        }) as readonly [number, bigint, number, number, bigint];
+                        }) as { state: number };
+                        return { id, state: core.state };
+                    } catch (err: any) {
+                        logger.warn('resolveMarkets: getMarketCore failed', { contractAddress, id, error: err?.message ?? err });
+                        return { id, state: -1 };
                     }
+                })
+            );
 
-                    if (core[0] !== MARKET_STATE_CLOSED) {
-                        logger.warn('Market not in Closed state — skipping resolveMarket', { contractAddress, id, state: core[0] });
-                        continue;
-                    }
+        let states = await readStates();
 
-                    const result = BigInt(this.computeResult(id, homeScore, awayScore));
-                    const hash = await this.walletClient.writeContract({
-                        chain: undefined,
-                        address: addr, abi: FOOTBALL_MATCH_ABI,
-                        functionName: 'resolveMarket', args: [BigInt(id), result],
-                    });
-                    await this.publicClient.waitForTransactionReceipt({ hash, timeout: 90_000 });
-                    await delay();
-                    resolved++;
-                    logger.info('Market resolved', { contractAddress: contractAddress.slice(0, 10) + '…', id, result: Number(result) });
-                } catch (err: any) {
-                    logger.error('Failed to resolve market', { contractAddress, id, error: err?.message ?? err });
+        const openIds = states.filter(s => s.state === MARKET_STATE_OPEN).map(s => BigInt(s.id));
+        if (openIds.length > 0) {
+            try {
+                const hash = await this.walletClient.writeContract({
+                    chain: undefined,
+                    address: addr, abi: FOOTBALL_MATCH_ABI,
+                    functionName: 'closeMarketsBatch', args: [openIds],
+                });
+                const receipt = await this.publicClient.waitForTransactionReceipt({ hash, timeout: 90_000 });
+                if (receipt.status === 'reverted') {
+                    throw new Error(`closeMarketsBatch reverted (hash: ${hash})`);
                 }
+                await delay();
+                logger.info('Markets closed (batch) for resolution', {
+                    contractAddress: contractAddress.slice(0, 10) + '…',
+                    closed: openIds.length, ids: openIds.map(Number), txHash: hash,
+                });
+                states = await readStates();
+            } catch (err: any) {
+                logger.error('resolveMarkets: closeMarketsBatch failed', {
+                    contractAddress, ids: openIds.map(Number), error: err?.message ?? err,
+                });
+                // Continue: maybe some markets are already Closed and can still be resolved.
             }
-        } catch (err: any) {
-            logger.error('Failed to read markets', { contractAddress, error: err?.message ?? err });
         }
 
-        return resolved;
+        const toResolve = states.filter(s => s.state === MARKET_STATE_CLOSED);
+        if (toResolve.length === 0) {
+            const alreadyResolved = states.filter(s => s.state === MARKET_STATE_RESOLVED).length;
+            logger.debug('resolveMarkets: no Closed markets to resolve', {
+                contractAddress, count, alreadyResolved,
+            });
+            return 0;
+        }
+
+        const ids = toResolve.map(s => BigInt(s.id));
+        const results = toResolve.map(s => BigInt(this.computeResult(s.id, homeScore, awayScore)));
+
+        try {
+            const hash = await this.walletClient.writeContract({
+                chain: undefined,
+                address: addr, abi: FOOTBALL_MATCH_ABI,
+                functionName: 'resolveMarketsBatch', args: [ids, results],
+            });
+            const receipt = await this.publicClient.waitForTransactionReceipt({ hash, timeout: 90_000 });
+            if (receipt.status === 'reverted') {
+                throw new Error(`resolveMarketsBatch reverted (hash: ${hash})`);
+            }
+            await delay();
+            logger.info('Markets resolved (batch)', {
+                contractAddress: contractAddress.slice(0, 10) + '…',
+                resolved: toResolve.length,
+                ids: ids.map(Number),
+                results: results.map(Number),
+                txHash: hash,
+            });
+            return toResolve.length;
+        } catch (err: any) {
+            logger.error('resolveMarkets: resolveMarketsBatch failed', {
+                contractAddress, ids: ids.map(Number), error: err?.message ?? err,
+            });
+            return 0;
+        }
     }
 
     async syncOdds(contractAddress: string, odds: ExtendedOdds): Promise<void> {
@@ -265,6 +309,131 @@ export class ViemBlockchainService implements IBlockchainService {
                 logger.warn('setMarketOdds failed', { contractAddress, id, error: err?.message ?? err });
             }
         }
+    }
+
+    async closeOpenMarketsForMatch(contractAddress: string): Promise<CloseMarketsResult> {
+        const addr = contractAddress as `0x${string}`;
+        const MARKET_STATE_OPEN = 1;
+
+        let count: number;
+        try {
+            count = Number(await this.publicClient.readContract({
+                address: addr, abi: FOOTBALL_MATCH_ABI, functionName: 'marketCount',
+            }));
+        } catch (err: any) {
+            logger.error('closeOpenMarketsForMatch: failed to read marketCount', { contractAddress, error: err?.message ?? err });
+            return { closed: 0, skipped: 0 };
+        }
+        if (count === 0) return { closed: 0, skipped: 0 };
+
+        const openIds: bigint[] = [];
+        for (let id = 0; id < count; id++) {
+            try {
+                const core = await this.publicClient.readContract({
+                    address: addr, abi: FOOTBALL_MATCH_ABI,
+                    functionName: 'getMarketCore', args: [BigInt(id)],
+                }) as { state: number };
+                if (core.state === MARKET_STATE_OPEN) openIds.push(BigInt(id));
+            } catch (err: any) {
+                logger.warn('closeOpenMarketsForMatch: getMarketCore failed', { contractAddress, id, error: err?.message ?? err });
+            }
+        }
+
+        const skipped = count - openIds.length;
+        if (openIds.length === 0) {
+            logger.debug('closeOpenMarketsForMatch: no Open markets', { contractAddress, skipped });
+            return { closed: 0, skipped };
+        }
+
+        try {
+            const hash = await this.walletClient.writeContract({
+                chain: undefined,
+                address: addr, abi: FOOTBALL_MATCH_ABI,
+                functionName: 'closeMarketsBatch', args: [openIds],
+            });
+            await this.publicClient.waitForTransactionReceipt({ hash, timeout: 90_000 });
+            await delay();
+            logger.info('Markets closed (batch)', {
+                contractAddress: contractAddress.slice(0, 10) + '…',
+                closed: openIds.length,
+                ids: openIds.map(Number),
+                txHash: hash,
+            });
+            return { closed: openIds.length, skipped };
+        } catch (err: any) {
+            logger.error('closeOpenMarketsForMatch: closeMarketsBatch failed', {
+                contractAddress, ids: openIds.map(Number), error: err?.message ?? err,
+            });
+            return { closed: 0, skipped };
+        }
+    }
+
+    async cancelOpenMarketsForMatch(contractAddress: string, reason: string): Promise<CancelMarketsResult> {
+        const addr = contractAddress as `0x${string}`;
+        const MARKET_STATE_RESOLVED_OR_CANCELLED = new Set([4, 5]);
+
+        let count: number;
+        try {
+            count = Number(await this.publicClient.readContract({
+                address: addr, abi: FOOTBALL_MATCH_ABI, functionName: 'marketCount',
+            }));
+        } catch (err: any) {
+            logger.error('cancelOpenMarketsForMatch: failed to read marketCount', { contractAddress, error: err?.message ?? err });
+            return { cancelled: 0, skipped: 0 };
+        }
+        if (count === 0) return { cancelled: 0, skipped: 0 };
+
+        let cancelled = 0;
+        let skipped = 0;
+        for (let id = 0; id < count; id++) {
+            try {
+                const core = await this.publicClient.readContract({
+                    address: addr, abi: FOOTBALL_MATCH_ABI,
+                    functionName: 'getMarketCore', args: [BigInt(id)],
+                }) as { state: number };
+                if (MARKET_STATE_RESOLVED_OR_CANCELLED.has(core.state)) {
+                    skipped++;
+                    continue;
+                }
+                const hash = await this.walletClient.writeContract({
+                    chain: undefined,
+                    address: addr, abi: FOOTBALL_MATCH_ABI,
+                    functionName: 'cancelMarket', args: [BigInt(id), reason],
+                });
+                await this.publicClient.waitForTransactionReceipt({ hash, timeout: 90_000 });
+                await delay();
+                cancelled++;
+                logger.info('Market cancelled', {
+                    contractAddress: contractAddress.slice(0, 10) + '…',
+                    id, reason, txHash: hash,
+                });
+            } catch (err: any) {
+                logger.error('cancelOpenMarketsForMatch: cancelMarket failed', {
+                    contractAddress, id, reason, error: err?.message ?? err,
+                });
+            }
+        }
+        return { cancelled, skipped };
+    }
+
+    async readFootballMarket(contractAddress: string, marketId: bigint): Promise<FootballMarketView> {
+        const addr = contractAddress as `0x${string}`;
+        // Tuple shape per FootballMatch.sol:184 —
+        // [marketTypeStr, line, maxSelections, state, currentOdds, result, totalPool].
+        const raw = await this.publicClient.readContract({
+            address: addr,
+            abi: FOOTBALL_MATCH_ABI,
+            functionName: 'getFootballMarket',
+            args: [marketId],
+        }) as readonly [string, number, number, number, number, bigint, bigint];
+        const marketType = typeof raw[0] === 'string' ? raw[0] : '';
+        const line = Number(raw[1] ?? 0);
+        const maxSelections = Number(raw[2] ?? 0);
+        return {
+            marketType,
+            line: Number.isFinite(line) ? line : 0,
+            maxSelections: Number.isFinite(maxSelections) ? maxSelections : 0,
+        };
     }
 
     getAdminAddress(): string {

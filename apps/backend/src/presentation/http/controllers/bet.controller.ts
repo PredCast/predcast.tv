@@ -1,13 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
+import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import { GetUserBetsUseCase } from '../../../application/bets/use-cases/GetUserBetsUseCase';
 import { BetWithMatchInfo } from '@chiliztv/domain/blockchain-indexing/entities/BetWithMatchInfo';
-import { BetStatus } from '@chiliztv/domain/blockchain-indexing/entities/Bet';
+import { BetFilter } from '@chiliztv/domain/blockchain-indexing/repositories/IBetRepository';
+import { parsePagination } from '../helpers/parsePagination';
 
 const ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
-const ALLOWED_STATUS = new Set<BetStatus>(['PENDING', 'WON', 'LOST', 'REFUNDED']);
-const DEFAULT_LIMIT = 50;
-const MAX_LIMIT = 200;
+const ALLOWED_FILTERS = new Set<BetFilter>(['all', 'pending', 'won', 'lost', 'refunded', 'claimable', 'refundable']);
 
 function serializeBet(entry: BetWithMatchInfo): Record<string, unknown> {
     const { bet, match, marketContext } = entry;
@@ -54,6 +55,8 @@ export class BetController {
     constructor(
         @inject(GetUserBetsUseCase)
         private readonly getUserBetsUseCase: GetUserBetsUseCase,
+        @inject(TOKENS.IClock)
+        private readonly clock: IClock,
     ) {}
 
     async getUserBets(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -64,36 +67,33 @@ export class BetController {
                 return;
             }
 
-            const statusParam = req.query.status as string | undefined;
-            let status: BetStatus | undefined;
-            if (statusParam !== undefined && statusParam !== '' && statusParam !== 'all') {
-                const upper = statusParam.toUpperCase() as BetStatus;
-                if (!ALLOWED_STATUS.has(upper)) {
-                    res.status(400).json({ success: false, error: 'Invalid `status` filter. Use PENDING | WON | LOST | REFUNDED.' });
+            const filterParam = (req.query.filter as string | undefined)?.toLowerCase();
+            let filter: BetFilter | undefined;
+            if (filterParam !== undefined && filterParam !== '') {
+                if (!ALLOWED_FILTERS.has(filterParam as BetFilter)) {
+                    res.status(400).json({ success: false, error: 'Invalid `filter`. Use all | pending | won | lost | refunded | claimable | refundable.' });
                     return;
                 }
-                status = upper;
+                filter = filterParam as BetFilter;
             }
 
-            const rawLimit = Number(req.query.limit ?? DEFAULT_LIMIT);
-            const rawOffset = Number(req.query.offset ?? 0);
-            const limit = Math.min(MAX_LIMIT, Math.max(1, Number.isFinite(rawLimit) ? Math.floor(rawLimit) : DEFAULT_LIMIT));
-            const offset = Math.max(0, Number.isFinite(rawOffset) ? Math.floor(rawOffset) : 0);
+            const { limit, offset } = parsePagination(req);
 
-            const bets = await this.getUserBetsUseCase.execute({
+            const { items, total, statusCounts } = await this.getUserBetsUseCase.execute({
                 userAddress: userParam.toLowerCase(),
                 limit,
                 offset,
-                status,
+                filter,
             });
 
             res.json({
                 success: true,
-                bets: bets.map(serializeBet),
-                count: bets.length,
+                bets: items.map(serializeBet),
+                total,
+                statusCounts,
                 limit,
                 offset,
-                timestamp: Date.now(),
+                timestamp: this.clock.now().getTime(),
             });
         } catch (error) {
             next(error);

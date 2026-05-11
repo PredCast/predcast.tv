@@ -5,6 +5,7 @@ import { UnfollowStreamerUseCase } from '../../../application/follows/use-cases/
 import { GetIsFollowingUseCase } from '../../../application/follows/use-cases/GetIsFollowingUseCase';
 import { GetFollowerCountUseCase } from '../../../application/follows/use-cases/GetFollowerCountUseCase';
 import { GetFollowedStreamersUseCase } from '../../../application/follows/use-cases/GetFollowedStreamersUseCase';
+import { parsePagination } from '../helpers/parsePagination';
 
 @injectable()
 export class FollowController {
@@ -64,8 +65,9 @@ export class FollowController {
   async getFollowedStreamers(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { followerId } = req.params;
-      const follows = await this.getFollowedStreamersUseCase.execute(followerId);
-      res.json({ success: true, follows: follows.map(f => f.toJSON()) });
+      const { limit, offset } = parsePagination(req);
+      const { items, total } = await this.getFollowedStreamersUseCase.execute({ followerId, limit, offset });
+      res.json({ success: true, follows: items.map(f => f.toJSON()), total, limit, offset });
     } catch (error) {
       next(error);
     }

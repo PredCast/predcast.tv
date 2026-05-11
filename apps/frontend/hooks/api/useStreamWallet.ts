@@ -1,38 +1,35 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { streamWalletApi } from '@/lib/api/endpoints';
 import { queryKeys } from '@/lib/query/keys';
 
-/**
- * @notice Hook to fetch streamer's donations
- * @param streamerAddress Streamer's wallet address
- * @return Query result with donations
- */
-export function useStreamerDonations(streamerAddress: string) {
-  return useQuery({
-    queryKey: queryKeys.streamWallet.donations(streamerAddress),
-    queryFn: () => streamWalletApi.getStreamerDonations(streamerAddress),
-    enabled: !!streamerAddress,
-  });
+export interface PageOptions {
+  limit?: number;
+  offset?: number;
 }
 
 /**
- * @notice Hook to fetch streamer's subscriptions
- * @param streamerAddress Streamer's wallet address
- * @return Query result with subscriptions
+ * Pagination is opt-in: omit `params` to fetch the default server page
+ * (5 rows). Pass `{ limit, offset }` for paged consumers (dashboard) or
+ * `{ limit: 50 }` for aggregators that need a wider window (activity feed).
  */
-export function useStreamerSubscriptions(streamerAddress: string) {
+export function useStreamerDonations(streamerAddress: string, params?: PageOptions) {
   return useQuery({
-    queryKey: queryKeys.streamWallet.subscriptions(streamerAddress),
-    queryFn: () => streamWalletApi.getStreamerSubscriptions(streamerAddress),
+    queryKey: [...queryKeys.streamWallet.donations(streamerAddress), params?.limit ?? null, params?.offset ?? null],
+    queryFn: () => streamWalletApi.getStreamerDonations(streamerAddress, params),
     enabled: !!streamerAddress,
+    placeholderData: keepPreviousData,
   });
 }
 
-/**
- * @notice Hook to fetch streamer's earnings statistics
- * @param streamerAddress Streamer's wallet address
- * @return Query result with stats
- */
+export function useStreamerSubscriptions(streamerAddress: string, params?: PageOptions) {
+  return useQuery({
+    queryKey: [...queryKeys.streamWallet.subscriptions(streamerAddress), params?.limit ?? null, params?.offset ?? null],
+    queryFn: () => streamWalletApi.getStreamerSubscriptions(streamerAddress, params),
+    enabled: !!streamerAddress,
+    placeholderData: keepPreviousData,
+  });
+}
+
 export function useStreamerStats(streamerAddress: string) {
   return useQuery({
     queryKey: queryKeys.streamWallet.stats(streamerAddress),
@@ -41,38 +38,28 @@ export function useStreamerStats(streamerAddress: string) {
   });
 }
 
-/**
- * @notice Hook to fetch donor's donation history
- * @param donorAddress Donor's wallet address
- * @return Query result with donation history
- */
-export function useDonorHistory(donorAddress: string) {
+export function useDonorHistory(donorAddress: string, params?: PageOptions) {
   return useQuery({
-    queryKey: queryKeys.streamWallet.donorDonations(donorAddress),
-    queryFn: () => streamWalletApi.getDonorHistory(donorAddress),
+    queryKey: [...queryKeys.streamWallet.donorDonations(donorAddress), params?.limit ?? null, params?.offset ?? null],
+    queryFn: () => streamWalletApi.getDonorHistory(donorAddress, params),
     enabled: !!donorAddress,
+    placeholderData: keepPreviousData,
   });
 }
 
-/**
- * @notice Hook to fetch subscriber's subscription history
- * @param subscriberAddress Subscriber's wallet address
- * @return Query result with subscription history
- */
-export function useSubscriberHistory(subscriberAddress: string) {
+export function useSubscriberHistory(subscriberAddress: string, params?: PageOptions) {
   return useQuery({
-    queryKey: queryKeys.streamWallet.subscriberSubscriptions(subscriberAddress),
-    queryFn: () => streamWalletApi.getSubscriberHistory(subscriberAddress),
+    queryKey: [...queryKeys.streamWallet.subscriberSubscriptions(subscriberAddress), params?.limit ?? null, params?.offset ?? null],
+    queryFn: () => streamWalletApi.getSubscriberHistory(subscriberAddress, params),
     enabled: !!subscriberAddress,
+    placeholderData: keepPreviousData,
   });
 }
 
 /**
- * @notice Mutation that triggers a self-onboarding deployment of the
- * connected user's `StreamWallet` proxy. Backend signs the deployment
- * with the platform admin key (gas paid by the platform). On success we
- * invalidate `donations` / `subscriptions` / `stats` for the caller so
- * the dashboard re-renders with the freshly deployed wallet.
+ * Self-onboards the connected user's `StreamWallet` proxy (admin-signed,
+ * platform-paid gas). On success invalidates donations / subs / stats for
+ * the caller so the dashboard re-renders with the deployed wallet.
  */
 export function useDeployStreamerWallet(streamerAddress: string | undefined) {
   const queryClient = useQueryClient();

@@ -1,40 +1,41 @@
 import { Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
+import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import { logger } from '../logger';
 
 /**
- * Request logger middleware - logs all HTTP requests with correlation IDs
+ * Factory for the request logger middleware. The clock is injected so request
+ * duration is measured against the same time source as the rest of the app.
  */
-export function requestLogger(req: Request, res: Response, next: NextFunction): void {
-  const correlationId = (req.headers['x-correlation-id'] as string) || uuidv4();
-  const startTime = Date.now();
+export function createRequestLogger(clock: IClock) {
+  return function requestLogger(req: Request, res: Response, next: NextFunction): void {
+    const correlationId = (req.headers['x-correlation-id'] as string) || uuidv4();
+    const startTime = clock.now().getTime();
 
-  // Attach correlation ID to request for downstream use
-  req.headers['x-correlation-id'] = correlationId;
+    req.headers['x-correlation-id'] = correlationId;
 
-  // Log request
-  logger.info('Incoming request', {
-    correlationId,
-    method: req.method,
-    path: req.path,
-    query: req.query,
-    ip: req.ip,
-    userAgent: req.get('user-agent'),
-  });
-
-  // Log response when finished
-  res.on('finish', () => {
-    const duration = Date.now() - startTime;
-    const logLevel = res.statusCode >= 400 ? 'warn' : 'info';
-
-    logger[logLevel]('Request completed', {
+    logger.info('Incoming request', {
       correlationId,
       method: req.method,
       path: req.path,
-      statusCode: res.statusCode,
-      duration: `${duration}ms`,
+      query: req.query,
+      ip: req.ip,
+      userAgent: req.get('user-agent'),
     });
-  });
 
-  next();
+    res.on('finish', () => {
+      const duration = clock.now().getTime() - startTime;
+      const logLevel = res.statusCode >= 400 ? 'warn' : 'info';
+
+      logger[logLevel]('Request completed', {
+        correlationId,
+        method: req.method,
+        path: req.path,
+        statusCode: res.statusCode,
+        duration: `${duration}ms`,
+      });
+    });
+
+    next();
+  };
 }

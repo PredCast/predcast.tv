@@ -42,6 +42,10 @@ import { IFootballApiService } from '@chiliztv/domain/shared/ports/IFootballApiS
 import { FootballApiAdapterImpl } from '../infrastructure/external/adapters/FootballApiAdapterImpl';
 import { IBlockchainService } from '@chiliztv/domain/shared/ports/IBlockchainService';
 import { ViemBlockchainService } from '../infrastructure/blockchain/services/ViemBlockchainService';
+import { IIncidentReporter } from '@chiliztv/domain/shared/ports/IIncidentReporter';
+import { LogIncidentReporter } from '../infrastructure/observability/LogIncidentReporter';
+import { IClock } from '@chiliztv/domain/shared/ports/IClock';
+import { SystemClock } from '../infrastructure/clock/SystemClock';
 import { INetworkConfig } from '@chiliztv/domain/shared/ports/INetworkConfig';
 import { NetworkConfigService } from '../infrastructure/config/NetworkConfigService';
 import { IAuthConfig } from '@chiliztv/domain/shared/ports/IAuthConfig';
@@ -73,6 +77,7 @@ import { GetMatchesByLeagueUseCase } from '../application/matches/use-cases/GetM
 import { GetMatchStatsUseCase } from '../application/matches/use-cases/GetMatchStatsUseCase';
 import { GetBrowseMatchesUseCase } from '../application/matches/use-cases/GetBrowseMatchesUseCase';
 import { ResolveFinishedMatchesUseCase } from '../application/matches/use-cases/ResolveFinishedMatchesUseCase';
+import { CloseLiveMatchesMarketsUseCase } from '../application/matches/use-cases/CloseLiveMatchesMarketsUseCase';
 import { SyncMatchesUseCase } from '../application/matches/use-cases/SyncMatchesUseCase';
 import { CleanupOldMatchesUseCase } from '../application/matches/use-cases/CleanupOldMatchesUseCase';
 
@@ -115,6 +120,16 @@ import { ResolveUserProfileUseCase } from '../application/users/use-cases/Resolv
 import { ResolveUserProfilesBatchUseCase } from '../application/users/use-cases/ResolveUserProfilesBatchUseCase';
 import { UpsertUserProfileUseCase } from '../application/users/use-cases/UpsertUserProfileUseCase';
 
+// ─── Application — Prices ────────────────────────────────────────────────────
+import { ITokenPriceRepository } from '@chiliztv/domain/prices/repositories/ITokenPriceRepository';
+import { SupabaseTokenPriceRepository } from '../infrastructure/persistence/repositories/SupabaseTokenPriceRepository';
+import { CoinGeckoPriceFeed } from '../infrastructure/external/adapters/CoinGeckoPriceFeed';
+import { PythPriceFeed } from '../infrastructure/external/adapters/PythPriceFeed';
+import { RefreshTokenPricesUseCase } from '../application/prices/use-cases/RefreshTokenPricesUseCase';
+import { GetTokenPricesUseCase } from '../application/prices/use-cases/GetTokenPricesUseCase';
+import { BackfillMarketLinesUseCase } from '../application/blockchain-indexing/use-cases/BackfillMarketLinesUseCase';
+import { IPriceFeedService, PRICE_FEEDS_TOKEN } from '@chiliztv/domain/shared/ports/IPriceFeedService';
+
 // ─── Application — FanTokens ─────────────────────────────────────────────────
 import { GetUserFanTokenBalancesUseCase } from '../application/fan-tokens/use-cases/GetUserFanTokenBalancesUseCase';
 
@@ -136,6 +151,9 @@ import { GetUserBetsUseCase } from '../application/bets/use-cases/GetUserBetsUse
 import { JobScheduler } from '../infrastructure/scheduling/JobScheduler';
 import { SyncMatchesJob } from '../infrastructure/scheduling/jobs/SyncMatchesJob';
 import { ResolveMarketsJob } from '../infrastructure/scheduling/jobs/ResolveMarketsJob';
+import { CloseLiveMarketsJob } from '../infrastructure/scheduling/jobs/CloseLiveMarketsJob';
+import { RefreshTokenPricesJob } from '../infrastructure/scheduling/jobs/RefreshTokenPricesJob';
+import { BackfillMarketLinesJob } from '../infrastructure/scheduling/jobs/BackfillMarketLinesJob';
 import { CleanupStreamsJob } from '../infrastructure/scheduling/jobs/CleanupStreamsJob';
 import { StaleStreamCleanupJob } from '../infrastructure/scheduling/jobs/StaleStreamCleanupJob';
 import { SettlePredictionsJob } from '../infrastructure/scheduling/jobs/SettlePredictionsJob';
@@ -168,11 +186,14 @@ import { MediamtxWebhookController } from '../presentation/http/controllers/medi
 import { PoolController } from '../presentation/http/controllers/pool.controller';
 import { BetController } from '../presentation/http/controllers/bet.controller';
 import { UserController } from '../presentation/http/controllers/user.controller';
+import { PricesController } from '../presentation/http/controllers/prices.controller';
 
 // ─── Presentation — CLI Commands ─────────────────────────────────────────────
 import { DeployMissingContractsCommand } from '../presentation/cli/commands/DeployMissingContractsCommand';
 import { SetupMarketsCommand } from '../presentation/cli/commands/SetupMarketsCommand';
 import { TestMatchLifecycleCommand } from '../presentation/cli/commands/TestMatchLifecycleCommand';
+import { ScenarioCommand } from '../presentation/cli/commands/ScenarioCommand';
+import { ResetTestDataCommand } from '../presentation/cli/commands/ResetTestDataCommand';
 
 export function setupDependencyInjection(): void {
   // ─── 0. Config ports ────────────────────────────────────────────────────────
@@ -183,6 +204,8 @@ export function setupDependencyInjection(): void {
   // ─── 0b. Service ports ──────────────────────────────────────────────────────
   container.registerSingleton<IFootballApiService>(TOKENS.IFootballApiService, FootballApiAdapterImpl);
   container.registerSingleton<IBlockchainService>(TOKENS.IBlockchainService, ViemBlockchainService);
+  container.registerSingleton<IIncidentReporter>(TOKENS.IIncidentReporter, LogIncidentReporter);
+  container.registerSingleton<IClock>(TOKENS.IClock, SystemClock);
 
   // ─── 1. Repositories (Symbol tokens) ───────────────────────────────────────
   container.registerSingleton<IPredictionRepository>(TOKENS.IPredictionRepository, SupabasePredictionRepository);
@@ -195,6 +218,7 @@ export function setupDependencyInjection(): void {
   container.registerSingleton<IFollowRepository>(TOKENS.IFollowRepository, SupabaseFollowRepository);
   container.registerSingleton<ISubscriptionChecker>(TOKENS.ISubscriptionChecker, SubscriptionChecker);
   container.registerSingleton<IUserProfileRepository>(TOKENS.IUserProfileRepository, SupabaseUserProfileRepository);
+  container.registerSingleton<ITokenPriceRepository>(TOKENS.ITokenPriceRepository, SupabaseTokenPriceRepository);
 
   // ─── 1b. Repositories — blockchain indexing ────────────────────────────────
   container.registerSingleton<IIndexerCheckpointRepository>(TOKENS.IIndexerCheckpointRepository, SupabaseIndexerCheckpointRepository);
@@ -229,6 +253,7 @@ export function setupDependencyInjection(): void {
   container.registerSingleton(GetMatchStatsUseCase);
   container.registerSingleton(GetBrowseMatchesUseCase);
   container.registerSingleton(ResolveFinishedMatchesUseCase);
+  container.registerSingleton(CloseLiveMatchesMarketsUseCase);
   container.registerSingleton(SyncMatchesUseCase);
   container.registerSingleton(CleanupOldMatchesUseCase);
 
@@ -269,6 +294,18 @@ export function setupDependencyInjection(): void {
   container.registerSingleton(ResolveUserProfilesBatchUseCase);
   container.registerSingleton(UpsertUserProfileUseCase);
 
+  // ─── 9c. Use Cases — Prices (token price cache) ────────────────────────────
+  container.registerSingleton(CoinGeckoPriceFeed);
+  container.registerSingleton(PythPriceFeed);
+  // PRICE_FEEDS — priority order: Pyth first (sub-second + free), CoinGecko
+  // serves the rest. The use case picks the first supporting feed per symbol.
+  container.register<ReadonlyArray<IPriceFeedService>>(PRICE_FEEDS_TOKEN, {
+    useFactory: (c) => [c.resolve(PythPriceFeed), c.resolve(CoinGeckoPriceFeed)],
+  });
+  container.registerSingleton(RefreshTokenPricesUseCase);
+  container.registerSingleton(GetTokenPricesUseCase);
+  container.registerSingleton(BackfillMarketLinesUseCase);
+
   // ─── 10. Use Cases — FanTokens ─────────────────────────────────────────────
   container.registerSingleton(GetUserFanTokenBalancesUseCase);
 
@@ -289,6 +326,9 @@ export function setupDependencyInjection(): void {
   // ─── 12. Infrastructure — Scheduling ───────────────────────────────────────
   container.registerSingleton(SyncMatchesJob);
   container.registerSingleton(ResolveMarketsJob);
+  container.registerSingleton(CloseLiveMarketsJob);
+  container.registerSingleton(RefreshTokenPricesJob);
+  container.registerSingleton(BackfillMarketLinesJob);
   container.registerSingleton(CleanupStreamsJob);
   container.registerSingleton(StaleStreamCleanupJob);
   container.registerSingleton(SettlePredictionsJob);
@@ -312,6 +352,8 @@ export function setupDependencyInjection(): void {
   container.registerSingleton(DeployMissingContractsCommand);
   container.registerSingleton(SetupMarketsCommand);
   container.registerSingleton(TestMatchLifecycleCommand);
+  container.registerSingleton(ScenarioCommand);
+  container.registerSingleton(ResetTestDataCommand);
 
   // ─── 16. Presentation — Controllers ────────────────────────────────────────
   container.registerSingleton(MediamtxWebhookController);
@@ -327,6 +369,7 @@ export function setupDependencyInjection(): void {
   container.registerSingleton(PoolController);
   container.registerSingleton(BetController);
   container.registerSingleton(UserController);
+  container.registerSingleton(PricesController);
 }
 
 export { container };

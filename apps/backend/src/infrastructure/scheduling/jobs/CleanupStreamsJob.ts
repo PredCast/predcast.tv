@@ -1,6 +1,8 @@
-import { injectable } from 'tsyringe';
+import { inject, injectable } from 'tsyringe';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { container } from '../../config/di-container';
 import { CleanupOldStreamsUseCase } from '../../../application/streams/use-cases/CleanupOldStreamsUseCase';
+import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import { logger } from '../../logging/logger';
 
 /**
@@ -11,6 +13,10 @@ import { logger } from '../../logging/logger';
 export class CleanupStreamsJob {
     private readonly schedule = '0 * * * *'; // Every hour
 
+    constructor(
+        @inject(TOKENS.IClock) private readonly clock: IClock,
+    ) {}
+
     getSchedule(): string {
         return this.schedule;
     }
@@ -18,12 +24,12 @@ export class CleanupStreamsJob {
     async execute(): Promise<void> {
         try {
             logger.info('Starting stream cleanup job');
-            const startTime = Date.now();
+            const startTime = this.clock.now().getTime();
 
             const cleanupUseCase = container.resolve(CleanupOldStreamsUseCase);
             const result = await cleanupUseCase.execute();
 
-            const duration = Date.now() - startTime;
+            const duration = this.clock.now().getTime() - startTime;
 
             if (result.success) {
                 logger.info('Stream cleanup completed', {

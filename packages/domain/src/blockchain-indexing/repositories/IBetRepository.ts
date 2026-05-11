@@ -1,11 +1,28 @@
-import { Bet, BetStatus, BetUpdate } from '../entities/Bet';
+import { Bet, BetUpdate } from '../entities/Bet';
 import { BetWithMatchInfo } from '../entities/BetWithMatchInfo';
+
+/**
+ * Semantic filter for the my-bets feed. `claimable` / `refundable` are
+ * derived (status + a null timestamp); the repo applies the full SQL
+ * predicate so `findByUser` and `countByUser` always agree.
+ */
+export type BetFilter = 'all' | 'pending' | 'won' | 'lost' | 'refunded' | 'claimable' | 'refundable';
+
+/** Counts per `BetFilter` bucket. Drives the My Bets `TabPill` badges. */
+export interface BetCounts {
+    readonly all: number;
+    readonly pending: number;
+    readonly won: number;
+    readonly lost: number;
+    readonly refunded: number;
+    readonly claimable: number;
+    readonly refundable: number;
+}
 
 export interface FindBetsByUserOptions {
     readonly limit: number;
     readonly offset: number;
-    /** Optional status filter for the my-bets feed (PENDING / WON / LOST / REFUNDED). */
-    readonly status?: BetStatus;
+    readonly filter?: BetFilter;
 }
 
 export interface IBetRepository {
@@ -47,6 +64,12 @@ export interface IBetRepository {
 
     /** Read access for the my-bets API endpoint. */
     findByUser(userAddress: string, options: FindBetsByUserOptions): Promise<Bet[]>;
+
+    /** Count for the given filter — does NOT apply limit/offset. */
+    countByUser(userAddress: string, filter?: BetFilter): Promise<number>;
+
+    /** Counts per filter bucket — drives the My Bets `TabPill` badges. */
+    countByUserStatuses(userAddress: string): Promise<BetCounts>;
 
     /**
      * Same filter as `findByUser` but joined with `matches` so the UI can

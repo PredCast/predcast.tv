@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
+import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import { GetAllMatchesUseCase } from '../../../application/matches/use-cases/GetAllMatchesUseCase';
 import { GetLiveMatchesUseCase } from '../../../application/matches/use-cases/GetLiveMatchesUseCase';
 import { GetUpcomingMatchesUseCase } from '../../../application/matches/use-cases/GetUpcomingMatchesUseCase';
@@ -25,6 +27,8 @@ export class MatchController {
     private readonly getMatchStatsUseCase: GetMatchStatsUseCase,
     @inject(GetBrowseMatchesUseCase)
     private readonly getBrowseMatchesUseCase: GetBrowseMatchesUseCase,
+    @inject(TOKENS.IClock)
+    private readonly clock: IClock,
   ) {}
 
   async getAllMatches(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -35,7 +39,7 @@ export class MatchController {
         success: true,
         matches: matches.map(m => m.toJSON()),
         count: matches.length,
-        timestamp: Date.now(),
+        timestamp: this.clock.now().getTime(),
       });
     } catch (error) {
       next(error);
@@ -50,7 +54,7 @@ export class MatchController {
         success: true,
         matches: matches.map(m => m.toJSON()),
         count: matches.length,
-        timestamp: Date.now(),
+        timestamp: this.clock.now().getTime(),
       });
     } catch (error) {
       next(error);
@@ -65,7 +69,7 @@ export class MatchController {
         success: true,
         matches: matches.map(m => m.toJSON()),
         count: matches.length,
-        timestamp: Date.now(),
+        timestamp: this.clock.now().getTime(),
       });
     } catch (error) {
       next(error);

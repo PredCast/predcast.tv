@@ -15,6 +15,9 @@ export interface ResolveFinishedMatchesResult {
  */
 @injectable()
 export class ResolveFinishedMatchesUseCase {
+    /** Per-contract guard — SyncMatchesJob and ResolveMarketsJob both fire on startup and race on `resolveMarketsBatch`. */
+    private readonly inFlight = new Set<string>();
+
     constructor(
         @inject(TOKENS.IMatchRepository)
         private readonly matchRepository: IMatchRepository,
@@ -41,9 +44,13 @@ export class ResolveFinishedMatchesUseCase {
         }
 
         let marketsResolved = 0;
+        let matchesProcessed = 0;
 
         for (const match of toResolve) {
             const json = match.toJSON();
+            const addr = json.bettingContractAddress!.toLowerCase();
+            if (this.inFlight.has(addr)) continue;
+            this.inFlight.add(addr);
             try {
                 const count = await this.blockchainService.resolveMarkets(
                     json.bettingContractAddress!,
@@ -51,11 +58,14 @@ export class ResolveFinishedMatchesUseCase {
                     json.score!.away!
                 );
                 marketsResolved += count;
+                matchesProcessed += 1;
             } catch {
                 // Non-fatal: continue resolving other matches
+            } finally {
+                this.inFlight.delete(addr);
             }
         }
 
-        return { matchesProcessed: toResolve.length, marketsResolved };
+        return { matchesProcessed, marketsResolved };
     }
 }

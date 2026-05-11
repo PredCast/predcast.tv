@@ -1,7 +1,9 @@
-import { injectable } from 'tsyringe';
+import { inject, injectable } from 'tsyringe';
 import axios from 'axios';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { ApiFootballMatch, ApiFootballOdds, ExtendedOdds } from '../types/ApiFootball.types';
 import { MatchFetchWindow } from '@chiliztv/domain/matches/value-objects/MatchFetchWindow';
+import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import { logger } from '../../logging/logger';
 
 /**
@@ -26,7 +28,9 @@ export class FootballApiAdapter {
 
     private isFetching = false;
 
-    constructor() {
+    constructor(
+        @inject(TOKENS.IClock) private readonly clock: IClock,
+    ) {
         if (!this.API_FOOTBALL_KEY) {
             logger.warn('API_FOOTBALL_KEY not configured - Football API adapter will not function');
         }
@@ -52,7 +56,7 @@ export class FootballApiAdapter {
         this.isFetching = true;
 
         try {
-            const now = new Date();
+            const now = this.clock.now();
             const from = this.formatDate(MatchFetchWindow.fetchFrom(now));
             const to   = this.formatDate(new Date(now.getTime() + daysAhead * 86_400_000));
 

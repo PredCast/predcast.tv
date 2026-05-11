@@ -1,8 +1,10 @@
-import { injectable } from 'tsyringe';
+import { inject, injectable } from 'tsyringe';
 import { supabaseClient as supabase } from '../../database/supabase/client';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { Donation } from '@chiliztv/domain/stream-wallet/entities/Donation';
 import { Subscription } from '@chiliztv/domain/stream-wallet/entities/Subscription';
-import { IStreamWalletRepository, StreamerStats } from '@chiliztv/domain/stream-wallet/repositories/IStreamWalletRepository';
+import { FindStreamWalletOptions, IStreamWalletRepository, StreamerStats } from '@chiliztv/domain/stream-wallet/repositories/IStreamWalletRepository';
+import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import { logger } from '../../logging/logger';
 
 interface DonationRow {
@@ -35,12 +37,17 @@ interface SubscriptionRow {
 
 @injectable()
 export class SupabaseStreamWalletRepository implements IStreamWalletRepository {
-  async findDonationsByStreamer(streamerAddress: string): Promise<Donation[]> {
+    constructor(
+        @inject(TOKENS.IClock) private readonly clock: IClock,
+    ) {}
+
+  async findDonationsByStreamer(streamerAddress: string, options: FindStreamWalletOptions): Promise<Donation[]> {
     const { data: rows, error } = await supabase
       .from('donations')
       .select('*')
       .eq('streamer_address', streamerAddress.toLowerCase())
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(options.offset, options.offset + options.limit - 1);
 
     if (error) {
       logger.error('Failed to find donations by streamer', { error: error.message, streamerAddress });
@@ -50,12 +57,25 @@ export class SupabaseStreamWalletRepository implements IStreamWalletRepository {
     return rows ? rows.map(row => this.donationToDomain(row)) : [];
   }
 
-  async findDonationsByDonor(donorAddress: string): Promise<Donation[]> {
+  async countDonationsByStreamer(streamerAddress: string): Promise<number> {
+    const { count, error } = await supabase
+      .from('donations')
+      .select('id', { count: 'exact', head: true })
+      .eq('streamer_address', streamerAddress.toLowerCase());
+    if (error) {
+      logger.error('Failed to count donations by streamer', { error: error.message, streamerAddress });
+      throw new Error('Failed to count donations');
+    }
+    return count ?? 0;
+  }
+
+  async findDonationsByDonor(donorAddress: string, options: FindStreamWalletOptions): Promise<Donation[]> {
     const { data: rows, error } = await supabase
       .from('donations')
       .select('*')
       .eq('donor_address', donorAddress.toLowerCase())
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(options.offset, options.offset + options.limit - 1);
 
     if (error) {
       logger.error('Failed to find donations by donor', { error: error.message, donorAddress });
@@ -65,12 +85,25 @@ export class SupabaseStreamWalletRepository implements IStreamWalletRepository {
     return rows ? rows.map(row => this.donationToDomain(row)) : [];
   }
 
-  async findSubscriptionsByStreamer(streamerAddress: string): Promise<Subscription[]> {
+  async countDonationsByDonor(donorAddress: string): Promise<number> {
+    const { count, error } = await supabase
+      .from('donations')
+      .select('id', { count: 'exact', head: true })
+      .eq('donor_address', donorAddress.toLowerCase());
+    if (error) {
+      logger.error('Failed to count donations by donor', { error: error.message, donorAddress });
+      throw new Error('Failed to count donations');
+    }
+    return count ?? 0;
+  }
+
+  async findSubscriptionsByStreamer(streamerAddress: string, options: FindStreamWalletOptions): Promise<Subscription[]> {
     const { data: rows, error } = await supabase
       .from('subscriptions')
       .select('*')
       .eq('streamer_address', streamerAddress.toLowerCase())
-      .order('start_time', { ascending: false });
+      .order('start_time', { ascending: false })
+      .range(options.offset, options.offset + options.limit - 1);
 
     if (error) {
       logger.error('Failed to find subscriptions by streamer', { error: error.message, streamerAddress });
@@ -80,12 +113,25 @@ export class SupabaseStreamWalletRepository implements IStreamWalletRepository {
     return rows ? rows.map(row => this.subscriptionToDomain(row)) : [];
   }
 
-  async findSubscriptionsBySubscriber(subscriberAddress: string): Promise<Subscription[]> {
+  async countSubscriptionsByStreamer(streamerAddress: string): Promise<number> {
+    const { count, error } = await supabase
+      .from('subscriptions')
+      .select('id', { count: 'exact', head: true })
+      .eq('streamer_address', streamerAddress.toLowerCase());
+    if (error) {
+      logger.error('Failed to count subscriptions by streamer', { error: error.message, streamerAddress });
+      throw new Error('Failed to count subscriptions');
+    }
+    return count ?? 0;
+  }
+
+  async findSubscriptionsBySubscriber(subscriberAddress: string, options: FindStreamWalletOptions): Promise<Subscription[]> {
     const { data: rows, error } = await supabase
       .from('subscriptions')
       .select('*')
       .eq('subscriber_address', subscriberAddress.toLowerCase())
-      .order('start_time', { ascending: false });
+      .order('start_time', { ascending: false })
+      .range(options.offset, options.offset + options.limit - 1);
 
     if (error) {
       logger.error('Failed to find subscriptions by subscriber', { error: error.message, subscriberAddress });
@@ -95,26 +141,72 @@ export class SupabaseStreamWalletRepository implements IStreamWalletRepository {
     return rows ? rows.map(row => this.subscriptionToDomain(row)) : [];
   }
 
+  async countSubscriptionsBySubscriber(subscriberAddress: string): Promise<number> {
+    const { count, error } = await supabase
+      .from('subscriptions')
+      .select('id', { count: 'exact', head: true })
+      .eq('subscriber_address', subscriberAddress.toLowerCase());
+    if (error) {
+      logger.error('Failed to count subscriptions by subscriber', { error: error.message, subscriberAddress });
+      throw new Error('Failed to count subscriptions');
+    }
+    return count ?? 0;
+  }
+
+  async hasActiveSubscriptionForSubscriber(subscriberAddress: string): Promise<boolean> {
+    const now = this.clock.now().toISOString();
+    const { count, error } = await supabase
+      .from('subscriptions')
+      .select('id', { count: 'exact', head: true })
+      .eq('subscriber_address', subscriberAddress.toLowerCase())
+      .lte('start_time', now)
+      .gt('expiry_time', now);
+    if (error) {
+      logger.error('Failed to check active subscription', { error: error.message, subscriberAddress });
+      throw new Error('Failed to check active subscription');
+    }
+    return (count ?? 0) > 0;
+  }
+
   async getStreamerStats(streamerAddress: string): Promise<StreamerStats> {
-    const [donations, subscriptions] = await Promise.all([
-      this.findDonationsByStreamer(streamerAddress),
-      this.findSubscriptionsByStreamer(streamerAddress),
+    // Stats are aggregates over the full history — we deliberately do NOT
+    // paginate here. The amount sum still needs every row's `amount`; pull
+    // just that column to keep the query cheap.
+    const addr = streamerAddress.toLowerCase();
+    const [donationAmounts, totalDonations, subscriptions, activeCount] = await Promise.all([
+      supabase.from('donations').select('amount').eq('streamer_address', addr),
+      this.countDonationsByStreamer(addr),
+      supabase.from('subscriptions').select('expiry_time').eq('streamer_address', addr),
+      this.countActiveSubscriptionsByStreamer(addr),
     ]);
 
-    const totalDonations = donations.length;
-    const totalDonationAmount = donations.reduce((sum, d) => {
-      return sum + parseFloat(d.toJSON().amount);
-    }, 0).toString();
+    if (donationAmounts.error) throw new Error('Failed to load donation amounts');
+    if (subscriptions.error) throw new Error('Failed to load subscriptions');
 
-    const totalSubscribers = subscriptions.length;
-    const activeSubscribers = subscriptions.filter(s => s.isActive()).length;
+    const totalDonationAmount = (donationAmounts.data ?? []).reduce((sum, row: { amount: string }) => {
+      return sum + parseFloat(row.amount);
+    }, 0).toString();
 
     return {
       totalDonations,
       totalDonationAmount,
-      totalSubscribers,
-      activeSubscribers,
+      totalSubscribers: subscriptions.data?.length ?? 0,
+      activeSubscribers: activeCount,
     };
+  }
+
+  private async countActiveSubscriptionsByStreamer(streamerAddress: string): Promise<number> {
+    const now = this.clock.now().toISOString();
+    const { count, error } = await supabase
+      .from('subscriptions')
+      .select('id', { count: 'exact', head: true })
+      .eq('streamer_address', streamerAddress.toLowerCase())
+      .gt('expiry_time', now);
+    if (error) {
+      logger.error('Failed to count active subscriptions', { error: error.message, streamerAddress });
+      throw new Error('Failed to count active subscriptions');
+    }
+    return count ?? 0;
   }
 
   async saveDonation(donation: Donation): Promise<void> {
@@ -200,7 +292,7 @@ export class SupabaseStreamWalletRepository implements IStreamWalletRepository {
   }
 
   async markExpiredSubscriptions(): Promise<number> {
-    const now = new Date().toISOString();
+    const now = this.clock.now().toISOString();
     const { data, error } = await supabase
       .from('subscriptions')
       .update({ status: 'expired' })

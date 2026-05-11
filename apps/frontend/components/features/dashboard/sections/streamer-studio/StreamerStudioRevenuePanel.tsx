@@ -14,6 +14,8 @@ import { chilizConfig } from '@/config/chiliz.config';
 import { describeError } from '@/lib/contracts/errors';
 import { DashEyebrow } from '../../components/DashEyebrow';
 import { UserBadge } from '@/components/shared/UserBadge';
+import { Pagination } from '../../components/Pagination';
+import { usePagination } from '../../hooks/usePagination';
 import { fmtUsd, timeAgo } from '../../domain/formatters';
 
 interface StreamerStudioRevenuePanelProps {
@@ -21,20 +23,22 @@ interface StreamerStudioRevenuePanelProps {
 }
 
 /**
- * Revenue + recent-donations grid for an existing streamer. Self-contained:
- * owns its own withdraw button + tx state. The parent section just slots
- * this in once the user has a deployed `StreamWallet`.
+ * Revenue + donations grid for an existing streamer. Donations are paginated
+ * (server-side, 5/10/25 rows) so the panel can show the full history without
+ * pulling every row on every render.
  */
 export function StreamerStudioRevenuePanel({ wallet }: StreamerStudioRevenuePanelProps) {
     const sw = useStreamWallet({ streamerAddress: wallet });
     const { assetDecimals } = usePoolDecimals();
-    const donations = useStreamerDonations(wallet ?? '');
+    const pagination = usePagination({ resetKey: wallet });
+    const donations = useStreamerDonations(wallet ?? '', {
+        limit: pagination.pageSize,
+        offset: pagination.offset,
+    });
 
-    // Batch-resolve donor display profiles for the 5 most recent donations
-    // so the "Recent donations" rows show real usernames + avatars instead
-    // of `??` initials + truncated addresses.
-    const recentDonations = (donations.data?.donations ?? []).slice(0, 5);
-    const donorWallets = recentDonations.map((d) => d.donorAddress);
+    const rows = donations.data?.donations ?? [];
+    const total = donations.data?.total ?? 0;
+    const donorWallets = rows.map((d) => d.donorAddress);
     const { data: donorProfiles } = useUserProfilesBatch(donorWallets);
 
     const totalRevenue = Number(sw.statistics.totalRevenue);
@@ -126,48 +130,58 @@ export function StreamerStudioRevenuePanel({ wallet }: StreamerStudioRevenuePane
                 </div>
             </div>
 
-            <div className="rounded-xl border border-[#1E1E1E] bg-[#111] p-6 lg:col-span-2">
-                <div className="mb-4">
-                    <DashEyebrow dim>Recent donations · last 5</DashEyebrow>
+            <div className="overflow-hidden rounded-xl border border-[#1E1E1E] bg-[#111] lg:col-span-2">
+                <div className="flex items-center justify-between gap-3 border-b border-[#1E1E1E] px-6 py-5">
+                    <DashEyebrow dim>Donations · {total}</DashEyebrow>
                 </div>
-                {(donations.data?.donations?.length ?? 0) === 0 ? (
-                    <div className="font-mono-ctv py-6 text-center text-[11px] uppercase tracking-[0.16em] text-white/45">
+                {total === 0 ? (
+                    <div className="font-mono-ctv px-6 py-12 text-center text-[11px] uppercase tracking-[0.16em] text-white/45">
                         No donations yet
                     </div>
                 ) : (
-                    <div className="flex flex-col">
-                        {recentDonations.map((d) => {
-                            // Indexer pre-divides by 10**decimals before persisting,
-                            // so `d.amount` is already in USDC.
-                            const amount = Number(d.amount ?? 0);
-                            const profile = donorProfiles?.get(d.donorAddress.toLowerCase()) ?? null;
-                            return (
-                                <div
-                                    key={d.transactionHash}
-                                    className="flex items-center justify-between gap-4 border-b border-[#1E1E1E] py-3 last:border-0"
-                                >
-                                    <div className="flex min-w-0 items-center gap-3">
-                                        <UserBadge
-                                            walletAddress={d.donorAddress}
-                                            profile={profile}
-                                            size={32}
-                                        />
-                                    </div>
-                                    <div className="flex items-center gap-4">
-                                        <div className="font-mono-ctv text-[10px] uppercase tracking-[0.16em] text-white/35">
-                                            {timeAgo(new Date(d.timestamp).getTime())}
+                    <>
+                        <div className="flex flex-col px-6">
+                            {rows.map((d) => {
+                                // Indexer pre-divides by 10**decimals before persisting,
+                                // so `d.amount` is already in USDC.
+                                const amount = Number(d.amount ?? 0);
+                                const profile = donorProfiles?.get(d.donorAddress.toLowerCase()) ?? null;
+                                return (
+                                    <div
+                                        key={d.transactionHash}
+                                        className="flex items-center justify-between gap-4 border-b border-[#1E1E1E] py-3 last:border-0"
+                                    >
+                                        <div className="flex min-w-0 items-center gap-3">
+                                            <UserBadge
+                                                walletAddress={d.donorAddress}
+                                                profile={profile}
+                                                size={32}
+                                            />
                                         </div>
-                                        <div
-                                            className="font-display text-[18px] font-extrabold leading-none tracking-[-0.01em]"
-                                            style={{ color: '#2dd4a4' }}
-                                        >
-                                            +{fmtUsd(amount, { dp: amount > 0 && amount < 1 ? 4 : 2 })}
+                                        <div className="flex items-center gap-4">
+                                            <div className="font-mono-ctv text-[10px] uppercase tracking-[0.16em] text-white/35">
+                                                {timeAgo(new Date(d.timestamp).getTime())}
+                                            </div>
+                                            <div
+                                                className="font-display text-[18px] font-extrabold leading-none tracking-[-0.01em]"
+                                                style={{ color: '#2dd4a4' }}
+                                            >
+                                                +{fmtUsd(amount, { dp: amount > 0 && amount < 1 ? 4 : 2 })}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            );
-                        })}
-                    </div>
+                                );
+                            })}
+                        </div>
+                        <Pagination
+                            page={pagination.page}
+                            pageSize={pagination.pageSize}
+                            total={total}
+                            onPrev={pagination.prevPage}
+                            onNext={pagination.nextPage}
+                            onPageSizeChange={pagination.setPageSize}
+                        />
+                    </>
                 )}
             </div>
         </div>

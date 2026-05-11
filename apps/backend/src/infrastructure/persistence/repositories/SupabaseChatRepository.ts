@@ -1,8 +1,10 @@
-import { injectable } from 'tsyringe';
+import { inject, injectable } from 'tsyringe';
 import { supabaseClient as supabase } from '../../database/supabase/client';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { ChatMessage, MessageType } from '@chiliztv/domain/chat/entities/ChatMessage';
 import { ConnectedUser } from '@chiliztv/domain/chat/entities/ConnectedUser';
 import { IChatRepository, ChatStats } from '@chiliztv/domain/chat/repositories/IChatRepository';
+import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import { logger } from '../../logging/logger';
 
 interface ChatMessageRow {
@@ -34,6 +36,10 @@ interface ConnectedUserRow {
 
 @injectable()
 export class SupabaseChatRepository implements IChatRepository {
+  constructor(
+    @inject(TOKENS.IClock) private readonly clock: IClock,
+  ) {}
+
   async saveMessage(message: ChatMessage): Promise<ChatMessage> {
     const row = this.messageToRow(message);
 
@@ -139,7 +145,7 @@ export class SupabaseChatRepository implements IChatRepository {
   async updateUserActivity(matchId: number, userId: string): Promise<void> {
     const { error } = await supabase
       .from('connected_users')
-      .update({ last_activity: new Date().toISOString() })
+      .update({ last_activity: this.clock.now().toISOString() })
       .eq('match_id', matchId)
       .eq('user_id', userId);
 

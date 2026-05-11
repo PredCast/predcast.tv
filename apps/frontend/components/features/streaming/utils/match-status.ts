@@ -2,6 +2,7 @@ import { Zap, TrendingUp, Trophy, Calendar, LucideIcon } from "lucide-react";
 import type { Match } from "@/types/api.types";
 import { MatchStatus } from "@/lib/utils/constants/match";
 import { isMatchLive } from "@/lib/utils/formatting/date";
+import { classifyStatus } from "@chiliztv/domain/matches/policies/BettablePolicy";
 
 // Re-export MatchStatus for convenience
 export { MatchStatus };
@@ -27,21 +28,16 @@ export function getMatchStatus(match: Match): MatchStatus {
   const now = new Date();
   const matchDate = new Date(match.startTime);
 
-  if (
-    match.status === "Match Finished" ||
-    match.status === "FT" ||
-    match.status === "AET" ||
-    match.status === "PEN"
-  ) {
+  // Route via le domain pour avoir une classification cohérente (inclut
+  // HT/BT/ET/P/SUSP/INT, pas seulement 1H/2H/LIVE comme avant).
+  const kind = classifyStatus(match.status);
+
+  // "Match Finished" est un libellé legacy non-standard ; on le mappe à FT.
+  if (kind === "finished" || match.status === "Match Finished") {
     return MatchStatus.ENDED;
   }
 
-  if (
-    match.status === "1H" ||
-    match.status === "2H" ||
-    match.status === "HT" ||
-    match.status === "LIVE"
-  ) {
+  if (kind === "live") {
     return MatchStatus.LIVE;
   }
 
@@ -49,7 +45,7 @@ export function getMatchStatus(match: Match): MatchStatus {
     return MatchStatus.PREDICTION_OPEN;
   }
 
-  // Fallback: Use time-based check if status is unknown/missing
+  // Fallback : si le statut est inconnu/manquant, on se rabat sur le temps.
   if (isMatchLive(matchDate)) {
     return MatchStatus.LIVE;
   }

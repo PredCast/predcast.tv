@@ -12,10 +12,7 @@ export class SubscriptionChecker implements ISubscriptionChecker {
 
   async hasActiveSubscription(walletAddress: string): Promise<boolean> {
     try {
-      const subscriptions = await this.streamWalletRepository.findSubscriptionsBySubscriber(
-        walletAddress
-      );
-      return subscriptions.some(subscription => subscription.isActive());
+      return await this.streamWalletRepository.hasActiveSubscriptionForSubscriber(walletAddress);
     } catch (error) {
       console.error('Error checking subscription status:', error);
       return false;

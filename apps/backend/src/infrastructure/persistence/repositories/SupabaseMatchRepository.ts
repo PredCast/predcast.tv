@@ -1,8 +1,11 @@
-import { injectable } from 'tsyringe';
+import { inject, injectable } from 'tsyringe';
 import { supabaseClient as supabase } from '../../database/supabase/client';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { Match, MatchOdds } from '@chiliztv/domain/matches/entities/Match';
 import { IMatchRepository, MatchStats } from '@chiliztv/domain/matches/repositories/IMatchRepository';
 import { MatchFetchWindow } from '@chiliztv/domain/matches/value-objects/MatchFetchWindow';
+import { LIVE_STATUSES } from '@chiliztv/domain/matches/policies/BettablePolicy';
+import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import { logger } from '../../logging/logger';
 
 interface MatchRow {
@@ -124,6 +127,10 @@ function unmapOdds(odds: MatchOdds): Record<string, unknown> {
 
 @injectable()
 export class SupabaseMatchRepository implements IMatchRepository {
+  constructor(
+    @inject(TOKENS.IClock) private readonly clock: IClock,
+  ) {}
+
   async findAll(): Promise<Match[]> {
     const { data: rows, error } = await supabase
       .from('matches')
@@ -185,7 +192,7 @@ export class SupabaseMatchRepository implements IMatchRepository {
   }
 
   async findByLeagueId(leagueId: number): Promise<Match[]> {
-    const now = new Date();
+    const now = this.clock.now();
 
     const { data: rows, error } = await supabase
       .from('matches')
@@ -207,7 +214,7 @@ export class SupabaseMatchRepository implements IMatchRepository {
     const { data: rows, error } = await supabase
       .from('matches')
       .select('*')
-      .in('status', ['1H', '2H', 'HT'])
+      .in('status', [...LIVE_STATUSES])
       .order('match_date', { ascending: true });
 
     if (error) {
@@ -219,7 +226,7 @@ export class SupabaseMatchRepository implements IMatchRepository {
   }
 
   async findUpcoming(): Promise<Match[]> {
-    const now = new Date();
+    const now = this.clock.now();
     const twentyFourHoursAhead = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
     const { data: rows, error } = await supabase

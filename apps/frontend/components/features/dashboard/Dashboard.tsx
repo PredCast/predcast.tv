@@ -9,10 +9,8 @@ import { PoolDepositDialog } from '@/components/features/discover/components/Poo
 import { BackgroundFX } from '@/components/features/discover/sections/BackgroundFX';
 import { useDashboardUser } from './hooks/useDashboardUser';
 import { useIsStreamer } from './hooks/useIsStreamer';
-import { useMyBets } from './hooks/useMyBets';
 import { useDashboardStats } from './hooks/useDashboardStats';
 import { useDashboardActivity } from './hooks/useDashboardActivity';
-import { useDashboardStreamers } from './hooks/useDashboardStreamers';
 import { usePortfolioCalculation } from './hooks/usePortfolioCalculation';
 import { DashboardHero } from './sections/DashboardHero';
 import { QuickActionsStrip, type QuickActionKey } from './sections/QuickActionsStrip';
@@ -38,9 +36,7 @@ export function Dashboard() {
     const { isStreamer } = useIsStreamer({ wallet: user.wallet });
     const lp = useLpPosition(user.wallet);
     const stats = useDashboardStats({ wallet: user.wallet });
-    const myBets = useMyBets({ user: user.wallet, filter: 'all', limit: 200 });
     const activity = useDashboardActivity({ wallet: user.wallet });
-    const streamers = useDashboardStreamers({ userId: user.userId, wallet: user.wallet });
 
     // Token holdings + prices for the Fan Tokens tab.
     const { tokenBalances } = useFanTokens(user.wallet, !!user.wallet);
@@ -92,15 +88,15 @@ export function Dashboard() {
             <StatsHero stats={stats.data} onPlaceFirstBet={goToDiscover} onJoinPool={openPool} />
             <LpPositionPanel lp={lp} onDeposit={openPool} onWithdraw={openPool} />
             <MyBetsSection
-                bets={myBets.data?.bets ?? []}
+                wallet={user.wallet}
                 onPlaceFirstBet={goToDiscover}
                 onWatchLive={goToDiscover}
             />
             <MainTabs
                 tokens={tokens}
                 activity={activity.rows}
-                followed={streamers.followed}
-                subscribed={streamers.subscribed}
+                userId={user.userId}
+                wallet={user.wallet}
                 onSwap={openPool}
                 onPlaceFirstBet={goToDiscover}
                 onBrowseStreamers={goToDiscover}

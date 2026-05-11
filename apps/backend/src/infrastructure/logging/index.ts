@@ -1,2 +1,2 @@
 export { logger } from './logger';
-export { requestLogger } from './middlewares/request-logger.middleware';
+export { createRequestLogger } from './middlewares/request-logger.middleware';

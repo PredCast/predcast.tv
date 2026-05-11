@@ -2,11 +2,14 @@ import { injectable } from 'tsyringe';
 import cron from 'node-cron';
 import { SyncMatchesJob } from './jobs/SyncMatchesJob';
 import { ResolveMarketsJob } from './jobs/ResolveMarketsJob';
+import { CloseLiveMarketsJob } from './jobs/CloseLiveMarketsJob';
 import { CleanupStreamsJob } from './jobs/CleanupStreamsJob';
 import { StaleStreamCleanupJob } from './jobs/StaleStreamCleanupJob';
 import { SettlePredictionsJob } from './jobs/SettlePredictionsJob';
 import { ViewerReconcileJob } from './jobs/ViewerReconcileJob';
 import { ComputeApyJob } from './jobs/ComputeApyJob';
+import { RefreshTokenPricesJob } from './jobs/RefreshTokenPricesJob';
+import { BackfillMarketLinesJob } from './jobs/BackfillMarketLinesJob';
 import { logger } from '../logging/logger';
 
 /**
@@ -21,11 +24,14 @@ export class JobScheduler {
     constructor(
         private readonly syncMatchesJob: SyncMatchesJob,
         private readonly resolveMarketsJob: ResolveMarketsJob,
+        private readonly closeLiveMarketsJob: CloseLiveMarketsJob,
         private readonly cleanupStreamsJob: CleanupStreamsJob,
         private readonly staleStreamCleanupJob: StaleStreamCleanupJob,
         private readonly settlePredictionsJob: SettlePredictionsJob,
         private readonly viewerReconcileJob: ViewerReconcileJob,
         private readonly computeApyJob: ComputeApyJob,
+        private readonly refreshTokenPricesJob: RefreshTokenPricesJob,
+        private readonly backfillMarketLinesJob: BackfillMarketLinesJob,
     ) {}
 
     /**
@@ -67,6 +73,18 @@ export class JobScheduler {
         );
 
         this.startIntervalJob(
+            'CloseLiveMarkets',
+            this.closeLiveMarketsJob.getIntervalMs(),
+            () => this.closeLiveMarketsJob.execute()
+        );
+
+        this.startIntervalJob(
+            'RefreshTokenPrices',
+            this.refreshTokenPricesJob.getIntervalMs(),
+            () => this.refreshTokenPricesJob.execute()
+        );
+
+        this.startIntervalJob(
             'SettlePredictions',
             this.settlePredictionsJob.getIntervalMs(),
             () => this.settlePredictionsJob.execute()
@@ -76,6 +94,12 @@ export class JobScheduler {
             'ComputeApy',
             this.computeApyJob.getIntervalMs(),
             () => this.computeApyJob.execute()
+        );
+
+        this.startIntervalJob(
+            'BackfillMarketLines',
+            this.backfillMarketLinesJob.getIntervalMs(),
+            () => this.backfillMarketLinesJob.execute()
         );
 
         logger.info('Job scheduler started successfully');

@@ -1,7 +1,9 @@
-import { injectable } from 'tsyringe';
+import { inject, injectable } from 'tsyringe';
 import axios from 'axios';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { IFootballApiService, RawMatch, ExtendedOdds } from '@chiliztv/domain/shared/ports/IFootballApiService';
 import { MatchFetchWindow } from '@chiliztv/domain/matches/value-objects/MatchFetchWindow';
+import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import { ApiFootballMatch, ApiFootballOdds } from '../types/ApiFootball.types';
 import { logger } from '../../logging/logger';
 
@@ -29,7 +31,9 @@ export class FootballApiAdapterImpl implements IFootballApiService {
 
     private isFetching = false;
 
-    constructor() {
+    constructor(
+        @inject(TOKENS.IClock) private readonly clock: IClock,
+    ) {
         if (!this.API_KEY) {
             logger.warn('API_FOOTBALL_KEY not configured — FootballApiAdapterImpl will not function');
         }
@@ -49,7 +53,7 @@ export class FootballApiAdapterImpl implements IFootballApiService {
 
         this.isFetching = true;
         try {
-            const now = new Date();
+            const now = this.clock.now();
             const from = this.formatDate(MatchFetchWindow.fetchFrom(now));
             const to   = this.formatDate(new Date(now.getTime() + daysAhead * 86_400_000));
 
@@ -199,14 +203,21 @@ export class FootballApiAdapterImpl implements IFootballApiService {
     }
 
     private mapApiStatus(short: string): string {
-        const map: Record<string, string> = {
-            NS: 'NS', LIVE: 'LIVE', '1H': 'LIVE', HT: 'LIVE',
-            '2H': 'LIVE', ET: 'LIVE', P: 'LIVE',
-            FT: 'FT', AET: 'FT', PEN: 'FT',
-            PST: 'PST', CANC: 'CANC', ABD: 'ABD', AWD: 'AWD', WO: 'WO',
-        };
-        return map[short] ?? short;
+        // Conserve le code brut API-Football. La classification (live / finished
+        // / blocked / upcoming) est faite par `BettablePolicy.classifyStatus`
+        // dans le domain — pas notre travail ici.
+        if (!FootballApiAdapterImpl.KNOWN_STATUSES.has(short)) {
+            console.warn('FootballApiAdapter: unknown API status, extend BettablePolicy mapping', { status: short });
+        }
+        return short;
     }
+
+    private static readonly KNOWN_STATUSES: ReadonlySet<string> = new Set([
+        'NS', 'TBD',
+        '1H', 'HT', '2H', 'ET', 'BT', 'P', 'LIVE', 'SUSP', 'INT',
+        'FT', 'AET', 'PEN', 'AWD', 'WO',
+        'PST', 'CANC', 'ABD',
+    ]);
 
     private formatDate(date: Date): string {
         const y = date.getFullYear();

@@ -8,3 +8,4 @@ export * from './stream-wallet';
 export * from './streams';
 export * from './users';
 export * from './waitlist';
+export * from './prices';

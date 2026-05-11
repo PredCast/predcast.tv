@@ -3,6 +3,7 @@ import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { UserProfile } from '@chiliztv/domain/users/entities/UserProfile';
 import { IUserProfileRepository } from '@chiliztv/domain/users/repositories/IUserProfileRepository';
 import { MultiSourceUserDisplayFallback } from '../../../infrastructure/persistence/repositories/MultiSourceUserDisplayFallback';
+import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import { logger } from '../../../infrastructure/logging/logger';
 
 /**
@@ -21,6 +22,8 @@ export class ResolveUserProfileUseCase {
         private readonly users: IUserProfileRepository,
         @inject(MultiSourceUserDisplayFallback)
         private readonly fallback: MultiSourceUserDisplayFallback,
+        @inject(TOKENS.IClock)
+        private readonly clock: IClock,
     ) {}
 
     async execute(walletAddress: string): Promise<UserProfile> {
@@ -33,7 +36,7 @@ export class ResolveUserProfileUseCase {
             walletAddress: addr,
             username: hit?.username ?? null,
             avatarUrl: cached?.avatarUrl ?? null,
-            updatedAt: new Date(),
+            updatedAt: this.clock.now(),
         });
 
         // Self-warm cache when fallback succeeded. Fire-and-forget so the

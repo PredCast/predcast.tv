@@ -1,8 +1,13 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { followsApi, FollowDto } from '@/lib/api/endpoints';
 import { queryKeys } from '@/lib/query/keys';
+
+export interface FollowsPageOptions {
+  limit?: number;
+  offset?: number;
+}
 
 export function useIsFollowing(followerId: string | undefined, streamerId: string | undefined) {
   return useQuery({
@@ -24,13 +29,14 @@ export function useFollowerCount(streamerId: string | undefined) {
   });
 }
 
-export function useFollowedStreamers(followerId: string | undefined) {
+export function useFollowedStreamers(followerId: string | undefined, params?: FollowsPageOptions) {
   return useQuery({
-    queryKey: queryKeys.follows.following(followerId ?? ''),
-    queryFn: () => followsApi.getFollowedStreamers(followerId!),
+    queryKey: [...queryKeys.follows.following(followerId ?? ''), params?.limit ?? null, params?.offset ?? null],
+    queryFn: () => followsApi.getFollowedStreamers(followerId!, params),
     enabled: !!followerId,
     staleTime: 30_000,
-    select: (data) => data.follows as FollowDto[],
+    placeholderData: keepPreviousData,
+    select: (data) => ({ items: data.follows as FollowDto[], total: data.total }),
   });
 }
 

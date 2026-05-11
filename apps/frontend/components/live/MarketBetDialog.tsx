@@ -37,6 +37,7 @@ import {
   MarketState,
 } from "@/lib/contracts/markets";
 import { tokenLogoFor } from "@/lib/tokens/tokenLogo";
+import { useInvalidateMyBets } from "@/components/features/dashboard/hooks/useMyBets";
 import { BdEyebrow } from "./dialog/BdEyebrow";
 import { StepIndicator, BET_DIALOG_STEPS } from "./dialog/StepIndicator";
 import { ErrorBanner } from "./dialog/ErrorBanner";
@@ -48,7 +49,10 @@ import { BetSuccessStep } from "./dialog/BetSuccessStep";
 import { BetFailureStep } from "./dialog/BetFailureStep";
 import { UnsupportedSportPanel } from "./UnsupportedSportPanel";
 import type { BetTokenOption } from "./dialog/TokenSelectModal";
-import type { MarketSelection } from "./MatchMarketsList";
+import type { MarketSelection, MatchBettableContext } from "./MatchMarketsList";
+import { isBettable, type BettableResult } from "@chiliztv/domain/matches/policies/BettablePolicy";
+
+const KICKOFF_BUFFER_SEC = 120;
 
 interface MarketBetDialogProps {
   open: boolean;
@@ -58,6 +62,10 @@ interface MarketBetDialogProps {
   selection: MarketSelection | null;
   homeTeam?: string;
   awayTeam?: string;
+  /** Match metadata pour le check `isBettable`. `undefined` ⇒ on ne bloque pas (fallback historique). */
+  match?: MatchBettableContext;
+  /** Horloge cliente — `null` en SSR. */
+  now?: Date | null;
 }
 
 type BetToken =
@@ -110,6 +118,23 @@ function fmtUsd(n: number | null, dp = 2): string {
   return sign + "$" + Math.abs(n).toFixed(dp).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
+/** Label affiché dans le panneau "Betting closed" du dialog. */
+function policyMessageFor(verdict: BettableResult, kickoffAt: string, now: Date): string {
+  if (verdict.ok) return "";
+  switch (verdict.reason) {
+    case "LIVE":           return "Live · Betting closed";
+    case "HALFTIME":       return "Halftime · Betting closed";
+    case "KICKOFF_BUFFER": {
+      const mins = Math.max(1, Math.ceil((new Date(kickoffAt).getTime() - now.getTime()) / 60_000));
+      return `Kicks off in ${mins}m · Betting closed`;
+    }
+    case "FINISHED":       return "Awaiting resolution";
+    case "POSTPONED":      return "Postponed";
+    case "UNKNOWN":
+    default:               return "Betting unavailable";
+  }
+}
+
 export function MarketBetDialog({
   open,
   onClose,
@@ -118,6 +143,8 @@ export function MarketBetDialog({
   selection,
   homeTeam,
   awayTeam,
+  match,
+  now,
 }: MarketBetDialogProps) {
   // ── State machine ───────────────────────────────────────────────────────
   const [phase, setPhase] = useState<Phase>("pick");
@@ -385,6 +412,30 @@ export function MarketBetDialog({
   const submitting = isPending || isConfirming || isApproving;
   const isMarketOpen = selection?.state === MarketState.Open;
 
+  // Couche 2 du defense-in-depth no-live-betting. Si match metadata absent
+  // (composant ancien call-site), `verdict.ok = true` par défaut — on
+  // s'appuie alors uniquement sur `isMarketOpen` (couche 3 contrat).
+  const verdict: BettableResult =
+    match && now
+      ? isBettable(match, now, { kickoffBufferSec: KICKOFF_BUFFER_SEC })
+      : { ok: true };
+  const policyAllowsBetting = verdict.ok;
+
+  // Si l'utilisateur a ouvert le dialog en pré-match et le kickoff buffer
+  // arrive pendant qu'il joue avec l'amount, on bascule en "blocked" pour
+  // qu'il ne puisse pas signer une tx qui reverte côté contrat.
+  useEffect(() => {
+    if (!open) return;
+    if (!policyAllowsBetting && (phase === "pick" || phase === "stake" || phase === "review")) {
+      setPhase("pick");
+    }
+    // `policyAllowsBetting` is the only dynamic we want to react to here —
+    // ne pas dépendre de `phase` sinon on rebondit en boucle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [policyAllowsBetting, open]);
+
+  const policyBlockMessage = !policyAllowsBetting && match && now ? policyMessageFor(verdict, match.kickoffAt, now) : "";
+
   // Map the stake decimal stream into the token shape the design's StakeStep wants.
   const fanTokens = (chilizConfig.tokens || []).filter((t) => !!t.tokenAddress);
   const tokenOptions: ReadonlyArray<BetTokenOption & { kind: BetToken["kind"]; address?: Address }> = useMemo(() => {
@@ -518,6 +569,7 @@ export function MarketBetDialog({
     onChainOddsSet &&
     isValidAmount &&
     isMarketOpen &&
+    policyAllowsBetting &&
     !submitting &&
     !insufficientBalance &&
     !insufficientLiquidity &&
@@ -588,6 +640,17 @@ export function MarketBetDialog({
     }
     if (!open) advancedRef.current = false;
   }, [open, isSuccess, txHash]);
+
+  // Refetch My Bets shortly after the tx confirms. The indexer batches every
+  // ~6s, so we re-invalidate a few times to land in the same window without
+  // waiting for the 30s background poll.
+  const invalidateMyBets = useInvalidateMyBets();
+  useEffect(() => {
+    if (!isSuccess) return;
+    invalidateMyBets();
+    const handles = [2000, 4000, 7000, 11000].map((ms) => setTimeout(invalidateMyBets, ms));
+    return () => handles.forEach(clearTimeout);
+  }, [isSuccess, invalidateMyBets]);
 
   // Tx rejected by the wallet — flip the dialog to a dedicated failure step
   // so the user can't miss what happened. We don't keep them on `review`.
@@ -686,6 +749,12 @@ export function MarketBetDialog({
     failure: "Close",
   };
   const nextDisabled = (() => {
+    // Policy block — n'autorise plus aucune transition (sauf success/failure
+    // qui ferment le dialog). Renforcé en complément du panneau body qui
+    // remplace le step quand `!policyAllowsBetting`.
+    if (!policyAllowsBetting && (phase === "pick" || phase === "stake" || phase === "review")) {
+      return true;
+    }
     if (phase === "pick") {
       return selectedOutcome === null || !isMarketOpen || oddsDecimal === null;
     }
@@ -695,6 +764,10 @@ export function MarketBetDialog({
   })();
 
   const onNext = () => {
+    if (!policyAllowsBetting && (phase === "pick" || phase === "stake" || phase === "review")) {
+      onClose();
+      return;
+    }
     if (phase === "pick") setPhase("stake");
     else if (phase === "stake") setPhase("review");
     else if (phase === "review") submit();
@@ -793,7 +866,34 @@ export function MarketBetDialog({
             <div className="flex-1 overflow-y-auto px-7 py-6">
               <NetworkGuard />
 
-              {phase === "pick" && marketSpec && (
+              {/* Policy gate — couche 2 du defense-in-depth no-live-betting.
+                  Si le match est passé live / dans le buffer kickoff /
+                  postponed pendant que le dialog était ouvert (ou ouvert
+                  trop tard), on remplace tout le step par ce panneau et le
+                  CTA bascule en "Close". */}
+              {!policyAllowsBetting && (phase === "pick" || phase === "stake" || phase === "review") ? (
+                <div className="flex flex-col items-center gap-4 py-10 text-center">
+                  <div
+                    className="font-mono-ctv inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em]"
+                    style={{
+                      background: "rgba(232,0,29,0.08)",
+                      border: "1px solid rgba(232,0,29,0.3)",
+                      color: "#E8001D",
+                    }}
+                    role="status"
+                  >
+                    {policyBlockMessage || "Betting closed"}
+                  </div>
+                  <div className="font-display text-[22px] font-extrabold uppercase leading-tight tracking-tight text-white">
+                    {policyBlockMessage || "Betting closed"}
+                  </div>
+                  <div className="max-w-[360px] text-[13px] leading-[1.55] text-white/55">
+                    This market is closed for new bets while the match is in play. Existing positions stay live and can still be claimed once the match resolves.
+                  </div>
+                </div>
+              ) : null}
+
+              {policyAllowsBetting && phase === "pick" && marketSpec && (
                 <BetSelectionStep
                   marketKey={marketSpec.key}
                   marketLabel={marketSpec.label}
@@ -820,7 +920,7 @@ export function MarketBetDialog({
                 />
               )}
 
-              {phase === "stake" && (
+              {policyAllowsBetting && phase === "stake" && (
                 <BetStakeStep
                   token={currentTokenOption}
                   tokens={tokenOptions}
@@ -847,7 +947,7 @@ export function MarketBetDialog({
                 />
               )}
 
-              {phase === "review" && (
+              {policyAllowsBetting && phase === "review" && (
                 <BetReviewStep
                   homeTeam={homeTeam}
                   awayTeam={awayTeam}

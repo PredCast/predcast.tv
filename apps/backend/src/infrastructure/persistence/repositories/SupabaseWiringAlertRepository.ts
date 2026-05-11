@@ -1,16 +1,22 @@
-import { injectable } from 'tsyringe';
+import { inject, injectable } from 'tsyringe';
 import { supabaseClient as supabase } from '../../database/supabase/client';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { IWiringAlertRepository } from '@chiliztv/domain/blockchain-indexing/repositories/IWiringAlertRepository';
 import { WiringAlert, WiringStep } from '@chiliztv/domain/blockchain-indexing/entities/WiringAlert';
+import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import { logger } from '../../logging/logger';
 
 @injectable()
 export class SupabaseWiringAlertRepository implements IWiringAlertRepository {
+    constructor(
+        @inject(TOKENS.IClock) private readonly clock: IClock,
+    ) {}
+
     async upsert(matchAddress: string, missingSteps: ReadonlyArray<WiringStep>): Promise<void> {
         const row = {
             match_address: matchAddress.toLowerCase(),
             missing_steps: missingSteps,
-            detected_at: new Date().toISOString(),
+            detected_at: this.clock.now().toISOString(),
             resolved_at: null as string | null,
         };
 

@@ -8,11 +8,22 @@ export interface StreamerStats {
   activeSubscribers: number;
 }
 
+export interface FindStreamWalletOptions {
+  readonly limit: number;
+  readonly offset: number;
+}
+
 export interface IStreamWalletRepository {
-  findDonationsByStreamer(streamerAddress: string): Promise<Donation[]>;
-  findDonationsByDonor(donorAddress: string): Promise<Donation[]>;
-  findSubscriptionsByStreamer(streamerAddress: string): Promise<Subscription[]>;
-  findSubscriptionsBySubscriber(subscriberAddress: string): Promise<Subscription[]>;
+  findDonationsByStreamer(streamerAddress: string, options: FindStreamWalletOptions): Promise<Donation[]>;
+  countDonationsByStreamer(streamerAddress: string): Promise<number>;
+  findDonationsByDonor(donorAddress: string, options: FindStreamWalletOptions): Promise<Donation[]>;
+  countDonationsByDonor(donorAddress: string): Promise<number>;
+  findSubscriptionsByStreamer(streamerAddress: string, options: FindStreamWalletOptions): Promise<Subscription[]>;
+  countSubscriptionsByStreamer(streamerAddress: string): Promise<number>;
+  findSubscriptionsBySubscriber(subscriberAddress: string, options: FindStreamWalletOptions): Promise<Subscription[]>;
+  countSubscriptionsBySubscriber(subscriberAddress: string): Promise<number>;
+  /** True if the subscriber has at least one subscription currently within its `[startDate, endDate]` window. */
+  hasActiveSubscriptionForSubscriber(subscriberAddress: string): Promise<boolean>;
   getStreamerStats(streamerAddress: string): Promise<StreamerStats>;
 
   // Write operations used by blockchain indexers

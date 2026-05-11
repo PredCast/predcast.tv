@@ -4,6 +4,7 @@ import { IMatchRepository } from '@chiliztv/domain/matches/repositories/IMatchRe
 import { IStreamRepository } from '@chiliztv/domain/streams/repositories/IStreamRepository';
 import { MatchFetchWindow } from '@chiliztv/domain/matches/value-objects/MatchFetchWindow';
 import { Stream } from '@chiliztv/domain/streams/entities/Stream';
+import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import {
   BrowseMatchesResponseDto,
   BrowseLeagueDto,
@@ -18,10 +19,12 @@ export class GetBrowseMatchesUseCase {
     private readonly matchRepository: IMatchRepository,
     @inject(TOKENS.IStreamRepository)
     private readonly streamRepository: IStreamRepository,
+    @inject(TOKENS.IClock)
+    private readonly clock: IClock,
   ) {}
 
   async execute(): Promise<BrowseMatchesResponseDto> {
-    const now = new Date();
+    const now = this.clock.now();
     const matches = await this.matchRepository.findByDateRange(
       MatchFetchWindow.fetchFrom(now),
       MatchFetchWindow.fetchTo(now),
