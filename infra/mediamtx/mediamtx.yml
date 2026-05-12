@@ -15,21 +15,19 @@ rtmpAddress: :1935
 
 # HLS playback (browser viewers fetch here, fronted by Caddy in HTTPS)
 #
-# `fmp4` variant for Safari/iOS compatibility (lowLatency uses parts whose
-# durations drift, breaking native HLS).
+# `mpegts` variant: legacy TS segments. Most tolerant of variable keyframe
+# intervals — fmp4 can refuse to emit any segment if OBS's keyframe spacing
+# doesn't align with hlsSegmentDuration. mpegts handles this gracefully.
+# Supported natively by Safari (incl. iOS) and via HLS.js everywhere else.
 #
-# `hlsSegmentDuration` MUST be longer than OBS's keyframe interval (default
-# ~2-8s depending on the rate-control). 6s is a safe upper bound — if a stream
-# only emits keyframes every 4-5s, MediaMTX still produces clean segments.
-# `hlsSegmentCount: 3` keeps the warm-up short (~18s of buffered footage
-# before the playlist becomes available).
+# `hlsSegmentDuration` should be slightly longer than OBS's keyframe interval.
+# OBS defaults to ~2s when set to "auto". 4s gives a safe margin.
 hls: yes
 hlsAddress: :8888
 hlsAlwaysRemux: yes
-hlsVariant: fmp4
+hlsVariant: mpegts
 hlsSegmentCount: 3
-hlsSegmentDuration: 6s
-hlsPartDuration: 1s
+hlsSegmentDuration: 4s
 
 # Admin API (port restricted in the host firewall, never proxied through Caddy)
 api: yes
