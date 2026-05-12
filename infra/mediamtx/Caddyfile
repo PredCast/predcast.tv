@@ -14,12 +14,20 @@
 # Reload after edits: sudo systemctl reload caddy
 
 ingest.chiliztv.com {
-    # iOS Safari appends `?cookieCheck=1` to every HLS URL as a WebKit cookie
-    # availability probe. MediaMTX 1.18 returns 400 on unknown query params,
-    # which makes Safari abort the playlist load with no other diagnostic.
-    # Strip the param before forwarding so MediaMTX sees the clean URL.
-    uri query -cookieCheck
-    reverse_proxy localhost:8888
+    # iOS Safari sends a one-shot probe `?cookieCheck=1` to verify cookie
+    # availability before loading HLS. MediaMTX 1.18 returns 400 on unknown
+    # query params, which makes Safari abort. We intercept the probe at Caddy
+    # and answer 200 — Safari proceeds to fetch URLs without the param.
+    #
+    # `uri query -cookieCheck` was attempted but causes a 301 redirect loop
+    # (Safari re-adds the param on every retry).
+    @cookieCheck query cookieCheck=1
+    handle @cookieCheck {
+        respond 200
+    }
+    handle {
+        reverse_proxy localhost:8888
+    }
     encode gzip
 }
 
@@ -27,6 +35,11 @@ ingest.chiliztv.com {
 # replies with the answer and (typically) a Location header for resource teardown.
 # CORS is owned by MediaMTX (`webrtcAllowOrigins: ['*']` in mediamtx.yml).
 whip.chiliztv.com {
-    uri query -cookieCheck
-    reverse_proxy localhost:8889
+    @cookieCheck query cookieCheck=1
+    handle @cookieCheck {
+        respond 200
+    }
+    handle {
+        reverse_proxy localhost:8889
+    }
 }
