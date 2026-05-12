@@ -17,3 +17,10 @@ ingest.chiliztv.com {
     reverse_proxy localhost:8888
     encode gzip
 }
+
+# WebRTC WHIP ingest — browser publishers POST their SDP offer here, MediaMTX
+# replies with the answer and (typically) a Location header for resource teardown.
+# CORS is owned by MediaMTX (`webrtcAllowOrigins: ['*']` in mediamtx.yml).
+whip.chiliztv.com {
+    reverse_proxy localhost:8889
+}

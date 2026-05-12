@@ -24,6 +24,12 @@ hlsSegmentDuration: 1s
 hlsPartDuration: 200ms
 hlsAllowOrigins: ['*']
 
+# WebRTC WHIP ingest (browser publishers, fronted by Caddy at whip.chiliztv.com)
+webrtc: yes
+webrtcAddress: :8889
+webrtcAllowOrigins: ['*']
+webrtcICEServers2: []
+
 # Admin API (port restricted in the host firewall, never proxied through Caddy)
 api: yes
 apiAddress: :9997
