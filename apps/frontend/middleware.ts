@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
-const PUBLIC_PATHS = new Set(['/', '/whitepaper']);
+const PUBLIC_PATHS = new Set(['/', '/how-it-works']);
 
 export function middleware(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;

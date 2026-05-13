@@ -62,7 +62,7 @@ function Hero() {
               </span>
             </h1>
             <p className="m-0 mb-10 max-w-135 text-[18px] font-light leading-[1.55] text-white/65">
-              Bet on live football, stream matches yourself, and earn from the on-chain liquidity pool. The full picture — in under five minutes.
+              Predict live football, stream matches yourself, and earn from the on-chain liquidity pool. The full picture — in under five minutes.
             </p>
             <p className="font-mono-ctv text-[11px] font-medium uppercase tracking-[0.16em] text-white/40">
               03 sections — 05 min read — no crypto experience required
@@ -168,9 +168,9 @@ function StepsList({ items }: { items: Step[] }) {
 
 function ChapterProduct() {
   const tiles = [
-    { n: "// 01", title: "Bet", body: "On-chain prediction markets. Settled in USDC. Zero placement fees." },
+    { n: "// 01", title: "Predict", body: "On-chain prediction markets. Settled in USDC. Zero placement fees." },
     { n: "// 02", title: "Stream", body: "Broadcast with OBS. Earn USDC tips paid straight to your wallet." },
-    { n: "// 03", title: "LP", body: "Deposit USDC. Earn 60% of every losing bet, auto-compounded." },
+    { n: "// 03", title: "LP", body: "Deposit USDC. Earn 60% of every losing prediction, auto-compounded." },
   ];
   return (
     <ChapterShell num="01" metaTop="The product" metaBottom="What it is">
@@ -205,7 +205,7 @@ function ChapterProduct() {
   );
 }
 
-function ChapterBetting() {
+function ChapterPredict() {
   const steps: Step[] = [
     {
       n: "01 →",
@@ -256,12 +256,12 @@ function ChapterBetting() {
     },
   ];
   return (
-    <ChapterShell num="02" metaTop="Prediction markets" metaBottom="How betting works">
+    <ChapterShell num="02" metaTop="Prediction markets" metaBottom="How predictions work">
       <ChapterHeading>
-        Bet on what <span className="text-[#E8001D]">you know.</span>
+        Predict what <span className="text-[#E8001D]">you know.</span>
       </ChapterHeading>
       <ChapterLead>
-        On-chain markets per match. Odds blended from five sharp bookmakers via oracle. Bettors pay zero fees — the edge is in the pool, not the spread.
+        On-chain markets per match. Odds blended from five sharp bookmakers via oracle. Predictors pay zero fees — the edge is in the pool, not the spread.
       </ChapterLead>
       <StepsList items={steps} />
     </ChapterShell>
@@ -307,12 +307,12 @@ function PoolFlowSvg() {
   return (
     <div
       role="img"
-      aria-label="Pool flow: losing bets split 40% treasury / 60% LP NAV; winning bets paid 100% by the pool with no treasury share."
+      aria-label="Pool flow: losing predictions split 40% treasury / 60% LP NAV; winning predictions paid 100% by the pool with no treasury share."
       className="my-12 border-y border-[#1E1E1E] py-9"
     >
       <div className="font-mono-ctv mb-7 flex items-center gap-3.5 text-[10px] font-bold uppercase tracking-[0.22em] text-[#E8001D]">
         <span aria-hidden className="block h-px w-6 bg-[#E8001D]" />
-        // The flow — losing bets / winning bets
+        // The flow — losing predictions / winning predictions
       </div>
       <svg viewBox="0 0 640 300" xmlns="http://www.w3.org/2000/svg" className="block h-auto w-full max-w-190">
         <defs>
@@ -328,7 +328,7 @@ function PoolFlowSvg() {
         </defs>
         <g style={{ fontFamily: "'JetBrains Mono', monospace", textTransform: "uppercase" }}>
           <rect x="20" y="40" width="140" height="56" fill="#0A0A0A" stroke="#1E1E1E" />
-          <text x="90" y="66" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="700" letterSpacing="0.14em">Bettors</text>
+          <text x="90" y="66" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="700" letterSpacing="0.14em">Predictors</text>
           <text x="90" y="84" textAnchor="middle" fill="#E8001D" fontSize="11" fontWeight="700" letterSpacing="0.14em">lose</text>
 
           <rect x="250" y="32" width="140" height="72" fill="#0A0A0A" stroke="#E8001D" strokeWidth="1.5" />
@@ -352,7 +352,7 @@ function PoolFlowSvg() {
           <line x1="20" y1="180" x2="620" y2="180" stroke="#1E1E1E" strokeDasharray="3 4" />
 
           <rect x="20" y="220" width="140" height="56" fill="#0A0A0A" stroke="#1E1E1E" />
-          <text x="90" y="246" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="700" letterSpacing="0.14em">Bettors</text>
+          <text x="90" y="246" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="700" letterSpacing="0.14em">Predictors</text>
           <text x="90" y="264" textAnchor="middle" fill="#2dd4a4" fontSize="11" fontWeight="700" letterSpacing="0.14em">win</text>
 
           <rect x="250" y="220" width="140" height="56" fill="#0A0A0A" stroke="#E8001D" strokeWidth="1.5" />
@@ -372,7 +372,7 @@ function PoolFlowSvg() {
 
 function ChapterLiquidity() {
   const stats = [
-    { v: "60", label: "Your share", b: "Of every losing bet" },
+    { v: "60", label: "Your share", b: "Of every losing prediction" },
     { v: "40", label: "Treasury share", b: "Protocol reserve" },
     { v: "05", label: "Performance fee", b: "On gain only" },
   ];
@@ -400,7 +400,7 @@ function ChapterLiquidity() {
       title: "Compound automatically",
       body: (
         <p className="m-0">
-          Every losing bet flows back into the pool. 40% to treasury, 60% into your share NAV. Share price rises silently — no claim needed.
+          Every losing prediction flows back into the pool. 40% to treasury, 60% into your share NAV. Share price rises silently — no claim needed.
         </p>
       ),
     },
@@ -420,7 +420,7 @@ function ChapterLiquidity() {
         Be the house. <span className="text-[#E8001D]">Earn the edge.</span>
       </ChapterHeading>
       <ChapterLead>
-        Don&apos;t pick a winner — take the other side of every bet on the platform. Deposit USDC, receive ctvLP, earn from losing bets. No active management.
+        Don&apos;t pick a winner — take the other side of every prediction on the platform. Deposit USDC, receive ctvLP, earn from losing predictions. No active management.
       </ChapterLead>
 
       <div className="grid grid-cols-1 border-t border-l border-[#1E1E1E] lg:grid-cols-3">
@@ -496,13 +496,13 @@ export function HowItWorksPage() {
       <Topbar />
       <Hero />
       <ChapterProduct />
-      <ChapterBetting />
+      <ChapterPredict />
       <Aside label="// Aside — Where the odds come from">
-        Five sharp books — <span className="text-[#E8001D]">Pinnacle, Betfair, Bet365, 1xBet, Marathonbet</span> — blended on-chain via an API. ~4% house margin. The pool quotes; <span className="text-[#E8001D]">bettors take it or leave it.</span>
+        Five sharp books — <span className="text-[#E8001D]">Pinnacle, Betfair, Bet365, 1xBet, Marathonbet</span> — blended on-chain via an API. ~4% house margin. The pool quotes; <span className="text-[#E8001D]">predictors take it or leave it.</span>
       </Aside>
       <ChapterLiquidity />
       <Aside label="// Critical — LP is not risk-free" tinted>
-        When bettors win, the pool pays in full. <span className="text-[#E8001D]">Your ctvLP shares can be worth less</span> than what you deposited. The treasury shares the upside, <span className="text-[#E8001D]">not the downside.</span> Size your position accordingly.
+        When predictors win, the pool pays in full. <span className="text-[#E8001D]">Your ctvLP shares can be worth less</span> than what you deposited. The treasury shares the upside, <span className="text-[#E8001D]">not the downside.</span> Size your position accordingly.
       </Aside>
       <EndCTA />
     </section>
