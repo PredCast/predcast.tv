@@ -5,7 +5,7 @@ import { Button } from "./ui/button";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Compass, Menu, Trophy, User, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useDynamicContext, DynamicConnectButton } from "@dynamic-labs/sdk-react-core";
 
 export function Header() {
@@ -35,50 +35,39 @@ export function Header() {
                             height={40}
                             className="rounded-full shadow-lg transition-transform hover:scale-105"
                         />
-                        <div className="text-white text-[24px] uppercase tracking-wider">
-                            ChilizTV
+                        <div
+                            className="font-display text-[24px] font-extrabold uppercase tracking-[0.01em] leading-none text-white"
+                        >
+                            Chiliz<span className="text-[#E8001D]">TV</span>
                         </div>
                     </button>
 
                     {/* Desktop Navigation */}
-                    <nav className="hidden md:flex flex-row gap-[38px] items-center text-[16px]">
+                    <nav className="hidden md:flex flex-row items-center gap-x-8">
                         <button
-                            className="flex items-center gap-2 text-white/70 hover:text-white transition-colors cursor-pointer"
-                            onClick={() => router.push("/browse")}
-                            tabIndex={0}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") {
-                                    router.push("/browse");
-                                }
-                            }}
+                            className="font-mono-ctv text-[11px] font-bold uppercase tracking-[0.18em] text-white/55 transition-colors hover:text-white cursor-pointer"
+                            onClick={() => router.push("/how-it-works")}
                         >
-                            <Compass />
-                            <span className="text-white/70 hover:text-white transition-colors cursor-pointer">
-                                Discover
-                            </span>
+                            How it works
                         </button>
                         <button
-                            className="flex items-center gap-2 text-white/70 hover:text-white transition-colors cursor-pointer"
-                            onClick={() => router.push("/leaderboard")}
-                            tabIndex={0}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") {
-                                    router.push("/leaderboard");
-                                }
-                            }}
+                            className="font-mono-ctv text-[11px] font-bold uppercase tracking-[0.18em] text-white/55 transition-colors hover:text-white cursor-pointer"
+                            onClick={() => router.push("/browse")}
                         >
-                            <Trophy />
-                            <span className="text-white/70 hover:text-white transition-colors cursor-pointer">
-                                Leaderboard
-                            </span>
+                            Discover
+                        </button>
+                        <button
+                            className="font-mono-ctv text-[11px] font-bold uppercase tracking-[0.18em] text-white/55 transition-colors hover:text-white cursor-pointer"
+                            onClick={() => router.push("/leaderboard")}
+                        >
+                            Leaderboard
                         </button>
                         {connected && (
-                            // Balance in USD
-                            <button className="flex items-center gap-2 text-white/70 hover:text-white transition-colors cursor-pointer" onClick={() => router.push("/dashboard")}>
-                                <User />
-                                <span className="text-white/70 hover:text-white transition-colors cursor-pointer">
-                                    Profile
-                                </span>
+                            <button
+                                className="font-mono-ctv text-[11px] font-bold uppercase tracking-[0.18em] text-white/55 transition-colors hover:text-white cursor-pointer"
+                                onClick={() => router.push("/dashboard")}
+                            >
+                                Dashboard
                             </button>
                         )}
                     </nav>
@@ -122,14 +111,23 @@ export function Header() {
                             exit="exit"
                             variants={dropdownVariants}
                             transition={{ duration: 0.25 }}
-                            className="md:hidden overflow-hidden flex flex-col gap-4 mt-4 text-white text-base"
+                            className="md:hidden overflow-hidden flex flex-col gap-5 mt-5 text-white"
                         >
+                            <button
+                                onClick={() => {
+                                    router.push("/how-it-works");
+                                    setMenuOpen(false);
+                                }}
+                                className="font-mono-ctv text-[11px] font-bold uppercase tracking-[0.18em] text-white/55 transition-colors hover:text-white text-left"
+                            >
+                                How it works
+                            </button>
                             <button
                                 onClick={() => {
                                     router.push("/browse");
                                     setMenuOpen(false);
                                 }}
-                                className="text-white/80 hover:text-white text-left"
+                                className="font-mono-ctv text-[11px] font-bold uppercase tracking-[0.18em] text-white/55 transition-colors hover:text-white text-left"
                             >
                                 Discover
                             </button>
@@ -138,7 +136,7 @@ export function Header() {
                                     router.push("/leaderboard");
                                     setMenuOpen(false);
                                 }}
-                                className="text-white/80 hover:text-white text-left"
+                                className="font-mono-ctv text-[11px] font-bold uppercase tracking-[0.18em] text-white/55 transition-colors hover:text-white text-left"
                             >
                                 Leaderboard
                             </button>
@@ -148,7 +146,7 @@ export function Header() {
                                         router.push("/dashboard");
                                         setMenuOpen(false);
                                     }}
-                                    className="text-white/80 hover:text-white text-left"
+                                    className="font-mono-ctv text-[11px] font-bold uppercase tracking-[0.18em] text-white/55 transition-colors hover:text-white text-left"
                                 >
                                     Dashboard
                                 </button>
