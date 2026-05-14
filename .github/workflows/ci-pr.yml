@@ -199,7 +199,11 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: pnpm --filter "@chiliztv.com/backend" build
+        run: |
+          pnpm --filter "@chiliztv/domain" build
+          pnpm --filter "@chiliztv/shared" build
+          pnpm --filter "@chiliztv/blockchain" build
+          pnpm --filter "@chiliztv.com/backend" build
 
   # ── Docker build verify ───────────────────────────────────────────────────────
   docker-build-verify:
