@@ -11,6 +11,14 @@
 **/.next
 **/tsconfig.tsbuildinfo
 
+# Next.js static export output
+apps/landing/out/
+apps/frontend/out/
+
+# TypeScript compiled JS in source directories (should be in dist/, not src/)
+packages/*/src/**/*.js
+packages/*/src/**/*.js.map
+
 # Foundry / smart-contracts
 apps/smart-contracts/chiliz-tv/lib/
 apps/smart-contracts/chiliz-tv/cache/
