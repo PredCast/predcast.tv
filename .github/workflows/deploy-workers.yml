@@ -71,7 +71,7 @@ jobs:
 
       - name: Deploy workers to staging
         env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_WORKERS_STAGING }}
         run: |
           flyctl deploy \
             --config infra/fly/workers.staging.toml \

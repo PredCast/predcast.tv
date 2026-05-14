@@ -54,7 +54,7 @@ Contract addresses live in `apps/frontend/.env` (see
 ### Run the backend
 
 ```bash
-docker compose exec node pnpm -F @chilitztv.com/backend dev
+docker compose exec node pnpm -F @chiliztv.com/backend dev
 ```
 
 Backend dev server listens on port 3001. Requires a populated
