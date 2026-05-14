@@ -8,7 +8,7 @@
     "test:watch": "vitest",
     "start": "tsc && node dist/index.js",
     "dev": "nodemon --watch 'src/**/*.ts' --watch 'index.ts' --exec 'ts-node' index.ts",
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "lint": "tsc --noEmit",
     "mediamtx": "mediamtx mediamtx.yml",
     "deploy:missing-contracts": "ts-node scripts/deploy-missing-betting-contracts.ts",

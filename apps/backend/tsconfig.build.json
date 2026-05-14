@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": false,
+    "paths": {
+      "@chiliztv/blockchain": ["../../packages/blockchain/dist/index"],
+      "@chiliztv/blockchain/*": ["../../packages/blockchain/dist/*"],
+      "@chiliztv/domain": ["../../packages/domain/dist/index"],
+      "@chiliztv/domain/*": ["../../packages/domain/dist/*"],
+      "@chiliztv/shared": ["../../packages/shared/dist/index"],
+      "@chiliztv/shared/*": ["../../packages/shared/dist/*"]
+    }
+  }
+}
