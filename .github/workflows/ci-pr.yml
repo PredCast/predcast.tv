@@ -151,6 +151,28 @@ jobs:
       - name: Build
         run: pnpm --filter "@chiliztv.com/frontend" build
 
+  # ── Build — landing ──────────────────────────────────────────────────────────
+  build-landing:
+    name: Build landing
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm --filter "@chiliztv.com/landing" build
+
   # ── Build — backend ───────────────────────────────────────────────────────────
   build-backend:
     name: Build backend

@@ -19,7 +19,7 @@ const nextConfig: NextConfig = {
   // `node_modules/.pnpm` reachable from `apps/frontend`.
   outputFileTracingRoot: path.join(here, '../../'),
 
-  transpilePackages: ['@chiliztv/blockchain', '@chiliztv/domain', '@chiliztv/shared'],
+  transpilePackages: ['@chiliztv/blockchain', '@chiliztv/domain', '@chiliztv/shared', '@chiliztv/ui'],
 
   experimental: {
     optimizePackageImports: [

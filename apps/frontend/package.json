@@ -12,6 +12,7 @@
     "smoke:contracts": "node scripts/smoke-contracts.mjs"
   },
   "dependencies": {
+    "@chiliztv/ui": "workspace:*",
     "@chiliztv/blockchain": "workspace:*",
     "@chiliztv/domain": "workspace:*",
     "@chiliztv/shared": "workspace:*",

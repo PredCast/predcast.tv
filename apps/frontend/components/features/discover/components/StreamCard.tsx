@@ -1,8 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { BorderBeam } from "@/components/ui/border-beam";
-import { CardBody, CardContainer, CardItem } from "@/components/ui/3d-card";
+import { BorderBeam, CardBody, CardContainer, CardItem } from "@chiliztv/ui";
 import { fmtViewers, type StreamerCard } from "../domain";
 import { LiveBadge } from "./LiveBadge";
 

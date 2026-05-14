@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { SmokeBackground } from "@/components/ui/spooky-smoke-animation";
+import { SmokeBackground } from "@chiliztv/ui";
 
 /**
  * Page-section wrapper that lays an animated red smoke shader behind its

@@ -3,8 +3,7 @@
  * @dev Displays message when user is not authenticated
  */
 
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, Button } from "@chiliztv/ui";
 import { User } from "lucide-react";
 
 /**
