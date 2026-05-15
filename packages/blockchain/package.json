@@ -22,13 +22,11 @@
     "build": "tsc && mkdir -p dist/abis/json && cp src/abis/json/*.json dist/abis/json/",
     "type-check": "tsc --noEmit"
   },
-  "dependencies": {},
-  "peerDependencies": {
-    "viem": ">=2.0.0"
+  "dependencies": {
+    "viem": "^2.31.7"
   },
   "devDependencies": {
     "@types/node": "^20.19.33",
-    "typescript": "^5.4.5",
-    "viem": "^2.31.7"
+    "typescript": "^5.4.5"
   }
 }
