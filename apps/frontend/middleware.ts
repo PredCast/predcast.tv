@@ -7,6 +7,10 @@ const LANDING_URL =
     : 'http://localhost:3002');
 
 export function middleware(request: NextRequest): NextResponse {
+  if (request.nextUrl.pathname === '/api/health') {
+    return NextResponse.next();
+  }
+
   if (!request.cookies.has('cwk_access')) {
     return NextResponse.redirect(LANDING_URL);
   }
