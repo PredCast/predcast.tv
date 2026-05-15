@@ -11,9 +11,10 @@
 **/.next
 **/tsconfig.tsbuildinfo
 
-# Next.js static export output
-apps/landing/out/
-apps/frontend/out/
+# Next.js / Next build outputs (explicit patterns, in addition to **/dist and **/.next above)
+apps/*/out/
+apps/*/.next/
+apps/*/dist/
 
 # TypeScript compiled JS in source directories (should be in dist/, not src/)
 packages/*/src/**/*.js

@@ -1,0 +1,16 @@
+title = "ChilizTV gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Skip example env files, test fixtures, and build outputs"
+paths = [
+  '''\.env\.example''',
+  '''apps/.*/src/testing/.*''',
+  '''apps/smart-contracts/.*/test/.*''',
+  '''apps/smart-contracts/.*/script/.*''',
+  '''apps/.*/out/.*''',
+  '''apps/.*/\.next/.*''',
+  '''apps/.*/dist/.*''',
+]
