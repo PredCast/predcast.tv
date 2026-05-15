@@ -122,7 +122,9 @@ jobs:
         run: pnpm add -g vercel@latest
 
       - name: Pull Vercel environment
-        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+        # Custom Environment "Staging" carries the env vars for app-staging
+        # (NEXT_PUBLIC_API_URL, NEXT_PUBLIC_LANDING_URL, NEXT_PUBLIC_STAGING=true).
+        run: vercel pull --yes --environment=staging --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_APP }}
@@ -133,11 +135,20 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_APP }}
 
-      - name: Deploy to staging
+      - name: Deploy to Vercel staging
         id: deploy
+        # --target=staging publishes to the Custom Environment aliased to
+        # app-staging.chiliztv.com. The smoke check below hits the *.vercel.app
+        # URL because the custom domain can take up to 30s to propagate.
         run: |
-          URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }} 2>/dev/null | grep -oE 'https://[^ ]+\.vercel\.app' | head -n1)
+          URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }} --target=staging 2>/dev/null \
+            | grep -oE 'https://[^ ]+\.vercel\.app' | head -n1)
+          if [ -z "$URL" ]; then
+            echo "Failed to capture deploy URL"
+            exit 1
+          fi
           echo "deployment_url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Deployed to: $URL"
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_APP }}
