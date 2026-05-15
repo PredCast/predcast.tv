@@ -111,6 +111,13 @@ server.listen(PORT, () => {
         environment: env.NODE_ENV,
     });
 
+    // Hostname only — REDIS_URL embeds an auth token in the rediss:// scheme.
+    if (env.REDIS_URL) {
+        logger.info('Redis configured', { redisHost: new URL(env.REDIS_URL).hostname });
+    } else {
+        logger.info('Redis not configured (REDIS_URL empty or unset) — running without distributed cache/locks');
+    }
+
     // Startup cleanup runs for api and all roles (not needed on worker-only)
     if (PROCESS_ROLE === 'api' || PROCESS_ROLE === 'all') {
         const cleanupUseCase = container.resolve(CleanupOldMatchesUseCase);
