@@ -1,14 +1,12 @@
+import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { Header } from "../components/Header";
-import { HeroSection } from "../components/HeroSection";
-import { HomeSections } from "../components/HomeSections";
+import { DiscoverPage } from "@/components/features/discover";
 
 export default function Home() {
   return (
     <main>
       <Header />
-      <HeroSection />
-      <HomeSections />
+      <DiscoverPage />
       <Footer />
     </main>
   );

@@ -4,7 +4,7 @@ import { Lexend, Barlow_Condensed, JetBrains_Mono } from "next/font/google";
 import DynamicProviderWrapper from "@/components/providers/DynamicProviderWrapper";
 import { AuthProvider } from "@/providers/auth-provider";
 import { QueryProvider } from "@/providers/query-provider";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "@chiliztv/ui";
 import { PoolStatusBanner } from "@/components/system/PoolStatusBanner";
 
 const lexend = Lexend({

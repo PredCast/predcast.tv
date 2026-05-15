@@ -1,18 +1,14 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
-const PUBLIC_PATHS = new Set(['/', '/how-it-works']);
+const LANDING_URL =
+  process.env.LANDING_URL ??
+  (process.env.NODE_ENV === 'production'
+    ? 'https://chiliztv.com'
+    : 'http://localhost:3002');
 
 export function middleware(request: NextRequest): NextResponse {
-  const { pathname } = request.nextUrl;
-
-  if (PUBLIC_PATHS.has(pathname)) {
-    return NextResponse.next();
-  }
-
   if (!request.cookies.has('cwk_access')) {
-    const landing = request.nextUrl.clone();
-    landing.pathname = '/';
-    return NextResponse.redirect(landing);
+    return NextResponse.redirect(LANDING_URL);
   }
 
   return NextResponse.next();

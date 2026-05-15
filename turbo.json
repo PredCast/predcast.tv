@@ -10,19 +10,19 @@
     "BETTING_MATCH_FACTORY_ADDRESS",
     "STREAM_WALLET_FACTORY_ADDRESS",
     "ADMIN_PRIVATE_KEY",
+    "PRIVATE_KEY",
+    "RPC_URL",
     "JWT_SECRET",
     "JWT_ISSUER",
     "JWT_EXPIRY",
     "PORT",
     "ALLOWED_ORIGINS",
-    "MEDIAMTX_API_URL",
-    "MEDIAMTX_PUBLISH_SECRET",
     "LOG_LEVEL"
   ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**", "out/**"]
     },
     "dev": {
       "cache": false,

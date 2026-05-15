@@ -56,15 +56,25 @@ WORKDIR /home/node
 COPY --chown=node:node package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
 COPY --chown=node:node apps/frontend/package.json        ./apps/frontend/package.json
 COPY --chown=node:node apps/backend/package.json         ./apps/backend/package.json
+COPY --chown=node:node apps/landing/package.json         ./apps/landing/package.json
 COPY --chown=node:node apps/smart-contracts/chiliz-tv/   ./apps/smart-contracts/chiliz-tv/
 COPY --chown=node:node packages/blockchain/package.json  ./packages/blockchain/package.json
 COPY --chown=node:node packages/domain/package.json      ./packages/domain/package.json
 COPY --chown=node:node packages/shared/package.json      ./packages/shared/package.json
+COPY --chown=node:node packages/ui/package.json          ./packages/ui/package.json
 
 RUN pnpm install --frozen-lockfile
 
 # Now bring in the rest of the source and run the workspace build.
 COPY --chown=node:node . .
+
+ARG NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID=00000000-0000-0000-0000-000000000000
+ARG NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder-anon-key
+ENV NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID=$NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+
 RUN pnpm build
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -114,7 +124,7 @@ COPY --chown=node:node --from=build /home/node/apps/backend/package.json     ./a
 COPY --chown=node:node --from=build /home/node/apps/backend/dist             ./apps/backend/dist
 COPY --chown=node:node --from=build /home/node/packages                      ./packages
 
-RUN pnpm install --prod --frozen-lockfile --filter @chilitztv.com/backend...
+RUN pnpm install --prod --frozen-lockfile --filter @chiliztv.com/backend...
 
 EXPOSE 3001
 CMD ["node", "apps/backend/dist/index.js"]

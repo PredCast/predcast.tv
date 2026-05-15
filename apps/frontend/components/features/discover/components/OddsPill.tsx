@@ -1,4 +1,4 @@
-import { NumberTicker } from "@/components/ui/number-ticker";
+import { NumberTicker } from "@chiliztv/ui";
 
 export function OddsPill({
   label,

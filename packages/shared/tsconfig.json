@@ -8,11 +8,12 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
+    "rootDir": "src",
     "outDir": "dist",
     "forceConsistentCasingInFileNames": true,
     "paths": {
-      "@chiliztv/domain": ["../domain/src/index.ts"],
-      "@chiliztv/domain/*": ["../domain/src/*"]
+      "@chiliztv/domain": ["../domain/dist/index"],
+      "@chiliztv/domain/*": ["../domain/dist/*"]
     }
   },
   "include": ["src/**/*"],

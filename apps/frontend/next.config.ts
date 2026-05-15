@@ -11,7 +11,7 @@ const nextConfig: NextConfig = {
   // `frontend` runtime stage can ship without copying the whole repo.
   // Required by the `frontend` target in `Dockerfile` — do not remove unless
   // you're switching the prod image off the standalone copy pattern.
-  //output: 'standalone',
+  output: 'standalone',
 
   // The standalone tracer roots from this app, so it climbs out of the
   // monorepo to find pnpm's symlinked workspace packages. `outputFileTracingRoot`
@@ -19,7 +19,7 @@ const nextConfig: NextConfig = {
   // `node_modules/.pnpm` reachable from `apps/frontend`.
   outputFileTracingRoot: path.join(here, '../../'),
 
-  transpilePackages: ['@chiliztv/blockchain', '@chiliztv/domain', '@chiliztv/shared'],
+  transpilePackages: ['@chiliztv/blockchain', '@chiliztv/domain', '@chiliztv/shared', '@chiliztv/ui'],
 
   experimental: {
     optimizePackageImports: [
