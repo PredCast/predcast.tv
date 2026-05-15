@@ -220,3 +220,59 @@ jobs:
             echo "Landing smoke failed (HTTP $STATUS)"
             exit 1
           fi
+
+  # ── Notify on success (staging push or production tag) ──────────────────
+  notify-success:
+    name: Notify success
+    runs-on: ubuntu-latest
+    needs: [build-deploy-staging, build-deploy-production]
+    if: |
+      always() && github.event_name == 'push' &&
+      (needs.build-deploy-staging.result == 'success' || needs.build-deploy-production.result == 'success')
+    steps:
+      - name: Post Discord success
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          curl -s -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "embeds": [{
+                "title": "Deploy landing — SUCCESS",
+                "color": 3066993,
+                "fields": [
+                  {"name": "Ref", "value": "${{ github.ref_name }}", "inline": true},
+                  {"name": "Commit", "value": "${{ github.sha }}", "inline": true},
+                  {"name": "Run", "value": "[View logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": false}
+                ]
+              }]
+            }'
+
+  # ── Notify on failure (staging push or production tag) ──────────────────
+  notify-failure:
+    name: Notify failure
+    runs-on: ubuntu-latest
+    needs: [build-deploy-staging, build-deploy-production, smoke-production]
+    if: |
+      always() && github.event_name == 'push' &&
+      (needs.build-deploy-staging.result == 'failure' ||
+       needs.build-deploy-production.result == 'failure' ||
+       needs.smoke-production.result == 'failure')
+    steps:
+      - name: Post Discord alert
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          curl -s -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "embeds": [{
+                "title": "Deploy landing — FAILED",
+                "color": 15158332,
+                "fields": [
+                  {"name": "Ref", "value": "${{ github.ref_name }}", "inline": true},
+                  {"name": "Commit", "value": "${{ github.sha }}", "inline": true},
+                  {"name": "Run", "value": "[View logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": false}
+                ]
+              }]
+            }'

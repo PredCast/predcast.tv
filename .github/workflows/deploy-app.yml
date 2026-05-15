@@ -178,3 +178,55 @@ jobs:
           done
           echo "Health check failed after 3 attempts"
           exit 1
+
+  # ── Notify on success ─────────────────────────────────────────────────────
+  # Push-main path only — PR previews already report via the inline PR comment.
+  notify-success:
+    name: Notify success
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    if: success() && github.event_name == 'push'
+    steps:
+      - name: Post Discord success
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          curl -s -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "embeds": [{
+                "title": "Deploy app staging — SUCCESS",
+                "color": 3066993,
+                "fields": [
+                  {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                  {"name": "Commit", "value": "${{ github.sha }}", "inline": true},
+                  {"name": "URL", "value": "${{ needs.deploy-staging.outputs.deployment_url }}", "inline": false},
+                  {"name": "Run", "value": "[View logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": false}
+                ]
+              }]
+            }'
+
+  # ── Notify on failure ─────────────────────────────────────────────────────
+  notify-failure:
+    name: Notify failure
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    if: failure() && github.event_name == 'push'
+    steps:
+      - name: Post Discord alert
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          curl -s -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "embeds": [{
+                "title": "Deploy app staging — FAILED",
+                "color": 15158332,
+                "fields": [
+                  {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                  {"name": "Commit", "value": "${{ github.sha }}", "inline": true},
+                  {"name": "Run", "value": "[View logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": false}
+                ]
+              }]
+            }'

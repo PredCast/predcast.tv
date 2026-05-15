@@ -32,7 +32,7 @@ const allowedOrigins = env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim(
 app.use(securityHeadersMiddleware);
 
 // Cloudflare Stream webhook — raw body required for HMAC verification.
-// Must be registered BEFORE the global bodyParser.json() middleware.
+// Must be registered BEFORE the global express.json() middleware.
 app.use('/cloudflare-stream/webhook', express.raw({ type: 'application/json' }), cloudflareStreamWebhookRoutes);
 
 app.use(express.json());
