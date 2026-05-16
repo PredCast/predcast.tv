@@ -1,119 +1,149 @@
 "use client";
 
-import { useState } from "react";
-import { getAllFanTokens } from "@/utils/FanTokens";
-import { LeaderboardHeader, AchievementBadges, PredictorCard, TokenHolderCard } from "./components";
-import { mockTopPredictors, mockTopTokenHolders } from "./utils";
+import { useMemo } from 'react';
+import { useDynamicContext } from '@dynamic-labs/sdk-react-core';
+import type { Address } from 'viem';
 
-type Tab = "predicts" | "tokens";
-type Period = "week" | "month" | "all";
+import { LeaderboardHeader } from './components';
+import {
+  PrizePoolHero,
+  TopScorersTable,
+  YourStatsCard,
+  ClaimPrizePanel,
+} from './onchain';
+import { useLeaderboard, useLiveLeaderboard, type LeaderboardRow } from '@/hooks/useLeaderboard';
+import { usePariMatchFactory } from '@/hooks/usePariMatchFactory';
+import { usePoolDecimals } from '@/hooks/usePoolDecimals';
 
-const PERIOD_LABELS: Record<Period, string> = {
-  week: "This Week",
-  month: "This Month",
-  all: "All Time",
-};
-
-const COL_PREDICTS = ["#", "Predictor", "Preds", "Win Rate", "Earned USDC", "Streak"];
-const COL_TOKENS   = ["#", "Holder", "Tokens", "Portfolio"];
-
+/**
+ * On-chain Leaderboard page.
+ *
+ * Wires four panels against `LeaderboardRewards`:
+ *   1. PrizePoolHero    — open + locked pool, current epoch state
+ *   2. YourStatsCard    — connected wallet's cumulative score + approx rank
+ *   3. TopScorersTable  — live tail of `WinRecorded` events, sorted
+ *   4. ClaimPrizePanel  — merkle-proof claim against the last closed epoch
+ *
+ * Renders a graceful "not configured" state when
+ * `NEXT_PUBLIC_LEADERBOARD_REWARDS_ADDRESS` is empty, so the page is always
+ * reachable even before the contract is deployed.
+ */
 export function Leaderboard() {
-  const [activeTab, setActiveTab]     = useState<Tab>("predicts");
-  const [activePeriod, setActivePeriod] = useState<Period>("month");
+  const { primaryWallet } = useDynamicContext();
+  const walletAddress = primaryWallet?.address as Address | undefined;
 
-  const fanTokens = getAllFanTokens();
-  const getTokenLogo = (symbol: string): string => {
-    const t = fanTokens.find((t: { symbol: string }) => t.symbol === symbol);
-    return t?.image ?? `https://via.placeholder.com/24?text=${symbol}`;
-  };
+  const {
+    isConfigured,
+    leaderboardAddress,
+    epochIndex,
+    currentEpoch,
+    lastClosedEpoch,
+    openPrizePool,
+    lockedInClosedEpochs,
+    myScore,
+  } = useLeaderboard(walletAddress);
 
-  const tabs: { key: Tab; label: string }[] = [
-    { key: "predicts", label: "Top Predictors" },
-    { key: "tokens",   label: "Token Holders"  },
-  ];
+  const { rows: liveRows } = useLiveLeaderboard();
+  const { allMatches } = usePariMatchFactory({ enabled: true });
+  const { assetDecimals } = usePoolDecimals();
 
-  const cols = activeTab === "predicts" ? COL_PREDICTS : COL_TOKENS;
+  // Merge the connected wallet's confirmed `score` (from the contract read)
+  // into the live event list. Without this, a user whose wins predate the
+  // page load wouldn't appear in the top-N until they win again this session.
+  const mergedRows = useMemo<LeaderboardRow[]>(() => {
+    if (!walletAddress) return liveRows;
+    const lower = walletAddress.toLowerCase();
+    const without = liveRows.filter((r) => r.user.toLowerCase() !== lower);
+    if (myScore === 0n) return without;
+    const mine: LeaderboardRow = { user: walletAddress, score: myScore };
+    return [...without, mine].sort((a, b) =>
+      b.score > a.score ? 1 : b.score < a.score ? -1 : 0,
+    );
+  }, [walletAddress, liveRows, myScore]);
+
+  const myApproximateRank = useMemo(() => {
+    if (!walletAddress) return undefined;
+    const idx = mergedRows.findIndex(
+      (r) => r.user.toLowerCase() === walletAddress.toLowerCase(),
+    );
+    return idx === -1 ? undefined : idx + 1;
+  }, [mergedRows, walletAddress]);
+
+  const lastClosedId =
+    epochIndex !== undefined && epochIndex > 0 ? epochIndex - 1 : undefined;
 
   return (
-    <div className="min-h-screen" style={{ background: "#0A0A0A" }}>
-      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 py-12 sm:py-14 flex flex-col gap-10">
-
+    <div className="min-h-screen" style={{ background: '#0A0A0A' }}>
+      <div className="mx-auto flex max-w-[1200px] flex-col gap-6 px-4 py-10 sm:px-6 sm:py-14">
         <LeaderboardHeader />
 
-        {/* Controls row */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mt-2">
-          {/* Period pills */}
-          <div className="flex gap-1">
-            {(Object.keys(PERIOD_LABELS) as Period[]).map((p) => (
-              <button
-                key={p}
-                onClick={() => setActivePeriod(p)}
-                className="px-4 py-1.5 text-[11px] font-semibold tracking-[0.07em] uppercase rounded transition-all duration-150"
-                style={{
-                  fontFamily: "'Barlow', sans-serif",
-                  background: activePeriod === p ? "#1E1E1E" : "transparent",
-                  border:     `1px solid ${activePeriod === p ? "#3A3A3A" : "transparent"}`,
-                  color:      activePeriod === p ? "#fff" : "#555",
-                }}
-              >
-                {PERIOD_LABELS[p]}
-              </button>
-            ))}
-          </div>
-        </div>
+        {!isConfigured ? (
+          <NotConfiguredCard />
+        ) : (
+          <>
+            <PrizePoolHero
+              leaderboardAddress={leaderboardAddress}
+              openPrizePool={openPrizePool}
+              lockedInClosedEpochs={lockedInClosedEpochs}
+              currentEpoch={currentEpoch}
+              decimals={assetDecimals}
+              matchCount={allMatches?.length}
+            />
 
-        {/* Table card */}
-        <div
-          className="rounded-lg overflow-hidden"
-          style={{ background: "#141414", border: "1px solid #2A2A2A" }}
-        >
-          {/* Tab bar */}
-          <div className="flex" style={{ borderBottom: "1px solid #2A2A2A" }}>
-            {tabs.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setActiveTab(t.key)}
-                className="px-6 py-3 text-[12px] font-semibold tracking-[0.08em] uppercase transition-colors duration-150"
-                style={{
-                  fontFamily: "'Barlow', sans-serif",
-                  color:        activeTab === t.key ? "#fff" : "#555",
-                  borderBottom: `2px solid ${activeTab === t.key ? "#E8001D" : "transparent"}`,
-                  marginBottom: "-1px",
-                  background:   activeTab === t.key ? "#1E1E1E" : "transparent",
-                }}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <YourStatsCard
+                walletAddress={walletAddress}
+                cumulativeScore={myScore}
+                decimals={assetDecimals}
+                approximateRank={myApproximateRank}
+              />
+              <ClaimPrizePanel
+                epochId={lastClosedId}
+                epoch={lastClosedEpoch}
+                walletAddress={walletAddress}
+                decimals={assetDecimals}
+              />
+            </div>
 
-          {/* Column headers — desktop */}
-          <div
-            className="hidden sm:flex items-center gap-3 px-4 py-2.5 text-[9px] font-semibold tracking-[0.12em] uppercase"
-            style={{ background: "#1A1A1A", borderBottom: "1px solid #2A2A2A", color: "#444" }}
-          >
-            <div className="w-10 flex-shrink-0">{cols[0]}</div>
-            <div className="flex-1">{cols[1]}</div>
-            {cols.slice(2).map((h) => (
-              <div key={h} className="w-24 text-center flex-shrink-0">{h}</div>
-            ))}
-          </div>
-
-          {/* Rows */}
-          <div>
-            {activeTab === "predicts"
-              ? mockTopPredictors.map((p) => (
-                  <PredictorCard key={p.rank} predictor={p} tokenLogo={getTokenLogo(p.favoriteTeam)} />
-                ))
-              : mockTopTokenHolders.map((h) => (
-                  <TokenHolderCard key={h.rank} holder={h} tokenLogo={getTokenLogo(h.topToken)} />
-                ))}
-          </div>
-        </div>
-
-        <AchievementBadges />
-
+            <TopScorersTable
+              rows={mergedRows}
+              highlight={walletAddress}
+              decimals={assetDecimals}
+            />
+          </>
+        )}
       </div>
+    </div>
+  );
+}
+
+function NotConfiguredCard() {
+  return (
+    <div
+      className="rounded-2xl px-6 py-8"
+      style={{
+        background: '#0F0F0F',
+        border: '1px dashed #2A2A2A',
+        color: '#aaa',
+        fontFamily: "'Barlow', sans-serif",
+      }}
+    >
+      <p
+        className="text-[11px] uppercase tracking-[0.14em]"
+        style={{ color: '#E8001D' }}
+      >
+        Leaderboard not yet deployed
+      </p>
+      <p className="mt-2 text-[14px] leading-relaxed">
+        Run <code>./deploy.sh --network chilizTestnet --all</code> to deploy
+        the LeaderboardRewards proxy (it&apos;s now part of the bundle).
+        After deployment, set <code>NEXT_PUBLIC_LEADERBOARD_REWARDS_ADDRESS</code>
+        in your <code>.env</code> to the printed address and reload this page.
+      </p>
+      <p className="mt-3 text-[12px]" style={{ color: '#666' }}>
+        Until then, the protocol fee defaults to 100% company / 0% leaderboard
+        and no on-chain score is accumulated.
+      </p>
     </div>
   );
 }

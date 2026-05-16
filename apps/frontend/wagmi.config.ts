@@ -9,6 +9,7 @@ import BasketballPariMatchJSON from "./artifacts/BasketballPariMatch.json";
 import StreamWalletJSON        from "./artifacts/StreamWallet.json";
 import StreamWalletFactoryJSON from "./artifacts/StreamWalletFactory.json";
 import ChilizSwapRouterJSON    from "./artifacts/ChilizSwapRouter.json";
+import LeaderboardRewardsJSON  from "./artifacts/LeaderboardRewards.json";
 
 // Counter to track function occurrences for unique naming.
 const hookNameCounter: Record<string, number> = {};
@@ -23,6 +24,7 @@ export default defineConfig({
     { name: 'StreamWallet',        abi: StreamWalletJSON.abi        as Abi },
     { name: 'StreamWalletFactory', abi: StreamWalletFactoryJSON.abi as Abi },
     { name: 'ChilizSwapRouter',    abi: ChilizSwapRouterJSON.abi    as Abi },
+    { name: 'LeaderboardRewards',  abi: LeaderboardRewardsJSON.abi  as Abi },
   ],
   plugins: [
     react({

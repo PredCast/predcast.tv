@@ -3293,6 +3293,655 @@ export const footballPariMatchAbi = [
 ] as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// LeaderboardRewards
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const leaderboardRewardsAbi = [
+  { type: 'constructor', inputs: [], stateMutability: 'nonpayable' },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'ADMIN_ROLE',
+    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DEFAULT_ADMIN_ROLE',
+    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MAX_CLAIM_DURATION',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'ORACLE_ROLE',
+    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'PAUSER_ROLE',
+    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'UPGRADE_INTERFACE_VERSION',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'epochId', internalType: 'uint256', type: 'uint256' },
+      { name: 'prizeAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'proof', internalType: 'bytes32[]', type: 'bytes32[]' },
+    ],
+    name: 'claim',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'merkleRoot', internalType: 'bytes32', type: 'bytes32' },
+      { name: 'claimDuration', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'closeEpoch',
+    outputs: [{ name: 'closedId', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'emergencyPause',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'epochId', internalType: 'uint256', type: 'uint256' }],
+    name: 'epoch',
+    outputs: [
+      {
+        name: '',
+        internalType: 'struct LeaderboardRewards.Epoch',
+        type: 'tuple',
+        components: [
+          { name: 'startTime', internalType: 'uint64', type: 'uint64' },
+          { name: 'closedAt', internalType: 'uint64', type: 'uint64' },
+          { name: 'claimExpiry', internalType: 'uint64', type: 'uint64' },
+          { name: 'closed', internalType: 'bool', type: 'bool' },
+          { name: 'prizePool', internalType: 'uint256', type: 'uint256' },
+          { name: 'totalClaimed', internalType: 'uint256', type: 'uint256' },
+          { name: 'merkleRoot', internalType: 'bytes32', type: 'bytes32' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'epochIndex',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'role', internalType: 'bytes32', type: 'bytes32' }],
+    name: 'getRoleAdmin',
+    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'role', internalType: 'bytes32', type: 'bytes32' },
+      { name: 'account', internalType: 'address', type: 'address' },
+    ],
+    name: 'grantRole',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'epochId', internalType: 'uint256', type: 'uint256' },
+      { name: 'user', internalType: 'address', type: 'address' },
+    ],
+    name: 'hasClaimed',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'role', internalType: 'bytes32', type: 'bytes32' },
+      { name: 'account', internalType: 'address', type: 'address' },
+    ],
+    name: 'hasRole',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_usdc', internalType: 'address', type: 'address' },
+      { name: '_admin', internalType: 'address', type: 'address' },
+      { name: '_oracle', internalType: 'address', type: 'address' },
+    ],
+    name: 'initialize',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'lockedInClosedEpochs',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'matchFactory',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract IPariMatchFactoryView',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'openPrizePool',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'paused',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'proxiableUUID',
+    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'user', internalType: 'address', type: 'address' },
+      { name: 'payout', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'recordWin',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'role', internalType: 'bytes32', type: 'bytes32' },
+      { name: 'callerConfirmation', internalType: 'address', type: 'address' },
+    ],
+    name: 'renounceRole',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'role', internalType: 'bytes32', type: 'bytes32' },
+      { name: 'account', internalType: 'address', type: 'address' },
+    ],
+    name: 'revokeRole',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'epochId', internalType: 'uint256', type: 'uint256' }],
+    name: 'rolloverEpoch',
+    outputs: [{ name: 'rolledOver', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'user', internalType: 'address', type: 'address' }],
+    name: 'score',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_factory', internalType: 'address', type: 'address' }],
+    name: 'setMatchFactory',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_usdc', internalType: 'address', type: 'address' }],
+    name: 'setUSDCToken',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'interfaceId', internalType: 'bytes4', type: 'bytes4' }],
+    name: 'supportsInterface',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'unpause',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'newImplementation', internalType: 'address', type: 'address' },
+      { name: 'data', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'upgradeToAndCall',
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'usdcToken',
+    outputs: [{ name: '', internalType: 'contract IERC20', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'epochId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'merkleRoot',
+        internalType: 'bytes32',
+        type: 'bytes32',
+        indexed: false,
+      },
+      {
+        name: 'prizePool',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'claimExpiry',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'EpochClosed',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'epochId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'rolledOver',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'EpochRolledOver',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'version',
+        internalType: 'uint64',
+        type: 'uint64',
+        indexed: false,
+      },
+    ],
+    name: 'Initialized',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'usdc', internalType: 'address', type: 'address', indexed: true },
+      {
+        name: 'admin',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'Initialized',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'oldFactory',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newFactory',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'MatchFactorySet',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'account',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Paused',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'epochId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      { name: 'user', internalType: 'address', type: 'address', indexed: true },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'PrizeClaimed',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'role', internalType: 'bytes32', type: 'bytes32', indexed: true },
+      {
+        name: 'previousAdminRole',
+        internalType: 'bytes32',
+        type: 'bytes32',
+        indexed: true,
+      },
+      {
+        name: 'newAdminRole',
+        internalType: 'bytes32',
+        type: 'bytes32',
+        indexed: true,
+      },
+    ],
+    name: 'RoleAdminChanged',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'role', internalType: 'bytes32', type: 'bytes32', indexed: true },
+      {
+        name: 'account',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'sender',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'RoleGranted',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'role', internalType: 'bytes32', type: 'bytes32', indexed: true },
+      {
+        name: 'account',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'sender',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'RoleRevoked',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'token',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'USDCTokenSet',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'account',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Unpaused',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'implementation',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'Upgraded',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'match_',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      { name: 'user', internalType: 'address', type: 'address', indexed: true },
+      {
+        name: 'delta',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'newScore',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'WinRecorded',
+  },
+  { type: 'error', inputs: [], name: 'AccessControlBadConfirmation' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'account', internalType: 'address', type: 'address' },
+      { name: 'neededRole', internalType: 'bytes32', type: 'bytes32' },
+    ],
+    name: 'AccessControlUnauthorizedAccount',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'target', internalType: 'address', type: 'address' }],
+    name: 'AddressEmptyCode',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
+    name: 'AddressInsufficientBalance',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'epochId', internalType: 'uint256', type: 'uint256' },
+      { name: 'user', internalType: 'address', type: 'address' },
+    ],
+    name: 'AlreadyClaimed',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'implementation', internalType: 'address', type: 'address' },
+    ],
+    name: 'ERC1967InvalidImplementation',
+  },
+  { type: 'error', inputs: [], name: 'ERC1967NonPayable' },
+  { type: 'error', inputs: [], name: 'EnforcedPause' },
+  {
+    type: 'error',
+    inputs: [{ name: 'epochId', internalType: 'uint256', type: 'uint256' }],
+    name: 'EpochAlreadyClosed',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'epochId', internalType: 'uint256', type: 'uint256' },
+      { name: 'claimExpiry', internalType: 'uint64', type: 'uint64' },
+      { name: 'nowTs', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'EpochClaimWindowExpired',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'epochId', internalType: 'uint256', type: 'uint256' },
+      { name: 'claimExpiry', internalType: 'uint64', type: 'uint64' },
+      { name: 'nowTs', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'EpochClaimWindowNotExpired',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'epochId', internalType: 'uint256', type: 'uint256' }],
+    name: 'EpochNotClosed',
+  },
+  { type: 'error', inputs: [], name: 'ExpectedPause' },
+  { type: 'error', inputs: [], name: 'FailedInnerCall' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'needed', internalType: 'uint256', type: 'uint256' },
+      { name: 'available', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'InsufficientContractBalance',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'provided', internalType: 'uint256', type: 'uint256' },
+      { name: 'max', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'InvalidClaimDuration',
+  },
+  { type: 'error', inputs: [], name: 'InvalidInitialization' },
+  { type: 'error', inputs: [], name: 'InvalidMerkleProof' },
+  { type: 'error', inputs: [], name: 'MatchFactoryNotSet' },
+  {
+    type: 'error',
+    inputs: [{ name: 'epochId', internalType: 'uint256', type: 'uint256' }],
+    name: 'MerkleRootNotSet',
+  },
+  { type: 'error', inputs: [], name: 'NotInitializing' },
+  { type: 'error', inputs: [], name: 'PrizeAmountZero' },
+  { type: 'error', inputs: [], name: 'ReentrancyGuardReentrantCall' },
+  {
+    type: 'error',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'SafeERC20FailedOperation',
+  },
+  { type: 'error', inputs: [], name: 'UUPSUnauthorizedCallContext' },
+  {
+    type: 'error',
+    inputs: [{ name: 'slot', internalType: 'bytes32', type: 'bytes32' }],
+    name: 'UUPSUnsupportedProxiableUUID',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'caller', internalType: 'address', type: 'address' }],
+    name: 'UnauthorizedMatch',
+  },
+  { type: 'error', inputs: [], name: 'ZeroAddress' },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // PariMatchBase
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -8436,6 +9085,552 @@ export const useFootballPariMatchWatchUpgraded =
   /*#__PURE__*/ createUseWatchContractEvent({
     abi: footballPariMatchAbi,
     eventName: 'Upgraded',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__
+ */
+export const useLeaderboardRewardsReadundefined =
+  /*#__PURE__*/ createUseReadContract({ abi: leaderboardRewardsAbi })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"ADMIN_ROLE"`
+ */
+export const useLeaderboardRewardsReadAdminRole =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'ADMIN_ROLE',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"DEFAULT_ADMIN_ROLE"`
+ */
+export const useLeaderboardRewardsReadDefaultAdminRole =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'DEFAULT_ADMIN_ROLE',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"MAX_CLAIM_DURATION"`
+ */
+export const useLeaderboardRewardsReadMaxClaimDuration =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'MAX_CLAIM_DURATION',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"ORACLE_ROLE"`
+ */
+export const useLeaderboardRewardsReadOracleRole =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'ORACLE_ROLE',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"PAUSER_ROLE"`
+ */
+export const useLeaderboardRewardsReadPauserRole =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'PAUSER_ROLE',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"UPGRADE_INTERFACE_VERSION"`
+ */
+export const useLeaderboardRewardsReadUpgradeInterfaceVersion =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'UPGRADE_INTERFACE_VERSION',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"epoch"`
+ */
+export const useLeaderboardRewardsReadEpoch =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'epoch',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"epochIndex"`
+ */
+export const useLeaderboardRewardsReadEpochIndex =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'epochIndex',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"getRoleAdmin"`
+ */
+export const useLeaderboardRewardsReadGetRoleAdmin =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'getRoleAdmin',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"hasClaimed"`
+ */
+export const useLeaderboardRewardsReadHasClaimed =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'hasClaimed',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"hasRole"`
+ */
+export const useLeaderboardRewardsReadHasRole =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'hasRole',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"lockedInClosedEpochs"`
+ */
+export const useLeaderboardRewardsReadLockedInClosedEpochs =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'lockedInClosedEpochs',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"matchFactory"`
+ */
+export const useLeaderboardRewardsReadMatchFactory =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'matchFactory',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"openPrizePool"`
+ */
+export const useLeaderboardRewardsReadOpenPrizePool =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'openPrizePool',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"paused"`
+ */
+export const useLeaderboardRewardsReadPaused =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'paused',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"proxiableUUID"`
+ */
+export const useLeaderboardRewardsReadProxiableUuid =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'proxiableUUID',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"score"`
+ */
+export const useLeaderboardRewardsReadScore =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'score',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"supportsInterface"`
+ */
+export const useLeaderboardRewardsReadSupportsInterface =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'supportsInterface',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"usdcToken"`
+ */
+export const useLeaderboardRewardsReadUsdcToken =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'usdcToken',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__
+ */
+export const useLeaderboardRewardsWriteundefined =
+  /*#__PURE__*/ createUseWriteContract({ abi: leaderboardRewardsAbi })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"claim"`
+ */
+export const useLeaderboardRewardsWriteClaim =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'claim',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"closeEpoch"`
+ */
+export const useLeaderboardRewardsWriteCloseEpoch =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'closeEpoch',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"emergencyPause"`
+ */
+export const useLeaderboardRewardsWriteEmergencyPause =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'emergencyPause',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"grantRole"`
+ */
+export const useLeaderboardRewardsWriteGrantRole =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'grantRole',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"initialize"`
+ */
+export const useLeaderboardRewardsWriteInitialize =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'initialize',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"recordWin"`
+ */
+export const useLeaderboardRewardsWriteRecordWin =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'recordWin',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"renounceRole"`
+ */
+export const useLeaderboardRewardsWriteRenounceRole =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'renounceRole',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"revokeRole"`
+ */
+export const useLeaderboardRewardsWriteRevokeRole =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'revokeRole',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"rolloverEpoch"`
+ */
+export const useLeaderboardRewardsWriteRolloverEpoch =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'rolloverEpoch',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"setMatchFactory"`
+ */
+export const useLeaderboardRewardsWriteSetMatchFactory =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'setMatchFactory',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"setUSDCToken"`
+ */
+export const useLeaderboardRewardsWriteSetUsdcToken =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'setUSDCToken',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"unpause"`
+ */
+export const useLeaderboardRewardsWriteUnpause =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'unpause',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"upgradeToAndCall"`
+ */
+export const useLeaderboardRewardsWriteUpgradeToAndCall =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'upgradeToAndCall',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__
+ */
+export const useLeaderboardRewardsSimulateundefined =
+  /*#__PURE__*/ createUseSimulateContract({ abi: leaderboardRewardsAbi })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"claim"`
+ */
+export const useLeaderboardRewardsSimulateClaim =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'claim',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"closeEpoch"`
+ */
+export const useLeaderboardRewardsSimulateCloseEpoch =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'closeEpoch',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"emergencyPause"`
+ */
+export const useLeaderboardRewardsSimulateEmergencyPause =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'emergencyPause',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"grantRole"`
+ */
+export const useLeaderboardRewardsSimulateGrantRole =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'grantRole',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"initialize"`
+ */
+export const useLeaderboardRewardsSimulateInitialize =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'initialize',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"recordWin"`
+ */
+export const useLeaderboardRewardsSimulateRecordWin =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'recordWin',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"renounceRole"`
+ */
+export const useLeaderboardRewardsSimulateRenounceRole =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'renounceRole',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"revokeRole"`
+ */
+export const useLeaderboardRewardsSimulateRevokeRole =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'revokeRole',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"rolloverEpoch"`
+ */
+export const useLeaderboardRewardsSimulateRolloverEpoch =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'rolloverEpoch',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"setMatchFactory"`
+ */
+export const useLeaderboardRewardsSimulateSetMatchFactory =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'setMatchFactory',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"setUSDCToken"`
+ */
+export const useLeaderboardRewardsSimulateSetUsdcToken =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'setUSDCToken',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"unpause"`
+ */
+export const useLeaderboardRewardsSimulateUnpause =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'unpause',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"upgradeToAndCall"`
+ */
+export const useLeaderboardRewardsSimulateUpgradeToAndCall =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'upgradeToAndCall',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link leaderboardRewardsAbi}__
+ */
+export const useLeaderboardRewardsWatchundefined =
+  /*#__PURE__*/ createUseWatchContractEvent({ abi: leaderboardRewardsAbi })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `eventName` set to `"EpochClosed"`
+ */
+export const useLeaderboardRewardsWatchEpochClosed =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: leaderboardRewardsAbi,
+    eventName: 'EpochClosed',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `eventName` set to `"EpochRolledOver"`
+ */
+export const useLeaderboardRewardsWatchEpochRolledOver =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: leaderboardRewardsAbi,
+    eventName: 'EpochRolledOver',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `eventName` set to `"Initialized"`
+ */
+export const useLeaderboardRewardsWatchInitialized =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: leaderboardRewardsAbi,
+    eventName: 'Initialized',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `eventName` set to `"MatchFactorySet"`
+ */
+export const useLeaderboardRewardsWatchMatchFactorySet =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: leaderboardRewardsAbi,
+    eventName: 'MatchFactorySet',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `eventName` set to `"Paused"`
+ */
+export const useLeaderboardRewardsWatchPaused =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: leaderboardRewardsAbi,
+    eventName: 'Paused',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `eventName` set to `"PrizeClaimed"`
+ */
+export const useLeaderboardRewardsWatchPrizeClaimed =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: leaderboardRewardsAbi,
+    eventName: 'PrizeClaimed',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `eventName` set to `"RoleAdminChanged"`
+ */
+export const useLeaderboardRewardsWatchRoleAdminChanged =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: leaderboardRewardsAbi,
+    eventName: 'RoleAdminChanged',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `eventName` set to `"RoleGranted"`
+ */
+export const useLeaderboardRewardsWatchRoleGranted =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: leaderboardRewardsAbi,
+    eventName: 'RoleGranted',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `eventName` set to `"RoleRevoked"`
+ */
+export const useLeaderboardRewardsWatchRoleRevoked =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: leaderboardRewardsAbi,
+    eventName: 'RoleRevoked',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `eventName` set to `"USDCTokenSet"`
+ */
+export const useLeaderboardRewardsWatchUsdcTokenSet =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: leaderboardRewardsAbi,
+    eventName: 'USDCTokenSet',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `eventName` set to `"Unpaused"`
+ */
+export const useLeaderboardRewardsWatchUnpaused =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: leaderboardRewardsAbi,
+    eventName: 'Unpaused',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `eventName` set to `"Upgraded"`
+ */
+export const useLeaderboardRewardsWatchUpgraded =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: leaderboardRewardsAbi,
+    eventName: 'Upgraded',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `eventName` set to `"WinRecorded"`
+ */
+export const useLeaderboardRewardsWatchWinRecorded =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: leaderboardRewardsAbi,
+    eventName: 'WinRecorded',
   })
 
 /**

@@ -15,6 +15,9 @@ export interface ChilizNetworkConfig {
     /** PariMatchFactory — deploys & registers FootballPariMatch / BasketballPariMatch proxies.
      *  Replaces the legacy BettingMatchFactory + LiquidityPool stack. */
     pariMatchFactory: `0x${string}`;
+    /** LeaderboardRewards proxy — receives 1% of every pool, tracks scores,
+     *  distributes prizes via epoch + merkle. May be 0x0 if not yet deployed. */
+    leaderboardRewards: `0x${string}`;
     streamWalletFactory: `0x${string}`;
     /** Unified swap router (FanX/Kayen adapter). CHZ / fan-token / USDC entrypoint
      *  for pari-mutuel bets and streamer donations/subscriptions. */
@@ -233,6 +236,17 @@ const MAINNET_PARI_FACTORY = (
 const TESTNET_STREAM_WALLET_FACTORY = (process.env.NEXT_PUBLIC_STREAM_WALLET_FACTORY_ADDRESS || '0x0000000000000000000000000000000000000000') as `0x${string}`;
 const MAINNET_STREAM_WALLET_FACTORY = (process.env.NEXT_PUBLIC_STREAM_WALLET_FACTORY_ADDRESS_MAINNET || '0x0000000000000000000000000000000000000000') as `0x${string}`;
 
+// LeaderboardRewards proxy. May be left empty before deployment — the
+// frontend renders a graceful "not yet configured" state in that case.
+const TESTNET_LEADERBOARD = (
+    process.env.NEXT_PUBLIC_LEADERBOARD_REWARDS_ADDRESS ||
+    '0x0000000000000000000000000000000000000000'
+) as `0x${string}`;
+const MAINNET_LEADERBOARD = (
+    process.env.NEXT_PUBLIC_LEADERBOARD_REWARDS_ADDRESS_MAINNET ||
+    '0x0000000000000000000000000000000000000000'
+) as `0x${string}`;
+
 // Unified swap router (FanX/Kayen adapter). Single entrypoint for multi-asset
 // bets, donations, subscriptions, and LP deposits.
 const TESTNET_SWAP_ROUTER = (
@@ -267,6 +281,7 @@ const TESTNET_CONFIG: ChilizNetworkConfig = {
     rpcUrl: 'https://spicy-rpc.chiliz.com',
     chainId: 88882,
     pariMatchFactory: TESTNET_PARI_FACTORY,
+    leaderboardRewards: TESTNET_LEADERBOARD,
     streamWalletFactory: TESTNET_STREAM_WALLET_FACTORY,
     chilizSwapRouter: TESTNET_SWAP_ROUTER,
     usdc: TESTNET_USDC,
@@ -281,6 +296,7 @@ const MAINNET_CONFIG: ChilizNetworkConfig = {
     rpcUrl: 'https://rpc.ankr.com/chiliz',
     chainId: 88888,
     pariMatchFactory: MAINNET_PARI_FACTORY,
+    leaderboardRewards: MAINNET_LEADERBOARD,
     streamWalletFactory: MAINNET_STREAM_WALLET_FACTORY,
     chilizSwapRouter: MAINNET_SWAP_ROUTER,
     usdc: MAINNET_USDC,
@@ -305,6 +321,7 @@ if (typeof window !== 'undefined') {
     console.log(`   RPC URL                : ${chilizConfig.rpcUrl}`);
     console.log(`   Chain ID               : ${chilizConfig.chainId}`);
     console.log(`   PariMatchFactory       : ${chilizConfig.pariMatchFactory}`);
+    console.log(`   LeaderboardRewards     : ${chilizConfig.leaderboardRewards}`);
     console.log(`   StreamWalletFactory    : ${chilizConfig.streamWalletFactory}`);
     console.log(`   ChilizSwapRouter       : ${chilizConfig.chilizSwapRouter}`);
     console.log(`   USDC                   : ${chilizConfig.usdc}`);
