@@ -9,9 +9,11 @@ import { securityHeadersMiddleware, env, setupDependencyInjection, container } f
 import { logger, createRequestLogger } from './src/infrastructure/logging';
 import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
-import { errorHandler, authenticate, globalLimiter, authLimiter, predictionsLimiter, chatLimiter, accessCodeLimiter } from './src/presentation/http/middlewares';
+import { errorHandler, authenticate, globalLimiter, authLimiter, predictionsLimiter, chatLimiter, accessCodeLimiter, webhookLimiter } from './src/presentation/http/middlewares';
 import { JobScheduler, BlockchainEventListener } from './src/infrastructure/services';
 import { CleanupOldMatchesUseCase } from './src/application/matches/use-cases/CleanupOldMatchesUseCase';
+import { RedisWarmupService } from './src/infrastructure/cache/RedisWarmupService';
+import { waitForRedisReady, type RedisClient } from './src/infrastructure/cache/RedisClient';
 config();
 setupDependencyInjection();
 import { authRoutes, accessRoutes, predictionRoutes, matchRoutes, chatRoutes, waitlistRoutes, streamRoutes, streamWalletRoutes, fanTokensRoutes, followRoutes, poolRoutes, betRoutes, userRoutes, pricesRoutes } from './src/presentation/http/routes';
@@ -29,11 +31,16 @@ const PORT = env.PORT;
 
 const allowedOrigins = env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim());
 
+// Honor X-Forwarded-For when running behind Fly's edge proxy so `req.ip`
+// returns the originating IP instead of the proxy's. Without this, IP-based
+// rate limiting collapses to a single bucket per Fly region.
+app.set('trust proxy', 1);
+
 app.use(securityHeadersMiddleware);
 
 // Cloudflare Stream webhook — raw body required for HMAC verification.
-// Must be registered BEFORE the global express.json() middleware.
-app.use('/cloudflare-stream/webhook', express.raw({ type: 'application/json' }), cloudflareStreamWebhookRoutes);
+// Must be registered BEFORE the global bodyParser.json() middleware.
+app.use('/cloudflare-stream/webhook', express.raw({ type: 'application/json' }), webhookLimiter, cloudflareStreamWebhookRoutes);
 
 app.use(express.json());
 
@@ -104,18 +111,22 @@ if (PROCESS_ROLE === 'api' || PROCESS_ROLE === 'all') {
 // Global error handler — must be registered after all routes
 app.use(errorHandler);
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
     logger.info('Server started', {
         port: PORT,
         role: PROCESS_ROLE,
         environment: env.NODE_ENV,
     });
 
-    // Hostname only — REDIS_URL embeds an auth token in the rediss:// scheme.
-    if (env.REDIS_URL) {
-        logger.info('Redis configured', { redisHost: new URL(env.REDIS_URL).hostname });
-    } else {
-        logger.info('Redis not configured (REDIS_URL empty or unset) — running without distributed cache/locks');
+    // Wait for Redis to be ready before kicking off work that takes locks
+    // or subscribes; otherwise the first tick fires against an offline-queue
+    // -disabled client and reports misleading "lock taken" skips.
+    if (env.REDIS_URL && container.isRegistered(TOKENS.RedisClient)) {
+        const redis = container.resolve<RedisClient>(TOKENS.RedisClient);
+        await waitForRedisReady(redis);
+        if (redis.status !== 'ready') {
+            logger.warn('Redis not ready after timeout, proceeding anyway', { status: redis.status });
+        }
     }
 
     // Startup cleanup runs for api and all roles (not needed on worker-only)
@@ -123,6 +134,14 @@ server.listen(PORT, () => {
         const cleanupUseCase = container.resolve(CleanupOldMatchesUseCase);
         cleanupUseCase.cleanupOutside24Hours().catch((err: Error) => {
             logger.error('Startup cleanup failed', { error: err.message });
+        });
+
+        // Warm the hottest cache surfaces so the first request after a deploy
+        // doesn't hit cold Supabase / RPC / API-Football. A distributed lock
+        // makes the rolling-deploy second instance skip silently.
+        const warmup = container.resolve(RedisWarmupService);
+        warmup.run().catch((err: Error) => {
+            logger.error('Cache warmup failed', { error: err.message });
         });
     }
 
