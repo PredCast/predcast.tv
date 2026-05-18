@@ -43,14 +43,17 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      - name: Install Vercel CLI
+        run: pnpm add -g vercel@latest
+
       - name: Pull Vercel environment
-        run: pnpm dlx vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_APP }}
 
       - name: Build
-        run: pnpm dlx vercel build --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_APP }}
@@ -58,7 +61,7 @@ jobs:
       - name: Deploy preview
         id: deploy
         run: |
-          URL=$(pnpm dlx vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }} 2>&1 | tail -1)
+          URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }} 2>/dev/null | grep -oE 'https://[^ ]+\.vercel\.app' | head -n1)
           echo "preview_url=$URL" >> "$GITHUB_OUTPUT"
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -115,23 +118,37 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      - name: Install Vercel CLI
+        run: pnpm add -g vercel@latest
+
       - name: Pull Vercel environment
-        run: pnpm dlx vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+        # Custom Environment "Staging" carries the env vars for app-staging
+        # (NEXT_PUBLIC_API_URL, NEXT_PUBLIC_LANDING_URL, NEXT_PUBLIC_STAGING=true).
+        run: vercel pull --yes --environment=staging --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_APP }}
 
       - name: Build
-        run: pnpm dlx vercel build --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel build --target=staging --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_APP }}
 
-      - name: Deploy to staging
+      - name: Deploy to Vercel staging
         id: deploy
+        # --target=staging publishes to the Custom Environment aliased to
+        # app-staging.chiliztv.com. The smoke check below hits the *.vercel.app
+        # URL because the custom domain can take up to 30s to propagate.
         run: |
-          URL=$(pnpm dlx vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }} 2>&1 | tail -1)
+          URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }} --target=staging 2>/dev/null \
+            | grep -oE 'https://[^ ]+\.vercel\.app' | head -n1)
+          if [ -z "$URL" ]; then
+            echo "Failed to capture deploy URL"
+            exit 1
+          fi
           echo "deployment_url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Deployed to: $URL"
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_APP }}
@@ -148,10 +165,17 @@ jobs:
           retention-days: 30
 
       - name: Smoke — GET /api/health
+        # Vercel Deployment Protection guards *.vercel.app URLs with auth.
+        # Bypass it via the x-vercel-protection-bypass header so the runner
+        # can hit /api/health without ending up on the login page (HTTP 401).
+        env:
+          VERCEL_BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: |
           URL="${{ steps.deploy.outputs.deployment_url }}"
           for i in 1 2 3; do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "${URL}/api/health")
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+              -H "x-vercel-protection-bypass: $VERCEL_BYPASS" \
+              "${URL}/api/health")
             if [ "$STATUS" = "200" ]; then
               echo "Health check passed (attempt $i)"
               exit 0
@@ -161,3 +185,55 @@ jobs:
           done
           echo "Health check failed after 3 attempts"
           exit 1
+
+  # ── Notify on success ─────────────────────────────────────────────────────
+  # Push-main path only — PR previews already report via the inline PR comment.
+  notify-success:
+    name: Notify success
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    if: success() && github.event_name == 'push'
+    steps:
+      - name: Post Discord success
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          curl -s -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "embeds": [{
+                "title": "Deploy app staging — SUCCESS",
+                "color": 3066993,
+                "fields": [
+                  {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                  {"name": "Commit", "value": "${{ github.sha }}", "inline": true},
+                  {"name": "URL", "value": "${{ needs.deploy-staging.outputs.deployment_url }}", "inline": false},
+                  {"name": "Run", "value": "[View logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": false}
+                ]
+              }]
+            }'
+
+  # ── Notify on failure ─────────────────────────────────────────────────────
+  notify-failure:
+    name: Notify failure
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    if: failure() && github.event_name == 'push'
+    steps:
+      - name: Post Discord alert
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          curl -s -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "embeds": [{
+                "title": "Deploy app staging — FAILED",
+                "color": 15158332,
+                "fields": [
+                  {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                  {"name": "Commit", "value": "${{ github.sha }}", "inline": true},
+                  {"name": "Run", "value": "[View logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": false}
+                ]
+              }]
+            }'
