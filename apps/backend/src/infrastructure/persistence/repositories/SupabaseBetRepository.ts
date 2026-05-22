@@ -9,6 +9,7 @@ import {
 import { Bet, BetUpdate } from '@chiliztv/domain/blockchain-indexing/entities/Bet';
 import { BetWithMatchInfo } from '@chiliztv/domain/blockchain-indexing/entities/BetWithMatchInfo';
 import { logger } from '../../logging/logger';
+import { looksLikeMarketTypeHash, marketTypeNameFromHash } from '../../blockchain/markets/marketTypeNameFromHash';
 
 /**
  * `claimable` = WON & not yet claimed, `refundable` = REFUNDED & not yet
@@ -356,9 +357,15 @@ export class SupabaseBetRepository implements IBetRepository {
                     const key = `${row.contract_address.toLowerCase()}:${String(row.market_id)}`;
                     if (marketContextByKey.has(key)) continue;
                     const p = row.payload ?? {};
-                    const marketType = typeof p.marketType === 'string' ? p.marketType : null;
+                    const rawMarketType = typeof p.marketType === 'string' ? p.marketType : null;
                     const line = typeof p.line === 'number' ? p.line : null;
-                    if (!marketType) continue;
+                    if (!rawMarketType) continue;
+                    // Back-compat: rows written before the indexer learned to
+                    // resolve the bytes32 hash to a friendly name still hold
+                    // the raw 0x… value.
+                    const marketType = looksLikeMarketTypeHash(rawMarketType)
+                        ? (marketTypeNameFromHash(rawMarketType) ?? rawMarketType)
+                        : rawMarketType;
                     marketContextByKey.set(key, { marketType, line });
                 }
             }

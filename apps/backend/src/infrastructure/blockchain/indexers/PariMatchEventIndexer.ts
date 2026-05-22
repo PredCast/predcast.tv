@@ -21,6 +21,7 @@ import type { ICacheService } from '@chiliztv/domain/shared/ports/ICacheService'
 import { MarketPoolsCacheKeys } from '../../../application/matches/MarketPoolsCacheKeys';
 import { BaseIndexer } from './BaseIndexer';
 import { getTokenDecimals } from '../utils/getTokenDecimals';
+import { marketTypeNameFromHash } from '../markets/marketTypeNameFromHash';
 
 // PariMatchBase events. Names must match the ABI for viem `getLogs({events})`
 // decoding to populate `log.eventName` and `log.args`.
@@ -240,13 +241,18 @@ export class PariMatchEventIndexer extends BaseIndexer {
             }
             case 'MarketCreated': {
                 const a = args as { marketId: bigint; marketType: string; line: number; maxOutcome: number; groupId: number };
+                // `a.marketType` is the bytes32 keccak256 hash from the event.
+                // Resolve to friendly name ("WINNER", "GOALS_TOTAL", …) so the
+                // dashboard + chat label can render without a reverse lookup.
+                const friendlyName = marketTypeNameFromHash(a.marketType);
                 await this.marketEvents.insertIfAbsent({
                     coordinates: coords,
                     contractAddress,
                     marketId: a.marketId,
                     eventName,
                     payload: {
-                        marketType: a.marketType,
+                        marketType: friendlyName ?? a.marketType,
+                        marketTypeHash: a.marketType,
                         line: a.line,
                         maxOutcome: a.maxOutcome,
                         maxSelections: a.maxOutcome + 1,
@@ -316,7 +322,15 @@ export class PariMatchEventIndexer extends BaseIndexer {
         };
 
         const inserted = await this.bets.insertIfAbsent(bet);
-        if (!inserted) return;
+        if (!inserted) {
+            logger.info(`${this.indexerName}: PositionTaken skipped (already indexed)`, {
+                txHash: coords.transactionHash,
+                logIndex: coords.logIndex,
+                contractAddress,
+                marketId: args.marketId.toString(),
+            });
+            return;
+        }
 
         const match = matches.find(
             (m) => m.betting_contract_address?.toLowerCase() === contractAddress,
@@ -335,6 +349,16 @@ export class PariMatchEventIndexer extends BaseIndexer {
             line: ctx?.line ?? null,
             homeTeam: this.teamName(match.home_team),
             awayTeam: this.teamName(match.away_team),
+        });
+
+        logger.info(`${this.indexerName}: PositionTaken processed`, {
+            txHash: coords.transactionHash,
+            contractAddress,
+            matchId: match.api_football_id,
+            marketId: args.marketId.toString(),
+            outcome: args.outcome.toString(),
+            marketType: ctx?.marketType ?? null,
+            label: label.display,
         });
 
         await this.postBetChatMessage(args, match, usdcDecimals, label);
@@ -393,10 +417,20 @@ export class PariMatchEventIndexer extends BaseIndexer {
                 systemType: 'bet',
                 isFeatured: false,
             });
-            await this.chat.saveMessage(message);
+            const saved = await this.chat.saveMessage(message);
+            logger.info(`${this.indexerName}: bet chat message inserted`, {
+                matchId: match.api_football_id,
+                messageId: saved.getId() ?? null,
+                stake: formatted,
+                label: label.display,
+            });
         } catch (err) {
             logger.error(`${this.indexerName}: failed to insert bet chat message`, {
+                matchId: match.api_football_id,
+                stake: formatted,
+                label: label.display,
                 error: err instanceof Error ? err.message : String(err),
+                stack: err instanceof Error ? err.stack : undefined,
             });
         }
     }

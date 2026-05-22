@@ -90,6 +90,7 @@ export function Dashboard() {
                 activity={activity.rows}
                 userId={user.userId}
                 wallet={user.wallet}
+                onSwap={goToDiscover}
                 onPlaceFirstBet={goToDiscover}
                 onBrowseStreamers={goToDiscover}
             />

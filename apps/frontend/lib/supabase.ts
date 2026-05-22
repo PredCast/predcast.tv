@@ -8,3 +8,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// supabase-js v2: createClient() does NOT auto-bind the anon JWT to the
+// Realtime worker, so postgres_changes events get silently dropped after
+// SUBSCRIBED. This explicit setAuth() restores the auth context the
+// Realtime RLS check expects.
+supabase.realtime.setAuth(supabaseAnonKey);

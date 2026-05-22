@@ -576,8 +576,11 @@ export function MarketBetDialog({
     if (!open) setEventConfirmed(false);
   }, [open]);
 
-  // Tx success → advance to success phase (one-shot).
+  // Tx success → advance to success phase (one-shot). Reads the optimistic-
+  // message bits via refs because `stakeUsdcEquivNum` / `selectionLabel` are
+  // declared lower in the function (display section).
   const advancedRef = useRef(false);
+  const optimisticBetRef = useRef<{ stakeUsdc: number | null; label: string }>({ stakeUsdc: null, label: "—" });
   useEffect(() => {
     if (open && isSuccess && !advancedRef.current) {
       advancedRef.current = true;
@@ -585,6 +588,21 @@ export function MarketBetDialog({
       toast.success("Prediction placed", {
         description: txHash ? `${txHash.slice(0, 10)}…${txHash.slice(-8)}` : undefined,
       });
+      // Optimistic chat banner — local Supabase realtime sometimes drops the
+      // postgres_changes push silently; this fires the gold banner instantly
+      // and the indexer-written row (or the realtime push in prod) will
+      // dedupe by id prefix + message match in `useChatRoom.handleNewMessage`.
+      const { stakeUsdc, label } = optimisticBetRef.current;
+      if (typeof window !== "undefined" && stakeUsdc !== null && label !== "—") {
+        window.dispatchEvent(
+          new CustomEvent("chiliz:bet-confirmed", {
+            detail: {
+              message: `New position: ${stakeUsdc.toFixed(2)} USDC on ${label}`,
+              txHash: txHash ?? null,
+            },
+          }),
+        );
+      }
     }
     if (!open) advancedRef.current = false;
   }, [open, isSuccess, txHash]);
@@ -664,6 +682,7 @@ export function MarketBetDialog({
         awayTeam,
       )
     : "—";
+  optimisticBetRef.current = { stakeUsdc: stakeUsdcEquivNum, label: selectionLabel };
   const stakeLabel = `${amount || "0"} ${tokenLabel(token)}`;
   // Net payout = gross payout already nets the fee (parimutuelPayoutPreview
   // multiplies by (10_000 - feeBps) / 10_000 — same as the contract).

@@ -330,7 +330,15 @@ export class SupabaseChatService {
                     callback(message);
                 }
             )
-            .subscribe();
+            .subscribe((status, err) => {
+                // Silent CHANNEL_ERROR was masking the realtime issue when RLS
+                // grants were missing. Log explicitly so failures surface.
+                if (status === 'SUBSCRIBED') {
+                    console.info(`[chat] realtime SUBSCRIBED match=${matchId}`);
+                } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+                    console.warn(`[chat] realtime ${status} match=${matchId}`, err);
+                }
+            });
 
         this.subscriptions.set(matchId, subscription);
         return subscription;
@@ -362,7 +370,13 @@ export class SupabaseChatService {
                     callback(message);
                 }
             )
-            .subscribe();
+            .subscribe((status, err) => {
+                if (status === 'SUBSCRIBED') {
+                    console.info(`[chat] realtime SUBSCRIBED stream=${streamId}`);
+                } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+                    console.warn(`[chat] realtime ${status} stream=${streamId}`, err);
+                }
+            });
 
         this.streamSubscriptions.set(streamId, subscription);
         return subscription;

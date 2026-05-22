@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { SupabaseChatService } from '@/services';
-import { ChatMessage, MessageType } from '@/models/chat.model';
+import { ChatMessage, MessageType, SystemMessageType } from '@/models/chat.model';
 
 export interface UseChatRoomOptions {
     roomType: 'match' | 'stream';
@@ -107,8 +107,42 @@ export function useChatRoom({
             chatService.subscribeToMatchMessages(matchId, handleNewMessage);
         }
 
+        // Optimistic banner: MarketBetDialog fires `chiliz:bet-confirmed` the
+        // moment the tx confirms. We synthesise a local SYSTEM row so the gold
+        // banner updates instantly — the real row from the indexer (or the
+        // realtime push) dedupes via the optimistic-* id check above.
+        const handleBetConfirmed = (ev: Event) => {
+            if (roomType !== 'match') return;
+            if (!activeRef.current) return;
+            const detail = (ev as CustomEvent<{ message?: string; txHash?: string | null }>).detail;
+            if (!detail?.message) return;
+            const optimisticMsg: ChatMessage = {
+                id: `optimistic-bet-${detail.txHash ?? Date.now()}`,
+                matchId,
+                streamId: null,
+                userId: 'system',
+                username: 'System',
+                walletAddress: 'system',
+                message: detail.message,
+                type: MessageType.SYSTEM,
+                systemEventType: SystemMessageType.BET_PLACED,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            };
+            setMessages(prev => {
+                if (prev.some(m => m.id === optimisticMsg.id)) return prev;
+                return [...prev, optimisticMsg];
+            });
+        };
+        if (typeof window !== 'undefined') {
+            window.addEventListener('chiliz:bet-confirmed', handleBetConfirmed);
+        }
+
         return () => {
             cancelled = true;
+            if (typeof window !== 'undefined') {
+                window.removeEventListener('chiliz:bet-confirmed', handleBetConfirmed);
+            }
             if (roomType === 'stream') {
                 chatService.unsubscribeFromStream(roomIdStr);
             } else {

@@ -7,6 +7,7 @@ import type {
 } from '@chiliztv/domain/blockchain-indexing/repositories/IMarketEventRepository';
 import { MarketEvent } from '@chiliztv/domain/blockchain-indexing/entities/MarketEvent';
 import { logger } from '../../logging/logger';
+import { looksLikeMarketTypeHash, marketTypeNameFromHash } from '../../blockchain/markets/marketTypeNameFromHash';
 
 interface MarketCreatedRow {
     contract_address: string;
@@ -54,8 +55,13 @@ export class SupabaseMarketEventRepository implements IMarketEventRepository {
         }
         if (!data) return null;
         const payload = (data as { payload: MarketCreatedRow['payload'] }).payload;
-        const marketType = typeof payload?.marketType === 'string' ? payload.marketType : null;
-        if (!marketType) return null;
+        const rawMarketType = typeof payload?.marketType === 'string' ? payload.marketType : null;
+        if (!rawMarketType) return null;
+        // Back-compat: rows written before the indexer learned to resolve the
+        // bytes32 hash to a friendly name still hold the raw 0x… value.
+        const marketType = looksLikeMarketTypeHash(rawMarketType)
+            ? (marketTypeNameFromHash(rawMarketType) ?? rawMarketType)
+            : rawMarketType;
         const line = typeof payload?.line === 'number'
             ? payload.line
             : payload?.line != null && !Number.isNaN(Number(payload.line)) ? Number(payload.line) : null;

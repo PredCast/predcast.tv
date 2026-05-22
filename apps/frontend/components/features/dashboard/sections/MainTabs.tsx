@@ -105,8 +105,8 @@ export function MainTabs({ tokens, activity, userId, wallet, onSwap, onPlaceFirs
                     <EmptyCard
                         icon={EMPTY_ICONS.coin}
                         title="No fan tokens"
-                        lead="Hold any club's $TOKEN to multiply your support and stake on its matches. Swap CHZ or USDC into a fan token via Kayen."
-                        cta="Open the swap →"
+                        lead="Hold any club's $TOKEN to multiply your support and stake on its matches. Pick a match and stake in CHZ, USDC or any supported fan token — the swap to USDC runs inside the bet flow."
+                        cta="Find a match →"
                         onCta={onSwap}
                         tip="Supported: $PSG · $BAR · $JUV · $ATM · $ACM · $INTER · $GAL · $POR …"
                     />
