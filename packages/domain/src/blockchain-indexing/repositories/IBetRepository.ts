@@ -72,4 +72,12 @@ export interface IBetRepository {
     countByUserStatuses(userAddress: string): Promise<BetCounts>;
     findByUserWithMatchInfo(userAddress: string, options: FindBetsByUserOptions): Promise<BetWithMatchInfo[]>;
     listReferencedContractAddresses(): Promise<ReadonlySet<string>>;
+
+    /**
+     * SUM(stake_amount) across every bet posted on/after `since`. Drives the
+     * "volume staked this epoch" stat on the discover hero — caller passes
+     * the latest confirmed `EpochClosed.closed_at`, or Unix epoch for the
+     * all-time fallback when no epoch has closed yet.
+     */
+    sumStakeAmountSince(since: Date): Promise<bigint>;
 }

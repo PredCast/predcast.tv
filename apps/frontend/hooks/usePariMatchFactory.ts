@@ -1,184 +1,140 @@
 /**
- * Hook for admin actions on BettingMatchFactory contract
- * Used to create new match contracts (Football or Basketball)
+ * Hook for admin actions on PariMatchFactory contract.
+ * Used to create new match contracts (Football or Basketball PariMatch proxies).
  */
 
 import { useCallback } from 'react';
-import { 
-  useBettingMatchFactoryWriteCreateFootballMatch,
-  useBettingMatchFactoryWriteCreateBasketballMatch,
-  useBettingMatchFactoryReadGetAllMatches,
-  useBettingMatchFactoryReadGetSportType
+import {
+    usePariMatchFactoryWriteCreateFootballMatch,
+    usePariMatchFactoryWriteCreateBasketballMatch,
+    usePariMatchFactoryReadGetAllMatches,
+    usePariMatchFactoryReadGetSportType,
 } from '@/lib/contracts/generated';
 import { useWaitForTransactionReceipt } from 'wagmi';
 import { Address } from 'viem';
 
 // Pin contract reads to Chiliz Spicy testnet so they don't depend on the
-// connected wallet's active chain (otherwise the request never fires).
+// connected wallet's active chain.
 const BETTING_CHAIN_ID = 88882 as const;
 
 interface MatchCreationState {
-  isPending: boolean;
-  isConfirming: boolean;
-  isSuccess: boolean;
-  error: Error | null;
-  txHash?: `0x${string}`;
-  matchAddress?: Address;
+    isPending: boolean;
+    isConfirming: boolean;
+    isSuccess: boolean;
+    error: Error | null;
+    txHash?: `0x${string}`;
+    matchAddress?: Address;
 }
 
-export interface UseBettingMatchFactoryReturn {
-  // Write functions
-  createFootballMatch: (matchName: string, owner: Address, oracle: Address) => void;
-  createBasketballMatch: (matchName: string, owner: Address, oracle: Address) => void;
-
-  // Read functions
-  allMatches: readonly Address[] | undefined;
-  getSportType: (matchAddress: Address) => number | undefined;
-  
-  // States
-  footballCreation: MatchCreationState;
-  basketballCreation: MatchCreationState;
-
-  // Loading states
-  isLoadingMatches: boolean;
-  isRefetchingMatches: boolean;
-  
-  // Refetch function
-  refetchMatches: () => void;
+export interface UsePariMatchFactoryReturn {
+    createFootballMatch: (matchName: string, owner: Address, oracle: Address) => void;
+    createBasketballMatch: (matchName: string, owner: Address, oracle: Address) => void;
+    allMatches: readonly Address[] | undefined;
+    getSportType: (matchAddress: Address) => number | undefined;
+    footballCreation: MatchCreationState;
+    basketballCreation: MatchCreationState;
+    isLoadingMatches: boolean;
+    isRefetchingMatches: boolean;
+    refetchMatches: () => void;
 }
 
-export function useBettingMatchFactory(factoryAddress: Address): UseBettingMatchFactoryReturn {
-  
-  // ============================================
-  // Write Hooks - Football Match Creation
-  // ============================================
-  const {
-    writeContract: writeCreateFootballMatch,
-    data: footballTxHash,
-    isPending: isFootballPending,
-    error: footballWriteError,
-  } = useBettingMatchFactoryWriteCreateFootballMatch();
+export function usePariMatchFactory(factoryAddress: Address): UsePariMatchFactoryReturn {
+    const {
+        writeContract: writeCreateFootballMatch,
+        data: footballTxHash,
+        isPending: isFootballPending,
+        error: footballWriteError,
+    } = usePariMatchFactoryWriteCreateFootballMatch();
 
-  const {
-    isLoading: isFootballConfirming,
-    isSuccess: isFootballSuccess,
-    data: footballReceipt,
-  } = useWaitForTransactionReceipt({
-    hash: footballTxHash,
-  });
+    const {
+        isLoading: isFootballConfirming,
+        isSuccess: isFootballSuccess,
+        data: footballReceipt,
+    } = useWaitForTransactionReceipt({ hash: footballTxHash });
 
-  // ============================================
-  // Write Hooks - Basketball Match Creation
-  // ============================================
-  const {
-    writeContract: writeCreateBasketballMatch,
-    data: basketballTxHash,
-    isPending: isBasketballPending,
-    error: basketballWriteError,
-  } = useBettingMatchFactoryWriteCreateBasketballMatch();
+    const {
+        writeContract: writeCreateBasketballMatch,
+        data: basketballTxHash,
+        isPending: isBasketballPending,
+        error: basketballWriteError,
+    } = usePariMatchFactoryWriteCreateBasketballMatch();
 
-  const {
-    isLoading: isBasketballConfirming,
-    isSuccess: isBasketballSuccess,
-    data: basketballReceipt,
-  } = useWaitForTransactionReceipt({
-    hash: basketballTxHash,
-  });
+    const {
+        isLoading: isBasketballConfirming,
+        isSuccess: isBasketballSuccess,
+        data: basketballReceipt,
+    } = useWaitForTransactionReceipt({ hash: basketballTxHash });
 
-  // ============================================
-  // Read Hooks
-  // ============================================
-  const {
-    data: allMatches,
-    isLoading: isLoadingMatches,
-    isRefetching: isRefetchingMatches,
-    refetch: refetchMatches,
-  } = useBettingMatchFactoryReadGetAllMatches({
-    address: factoryAddress,
-    chainId: BETTING_CHAIN_ID,
-  });
-
-  const { data: sportTypeData } = useBettingMatchFactoryReadGetSportType({
-    address: factoryAddress,
-    args: allMatches && allMatches.length > 0 ? [allMatches[0]] : undefined,
-    chainId: BETTING_CHAIN_ID,
-  });
-
-  // ============================================
-  // Write Functions
-  // ============================================
-  const createFootballMatch = useCallback(
-    (matchName: string, owner: Address, oracle: Address) => {
-      if (!writeCreateFootballMatch) {
-        console.error('writeCreateFootballMatch is not available');
-        return;
-      }
-      writeCreateFootballMatch({
+    const {
+        data: allMatches,
+        isLoading: isLoadingMatches,
+        isRefetching: isRefetchingMatches,
+        refetch: refetchMatches,
+    } = usePariMatchFactoryReadGetAllMatches({
         address: factoryAddress,
-        args: [matchName, owner, oracle],
-      });
-    },
-    [writeCreateFootballMatch, factoryAddress]
-  );
+        chainId: BETTING_CHAIN_ID,
+    });
 
-  const createBasketballMatch = useCallback(
-    (matchName: string, owner: Address, oracle: Address) => {
-      if (!writeCreateBasketballMatch) {
-        console.error('writeCreateBasketballMatch is not available');
-        return;
-      }
-      writeCreateBasketballMatch({
+    const { data: sportTypeData } = usePariMatchFactoryReadGetSportType({
         address: factoryAddress,
-        args: [matchName, owner, oracle],
-      });
-    },
-    [writeCreateBasketballMatch, factoryAddress]
-  );
+        args: allMatches && allMatches.length > 0 ? [allMatches[0]] : undefined,
+        chainId: BETTING_CHAIN_ID,
+    });
 
-  // Helper to get sport type for a specific match
-  const getSportType = useCallback(
-    (matchAddress: Address): number | undefined => {
-      // This would require a separate read call, simplified here
-      return sportTypeData as number | undefined;
-    },
-    [sportTypeData]
-  );
+    const createFootballMatch = useCallback(
+        (matchName: string, owner: Address, oracle: Address) => {
+            if (!writeCreateFootballMatch) return;
+            writeCreateFootballMatch({
+                address: factoryAddress,
+                args: [matchName, owner, oracle],
+            });
+        },
+        [writeCreateFootballMatch, factoryAddress],
+    );
 
-  // ============================================
-  // Return Hook Data
-  // ============================================
-  return {
-    // Write functions
-    createFootballMatch,
-    createBasketballMatch,
+    const createBasketballMatch = useCallback(
+        (matchName: string, owner: Address, oracle: Address) => {
+            if (!writeCreateBasketballMatch) return;
+            writeCreateBasketballMatch({
+                address: factoryAddress,
+                args: [matchName, owner, oracle],
+            });
+        },
+        [writeCreateBasketballMatch, factoryAddress],
+    );
 
-    // Read data
-    allMatches,
-    getSportType,
+    const getSportType = useCallback(
+        (_matchAddress: Address): number | undefined => {
+            // Single-call snapshot — refetch with a per-match read if the UI
+            // needs per-row sport types.
+            return sportTypeData as number | undefined;
+        },
+        [sportTypeData],
+    );
 
-    // States
-    footballCreation: {
-      isPending: isFootballPending,
-      isConfirming: isFootballConfirming,
-      isSuccess: isFootballSuccess,
-      error: footballWriteError,
-      txHash: footballTxHash,
-      matchAddress: footballReceipt?.logs?.[0]?.address as Address | undefined,
-    },
-    basketballCreation: {
-      isPending: isBasketballPending,
-      isConfirming: isBasketballConfirming,
-      isSuccess: isBasketballSuccess,
-      error: basketballWriteError,
-      txHash: basketballTxHash,
-      matchAddress: basketballReceipt?.logs?.[0]?.address as Address | undefined,
-    },
-
-    // Loading states
-    isLoadingMatches,
-    isRefetchingMatches,
-
-    // Refetch
-    refetchMatches,
-  };
+    return {
+        createFootballMatch,
+        createBasketballMatch,
+        allMatches,
+        getSportType,
+        footballCreation: {
+            isPending: isFootballPending,
+            isConfirming: isFootballConfirming,
+            isSuccess: isFootballSuccess,
+            error: footballWriteError,
+            txHash: footballTxHash,
+            matchAddress: footballReceipt?.logs?.[0]?.address as Address | undefined,
+        },
+        basketballCreation: {
+            isPending: isBasketballPending,
+            isConfirming: isBasketballConfirming,
+            isSuccess: isBasketballSuccess,
+            error: basketballWriteError,
+            txHash: basketballTxHash,
+            matchAddress: basketballReceipt?.logs?.[0]?.address as Address | undefined,
+        },
+        isLoadingMatches,
+        isRefetchingMatches,
+        refetchMatches,
+    };
 }
