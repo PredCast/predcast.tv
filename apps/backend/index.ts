@@ -1,5 +1,5 @@
 // Same image is deployed to chiliztv-api and chiliztv-workers; PROCESS_ROLE
-// (read further down) decides which set of services boot.
+// (read further down) decides which set of services boot. 
 import 'reflect-metadata';
 import express from 'express';
 import cors from "cors";
