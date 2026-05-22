@@ -61,7 +61,17 @@ jobs:
       - name: Deploy preview
         id: deploy
         run: |
-          URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }} 2>/dev/null | grep -oE 'https://[^ ]+\.vercel\.app' | head -n1)
+          # Merge stderr into stdout so we both extract the URL on success
+          # and surface the build/auth/config error on failure (the previous
+          # `2>/dev/null` was hiding every revert reason).
+          OUT=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }} 2>&1)
+          STATUS=$?
+          echo "$OUT"
+          URL=$(echo "$OUT" | grep -oE 'https://[^ ]+\.vercel\.app' | head -n1)
+          if [ -z "$URL" ] || [ "$STATUS" -ne 0 ]; then
+            echo "::error ::Vercel preview deploy failed (status=$STATUS, url='$URL') — see full output above"
+            exit 1
+          fi
           echo "preview_url=$URL" >> "$GITHUB_OUTPUT"
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -140,11 +150,15 @@ jobs:
         # --target=staging publishes to the Custom Environment aliased to
         # app-staging.chiliztv.com. The smoke check below hits the *.vercel.app
         # URL because the custom domain can take up to 30s to propagate.
+        # stderr is merged into stdout so build/auth/config errors are visible
+        # in the run log — `2>/dev/null` was silently hiding every reason.
         run: |
-          URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }} --target=staging 2>/dev/null \
-            | grep -oE 'https://[^ ]+\.vercel\.app' | head -n1)
-          if [ -z "$URL" ]; then
-            echo "Failed to capture deploy URL"
+          OUT=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }} --target=staging 2>&1)
+          STATUS=$?
+          echo "$OUT"
+          URL=$(echo "$OUT" | grep -oE 'https://[^ ]+\.vercel\.app' | head -n1)
+          if [ -z "$URL" ] || [ "$STATUS" -ne 0 ]; then
+            echo "::error ::Vercel staging deploy failed (status=$STATUS, url='$URL') — see full output above"
             exit 1
           fi
           echo "deployment_url=$URL" >> "$GITHUB_OUTPUT"
