@@ -3,6 +3,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { SupabaseChatService } from '@/services';
 import { ChatMessage, MessageType, SystemMessageType } from '@/models/chat.model';
+import { useVisibilityAwareInterval } from '@/hooks/useVisibilityAwareInterval';
+
+const POLL_INTERVAL_MS = 4000;
 
 export interface UseChatRoomOptions {
     roomType: 'match' | 'stream';
@@ -184,6 +187,37 @@ export function useChatRoom({
     );
 
     const clearUnread = useCallback(() => setUnreadCount(0), []);
+
+    // Polling fallback — fetch latest history every 4s while visible, merge
+    // any new ids into state. Dedup happens via the id Set below so this is
+    // a no-op when realtime push beats us to it.
+    const pollAndMerge = useCallback(async () => {
+        if (roomType === 'stream' && !roomIdStr) return;
+        try {
+            const history: ChatMessage[] = roomType === 'stream'
+                ? await chatService.getStreamMessages(roomIdStr)
+                : await chatService.getGeneralMessages(matchId);
+            let addedCount = 0;
+            setMessages(prev => {
+                const known = new Set(prev.map(m => m.id));
+                const fresh = history.filter(m => !known.has(m.id));
+                addedCount = fresh.length;
+                if (addedCount === 0) return prev;
+                return [...prev, ...fresh];
+            });
+            if (addedCount > 0 && !activeRef.current) {
+                setUnreadCount(n => n + addedCount);
+            }
+        } catch {
+            // Silent — the next tick retries, keep the last known state visible.
+        }
+    }, [roomType, roomIdStr, matchId]);
+
+    useVisibilityAwareInterval(
+        pollAndMerge,
+        roomType === 'stream' && !roomIdStr ? null : POLL_INTERVAL_MS,
+        !(roomType === 'stream' && !roomIdStr),
+    );
 
     return { messages, isLoading, error, sendMessage, unreadCount, clearUnread };
 }
