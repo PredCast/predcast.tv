@@ -2126,6 +2126,7 @@ export const chilizSwapRouterAbi = [
     inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
     name: 'SafeERC20FailedOperation',
   },
+  { type: 'error', inputs: [], name: 'StreamWalletFactoryNotSet' },
   { type: 'error', inputs: [], name: 'TokenIsUSDC' },
   {
     type: 'error',
