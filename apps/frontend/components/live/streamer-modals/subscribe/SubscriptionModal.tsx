@@ -280,7 +280,9 @@ export function SubscriptionModal({
           ? "Subscribing…"
           : needsApproval
             ? `Approve ${tokenSymbol} →`
-            : `Subscribe · ${fmtUsd(totalUsd)} →`;
+            : isAlreadySubscribed
+              ? `Extend · ${fmtUsd(totalUsd)} →`
+              : `Subscribe · ${fmtUsd(totalUsd)} →`;
 
   const tokenAmountSubLabel =
     tokenKind.kind === "USDC"
@@ -288,9 +290,6 @@ export function SubscriptionModal({
       : numericTokenAmount > 0
         ? `≈ ${fmtTok(numericTokenAmount, tokenSymbol === "CHZ" ? 0 : 2)} $${tokenSymbol}`
         : "FanX quote pending…";
-
-  // Prefer to gate behind the already-subscribed banner before showing the form.
-  const renderBody = !isAlreadySubscribed;
 
   if (successSnapshot) {
     return (
@@ -337,7 +336,11 @@ export function SubscriptionModal({
             Support <span className="text-[#E8001D]">{streamerName}.</span>
           </>
         }
-        sub="Unlock perks for the duration you choose. Funds vest in their StreamWallet — no auto-renew."
+        sub={
+          isAlreadySubscribed
+            ? "You're already subscribed. Pick any duration to extend on top of the current expiry."
+            : "Unlock perks for the duration you choose. Funds vest in their StreamWallet — no auto-renew."
+        }
         onClose={onClose}
       />
 
@@ -347,8 +350,8 @@ export function SubscriptionModal({
         avatarUrl={streamerAvatarUrl}
       />
 
-      {!renderBody && (
-        <div className="px-7 pb-6">
+      {isAlreadySubscribed && (
+        <div className="px-7 pb-4">
           <div className="rounded-xl border border-[#2dd4a4]/30 bg-[#2dd4a4]/10 p-4">
             <div className="flex items-center gap-2">
               <svg
@@ -364,7 +367,7 @@ export function SubscriptionModal({
                 <polyline points="20 6 9 17 4 12" />
               </svg>
               <span className="font-display text-[14px] font-bold uppercase tracking-tight text-white">
-                You&apos;re subscribed
+                Active subscription
               </span>
             </div>
             <p className="mt-2 text-[12px] text-white/65">
@@ -372,15 +375,14 @@ export function SubscriptionModal({
               <span className="font-mono-ctv text-white">
                 {subscription?.expiryTime ?? "—"}
               </span>
-              . No auto-renew.
+              . Extending adds the picked duration on top — no auto-renew.
             </p>
           </div>
         </div>
       )}
 
-      {renderBody && (
-        <div className="px-7">
-          <Eyebrow dim>Duration</Eyebrow>
+      <div className="px-7">
+        <Eyebrow dim>Duration</Eyebrow>
           <DurationGrid months={months} monthlyUsd={monthlyPriceUsd} onPick={setMonths} />
 
           <div className="mt-5">
@@ -457,48 +459,35 @@ export function SubscriptionModal({
               No FanX/Kayen liquidity for {tokenSymbol} → USDC. Pick another token.
             </div>
           )}
-        </div>
-      )}
+      </div>
 
-      {renderBody ? (
-        <SettlementFooter
-          ctaLabel={ctaLabel}
-          onSubmit={handleSubmit}
-          loading={isLoading}
-          disabled={
-            parsedAmount === BigInt(0) ||
-            swapPathMissing ||
-            probePathMissing ||
-            insufficient
-          }
-          note="One-shot tx · no auto-renew"
-          alert={
-            <>
-              {insufficient && tokenBalance !== undefined && (
-                <InsufficientBalanceBanner
-                  symbol={tokenSymbol}
-                  shortfall={fmtTok(numericTokenAmount - tokenBalance, tokenSymbol === "CHZ" ? 0 : 2)}
-                />
-              )}
-              {errorMessage && !insufficient && (
-                <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-[12px] text-red-300">
-                  {errorMessage}
-                </div>
-              )}
-            </>
-          }
-        />
-      ) : (
-        <div className="border-t border-[#1F1F1F] bg-[#0a0a0a] px-7 py-5">
-          <button
-            type="button"
-            onClick={onClose}
-            className="font-display w-full rounded-xl border border-[#262626] bg-[#161616] py-3 text-[13px] font-bold uppercase tracking-[0.06em] text-white transition-colors hover:border-[#3A3A3A]"
-          >
-            Close
-          </button>
-        </div>
-      )}
+      <SettlementFooter
+        ctaLabel={ctaLabel}
+        onSubmit={handleSubmit}
+        loading={isLoading}
+        disabled={
+          parsedAmount === BigInt(0) ||
+          swapPathMissing ||
+          probePathMissing ||
+          insufficient
+        }
+        note={isAlreadySubscribed ? "Adds duration on top · no auto-renew" : "One-shot tx · no auto-renew"}
+        alert={
+          <>
+            {insufficient && tokenBalance !== undefined && (
+              <InsufficientBalanceBanner
+                symbol={tokenSymbol}
+                shortfall={fmtTok(numericTokenAmount - tokenBalance, tokenSymbol === "CHZ" ? 0 : 2)}
+              />
+            )}
+            {errorMessage && !insufficient && (
+              <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-[12px] text-red-300">
+                {errorMessage}
+              </div>
+            )}
+          </>
+        }
+      />
 
       <TokenPickerSheet
         open={pickerOpen}

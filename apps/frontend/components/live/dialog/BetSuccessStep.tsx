@@ -56,7 +56,7 @@ export function BetSuccessStep({
                 Bet placed.
             </div>
             <div className="mt-3 text-[14px] font-light leading-[1.55] text-white/65">
-                Your stake is locked in the BettingMatch contract.
+                Your stake is locked in the PariMatch contract.
                 <br />
                 You&apos;ll see the result the moment full-time settles on-chain.
             </div>
