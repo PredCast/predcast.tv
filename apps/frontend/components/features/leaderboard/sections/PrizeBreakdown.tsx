@@ -69,7 +69,7 @@ export function PrizeBreakdown() {
                                     #{entry.rank}
                                 </span>
                                 <span className="font-mono-ctv truncate text-[12px] tabular-nums text-white/85">
-                                    {truncate(entry.userAddress)}
+                                    {entry.username ?? truncate(entry.userAddress)}
                                 </span>
                                 <span
                                     className="font-display text-right text-[18px] font-extrabold uppercase tracking-tight tabular-nums"

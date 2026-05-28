@@ -19,7 +19,6 @@ import { chilizConfig } from "@/config/chiliz.config";
 import { queryKeys } from "@/lib/query/keys";
 import {
   getMarketSpec,
-  getOddsForMarket,
   isHiddenMarket,
   isFootballMatch,
   stateLabel as catalogStateLabel,
@@ -28,7 +27,6 @@ import {
   type MarketKey,
   type MarketPoolSnapshot,
 } from "@/lib/contracts/markets";
-import type { MatchOdds } from "@/types/api.types";
 import { MarketBetDialog } from "./MarketBetDialog";
 import { UnsupportedSportPanel } from "./UnsupportedSportPanel";
 
@@ -50,8 +48,6 @@ interface MatchMarketsListProps {
   walletAddress?: string;
   homeTeam?: string;
   awayTeam?: string;
-  /** Per-market DB odds — cosmetic hint when the pool is empty. */
-  matchOdds?: MatchOdds;
   /** Match metadata pour le check `isBettable` (couche 2 du defense-in-depth). */
   match?: MatchBettableContext;
 }
@@ -105,8 +101,6 @@ export interface MarketSelection {
   maxOutcome: number;
   /** Optional pre-selected outcome when the user clicked a specific cell. */
   defaultSelection?: number;
-  /** Cosmetic DB odds fallback (selection → decimal). Empty Map = no hint. */
-  oddsBySelection?: ReadonlyMap<number, number>;
 }
 
 interface MarketRowProps {
@@ -114,13 +108,12 @@ interface MarketRowProps {
   snapshot: MarketPoolSnapshot;
   homeTeam?: string;
   awayTeam?: string;
-  matchOdds?: MatchOdds;
   match?: MatchBettableContext;
   now: Date | null;
   onBet: (selection: MarketSelection) => void;
 }
 
-function MarketRow({ contractAddress, snapshot, homeTeam, awayTeam, matchOdds, match, now, onBet }: MarketRowProps) {
+function MarketRow({ contractAddress, snapshot, homeTeam, awayTeam, match, now, onBet }: MarketRowProps) {
   const { assetDecimals } = usePoolDecimals();
 
   const marketId = Number(snapshot.marketId);
@@ -137,11 +130,6 @@ function MarketRow({ contractAddress, snapshot, homeTeam, awayTeam, matchOdds, m
   const Icon = spec ? MARKET_ICONS[spec.key] ?? Hash : Hash;
   const lineLabel = spec?.hasLine && line > 0 ? `${(line / 10).toFixed(1)}` : null;
   const isOpen = state === MarketState.Open;
-
-  // DB hint — only used cosmetically when the pool is still empty.
-  const dbOdds = spec
-    ? getOddsForMarket(matchOdds, spec.key)
-    : { bySelection: new Map<number, number>(), hasAny: false };
 
   const verdict: BettableResult =
     match && now
@@ -168,7 +156,6 @@ function MarketRow({ contractAddress, snapshot, homeTeam, awayTeam, matchOdds, m
       totalPool,
       maxOutcome: snapshot.maxOutcome,
       defaultSelection: selectionIdx,
-      oddsBySelection: dbOdds.bySelection,
     });
   };
 
@@ -255,8 +242,8 @@ function MarketRow({ contractAddress, snapshot, homeTeam, awayTeam, matchOdds, m
         </div>
       )}
 
-      {/* Outcome cells — three display modes: probability if pool>0, ref odds
-          if DB hint available, else "be the first" prompt. */}
+      {/* Outcome cells — probability when the pool has liquidity, otherwise
+          "be the first to predict" prompt. */}
       {outcomes.length > 0 && (
         <div
           className="mt-3 grid gap-2"
@@ -267,7 +254,6 @@ function MarketRow({ contractAddress, snapshot, homeTeam, awayTeam, matchOdds, m
             const outcomePoolRaw = snapshot.outcomePools[outcomeIdx];
             const outcomePool = outcomePoolRaw ? BigInt(outcomePoolRaw) : BigInt(0);
             const probBps = snapshot.impliedProbBps[outcomeIdx] ?? 0;
-            const refOdds = dbOdds.bySelection.get(outcomeIdx) ?? null;
             return (
               <button
                 key={outcomeIdx}
@@ -305,10 +291,6 @@ function MarketRow({ contractAddress, snapshot, homeTeam, awayTeam, matchOdds, m
                       ${Number(formatUnits(outcomePool, assetDecimals)).toLocaleString()}
                     </span>
                   </span>
-                ) : refOdds !== null ? (
-                  <span className="font-mono-ctv text-[10px] italic tabular-nums text-white/45">
-                    Ref × {refOdds.toFixed(2)} · no positions yet
-                  </span>
                 ) : (
                   <span className="font-mono-ctv text-[10px] tabular-nums text-white/45">
                     Be the first to predict
@@ -328,7 +310,6 @@ export function MatchMarketsList({
   walletAddress,
   homeTeam,
   awayTeam,
-  matchOdds,
   match,
 }: MatchMarketsListProps) {
   const qc = useQueryClient();
@@ -426,7 +407,6 @@ export function MatchMarketsList({
             snapshot={snapshot}
             homeTeam={homeTeam}
             awayTeam={awayTeam}
-            matchOdds={matchOdds}
             match={match}
             now={now}
             onBet={setActiveMarket}

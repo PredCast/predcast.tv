@@ -21,28 +21,6 @@ export const getMatchByIdSchema = z.object({
   }),
 });
 
-export const deployBettingContractSchema = z.object({
-  params: z.object({ matchId: positiveIntSchema }),
-  body: z.object({
-    odds: z.object({
-      home: z.number().positive(),
-      draw: z.number().positive(),
-      away: z.number().positive(),
-    }),
-  }),
-});
-
-export const updateMatchOddsSchema = z.object({
-  params: z.object({ matchId: positiveIntSchema }),
-  body: z.object({
-    odds: z.object({
-      home: z.number().positive(),
-      draw: z.number().positive(),
-      away: z.number().positive(),
-    }),
-  }),
-});
-
 export const resolveMatchSchema = z.object({
   params: z.object({ matchId: positiveIntSchema }),
   body: z.object({

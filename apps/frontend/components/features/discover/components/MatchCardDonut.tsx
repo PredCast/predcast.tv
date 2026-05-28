@@ -11,6 +11,7 @@ import {
     type FlatMatch,
 } from "../domain";
 import { useMatchPoolDistribution } from "../hooks";
+import { TeamFormBadge } from "@/components/shared/TeamFormBadge";
 import { Donut, donutColor } from "./Donut";
 import { TeamLogo } from "./TeamLogo";
 
@@ -19,9 +20,8 @@ const ACCENT = "#E8001D";
 /**
  * Donut match card — radial 1X2 distribution + per-row legend + footer
  * CTA. Branches over the shape returned by `useMatchPoolDistribution`:
- *   - `source: 'pool'`    → live shares, `Pool · $X` caption
- *   - `source: 'oddsRef'` → devigorized sharp-book reference, italic caption
- *   - `source: 'empty'`   → dashed donut + "Be first to stake" CTA
+ *   - `source: 'pool'`  → live shares, `Pool · $X` caption
+ *   - `source: 'empty'` → dashed donut + "Be first to stake" CTA
  */
 export function MatchCardDonut({
     match,
@@ -41,7 +41,6 @@ export function MatchCardDonut({
 
     const distribution = useMatchPoolDistribution({
         contractAddress: match.contractAddress,
-        oddsRef: match.odds,
     });
 
     const homeShort = useMemo(() => shortName(match.homeTeam.name), [match.homeTeam.name]);
@@ -99,6 +98,7 @@ export function MatchCardDonut({
                     <span className="font-display w-full truncate text-[16px] font-bold uppercase leading-none tracking-[-0.005em] text-white">
                         {match.homeTeam.name}
                     </span>
+                    <TeamFormBadge form={match.homeForm} size="sm" />
                 </div>
 
                 <div className="flex flex-col items-center gap-1 px-1">
@@ -135,6 +135,7 @@ export function MatchCardDonut({
                     <span className="font-display w-full truncate text-right text-[16px] font-bold uppercase leading-none tracking-[-0.005em] text-white">
                         {match.awayTeam.name}
                     </span>
+                    <TeamFormBadge form={match.awayForm} size="sm" />
                 </div>
             </div>
 
@@ -170,17 +171,14 @@ export function MatchCardDonut({
                 <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                     {/* Market badge — clarifies which market the donut is showing
                         when the WINNER pool is empty and we fall back to e.g.
-                        GOALS_TOTAL. Italic when we're rendering the cosmetic
-                        sharp-book reference instead of live shares. */}
+                        GOALS_TOTAL. */}
                     <div className="font-mono-ctv flex items-center gap-1.5 text-[9px] uppercase tracking-[0.16em] text-white/45">
                         <span
                             aria-hidden
                             className="block h-px w-2.5"
                             style={{ background: ACCENT }}
                         />
-                        <span className={distribution.source === "oddsRef" ? "italic" : undefined}>
-                            {distribution.marketLabel}
-                        </span>
+                        <span>{distribution.marketLabel}</span>
                     </div>
                     {(distribution.outcomeLabels.length > 0
                         ? distribution.outcomeLabels
@@ -236,22 +234,12 @@ export function MatchCardDonut({
                     <span aria-hidden>→</span>
                 </button>
                 <div className="font-mono-ctv flex items-center gap-2 px-2 text-[10px] uppercase tracking-[0.14em] text-white/55">
-                    {distribution.source === "pool" ? (
-                        <>
-                            <span className="text-white/45">Pool</span>
-                            <span className="font-bold text-white">{fmtUsdcCompact(distribution.totalPool)}</span>
-                        </>
-                    ) : distribution.source === "oddsRef" ? (
-                        <>
-                            <span className="text-white/45">Ref</span>
-                            <span className="font-bold italic text-white/70">Sharp books</span>
-                        </>
-                    ) : (
-                        <>
-                            <span className="text-white/45">Pool</span>
-                            <span className="font-bold text-white">—</span>
-                        </>
-                    )}
+                    <span className="text-white/45">Pool</span>
+                    <span className="font-bold text-white">
+                        {distribution.source === "pool"
+                            ? fmtUsdcCompact(distribution.totalPool)
+                            : "—"}
+                    </span>
                 </div>
                 <button
                     type="button"

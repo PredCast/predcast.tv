@@ -17,25 +17,13 @@ export interface MatchProps {
   venue?: string;
   homeScore?: number;
   awayScore?: number;
-  odds?: MatchOdds;
+  /** Last 5 results from the home team's perspective (oldest → newest). NULL when no API data. */
+  homeForm?: string | null;
+  /** Last 5 results from the away team's perspective. */
+  awayForm?: string | null;
   bettingContractAddress?: string;
   createdAt: Date;
   updatedAt: Date;
-}
-
-/**
- * Per-market odds posted by the admin. Each top-level key matches a
- * `bytes32` market hash on-chain. Optional — missing key = no odds posted,
- * the front must disable betting on that market.
- *
- * `goalsTotal.line` is in goals (e.g. 2.5), not contract tenths.
- */
-export interface MatchOdds {
-  winner?: { homeWin: number; draw: number; awayWin: number };
-  halftime?: { homeWin: number; draw: number; awayWin: number };
-  goalsTotal?: { line: number; over: number; under: number };
-  bothScore?: { yes: number; no: number };
-  firstScorer?: { home: number; away: number; none: number };
 }
 
 export class Match {
@@ -105,6 +93,14 @@ export class Match {
     return this.props.bettingContractAddress;
   }
 
+  getHomeForm(): string | null {
+    return this.props.homeForm ?? null;
+  }
+
+  getAwayForm(): string | null {
+    return this.props.awayForm ?? null;
+  }
+
   /** Flat snapshot of the internal props. Symmetric with `reconstitute` — meant for cache round-trip, not API responses (use `toJSON` for that). */
   toRaw(): MatchProps {
     return { ...this.props };
@@ -136,7 +132,8 @@ export class Match {
       score: this.props.homeScore !== undefined && this.props.awayScore !== undefined
         ? { home: this.props.homeScore, away: this.props.awayScore }
         : null,
-      odds: this.props.odds,
+      homeForm: this.props.homeForm ?? null,
+      awayForm: this.props.awayForm ?? null,
       bettingContractAddress: this.props.bettingContractAddress,
       createdAt: this.props.createdAt,
       updatedAt: this.props.updatedAt,

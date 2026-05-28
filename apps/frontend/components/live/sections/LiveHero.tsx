@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
+import { TeamFormBadge } from "@/components/shared/TeamFormBadge";
 import { Eyebrow, Pill, PulseDot } from "../primitives";
 
 const LIVE_STATUSES = new Set(["1H", "2H", "ET", "BT", "P", "HT", "LIVE"]);
@@ -15,6 +16,8 @@ interface LiveHeroProps {
   awayScore?: number;
   homeLogo?: string;
   awayLogo?: string;
+  homeForm?: string | null;
+  awayForm?: string | null;
   status?: string;
   /** Live elapsed minute, when surfaced by the data source. */
   elapsed?: number;
@@ -79,10 +82,12 @@ function TeamSide({
   name,
   logo,
   side,
+  form,
 }: {
   name: string;
   logo?: string;
   side: "home" | "away";
+  form?: string | null;
 }) {
   return (
     <div
@@ -95,9 +100,12 @@ function TeamSide({
         <span className="font-display max-w-[12ch] truncate text-[18px] font-extrabold uppercase tracking-tight text-white sm:max-w-[18ch] sm:text-[22px]">
           {name}
         </span>
-        <span className="font-mono-ctv text-[9px] uppercase tracking-[0.18em] text-white/35">
-          {shortName(name)}
-        </span>
+        <div className={`mt-1 flex items-center gap-2 ${side === "away" ? "flex-row-reverse" : ""}`}>
+          <span className="font-mono-ctv text-[9px] uppercase tracking-[0.18em] text-white/35">
+            {shortName(name)}
+          </span>
+          <TeamFormBadge form={form} size="md" />
+        </div>
       </div>
     </div>
   );
@@ -110,6 +118,8 @@ export function LiveHero({
   awayScore = 0,
   homeLogo,
   awayLogo,
+  homeForm,
+  awayForm,
   status,
   elapsed,
   kickoffAt,
@@ -157,7 +167,7 @@ export function LiveHero({
               </button>
             )}
 
-            <TeamSide name={homeTeam} logo={homeLogo} side="home" />
+            <TeamSide name={homeTeam} logo={homeLogo} side="home" form={homeForm} />
 
             <div className="flex flex-col items-center gap-1">
               {isUpcoming ? (
@@ -188,7 +198,7 @@ export function LiveHero({
               </span>
             </div>
 
-            <TeamSide name={awayTeam} logo={awayLogo} side="away" />
+            <TeamSide name={awayTeam} logo={awayLogo} side="away" form={awayForm} />
           </div>
         </div>
 

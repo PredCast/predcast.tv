@@ -1,8 +1,10 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatUnits } from 'viem';
 import { useLeaderboardTop } from '@/hooks/api';
+import { formatCountdown } from '@chiliztv/domain/leaderboard/policies/formatCountdown';
 import { Eyebrow, GhostBtn, Pill, PrimaryBtn, PulseDot } from '../primitives';
 import { LBI } from '../primitives/icons';
 
@@ -11,6 +13,7 @@ interface HeroProps {
 }
 
 const USDC_DECIMALS = 6;
+const COUNTDOWN_TICK_MS = 60_000;
 
 function fmtUsdc(raw: string | undefined): string {
     if (!raw || raw === '0') return '0';
@@ -30,8 +33,19 @@ export function Hero({ onRules }: HeroProps) {
     const epochId = data?.currentEpochId ?? 0;
     const volume = data?.currentEpochVolume ?? '0';
     const topN = data?.topN ?? 10;
-    const claimDurationDays = data?.claimDurationDays ?? 7;
+    const cycleEndsMs = data?.cycleEndsAt ? new Date(data.cycleEndsAt).getTime() : null;
     const isEmpty = prizePool === '0';
+
+    const [nowMs, setNowMs] = useState<number | null>(null);
+    useEffect(() => {
+        setNowMs(Date.now());
+        const id = setInterval(() => setNowMs(Date.now()), COUNTDOWN_TICK_MS);
+        return () => clearInterval(id);
+    }, []);
+
+    const countdown = cycleEndsMs !== null && nowMs !== null
+        ? formatCountdown(cycleEndsMs, nowMs)
+        : '—';
 
     return (
         <section className="relative z-[4] mx-auto max-w-[1400px] px-8 pb-16 pt-20 sm:px-14 sm:pb-20 sm:pt-28">
@@ -106,9 +120,9 @@ export function Hero({ onRules }: HeroProps) {
                         <div className="mt-6 h-px w-full bg-[#1E1E1E]" />
 
                         <div className="mt-4 grid grid-cols-3 gap-4">
-                            <PoolFact label="Epoch" value={`#${epochId}`} />
+                            <PoolFact label="Cycle" value={`#${epochId}`} />
                             <PoolFact label="Volume" value={`${fmtUsdc(volume)} USDC`} />
-                            <PoolFact label="Claim window" value={`${claimDurationDays}d`} />
+                            <PoolFact label="Ends in" value={countdown} />
                         </div>
                     </div>
                 </div>

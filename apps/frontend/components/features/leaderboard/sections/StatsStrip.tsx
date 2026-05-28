@@ -1,9 +1,12 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { formatUnits } from 'viem';
 import { useLeaderboardTop } from '@/hooks/api';
+import { formatCountdown } from '@chiliztv/domain/leaderboard/policies/formatCountdown';
 
 const USDC_DECIMALS = 6;
+const COUNTDOWN_TICK_MS = 60_000;
 
 function fmtUsdc(raw: string | undefined): string {
     if (!raw || raw === '0') return '0';
@@ -26,6 +29,19 @@ export function StatsStrip() {
     const { data } = useLeaderboardTop(1);
     const topN = data?.topN ?? 10;
     const claimDurationDays = data?.claimDurationDays ?? 7;
+    const cycleEndsMs = data?.cycleEndsAt ? new Date(data.cycleEndsAt).getTime() : null;
+
+    // SSR-safe clock: null on server / first paint → "—" displayed.
+    const [nowMs, setNowMs] = useState<number | null>(null);
+    useEffect(() => {
+        setNowMs(Date.now());
+        const id = setInterval(() => setNowMs(Date.now()), COUNTDOWN_TICK_MS);
+        return () => clearInterval(id);
+    }, []);
+
+    const countdown = cycleEndsMs !== null && nowMs !== null
+        ? formatCountdown(cycleEndsMs, nowMs)
+        : '—';
 
     const cells: ReadonlyArray<StatCellData> = [
         {
@@ -34,14 +50,14 @@ export function StatsStrip() {
             sub: '▲ Funded on-chain',
         },
         {
-            label: 'Volume this epoch',
+            label: 'Volume this cycle',
             value: `${fmtUsdc(data?.currentEpochVolume)} USDC`,
             sub: 'Settled in USDC',
         },
         {
-            label: 'Current epoch',
-            value: `#${data?.currentEpochId ?? 0}`,
-            sub: `${claimDurationDays}d claim window`,
+            label: 'Cycle ends in',
+            value: countdown,
+            sub: `Cycle #${data?.currentEpochId ?? 0} · ${claimDurationDays}d claim window`,
         },
         {
             label: `Top ${topN}`,

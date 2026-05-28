@@ -446,9 +446,6 @@ export function MarketBetDialog({
   const needsApproval =
     token.kind !== "CHZ" && parsedAmount > BigInt(0) && allowance < parsedAmount;
 
-  // DB odds drive the picker as a cosmetic hint when the pool is empty.
-  const oddsBySelection = selection?.oddsBySelection ?? new Map<number, number>();
-
   // ── Pre-flight simulation ──────────────────────────────────────────────
   const deadlineForSim = BigInt(Math.floor(Date.now() / 1000) + DEADLINE_MIN * 60);
   const simEnabled =
@@ -844,7 +841,6 @@ export function MarketBetDialog({
                   line={selection.line}
                   homeTeam={homeTeam}
                   awayTeam={awayTeam}
-                  oddsBySelection={oddsBySelection}
                   impliedProbBpsBySelection={impliedProbBpsBySelection}
                   outcomePoolsBySelection={outcomePoolsBySelection}
                   usdcDecimals={usdcDecimals}

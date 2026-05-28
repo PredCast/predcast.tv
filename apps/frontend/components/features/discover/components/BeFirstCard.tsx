@@ -1,6 +1,7 @@
 "use client";
 
 import { getCountdown, type FlatMatch } from "../domain";
+import { TeamFormBadge } from "@/components/shared/TeamFormBadge";
 import { TeamLogo } from "./TeamLogo";
 
 const SEED_GREEN = "#2dd4a4";
@@ -8,8 +9,8 @@ const SEED_GREEN = "#2dd4a4";
 /**
  * Dashed empty-pool card used by {@link BeFirstStrip}. Surfaces upcoming
  * matches whose WINNER pool is still at zero — the user's stake will set
- * the first implied probability. Reference odds (sharp-book DB hint) are
- * shown italic so they read as "context", not "live data".
+ * the first implied probability. Shows each team's recent form (W/D/L)
+ * as the only neutral pre-bet signal.
  */
 export function BeFirstCard({
     match,
@@ -20,7 +21,6 @@ export function BeFirstCard({
     now: Date | null;
     onPredict?: (match: FlatMatch) => void;
 }) {
-    const odds = match.odds;
     return (
         <button
             type="button"
@@ -42,6 +42,7 @@ export function BeFirstCard({
                     <span className="font-display max-w-[120px] truncate text-[14px] font-bold uppercase tracking-[-0.005em] text-white">
                         {match.homeTeam.name}
                     </span>
+                    <TeamFormBadge form={match.homeForm} size="sm" />
                 </div>
                 <span className="font-mono-ctv text-[10px] uppercase tracking-[0.18em] text-white/35">
                     vs
@@ -51,36 +52,14 @@ export function BeFirstCard({
                     <span className="font-display max-w-[120px] truncate text-right text-[14px] font-bold uppercase tracking-[-0.005em] text-white">
                         {match.awayTeam.name}
                     </span>
+                    <TeamFormBadge form={match.awayForm} size="sm" />
                 </div>
             </div>
 
             <div className="flex flex-col gap-2 border-t border-[#1A1A1A] pt-3">
-                <span className="font-mono-ctv text-[9px] italic uppercase tracking-[0.16em] text-white/45">
-                    Reference odds · sharp books
+                <span className="font-mono-ctv text-[10px] uppercase tracking-[0.14em] text-white/45">
+                    Empty pool — your stake sets the first price.
                 </span>
-                {odds && odds.home !== null && odds.draw !== null && odds.away !== null ? (
-                    <div className="font-mono-ctv grid grid-cols-3 gap-2 text-[12px] italic">
-                        {[
-                            { code: "1", value: odds.home },
-                            { code: "X", value: odds.draw },
-                            { code: "2", value: odds.away },
-                        ].map(({ code, value }) => (
-                            <div
-                                key={code}
-                                className="flex items-center justify-between rounded-md border border-[#1E1E1E] px-2 py-1.5 text-white/55"
-                            >
-                                <span className="text-[9px] not-italic uppercase tracking-[0.16em] text-white/35">
-                                    {code}
-                                </span>
-                                <span>×{value!.toFixed(2)}</span>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <span className="font-mono-ctv text-[10px] uppercase tracking-[0.14em] text-white/35">
-                        No reference yet — your stake sets the price
-                    </span>
-                )}
             </div>
 
             <div className="font-mono-ctv mt-1 flex items-center justify-between text-[10px] uppercase tracking-[0.14em]">

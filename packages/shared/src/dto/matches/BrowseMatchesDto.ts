@@ -12,7 +12,9 @@ export interface BrowseMatchDto {
   kickoffAt: string;
   status: string;
   score: { home: number; away: number } | null;
-  odds: { home: number | null; draw: number | null; away: number | null } | null;
+  /** Latest W/D/L results (oldest → newest, up to 5 chars). Null when API has no form data. */
+  homeForm: string | null;
+  awayForm: string | null;
   /** PariMatch proxy address (lowercased). Null when the match has no contract deployed yet. */
   contractAddress: string | null;
   streamsPreview: StreamPreviewDto[];

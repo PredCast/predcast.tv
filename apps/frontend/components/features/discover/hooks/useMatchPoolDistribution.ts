@@ -1,23 +1,18 @@
 "use client";
 
 import { useMemo } from "react";
-import type { BrowseMatchDto } from "@chiliztv/shared/dto/matches/BrowseMatchesDto";
 import { useMarketPools } from "@/hooks/api";
 import { getMarketSpec } from "@/lib/contracts/markets";
-import {
-    pickRichestMarketSnapshot,
-    sharesFromOddsRef,
-    sharesFromSnapshot,
-} from "../domain";
+import { pickRichestMarketSnapshot, sharesFromSnapshot } from "../domain";
 
-export type DistributionSource = "pool" | "oddsRef" | "empty";
+export type DistributionSource = "pool" | "empty";
 
 /**
- * Read-model exposed to the donut card. `source` discriminates between
- * live pool data, the cosmetic sharp-book fallback, and the empty state.
- * `marketKey` + `marketLabel` + `outcomeLabels` describe which market the
- * donut is currently showing — the picker promotes the WINNER (1X2) when it
- * has liquidity, otherwise falls back to the first non-empty market on the
+ * Read-model exposed to the donut card. `source` is `"pool"` when at least
+ * one market on the contract has volume, `"empty"` otherwise. `marketKey` +
+ * `marketLabel` + `outcomeLabels` describe which market the donut is
+ * currently showing — the picker promotes the WINNER (1X2) when it has
+ * liquidity, otherwise falls back to the first non-empty market on the
  * contract (e.g. Total Goals 2.5 or BTTS) so a bet on any market still
  * surfaces on the discover card.
  */
@@ -38,7 +33,6 @@ export interface MatchPoolDistribution {
 
 interface UseMatchPoolDistributionArgs {
     readonly contractAddress: string | null | undefined;
-    readonly oddsRef: BrowseMatchDto["odds"];
     readonly homeTeam?: string;
     readonly awayTeam?: string;
 }
@@ -64,7 +58,7 @@ function specOutcomes(
 export function useMatchPoolDistribution(
     args: UseMatchPoolDistributionArgs,
 ): MatchPoolDistribution {
-    const { contractAddress, oddsRef, homeTeam, awayTeam } = args;
+    const { contractAddress, homeTeam, awayTeam } = args;
     const query = useMarketPools(contractAddress ?? undefined);
 
     return useMemo<MatchPoolDistribution>(() => {
@@ -83,19 +77,6 @@ export function useMatchPoolDistribution(
                 outcomeLabels: meta?.outcomeLabels ?? Array.from(WINNER_FALLBACK_LABELS),
             };
         }
-        const refOdds = sharesFromOddsRef(oddsRef);
-        if (refOdds) {
-            return {
-                source: "oddsRef",
-                shares: refOdds.shares,
-                favIdx: refOdds.favIdx,
-                totalPool: BigInt(0),
-                isLoading: query.isLoading,
-                marketKey: "winner",
-                marketLabel: "Match Result",
-                outcomeLabels: Array.from(WINNER_FALLBACK_LABELS),
-            };
-        }
         return {
             source: "empty",
             shares: null,
@@ -106,5 +87,5 @@ export function useMatchPoolDistribution(
             marketLabel: "Match Result",
             outcomeLabels: Array.from(WINNER_FALLBACK_LABELS),
         };
-    }, [query.data, query.isLoading, oddsRef, homeTeam, awayTeam]);
+    }, [query.data, query.isLoading, homeTeam, awayTeam]);
 }

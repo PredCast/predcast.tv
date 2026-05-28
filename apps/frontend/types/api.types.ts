@@ -35,20 +35,9 @@ export interface Match {
   awayScore?: number;
   venue?: string;
   contractAddress?: string;
-  odds?: MatchOdds;
-}
-
-/**
- * Per-market odds shape returned by the backend (`MatchResponseDto.odds`).
- * Each top-level key matches a `bytes32` market hash on-chain. A missing
- * key means the admin hasn't posted odds for that market — front gates the bet.
- */
-export interface MatchOdds {
-  winner?: { homeWin: number; draw: number; awayWin: number };
-  halftime?: { homeWin: number; draw: number; awayWin: number };
-  goalsTotal?: { line: number; over: number; under: number };
-  bothScore?: { yes: number; no: number };
-  firstScorer?: { home: number; away: number; none: number };
+  /** Latest W/D/L results per side (oldest → newest, up to 5 chars). Null when no API data. */
+  homeForm: string | null;
+  awayForm: string | null;
 }
 
 /**

@@ -3,11 +3,8 @@ import type { MarketPoolSnapshot } from './types';
 /**
  * Implied probability per outcome derived from the live pool ratios. Each
  * value is a number in [0, 1] — UI is expected to multiply by 100 for the
- * percentage display.
- *
- * Returns an empty Map when `totalPool == 0` so the caller can fallback on
- * a sharp-book reference odds hint (cf. BetSelectionStep three-mode display
- * in F3.6).
+ * percentage display. Returns an empty Map when `totalPool == 0` so the
+ * caller falls back to the "be the first" prompt.
  */
 export function impliedProbsFromPool(snapshot: MarketPoolSnapshot): Map<bigint, number> {
     const out = new Map<bigint, number>();

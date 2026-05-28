@@ -39,11 +39,13 @@ export function NotifyCTA() {
 
             <div className="font-mono-ctv mt-10 flex flex-wrap items-center justify-center gap-5 text-[10px] uppercase tracking-[0.18em] text-white/45">
                 <span>Or follow →</span>
-                <a href="#" className="inline-flex items-center gap-1.5 hover:text-white">
-                    𝕏 Twitter {LBI.arrowUpRight}
-                </a>
-                <a href="#" className="inline-flex items-center gap-1.5 hover:text-white">
-                    Telegram {LBI.arrowUpRight}
+                <a
+                    href="https://x.com/ChilizTv"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 hover:text-white"
+                >
+                    𝕏 {LBI.arrowUpRight}
                 </a>
                 <a href="#" className="inline-flex items-center gap-1.5 hover:text-white">
                     Discord {LBI.arrowUpRight}

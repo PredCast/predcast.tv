@@ -1,9 +1,14 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { formatCountdown } from "@chiliztv/domain/leaderboard/policies/formatCountdown";
 import { Eyebrow } from "../components";
 import { fmtNbsp } from "../domain";
 import type { HeroData } from "../hooks";
 
 const ACCENT = "#E8001D";
+const COUNTDOWN_TICK_MS = 60_000;
 
 interface EpochPrizePoolTileProps {
     readonly hero: HeroData;
@@ -24,7 +29,18 @@ export function EpochPrizePoolTile({ hero }: EpochPrizePoolTileProps) {
         topCount,
         myRank,
         myScoreUsdc,
+        cycleEndsMs,
     } = hero;
+
+    // SSR-safe live clock — null on first paint so the server markup stays
+    // deterministic, then ticks every minute.
+    const [nowMs, setNowMs] = useState<number | null>(null);
+    useEffect(() => {
+        setNowMs(Date.now());
+        const id = setInterval(() => setNowMs(Date.now()), COUNTDOWN_TICK_MS);
+        return () => clearInterval(id);
+    }, []);
+    const countdown = nowMs !== null ? formatCountdown(cycleEndsMs, nowMs) : "—";
 
     return (
         <div
@@ -34,15 +50,19 @@ export function EpochPrizePoolTile({ hero }: EpochPrizePoolTileProps) {
                     "radial-gradient(ellipse at top right, rgba(232,0,29,0.10), transparent 60%), #111",
             }}
         >
-            <span
-                aria-hidden
-                className="font-mono-ctv absolute right-5 top-5 text-[10px] uppercase tracking-[0.22em] text-white/35"
-            >
-                Epoch · {epochId !== null ? String(epochId).padStart(2, "0") : "—"}
-            </span>
-
             <div className="flex flex-col gap-2">
-                <Eyebrow dim>Leaderboard prize pool</Eyebrow>
+                <div className="flex items-center justify-between gap-3">
+                    <Eyebrow dim>Leaderboard prize pool</Eyebrow>
+                    <span
+                        aria-hidden
+                        className="font-mono-ctv text-[10px] font-bold uppercase tracking-[0.18em] text-white/45"
+                    >
+                        Epoch · {epochId !== null ? String(epochId).padStart(2, "0") : "—"}
+                        <span className="ml-2" style={{ color: ACCENT }}>
+                            · Ends in {countdown}
+                        </span>
+                    </span>
+                </div>
                 <div
                     className="font-display flex items-baseline gap-3 leading-none tracking-[-0.025em] text-white"
                     style={{ fontSize: "clamp(72px, 8vw, 108px)", fontWeight: 800 }}

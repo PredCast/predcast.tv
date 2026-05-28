@@ -2,6 +2,7 @@
 
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { useLeaderboardTop, useMyLeaderboardPosition } from "@/hooks/api";
+import { nextCycleEnd } from "@chiliztv/domain/leaderboard/policies/cycleSchedule";
 import { usdcRawToWhole } from "../domain";
 
 /** Read-model consumed by `HeroStrip` — flat, ready-to-render. */
@@ -14,6 +15,9 @@ export interface HeroData {
     readonly topCount: number;
     readonly myRank: number | null;
     readonly myScoreUsdc: number;
+    /** Epoch-end timestamp (ms). Falls back to the client-side policy when the
+     *  backend hasn't deployed the `cycleEndsAt` DTO field yet. */
+    readonly cycleEndsMs: number;
 }
 
 /**
@@ -28,6 +32,10 @@ export function useHeroData(): HeroData {
     const { data: top } = useLeaderboardTop(10);
     const { data: me } = useMyLeaderboardPosition(wallet);
 
+    const cycleEndsMs = top?.cycleEndsAt
+        ? new Date(top.cycleEndsAt).getTime()
+        : nextCycleEnd(new Date()).getTime();
+
     return {
         wallet,
         epochId: top?.currentEpochId ?? null,
@@ -36,5 +44,6 @@ export function useHeroData(): HeroData {
         topCount: top?.entries.length ?? 10,
         myRank: me?.rank ?? null,
         myScoreUsdc: usdcRawToWhole(me?.totalScore),
+        cycleEndsMs,
     };
 }

@@ -16,10 +16,8 @@ interface BetSelectionStepProps {
     readonly line: number;
     readonly homeTeam?: string;
     readonly awayTeam?: string;
-    /** Catalog-tagged "favorite" outcome (lowest reference odds). */
+    /** Catalog-tagged "favorite" outcome — when liquidity / form suggests one. */
     readonly favoriteSelection?: number;
-    /** Reference DB odds — cosmetic hint when the pool is still empty. */
-    readonly oddsBySelection: ReadonlyMap<number, number>;
     /** Implied probability (bps) per outcome from the live pool. Empty when pool=0. */
     readonly impliedProbBpsBySelection: ReadonlyMap<number, number>;
     /** Pool size per outcome (raw USDC). */
@@ -105,29 +103,25 @@ function FavBadge() {
 }
 
 /**
- * 3-mode tag shown next to each outcome row.
+ * 2-mode tag shown next to each outcome row.
  *  1) pool has liquidity → implied probability + pool size
- *  2) DB reference odds available → italic hint
- *  3) nothing → "be the first" prompt
+ *  2) nothing → "be the first" prompt
  */
 function PayoutHint({
     selection,
     impliedProbBpsBySelection,
     outcomePoolsBySelection,
-    oddsBySelection,
     usdcDecimals,
     align = 'end',
 }: {
     selection: number;
     impliedProbBpsBySelection: ReadonlyMap<number, number>;
     outcomePoolsBySelection: ReadonlyMap<number, bigint>;
-    oddsBySelection: ReadonlyMap<number, number>;
     usdcDecimals: number;
     align?: 'start' | 'end';
 }) {
     const probBps = impliedProbBpsBySelection.get(selection);
     const pool = outcomePoolsBySelection.get(selection) ?? BigInt(0);
-    const refOdds = oddsBySelection.get(selection) ?? null;
     const alignClass = align === 'end' ? 'items-end text-right' : 'items-start text-left';
 
     if (probBps !== undefined && probBps > 0) {
@@ -144,24 +138,6 @@ function PayoutHint({
                 </span>
                 <span className="font-mono-ctv text-[9px] tabular-nums text-white/45">
                     Pool ${Number(formatUnits(pool, usdcDecimals)).toLocaleString()}
-                </span>
-            </div>
-        );
-    }
-    if (refOdds !== null) {
-        return (
-            <div className={`flex flex-col gap-0.5 ${alignClass}`}>
-                <span className="font-mono-ctv text-[9px] font-bold uppercase tracking-[0.18em] text-white/40">
-                    Reference
-                </span>
-                <span
-                    className="font-display italic tabular-nums text-white/55"
-                    style={{ fontSize: 16, fontWeight: 700 }}
-                >
-                    × {refOdds.toFixed(2)}
-                </span>
-                <span className="font-mono-ctv text-[9px] uppercase tracking-[0.14em] text-white/35">
-                    No positions yet
                 </span>
             </div>
         );
@@ -218,7 +194,6 @@ function WinnerPick({
     favoriteSelection,
     homeTeam,
     awayTeam,
-    oddsBySelection,
     impliedProbBpsBySelection,
     outcomePoolsBySelection,
     usdcDecimals,
@@ -271,7 +246,6 @@ function WinnerPick({
                             selection={o.selection}
                             impliedProbBpsBySelection={impliedProbBpsBySelection}
                             outcomePoolsBySelection={outcomePoolsBySelection}
-                            oddsBySelection={oddsBySelection}
                             usdcDecimals={usdcDecimals}
                         />
                         <span
@@ -299,7 +273,6 @@ function BinaryPick({
     line,
     kind,
     favoriteSelection,
-    oddsBySelection,
     impliedProbBpsBySelection,
     outcomePoolsBySelection,
     usdcDecimals,
@@ -357,7 +330,6 @@ function BinaryPick({
                                     selection={o.selection}
                                     impliedProbBpsBySelection={impliedProbBpsBySelection}
                                     outcomePoolsBySelection={outcomePoolsBySelection}
-                                    oddsBySelection={oddsBySelection}
                                     usdcDecimals={usdcDecimals}
                                     align="start"
                                 />
@@ -377,7 +349,6 @@ function GenericPick({
     selectedSelection,
     onSelect,
     disabled,
-    oddsBySelection,
     impliedProbBpsBySelection,
     outcomePoolsBySelection,
     usdcDecimals,
@@ -407,7 +378,6 @@ function GenericPick({
                             selection={o.selection}
                             impliedProbBpsBySelection={impliedProbBpsBySelection}
                             outcomePoolsBySelection={outcomePoolsBySelection}
-                            oddsBySelection={oddsBySelection}
                             usdcDecimals={usdcDecimals}
                             align="start"
                         />

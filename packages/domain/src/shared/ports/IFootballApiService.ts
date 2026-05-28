@@ -1,15 +1,5 @@
-export interface ExtendedOdds {
-  homeWin: number;
-  draw: number;
-  awayWin: number;
-  over25?: number;
-  under25?: number;
-  bttsYes?: number;
-  bttsNo?: number;
-}
-
 // RawMatch is the domain-level representation returned by IFootballApiService.
-// Transformation from API-Football-specific types happens inside FootballApiAdapter (infrastructure).
+// Transformation from API-Football-specific types happens inside FootballApiAdapterImpl (infrastructure).
 export interface RawMatch {
   apiFootballId: number;
   homeTeamId: number;
@@ -28,11 +18,13 @@ export interface RawMatch {
   venue?: string;
   homeScore: number | null;
   awayScore: number | null;
-  odds?: { homeWin: number; draw: number; awayWin: number };
-  extendedOdds?: ExtendedOdds;
 }
 
 export interface IFootballApiService {
   fetchMatches(daysAhead: number): Promise<RawMatch[]>;
-  fetchOddsForMatches(apiMatchIds: number[]): Promise<Map<number, ExtendedOdds>>;
+  /**
+   * Latest 5 W/D/L results for the team, all competitions combined.
+   * Returns null when API-Football has no finished fixtures for this team.
+   */
+  getTeamForm(teamId: number): Promise<string | null>;
 }

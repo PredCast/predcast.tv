@@ -73,6 +73,8 @@ const DUMMY_TEST_MATCH: Match = {
   // (factory 0xbba7f5d1… → getAllMatches().at(-1)). Update when the SSR
   // fallback should track a newer match.
   contractAddress: "0xe43a99cb7dd0787ce47e5ba0d838d9faca6bec7a" as Address,
+  homeForm: null,
+  awayForm: null,
 };
 
 export default function LiveDetailsPage({ id }: LiveDetailsPageProps) {
@@ -126,6 +128,8 @@ export default function LiveDetailsPage({ id }: LiveDetailsPageProps) {
         status: "NS",
         startTime: DUMMY_KICKOFF_ISO,
         contractAddress: latestProxy,
+        homeForm: null,
+        awayForm: null,
       };
     }
     return DUMMY_TEST_MATCH;
@@ -258,6 +262,8 @@ export default function LiveDetailsPage({ id }: LiveDetailsPageProps) {
         awayScore={matchData.awayScore}
         homeLogo={matchData.homeTeamLogo}
         awayLogo={matchData.awayTeamLogo}
+        homeForm={matchData.homeForm}
+        awayForm={matchData.awayForm}
         status={matchData.status}
         kickoffAt={matchData.startTime}
         league={matchData.league}
@@ -350,7 +356,6 @@ export default function LiveDetailsPage({ id }: LiveDetailsPageProps) {
               walletAddress={walletAddress || undefined}
               homeTeam={matchData.homeTeam}
               awayTeam={matchData.awayTeam}
-              matchOdds={matchData.odds}
               match={{ status: matchData.status, kickoffAt: matchData.startTime }}
             />
           </div>

@@ -10,11 +10,6 @@ const fmtKickoff = (iso: string) =>
     minute: "2-digit",
   });
 
-const fmtOdds = (m: FlatMatch) =>
-  m.odds
-    ? `${(m.odds.home ?? 0).toFixed(2)} / ${(m.odds.draw ?? 0).toFixed(2)} / ${(m.odds.away ?? 0).toFixed(2)}`
-    : "—";
-
 export function DiscoverTicker({
   matches,
   now,
@@ -86,8 +81,6 @@ export function DiscoverTicker({
                 </span>{" "}
                 {abbr(m.awayTeam.name)}
               </span>
-              <span className="text-[#2A2A2A]">·</span>
-              <span>{fmtOdds(m)}</span>
               <span className="text-[#2A2A2A]">·</span>
               <span className="text-white/45">{m.leagueName}</span>
             </span>

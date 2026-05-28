@@ -8,6 +8,13 @@ interface PreviewRowProps {
 
 const COLS = '44px minmax(0,1.4fr) minmax(0,1fr) 80px minmax(0,1fr) minmax(0,1.05fr)';
 
+function formatVolume(vol: number): string {
+    if (!vol || vol <= 0) return '—';
+    if (vol >= 1_000_000) return `$${(vol / 1_000_000).toFixed(1)}M`;
+    if (vol >= 1_000) return `$${(vol / 1_000).toFixed(0)}K`;
+    return `$${vol.toFixed(0)}`;
+}
+
 /**
  * One row of the preview leaderboard table. Column widths match the
  * header in `PreviewTable` so they stay aligned.
@@ -50,7 +57,7 @@ export function PreviewRow({ row }: PreviewRowProps) {
 
             {/* vol */}
             <div className="font-mono-ctv text-[13px] font-semibold tabular-nums text-white/55">
-                ${(row.vol / 1000).toFixed(0)}K
+                {formatVolume(row.vol)}
             </div>
 
             {/* tier label — medal name only; the absolute share is pro-rata, not a fixed %. */}

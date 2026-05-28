@@ -31,7 +31,7 @@ export function PreviewTable() {
         const payouts = Number(formatUnits(BigInt(e.totalScore), USDC_DECIMALS));
         return {
             rank: e.rank,
-            who: truncate(e.userAddress),
+            who: e.username ?? truncate(e.userAddress),
             pnl: payouts,
             win: 0,
             vol: 0,

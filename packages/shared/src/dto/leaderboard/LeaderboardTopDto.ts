@@ -6,6 +6,10 @@ export const LeaderboardEntrySchema = z.object({
     userAddress: z.string(),
     /** bigint decimal string — score units are USDC payouts won (6 dp). */
     totalScore: z.string(),
+    /** Display name resolved from the profiles table; null when only the address is known. */
+    username: z.string().nullable(),
+    /** Avatar URL when the user has set one; null falls back to initials. */
+    avatarUrl: z.string().nullable(),
 });
 export type LeaderboardEntry = z.infer<typeof LeaderboardEntrySchema>;
 
@@ -24,5 +28,7 @@ export const LeaderboardTopDtoSchema = z.object({
     topN: z.number().int().positive(),
     /** Claim window length applied at the next `closeEpoch` — mirror of `LEADERBOARD_CLAIM_DURATION_DAYS`. */
     claimDurationDays: z.number().int().positive(),
+    /** ISO 8601 UTC timestamp of the next scheduled cycle close. Drives the countdown UI. */
+    cycleEndsAt: z.string(),
 });
 export type LeaderboardTopDto = z.infer<typeof LeaderboardTopDtoSchema>;
