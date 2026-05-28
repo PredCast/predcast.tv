@@ -1,27 +1,11 @@
 {
   "network": "chilizTestnet",
   "chainId": 88882,
-  "timestamp": "2026-05-16T21:14:18Z",
+  "timestamp": "2026-05-28T16:03:47Z",
   "contracts": [
     {
-      "name": "PariMatchFactory",
-      "address": "0xbba7f5d1ae23ec476d71d24521a39536b9ec8a2f"
-    },
-    {
-      "name": "StreamWalletFactory",
-      "address": "0xc8647bd4ce332a6a923c66ddd6b5a2f757599399"
-    },
-    {
       "name": "ChilizSwapRouter",
-      "address": "0x0c772b744e69bd71b1647b0367a00eb89b0b075d"
-    },
-    {
-      "name": "LeaderboardRewards",
-      "address": "0xae845c1035f9abca03f63cc8fdabba94db500981"
-    },
-    {
-      "name": "ERC1967Proxy",
-      "address": "0xd538e1f362c7c91fff1822e2b29eaa6591548577"
+      "address": "0xe8aeaeff70b052bfc27663985a17cb77f96e5b91"
     }
   ]
 }
