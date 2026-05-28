@@ -3506,8 +3506,22 @@ export const leaderboardRewardsAbi = [
   {
     type: 'function',
     inputs: [],
-    name: 'MAX_CLAIM_DURATION',
-    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    name: 'DEFAULT_EPOCH_DURATION',
+    outputs: [{ name: '', internalType: 'uint64', type: 'uint64' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MAX_EPOCH_DURATION',
+    outputs: [{ name: '', internalType: 'uint64', type: 'uint64' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MIN_EPOCH_DURATION',
+    outputs: [{ name: '', internalType: 'uint64', type: 'uint64' }],
     stateMutability: 'view',
   },
   {
@@ -3533,24 +3547,24 @@ export const leaderboardRewardsAbi = [
   },
   {
     type: 'function',
-    inputs: [
-      { name: 'epochId', internalType: 'uint256', type: 'uint256' },
-      { name: 'prizeAmount', internalType: 'uint256', type: 'uint256' },
-      { name: 'proof', internalType: 'bytes32[]', type: 'bytes32[]' },
-    ],
-    name: 'claim',
-    outputs: [],
+    inputs: [],
+    name: 'advanceEpoch',
+    outputs: [{ name: 'closedId', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'nonpayable',
   },
   {
     type: 'function',
-    inputs: [
-      { name: 'merkleRoot', internalType: 'bytes32', type: 'bytes32' },
-      { name: 'claimDuration', internalType: 'uint256', type: 'uint256' },
-    ],
-    name: 'closeEpoch',
-    outputs: [{ name: 'closedId', internalType: 'uint256', type: 'uint256' }],
+    inputs: [{ name: 'epochId', internalType: 'uint256', type: 'uint256' }],
+    name: 'claim',
+    outputs: [{ name: 'amount', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'currentEpoch',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -3584,7 +3598,38 @@ export const leaderboardRewardsAbi = [
   {
     type: 'function',
     inputs: [],
+    name: 'epochDuration',
+    outputs: [{ name: '', internalType: 'uint64', type: 'uint64' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
     name: 'epochIndex',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'epochId', internalType: 'uint256', type: 'uint256' },
+      { name: 'user', internalType: 'address', type: 'address' },
+    ],
+    name: 'epochScore',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'epochStartTime',
+    outputs: [{ name: '', internalType: 'uint64', type: 'uint64' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'epochId', internalType: 'uint256', type: 'uint256' }],
+    name: 'epochTotalScore',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'view',
   },
@@ -3639,6 +3684,13 @@ export const leaderboardRewardsAbi = [
   {
     type: 'function',
     inputs: [],
+    name: 'initializeV2',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
     name: 'lockedInClosedEpochs',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'view',
@@ -3668,6 +3720,16 @@ export const leaderboardRewardsAbi = [
     inputs: [],
     name: 'paused',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'epochId', internalType: 'uint256', type: 'uint256' },
+      { name: 'user', internalType: 'address', type: 'address' },
+    ],
+    name: 'pendingClaim',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'view',
   },
   {
@@ -3716,10 +3778,10 @@ export const leaderboardRewardsAbi = [
   },
   {
     type: 'function',
-    inputs: [{ name: 'user', internalType: 'address', type: 'address' }],
-    name: 'score',
-    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
-    stateMutability: 'view',
+    inputs: [{ name: 'newDuration', internalType: 'uint64', type: 'uint64' }],
+    name: 'setEpochDuration',
+    outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -3771,16 +3833,10 @@ export const leaderboardRewardsAbi = [
     anonymous: false,
     inputs: [
       {
-        name: 'epochId',
+        name: 'closedId',
         internalType: 'uint256',
         type: 'uint256',
         indexed: true,
-      },
-      {
-        name: 'merkleRoot',
-        internalType: 'bytes32',
-        type: 'bytes32',
-        indexed: false,
       },
       {
         name: 'prizePool',
@@ -3789,13 +3845,44 @@ export const leaderboardRewardsAbi = [
         indexed: false,
       },
       {
-        name: 'claimExpiry',
+        name: 'totalScore',
         internalType: 'uint256',
         type: 'uint256',
         indexed: false,
       },
+      {
+        name: 'closedAt',
+        internalType: 'uint64',
+        type: 'uint64',
+        indexed: false,
+      },
+      {
+        name: 'claimExpiry',
+        internalType: 'uint64',
+        type: 'uint64',
+        indexed: false,
+      },
     ],
-    name: 'EpochClosed',
+    name: 'EpochAdvanced',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'oldDuration',
+        internalType: 'uint64',
+        type: 'uint64',
+        indexed: false,
+      },
+      {
+        name: 'newDuration',
+        internalType: 'uint64',
+        type: 'uint64',
+        indexed: false,
+      },
+    ],
+    name: 'EpochDurationSet',
   },
   {
     type: 'event',
@@ -4006,13 +4093,19 @@ export const leaderboardRewardsAbi = [
       },
       { name: 'user', internalType: 'address', type: 'address', indexed: true },
       {
+        name: 'epochId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
         name: 'delta',
         internalType: 'uint256',
         type: 'uint256',
         indexed: false,
       },
       {
-        name: 'newScore',
+        name: 'newEpochScore',
         internalType: 'uint256',
         type: 'uint256',
         indexed: false,
@@ -4042,6 +4135,14 @@ export const leaderboardRewardsAbi = [
   {
     type: 'error',
     inputs: [
+      { name: 'nowTs', internalType: 'uint256', type: 'uint256' },
+      { name: 'boundary', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'AdvanceNotReady',
+  },
+  {
+    type: 'error',
+    inputs: [
       { name: 'epochId', internalType: 'uint256', type: 'uint256' },
       { name: 'user', internalType: 'address', type: 'address' },
     ],
@@ -4056,11 +4157,6 @@ export const leaderboardRewardsAbi = [
   },
   { type: 'error', inputs: [], name: 'ERC1967NonPayable' },
   { type: 'error', inputs: [], name: 'EnforcedPause' },
-  {
-    type: 'error',
-    inputs: [{ name: 'epochId', internalType: 'uint256', type: 'uint256' }],
-    name: 'EpochAlreadyClosed',
-  },
   {
     type: 'error',
     inputs: [
@@ -4097,21 +4193,23 @@ export const leaderboardRewardsAbi = [
   {
     type: 'error',
     inputs: [
-      { name: 'provided', internalType: 'uint256', type: 'uint256' },
-      { name: 'max', internalType: 'uint256', type: 'uint256' },
+      { name: 'provided', internalType: 'uint64', type: 'uint64' },
+      { name: 'min', internalType: 'uint64', type: 'uint64' },
+      { name: 'max', internalType: 'uint64', type: 'uint64' },
     ],
-    name: 'InvalidClaimDuration',
+    name: 'InvalidEpochDuration',
   },
   { type: 'error', inputs: [], name: 'InvalidInitialization' },
-  { type: 'error', inputs: [], name: 'InvalidMerkleProof' },
   { type: 'error', inputs: [], name: 'MatchFactoryNotSet' },
+  { type: 'error', inputs: [], name: 'NotInitializing' },
   {
     type: 'error',
-    inputs: [{ name: 'epochId', internalType: 'uint256', type: 'uint256' }],
-    name: 'MerkleRootNotSet',
+    inputs: [
+      { name: 'epochId', internalType: 'uint256', type: 'uint256' },
+      { name: 'user', internalType: 'address', type: 'address' },
+    ],
+    name: 'NothingToClaim',
   },
-  { type: 'error', inputs: [], name: 'NotInitializing' },
-  { type: 'error', inputs: [], name: 'PrizeAmountZero' },
   { type: 'error', inputs: [], name: 'ReentrancyGuardReentrantCall' },
   {
     type: 'error',
@@ -9603,12 +9701,30 @@ export const useLeaderboardRewardsReadDefaultAdminRole =
   })
 
 /**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"MAX_CLAIM_DURATION"`
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"DEFAULT_EPOCH_DURATION"`
  */
-export const useLeaderboardRewardsReadMaxClaimDuration =
+export const useLeaderboardRewardsReadDefaultEpochDuration =
   /*#__PURE__*/ createUseReadContract({
     abi: leaderboardRewardsAbi,
-    functionName: 'MAX_CLAIM_DURATION',
+    functionName: 'DEFAULT_EPOCH_DURATION',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"MAX_EPOCH_DURATION"`
+ */
+export const useLeaderboardRewardsReadMaxEpochDuration =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'MAX_EPOCH_DURATION',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"MIN_EPOCH_DURATION"`
+ */
+export const useLeaderboardRewardsReadMinEpochDuration =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'MIN_EPOCH_DURATION',
   })
 
 /**
@@ -9639,6 +9755,15 @@ export const useLeaderboardRewardsReadUpgradeInterfaceVersion =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"currentEpoch"`
+ */
+export const useLeaderboardRewardsReadCurrentEpoch =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'currentEpoch',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"epoch"`
  */
 export const useLeaderboardRewardsReadEpoch =
@@ -9648,12 +9773,48 @@ export const useLeaderboardRewardsReadEpoch =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"epochDuration"`
+ */
+export const useLeaderboardRewardsReadEpochDuration =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'epochDuration',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"epochIndex"`
  */
 export const useLeaderboardRewardsReadEpochIndex =
   /*#__PURE__*/ createUseReadContract({
     abi: leaderboardRewardsAbi,
     functionName: 'epochIndex',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"epochScore"`
+ */
+export const useLeaderboardRewardsReadEpochScore =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'epochScore',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"epochStartTime"`
+ */
+export const useLeaderboardRewardsReadEpochStartTime =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'epochStartTime',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"epochTotalScore"`
+ */
+export const useLeaderboardRewardsReadEpochTotalScore =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'epochTotalScore',
   })
 
 /**
@@ -9720,21 +9881,21 @@ export const useLeaderboardRewardsReadPaused =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"pendingClaim"`
+ */
+export const useLeaderboardRewardsReadPendingClaim =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'pendingClaim',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"proxiableUUID"`
  */
 export const useLeaderboardRewardsReadProxiableUuid =
   /*#__PURE__*/ createUseReadContract({
     abi: leaderboardRewardsAbi,
     functionName: 'proxiableUUID',
-  })
-
-/**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"score"`
- */
-export const useLeaderboardRewardsReadScore =
-  /*#__PURE__*/ createUseReadContract({
-    abi: leaderboardRewardsAbi,
-    functionName: 'score',
   })
 
 /**
@@ -9762,21 +9923,21 @@ export const useLeaderboardRewardsWriteundefined =
   /*#__PURE__*/ createUseWriteContract({ abi: leaderboardRewardsAbi })
 
 /**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"advanceEpoch"`
+ */
+export const useLeaderboardRewardsWriteAdvanceEpoch =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'advanceEpoch',
+  })
+
+/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"claim"`
  */
 export const useLeaderboardRewardsWriteClaim =
   /*#__PURE__*/ createUseWriteContract({
     abi: leaderboardRewardsAbi,
     functionName: 'claim',
-  })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"closeEpoch"`
- */
-export const useLeaderboardRewardsWriteCloseEpoch =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: leaderboardRewardsAbi,
-    functionName: 'closeEpoch',
   })
 
 /**
@@ -9804,6 +9965,15 @@ export const useLeaderboardRewardsWriteInitialize =
   /*#__PURE__*/ createUseWriteContract({
     abi: leaderboardRewardsAbi,
     functionName: 'initialize',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"initializeV2"`
+ */
+export const useLeaderboardRewardsWriteInitializeV2 =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'initializeV2',
   })
 
 /**
@@ -9840,6 +10010,15 @@ export const useLeaderboardRewardsWriteRolloverEpoch =
   /*#__PURE__*/ createUseWriteContract({
     abi: leaderboardRewardsAbi,
     functionName: 'rolloverEpoch',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"setEpochDuration"`
+ */
+export const useLeaderboardRewardsWriteSetEpochDuration =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'setEpochDuration',
   })
 
 /**
@@ -9885,21 +10064,21 @@ export const useLeaderboardRewardsSimulateundefined =
   /*#__PURE__*/ createUseSimulateContract({ abi: leaderboardRewardsAbi })
 
 /**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"advanceEpoch"`
+ */
+export const useLeaderboardRewardsSimulateAdvanceEpoch =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'advanceEpoch',
+  })
+
+/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"claim"`
  */
 export const useLeaderboardRewardsSimulateClaim =
   /*#__PURE__*/ createUseSimulateContract({
     abi: leaderboardRewardsAbi,
     functionName: 'claim',
-  })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"closeEpoch"`
- */
-export const useLeaderboardRewardsSimulateCloseEpoch =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: leaderboardRewardsAbi,
-    functionName: 'closeEpoch',
   })
 
 /**
@@ -9927,6 +10106,15 @@ export const useLeaderboardRewardsSimulateInitialize =
   /*#__PURE__*/ createUseSimulateContract({
     abi: leaderboardRewardsAbi,
     functionName: 'initialize',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"initializeV2"`
+ */
+export const useLeaderboardRewardsSimulateInitializeV2 =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'initializeV2',
   })
 
 /**
@@ -9963,6 +10151,15 @@ export const useLeaderboardRewardsSimulateRolloverEpoch =
   /*#__PURE__*/ createUseSimulateContract({
     abi: leaderboardRewardsAbi,
     functionName: 'rolloverEpoch',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"setEpochDuration"`
+ */
+export const useLeaderboardRewardsSimulateSetEpochDuration =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'setEpochDuration',
   })
 
 /**
@@ -10008,12 +10205,21 @@ export const useLeaderboardRewardsWatchundefined =
   /*#__PURE__*/ createUseWatchContractEvent({ abi: leaderboardRewardsAbi })
 
 /**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `eventName` set to `"EpochClosed"`
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `eventName` set to `"EpochAdvanced"`
  */
-export const useLeaderboardRewardsWatchEpochClosed =
+export const useLeaderboardRewardsWatchEpochAdvanced =
   /*#__PURE__*/ createUseWatchContractEvent({
     abi: leaderboardRewardsAbi,
-    eventName: 'EpochClosed',
+    eventName: 'EpochAdvanced',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `eventName` set to `"EpochDurationSet"`
+ */
+export const useLeaderboardRewardsWatchEpochDurationSet =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: leaderboardRewardsAbi,
+    eventName: 'EpochDurationSet',
   })
 
 /**
