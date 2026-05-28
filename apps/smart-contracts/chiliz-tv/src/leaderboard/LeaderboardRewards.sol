@@ -8,7 +8,6 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 import {PausableUpgradeable}        from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {IERC20}                     from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20}                  from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {MerkleProof}                from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 import {ILeaderboardRewards} from "../interfaces/ILeaderboardRewards.sol";
 
@@ -23,50 +22,49 @@ interface IPariMatchFactoryView {
 /**
  * @title LeaderboardRewards
  * @author ChilizTV Team
- * @notice On-chain leaderboard for pari-mutuel winners with epoch + merkle
- *         prize distribution.
+ * @notice Fully on-chain epoch-based leaderboard for pari-mutuel winners.
  *
  * @dev Architecture overview
  * ──────────────────────────
- * Match contracts (`PariMatch{Football,Basketball}`) credit cumulative
- * payouts to each user via `recordWin(user, payout)`. The contract holds a
- * USDC balance fed by the 1%-of-pool leaderboard fee paid at every market
- * resolution.
+ * Match contracts (`PariMatch{Football,Basketball}`) credit per-epoch scores
+ * via `recordWin(user, payout)`. The contract holds USDC funded by the
+ * 1%-of-pool leaderboard fee taken at every market resolution.
  *
- * Prize distribution model: **epoch + merkle**.
+ * Distribution model: **pro-rata, per epoch**.
  *
- *   1. `recordWin` is called by authorized matches (RECORDER_ROLE) on every
- *      claim; it bumps `score[user]`.
- *   2. The oracle (ORACLE_ROLE) periodically computes a ranking off-chain,
- *      builds a merkle tree of `(user, prizeAmount)` leaves where the top-N
- *      users by score share the epoch's prize pool, and submits the root by
- *      calling `closeEpoch(merkleRoot, claimDuration)`.
- *   3. The epoch's prize pool is snapshotted from `currentEpochPrizePool()`
- *      at close time. Users with non-zero leaves claim by submitting a
- *      merkle proof to `claim(epochId, prizeAmount, proof)`.
- *   4. After the epoch's claim window expires, any unclaimed funds roll over
- *      into the next epoch's pool automatically (no extra tx).
+ *   1. `recordWin` lazily advances the epoch if the current one's window has
+ *      elapsed, then increments `_epochScores[currentEpoch][user]` and the
+ *      epoch's running total `_epochTotalScore[currentEpoch]`.
+ *   2. The first call past `epochStartTime + epochDuration` snapshots the
+ *      open prize pool into `_epochs[closedId].prizePool`, flips the epoch
+ *      to closed, opens a `epochDuration`-long claim window, and rolls
+ *      `epochIndex` and `epochStartTime` forward by exactly one boundary.
+ *      Anyone can also force-trigger this via the permissionless
+ *      `advanceEpoch()` to keep the leaderboard live during quiet periods.
+ *   3. `claim(epochId)` pays the caller their pro-rata share of the closed
+ *      epoch's pool: `(epochScore[user] * prizePool) / totalScore`. No
+ *      merkle proof — every scorer is implicitly entitled.
+ *   4. After the claim window expires, any unclaimed remainder rolls back
+ *      into the open prize pool via permissionless `rolloverEpoch(epochId)`.
  *
- * Leaf format (OpenZeppelin standard, double-hashed to prevent
- * second-preimage attacks):
- *   leaf = keccak256(bytes.concat(keccak256(abi.encode(user, prizeAmount))))
+ * V2 upgrade notes
+ * ────────────────
+ * V1 used an off-chain ranker + merkle distribution. V2 deletes that path and
+ * keeps everything on-chain. Storage layout is preserved: the legacy
+ * cumulative `_score` mapping at slot 2 is left untouched (orphaned, harmless)
+ * and the new state lives at slots 7–10. The `Epoch.merkleRoot` field is also
+ * preserved (slot reservation) but never written or read post-V2.
  *
- * Trust model:
- *   - RECORDER_ROLE on this contract is held by authorized PariMatch
- *     proxies. Only they can move scores. They're granted by the factory at
- *     match-creation time.
- *   - ORACLE_ROLE submits the merkle root. This is a trusted off-chain
- *     ranker (typically the same backend that runs the resolver). The trust
- *     is bounded: it cannot mint USDC and the prize-pool size for a given
- *     epoch is snapshotted at close time, so the oracle can only choose how
- *     to distribute an already-funded pool — not steal funds outside it.
- *   - ADMIN_ROLE manages roles, upgrades, and emergency controls (pause,
- *     rotate USDC token if needed).
- *
- * Score model: cumulative gross USDC won (`payout` from each claim). Not
- * net profit. Simple, intuitive, cheap to maintain. The off-chain ranker can
- * compute any metric it wants from the score history (we just store the
- * monotonic cumulative sum).
+ * Trust model
+ * ────────────
+ *   - Match proxies are authorized via `matchFactory.isMatch(msg.sender)` —
+ *     identical to V1.
+ *   - `ADMIN_ROLE` can rotate the epoch duration within sane bounds and
+ *     manages the upgrade path. The duration change applies forward only;
+ *     the current epoch's `epochStartTime` is not retroactively moved.
+ *   - `ORACLE_ROLE` is preserved in the access-control table for backward
+ *     compatibility (don't break `hasRole` callers) but no entry point uses
+ *     it in V2.
  */
 contract LeaderboardRewards is
     Initializable,
@@ -82,30 +80,28 @@ contract LeaderboardRewards is
     // CONSTANTS & ROLES
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// @notice Admin (role management, upgrades, pause, factory pointer).
+    /// @notice Admin (role management, upgrades, pause, factory pointer,
+    ///         epoch duration).
     bytes32 public constant ADMIN_ROLE  = keccak256("ADMIN_ROLE");
-    /// @notice Oracle that submits epoch merkle roots.
+    /// @notice V1 role kept for backward compatibility. Unused in V2.
     bytes32 public constant ORACLE_ROLE = keccak256("ORACLE_ROLE");
     /// @notice Emergency pause.
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
-    /// @notice Hard upper bound on `claimDuration` per epoch (180 days).
-    ///         Stops an oracle from posting a "forever-claim" epoch and
-    ///         locking the pool indefinitely against rollover.
-    uint256 public constant MAX_CLAIM_DURATION = 180 days;
+    /// @notice Default epoch duration applied at V2 init. Admin can rotate it.
+    uint64 public constant DEFAULT_EPOCH_DURATION = 30 days;
+    /// @notice Hard bounds on the admin-settable epoch duration.
+    uint64 public constant MIN_EPOCH_DURATION = 1 days;
+    uint64 public constant MAX_EPOCH_DURATION = 365 days;
 
     // ═══════════════════════════════════════════════════════════════════════
     // STRUCTS
     // ═══════════════════════════════════════════════════════════════════════
 
     /// @notice One epoch's distribution snapshot.
-    /// @dev    Packed into 3 storage slots:
-    ///         slot A — startTime(8) + closedAt(8) + claimExpiry(8) + closed(1) = 25 bytes
-    ///         slot B — prizePool (32 bytes)
-    ///         slot C — totalClaimed (32 bytes)
-    ///         slot D — merkleRoot (32 bytes)
-    ///         (a "stored" Epoch occupies 4 slots; struct packing groups A's
-    ///         scalars into one slot.)
+    /// @dev    V1 layout preserved; `merkleRoot` is dead storage in V2 but
+    ///         kept so existing entries (currently none on mainnet/testnet)
+    ///         stay readable.
     struct Epoch {
         uint64  startTime;
         uint64  closedAt;
@@ -113,7 +109,7 @@ contract LeaderboardRewards is
         bool    closed;
         uint256 prizePool;
         uint256 totalClaimed;
-        bytes32 merkleRoot;
+        bytes32 merkleRoot;   // V2: unused
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -123,19 +119,19 @@ contract LeaderboardRewards is
     /// @notice USDC token used to fund the leaderboard and pay prizes.
     IERC20 public usdcToken;                                              // slot 0
 
-    /// @notice Monotonically increasing epoch index. Starts at 0 (current
-    ///         epoch); incremented when `closeEpoch` is called.
+    /// @notice Monotonically increasing epoch index. Starts at 0;
+    ///         incremented when the active epoch's boundary passes.
     uint256 public epochIndex;                                            // slot 1
 
-    /// @notice Cumulative USDC payouts credited to each user across all
-    ///         claims on all match proxies that hold RECORDER_ROLE.
+    /// @notice V1 cumulative score mapping. Orphaned in V2; left in place
+    ///         so slot 2 keeps its meaning for any future reader.
     mapping(address user => uint256 cumulativePayout) internal _score;    // slot 2
 
     /// @notice Epoch metadata keyed by epoch index.
     mapping(uint256 epochId => Epoch) internal _epochs;                   // slot 3
 
     /// @notice (epochId, user) → claimed flag. Prevents double-claim.
-    mapping(uint256 epochId => mapping(address user => bool)) internal _claimed;  // slot 4
+    mapping(uint256 epochId => mapping(address user => bool)) internal _claimed; // slot 4
 
     /// @notice Sum of (Epoch.prizePool - Epoch.totalClaimed) over every
     ///         still-claimable closed epoch. Lets us compute the open
@@ -144,14 +140,28 @@ contract LeaderboardRewards is
     uint256 internal _lockedInClosedEpochs;                               // slot 5
 
     /// @notice PariMatchFactory used to authorize `recordWin` callers.
-    ///         A match address is accepted iff `matchFactory.isMatch(x)` is
-    ///         true. Mirrors the same pattern `ChilizSwapRouter` uses to
-    ///         validate match addresses, so the leaderboard stays in sync
-    ///         with the factory's registry of deployed proxies.
     IPariMatchFactoryView public matchFactory;                            // slot 6
 
-    /// Reserved storage gap (50 total slots).
-    uint256[43] private __gap;
+    // ─── V2 additions (appended; layout-safe) ──────────────────────────────
+
+    /// @notice Start time of the currently-open epoch (`_epochs[epochIndex]`).
+    ///         Set at V2 init and rolled forward by `_maybeAdvanceEpoch`.
+    uint64 public epochStartTime;                                         // slot 7
+
+    /// @notice Current epoch duration. Admin-settable in `[MIN, MAX]`.
+    uint64 public epochDuration;                                          // slot 7 (packed with epochStartTime)
+
+    /// @notice Per-epoch user score: `_epochScores[epochId][user]`.
+    mapping(uint256 epochId => mapping(address user => uint256 score)) internal _epochScores; // slot 8
+
+    /// @notice Sum of `_epochScores[epochId][*]` for each epoch. Updated on
+    ///         every `recordWin` and read by `claim` for the pro-rata math.
+    mapping(uint256 epochId => uint256 totalScore) internal _epochTotalScore; // slot 9
+
+    /// Reserved storage gap. V1 reserved [43]; V2 consumes 3 new slots
+    /// (slot 7 packs epochStartTime + epochDuration; slots 8 and 9 hold the
+    /// two new mappings), leaving 40 slots = 43 - 3.
+    uint256[40] private __gap;
 
     // ═══════════════════════════════════════════════════════════════════════
     // EVENTS
@@ -159,24 +169,37 @@ contract LeaderboardRewards is
 
     event Initialized(address indexed usdc, address indexed admin);
 
-    /// @notice Cumulative score for `user` increased by `delta` after a claim
-    ///         on `match_`. `newScore` is the post-increment total.
-    event WinRecorded(address indexed match_, address indexed user, uint256 delta, uint256 newScore);
+    /// @notice Cumulative score for `user` in `epochId` increased by `delta`.
+    ///         `newEpochScore` is the post-increment total for that epoch.
+    event WinRecorded(
+        address indexed match_,
+        address indexed user,
+        uint256 indexed epochId,
+        uint256 delta,
+        uint256 newEpochScore
+    );
 
-    /// @notice `epochId` closed with `merkleRoot`; the prize pool snapshot was
-    ///         `prizePool` USDC and claims expire at `claimExpiry`.
-    event EpochClosed(uint256 indexed epochId, bytes32 merkleRoot, uint256 prizePool, uint256 claimExpiry);
+    /// @notice The contract advanced past an epoch boundary. `closedId` is
+    ///         now claimable; `prizePool` is its snapshot; `totalScore` is
+    ///         the sum of scorers' weights for pro-rata claims.
+    event EpochAdvanced(
+        uint256 indexed closedId,
+        uint256 prizePool,
+        uint256 totalScore,
+        uint64  closedAt,
+        uint64  claimExpiry
+    );
 
-    /// @notice `user` claimed `amount` USDC from `epochId` against the merkle root.
+    /// @notice `user` claimed `amount` USDC from `epochId`.
     event PrizeClaimed(uint256 indexed epochId, address indexed user, uint256 amount);
 
-    /// @notice Unclaimed funds from `epochId` (= `rolledOver`) released back into
-    ///         the open prize pool because the claim window expired.
+    /// @notice Unclaimed funds from `epochId` (= `rolledOver`) released back
+    ///         into the open prize pool because the claim window expired.
     event EpochRolledOver(uint256 indexed epochId, uint256 rolledOver);
 
     event USDCTokenSet(address indexed token);
-
     event MatchFactorySet(address indexed oldFactory, address indexed newFactory);
+    event EpochDurationSet(uint64 oldDuration, uint64 newDuration);
 
     // ═══════════════════════════════════════════════════════════════════════
     // ERRORS
@@ -185,15 +208,13 @@ contract LeaderboardRewards is
     error ZeroAddress();
     error UnauthorizedMatch(address caller);
     error MatchFactoryNotSet();
-    error InvalidClaimDuration(uint256 provided, uint256 max);
-    error EpochAlreadyClosed(uint256 epochId);
+    error InvalidEpochDuration(uint64 provided, uint64 min, uint64 max);
     error EpochNotClosed(uint256 epochId);
     error EpochClaimWindowExpired(uint256 epochId, uint64 claimExpiry, uint256 nowTs);
     error EpochClaimWindowNotExpired(uint256 epochId, uint64 claimExpiry, uint256 nowTs);
     error AlreadyClaimed(uint256 epochId, address user);
-    error InvalidMerkleProof();
-    error PrizeAmountZero();
-    error MerkleRootNotSet(uint256 epochId);
+    error NothingToClaim(uint256 epochId, address user);
+    error AdvanceNotReady(uint256 nowTs, uint256 boundary);
     error InsufficientContractBalance(uint256 needed, uint256 available);
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -205,12 +226,9 @@ contract LeaderboardRewards is
         _disableInitializers();
     }
 
-    /// @notice One-shot initialization for the UUPS proxy.
-    /// @param _usdc       USDC token used for prize distribution.
-    /// @param _admin      Receives DEFAULT_ADMIN_ROLE + ADMIN_ROLE + PAUSER_ROLE.
-    /// @param _oracle     Receives ORACLE_ROLE. May be the zero address; the
-    ///                    admin can grant it later. Useful when the oracle
-    ///                    address isn't known at deploy time.
+    /// @notice One-shot V1 initialization for the UUPS proxy. Kept for the
+    ///         original deployment record; V2 proxies re-run `initializeV2`
+    ///         instead via `upgradeToAndCall`.
     function initialize(address _usdc, address _admin, address _oracle) external initializer {
         if (_usdc == address(0))  revert ZeroAddress();
         if (_admin == address(0)) revert ZeroAddress();
@@ -232,14 +250,24 @@ contract LeaderboardRewards is
         emit Initialized(_usdc, _admin);
     }
 
+    /// @notice V2 initializer. Run once via `upgradeToAndCall` from the
+    ///         upgrade script. Idempotent across re-upgrades thanks to the
+    ///         `reinitializer(2)` guard.
+    /// @dev    Anchors the epoch clock at the upgrade timestamp and sets the
+    ///         default 30-day duration. Doesn't touch any V1 state.
+    function initializeV2() external reinitializer(2) {
+        epochStartTime = uint64(block.timestamp);
+        epochDuration  = DEFAULT_EPOCH_DURATION;
+        _epochs[epochIndex].startTime = uint64(block.timestamp);
+        emit EpochDurationSet(0, DEFAULT_EPOCH_DURATION);
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // ADMIN
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// @notice Update the USDC token. Use rarely — the in-flight prize pool
-    ///         was funded in the old token, so changing mid-stream silently
-    ///         orphans those funds. Intended for upgrades / chain migrations
-    ///         while the contract holds no balance.
+    /// @notice Update the USDC token. Same caveats as V1 — only safe when
+    ///         the contract holds no balance.
     function setUSDCToken(address _usdc) external onlyRole(ADMIN_ROLE) {
         if (_usdc == address(0)) revert ZeroAddress();
         usdcToken = IERC20(_usdc);
@@ -247,19 +275,25 @@ contract LeaderboardRewards is
     }
 
     /// @notice Register the PariMatchFactory used to authorize `recordWin`
-    ///         callers. Required before any match can credit scores —
-    ///         until set, `recordWin` will revert with `MatchFactoryNotSet`.
-    ///
-    ///         The leaderboard accepts `recordWin` from any address
-    ///         `matchFactory.isMatch(addr)` says is one of its deployed
-    ///         proxies. Replacing the factory pointer migrates auth to a
-    ///         new registry — old matches lose authorization unless their
-    ///         addresses also appear in the new factory's registry.
+    ///         callers. Required before any match can credit scores.
     function setMatchFactory(address _factory) external onlyRole(ADMIN_ROLE) {
         if (_factory == address(0)) revert ZeroAddress();
         address old = address(matchFactory);
         matchFactory = IPariMatchFactoryView(_factory);
         emit MatchFactorySet(old, _factory);
+    }
+
+    /// @notice Rotate the epoch duration. Applies to the current and future
+    ///         epochs — does NOT retroactively shift `epochStartTime`, so a
+    ///         shorter setting can immediately put the boundary in the past
+    ///         and trigger an advance on the next interaction.
+    function setEpochDuration(uint64 newDuration) external onlyRole(ADMIN_ROLE) {
+        if (newDuration < MIN_EPOCH_DURATION || newDuration > MAX_EPOCH_DURATION) {
+            revert InvalidEpochDuration(newDuration, MIN_EPOCH_DURATION, MAX_EPOCH_DURATION);
+        }
+        uint64 old = epochDuration;
+        epochDuration = newDuration;
+        emit EpochDurationSet(old, newDuration);
     }
 
     function emergencyPause() external onlyRole(PAUSER_ROLE) { _pause(); }
@@ -272,15 +306,9 @@ contract LeaderboardRewards is
     // ═══════════════════════════════════════════════════════════════════════
 
     /// @inheritdoc ILeaderboardRewards
-    /// @dev Caller authorization: `matchFactory.isMatch(msg.sender)` must
-    ///      return true. The factory registers every proxy it deploys, so
-    ///      every legitimate PariMatch is automatically authorized — no
-    ///      per-match role grant needed.
-    ///
-    ///      The match calls this from `_processClaim` AFTER paying the
-    ///      user, wrapped in try/catch — so even if this function reverts
-    ///      (e.g. paused, contract upgraded, ABI mismatch, factory not
-    ///      configured), winners still receive their USDC.
+    /// @dev Lazily advances the epoch first, then credits the score to
+    ///      whatever epoch is now current. Wrapped in try/catch on the
+    ///      match side, so a revert here cannot block winner payouts.
     function recordWin(address user, uint256 payout)
         external
         override
@@ -291,74 +319,76 @@ contract LeaderboardRewards is
         if (user == address(0)) revert ZeroAddress();
         if (payout == 0) return; // no-op, not an error
 
+        _maybeAdvanceEpoch();
+
+        uint256 epId = epochIndex;
         uint256 newScore;
         unchecked {
             // Realistic payouts are bounded by total USDC supply; no overflow.
-            newScore = _score[user] + payout;
+            newScore = _epochScores[epId][user] + payout;
+            _epochTotalScore[epId] += payout;
         }
-        _score[user] = newScore;
+        _epochScores[epId][user] = newScore;
 
-        emit WinRecorded(msg.sender, user, payout, newScore);
+        emit WinRecorded(msg.sender, user, epId, payout, newScore);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // EPOCH MANAGEMENT  (oracle)
+    // EPOCH ADVANCE
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// @notice Close the current epoch and post the merkle root for prize
-    ///         claims. The epoch's prize pool is snapshotted from the open
-    ///         pool at close time. After `claimDuration` seconds, anyone may
-    ///         call `rolloverEpoch(epochId)` to return unclaimed funds to
-    ///         the open pool.
-    ///
-    /// @param merkleRoot     Root of `keccak256(bytes.concat(keccak256(abi.encode(user, amount))))`
-    ///                       leaves over the top-N users by score.
-    /// @param claimDuration  Seconds after closing during which winners may
-    ///                       claim. Bounded by MAX_CLAIM_DURATION.
-    function closeEpoch(bytes32 merkleRoot, uint256 claimDuration)
-        external
-        whenNotPaused
-        onlyRole(ORACLE_ROLE)
-        returns (uint256 closedId)
-    {
-        if (claimDuration > MAX_CLAIM_DURATION || claimDuration == 0) {
-            revert InvalidClaimDuration(claimDuration, MAX_CLAIM_DURATION);
+    /// @notice Permissionless catch-up trigger. Advances the current epoch
+    ///         to the next one if its boundary has elapsed. Reverts if the
+    ///         boundary hasn't passed yet (so callers can detect a no-op).
+    function advanceEpoch() external whenNotPaused returns (uint256 closedId) {
+        uint256 boundary = uint256(epochStartTime) + uint256(epochDuration);
+        if (block.timestamp < boundary) revert AdvanceNotReady(block.timestamp, boundary);
+        closedId = epochIndex;
+        _maybeAdvanceEpoch();
+        // If `_maybeAdvanceEpoch` was a no-op (race / paused / already
+        // advanced this block), epochIndex didn't move; treat as no-op too.
+        if (epochIndex == closedId) revert AdvanceNotReady(block.timestamp, boundary);
+    }
+
+    /// @notice Advance one epoch boundary if elapsed. Internal so it can be
+    ///         called inline from `recordWin` without a re-entrancy surface.
+    /// @dev    Single-step on purpose: if many epochs have elapsed the caller
+    ///         pays gas for one advance and `advanceEpoch()` can be called
+    ///         multiple times to catch up.
+    function _maybeAdvanceEpoch() internal {
+        uint256 boundary = uint256(epochStartTime) + uint256(epochDuration);
+        if (block.timestamp < boundary) return;
+
+        uint256 closedId = epochIndex;
+        Epoch storage ep = _epochs[closedId];
+        if (ep.closed) return; // already closed; shouldn't happen with single-step but defensive
+
+        uint64 closedAt    = uint64(boundary);              // align close to the boundary, not the actual call
+        uint64 claimExpiry = uint64(boundary + epochDuration);
+        uint256 pool       = _openPrizePool();
+        uint256 totalScore = _epochTotalScore[closedId];
+
+        ep.closed       = true;
+        ep.closedAt     = closedAt;
+        ep.claimExpiry  = claimExpiry;
+        ep.prizePool    = pool;
+
+        unchecked {
+            _lockedInClosedEpochs += pool;
         }
 
-        closedId = epochIndex;
-        Epoch storage ep = _epochs[closedId];
-        if (ep.closed) revert EpochAlreadyClosed(closedId);
-
-        // Snapshot the open prize pool (whatever's funded minus what's locked
-        // for not-yet-rolled-over closed epochs).
-        uint256 pool = _openPrizePool();
-        uint64  nowTs    = uint64(block.timestamp);
-        uint64  expiry   = uint64(block.timestamp + claimDuration);
-
-        // Set epoch start lazily — if it's the first close, startTime is 0
-        // and we record nowTs so analytics have something to plot against.
-        if (ep.startTime == 0) ep.startTime = nowTs;
-        ep.closedAt     = nowTs;
-        ep.claimExpiry  = expiry;
-        ep.closed       = true;
-        ep.merkleRoot   = merkleRoot;
-        ep.prizePool    = pool;
-        // ep.totalClaimed stays 0; mutated as claims come in.
-
-        // Lock the snapshotted pool so a subsequent close doesn't re-allocate
-        // the same USDC.
-        unchecked { _lockedInClosedEpochs += pool; }
-
         // Roll forward.
-        epochIndex = closedId + 1;
-        _epochs[closedId + 1].startTime = nowTs;
+        uint256 nextId = closedId + 1;
+        epochIndex      = nextId;
+        epochStartTime  = uint64(boundary);
+        _epochs[nextId].startTime = uint64(boundary);
 
-        emit EpochClosed(closedId, merkleRoot, pool, expiry);
+        emit EpochAdvanced(closedId, pool, totalScore, closedAt, claimExpiry);
     }
 
     /// @notice Release the unclaimed remainder of an expired epoch back into
-    ///         the open prize pool. Permissionless — anyone can call this
-    ///         once the epoch's claim window has elapsed.
+    ///         the open prize pool. Permissionless once the claim window has
+    ///         elapsed.
     function rolloverEpoch(uint256 epochId)
         external
         whenNotPaused
@@ -373,11 +403,9 @@ contract LeaderboardRewards is
         rolledOver = ep.prizePool - ep.totalClaimed;
         if (rolledOver == 0) return 0;
 
-        // Move the unclaimed portion out of the "locked" bucket so the open
-        // pool sees it again. The next close will snapshot it.
         unchecked {
             _lockedInClosedEpochs -= rolledOver;
-            // Zero out so re-calling this is a no-op (rolledOver == 0).
+            // Zero out so re-calling this is a no-op.
             ep.totalClaimed = ep.prizePool;
         }
 
@@ -385,60 +413,78 @@ contract LeaderboardRewards is
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // CLAIM
+    // CLAIM (pro-rata, fully on-chain)
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// @notice Claim `prizeAmount` USDC from `epochId` by proving the leaf
-    ///         `keccak256(bytes.concat(keccak256(abi.encode(msg.sender, prizeAmount))))`
-    ///         against the epoch's merkle root.
-    function claim(uint256 epochId, uint256 prizeAmount, bytes32[] calldata proof)
+    /// @notice Claim the caller's pro-rata share of `epochId`'s prize pool.
+    ///         Amount = `epochScore[user] * prizePool / totalScore`.
+    function claim(uint256 epochId)
         external
         nonReentrant
         whenNotPaused
+        returns (uint256 amount)
     {
-        if (prizeAmount == 0) revert PrizeAmountZero();
-
         Epoch storage ep = _epochs[epochId];
         if (!ep.closed) revert EpochNotClosed(epochId);
-        if (ep.merkleRoot == bytes32(0)) revert MerkleRootNotSet(epochId);
         if (block.timestamp > ep.claimExpiry) {
             revert EpochClaimWindowExpired(epochId, ep.claimExpiry, block.timestamp);
         }
         if (_claimed[epochId][msg.sender]) revert AlreadyClaimed(epochId, msg.sender);
 
-        bytes32 leaf = _leaf(msg.sender, prizeAmount);
-        if (!MerkleProof.verify(proof, ep.merkleRoot, leaf)) revert InvalidMerkleProof();
+        uint256 userScore = _epochScores[epochId][msg.sender];
+        uint256 totalScore = _epochTotalScore[epochId];
+        amount = (userScore == 0 || totalScore == 0)
+            ? 0
+            : (userScore * ep.prizePool) / totalScore;
+        if (amount == 0) revert NothingToClaim(epochId, msg.sender);
+
+        // Should never trip — pool was snapshotted at close — but guard
+        // against config drift (e.g. admin yanking the USDC token).
+        uint256 bal = usdcToken.balanceOf(address(this));
+        if (bal < amount) revert InsufficientContractBalance(amount, bal);
 
         _claimed[epochId][msg.sender] = true;
-
-        // Should never trip (we snapshotted the pool), but guard against
-        // accidental config drift (e.g. admin yanking the USDC token).
-        uint256 bal = usdcToken.balanceOf(address(this));
-        if (bal < prizeAmount) revert InsufficientContractBalance(prizeAmount, bal);
-
         unchecked {
-            ep.totalClaimed += prizeAmount;
-            _lockedInClosedEpochs -= prizeAmount;
+            ep.totalClaimed += amount;
+            _lockedInClosedEpochs -= amount;
         }
 
-        usdcToken.safeTransfer(msg.sender, prizeAmount);
-        emit PrizeClaimed(epochId, msg.sender, prizeAmount);
-    }
-
-    /// @notice Leaf format: `keccak256(bytes.concat(keccak256(abi.encode(user, amount))))`.
-    ///         Double-hashing follows the OpenZeppelin Merkle Tree library
-    ///         convention and prevents second-preimage attacks where a
-    ///         crafted intermediate node masquerades as a leaf.
-    function _leaf(address user, uint256 amount) internal pure returns (bytes32) {
-        return keccak256(bytes.concat(keccak256(abi.encode(user, amount))));
+        usdcToken.safeTransfer(msg.sender, amount);
+        emit PrizeClaimed(epochId, msg.sender, amount);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
     // VIEWS
     // ═══════════════════════════════════════════════════════════════════════
 
-    function score(address user) external view returns (uint256) {
-        return _score[user];
+    /// @notice Index of the currently-open epoch.
+    function currentEpoch() external view returns (uint256) {
+        return epochIndex;
+    }
+
+    /// @notice Per-epoch score for `user`.
+    function epochScore(uint256 epochId, address user) external view returns (uint256) {
+        return _epochScores[epochId][user];
+    }
+
+    /// @notice Sum of scores for `epochId`. For the open epoch this is the
+    ///         live running total; for a closed epoch it's frozen.
+    function epochTotalScore(uint256 epochId) external view returns (uint256) {
+        return _epochTotalScore[epochId];
+    }
+
+    /// @notice Preview of what `claim(epochId)` would pay `user`. Returns 0
+    ///         for the open epoch, already-claimed entries, expired windows,
+    ///         and zero-score callers.
+    function pendingClaim(uint256 epochId, address user) external view returns (uint256) {
+        Epoch storage ep = _epochs[epochId];
+        if (!ep.closed) return 0;
+        if (block.timestamp > ep.claimExpiry) return 0;
+        if (_claimed[epochId][user]) return 0;
+        uint256 userScore  = _epochScores[epochId][user];
+        uint256 totalScore = _epochTotalScore[epochId];
+        if (userScore == 0 || totalScore == 0) return 0;
+        return (userScore * ep.prizePool) / totalScore;
     }
 
     function epoch(uint256 epochId) external view returns (Epoch memory) {
@@ -454,7 +500,6 @@ contract LeaderboardRewards is
     }
 
     /// @notice USDC currently funding the (not-yet-snapshotted) next epoch's pool.
-    ///         = balance − amount locked by closed-but-not-yet-rolled epochs.
     function openPrizePool() external view returns (uint256) {
         return _openPrizePool();
     }
