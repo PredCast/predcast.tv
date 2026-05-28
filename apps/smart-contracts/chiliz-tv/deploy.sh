@@ -9,7 +9,8 @@
 #   ./deploy.sh --network chilizTestnet --pari    # PariMatchFactory + router + sample match (no streaming)
 #   ./deploy.sh --network chilizTestnet --stream  # StreamWalletFactory only
 #   ./deploy.sh --network chilizTestnet --swap          # ChilizSwapRouter only (wire it post-deploy)
-#   ./deploy.sh --network chilizTestnet --redeploy-swap # ChilizSwapRouter redeploy + auto-wire to existing factories
+#   ./deploy.sh --network chilizTestnet --redeploy-swap      # ChilizSwapRouter redeploy + auto-wire to existing factories
+#   ./deploy.sh --network chilizTestnet --upgrade-leaderboard # LeaderboardRewards V2 (UUPS upgradeToAndCall + initializeV2)
 #   ./deploy.sh --network chilizMainnet  --all
 #
 # Add `--dry-run` to simulate via forge without broadcasting — no on-chain tx,
@@ -56,6 +57,8 @@ while [[ $# -gt 0 ]]; do
             DEPLOY_TYPE="swap"; shift ;;
         --redeploy-swap)
             DEPLOY_TYPE="redeploy-swap"; shift ;;
+        --upgrade-leaderboard)
+            DEPLOY_TYPE="upgrade-leaderboard"; shift ;;
         --dry-run)
             DRY_RUN=true; shift ;;
         --match|--pool)
@@ -64,14 +67,14 @@ while [[ $# -gt 0 ]]; do
             exit 1 ;;
         *)
             echo -e "${RED}Unknown argument: $1${NC}"
-            echo "Usage: ./deploy.sh --network <chilizTestnet|chilizMainnet> <--all|--pari|--stream|--swap|--redeploy-swap> [--dry-run]"
+            echo "Usage: ./deploy.sh --network <chilizTestnet|chilizMainnet> <--all|--pari|--stream|--swap|--redeploy-swap|--upgrade-leaderboard> [--dry-run]"
             exit 1 ;;
     esac
 done
 
 if [ -z "$NETWORK" ] || [ -z "$DEPLOY_TYPE" ]; then
     echo -e "${RED}Missing required arguments.${NC}"
-    echo "Usage: ./deploy.sh --network <chilizTestnet|chilizMainnet> <--all|--pari|--stream|--swap|--redeploy-swap> [--dry-run]"
+    echo "Usage: ./deploy.sh --network <chilizTestnet|chilizMainnet> <--all|--pari|--stream|--swap|--redeploy-swap|--upgrade-leaderboard> [--dry-run]"
     exit 1
 fi
 
@@ -131,6 +134,7 @@ fi
 REQUIRES_KAYEN=false
 REQUIRES_USDC=false
 REQUIRES_FACTORIES=false
+REQUIRES_LEADERBOARD_PROXY=false
 case "$DEPLOY_TYPE" in
     all)
         SCRIPT="script/DeployAll.s.sol"
@@ -153,6 +157,9 @@ case "$DEPLOY_TYPE" in
         REQUIRES_KAYEN=true
         REQUIRES_USDC=true
         REQUIRES_FACTORIES=true ;;
+    upgrade-leaderboard)
+        SCRIPT="script/UpgradeLeaderboard.s.sol"
+        REQUIRES_LEADERBOARD_PROXY=true ;;
 esac
 
 # ── USDC / Kayen validation ──────────────────────────────────────────────────
@@ -184,6 +191,20 @@ if [ "$REQUIRES_KAYEN" = true ]; then
     echo -e "  KAYEN_ROUTER:        ${YELLOW}$KAYEN_ROUTER${NC}"
     echo -e "  WCHZ_ADDRESS:        ${YELLOW}$WCHZ_ADDRESS${NC}"
     echo -e "  USDC_ADDRESS:        ${YELLOW}$USDC_ADDRESS${NC}"
+    echo ""
+fi
+
+# ── Leaderboard proxy validation (upgrade-leaderboard targets existing proxy) ─
+if [ "$REQUIRES_LEADERBOARD_PROXY" = true ]; then
+    if [ -z "$LEADERBOARD_PROXY" ]; then
+        echo -e "${RED}Missing in $ENV_FILE for --upgrade-leaderboard:${NC}"
+        echo -e "${RED}  - LEADERBOARD_PROXY${NC}"
+        echo -e "${YELLOW}  Must be the ERC1967 proxy address (NOT the implementation).${NC}"
+        echo -e "${YELLOW}  See deployments/${NETWORK}.json - ERC1967Proxy entry.${NC}"
+        exit 1
+    fi
+    echo -e "${CYAN}Upgrading leaderboard proxy...${NC}"
+    echo -e "  LEADERBOARD_PROXY: ${YELLOW}$LEADERBOARD_PROXY${NC}"
     echo ""
 fi
 
@@ -356,6 +377,29 @@ if [ "$DEPLOY_TYPE" = "swap" ]; then
     echo -e "     ${CYAN}cast send <MATCH> 'grantRole(bytes32,address)'  \$(cast keccak 'SWAP_ROUTER_ROLE') <NEW_ROUTER>${NC}"
     echo ""
     echo "RedeploySwapRouter.s.sol prints the per-match commands automatically."
+    echo ""
+fi
+
+if [ "$DEPLOY_TYPE" = "upgrade-leaderboard" ]; then
+    echo -e "${YELLOW}────────────────────────────────────────${NC}"
+    echo -e "${YELLOW}Leaderboard V2 - Post-Upgrade Steps:${NC}"
+    echo -e "${YELLOW}────────────────────────────────────────${NC}"
+    echo ""
+    echo "The proxy now points at the V2 implementation and initializeV2()"
+    echo "has been called (epochDuration = 30 days, epochStartTime = upgrade tx ts)."
+    echo ""
+    echo "The proxy address is UNCHANGED. The implementation address is new."
+    echo "If your deployments JSON tracks the impl separately, update it from"
+    echo "the forge log above."
+    echo ""
+    echo "Remaining manual steps:"
+    echo "  1. Verify on-chain views:"
+    echo "       cast call \$LEADERBOARD_PROXY 'currentEpoch()(uint256)' --rpc-url \$RPC_URL"
+    echo "       cast call \$LEADERBOARD_PROXY 'epochDuration()(uint64)' --rpc-url \$RPC_URL"
+    echo "  2. Restart backend so LeaderboardIndexer picks up the new event shapes"
+    echo "     (WinRecorded gained an epochId topic; EpochClosed renamed to EpochAdvanced)."
+    echo "  3. Frontend ABIs were regenerated as part of this change set; ensure"
+    echo "     the new generated.ts is deployed alongside any production rollout."
     echo ""
 fi
 
