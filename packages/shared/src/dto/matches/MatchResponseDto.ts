@@ -53,6 +53,12 @@ export interface MatchResponseDto {
    * null once a real value was seen). Null when the match hasn't started.
    */
   elapsed: number | null;
+  /**
+   * Halftime score (45'). Monotone — survives the HT pause when the
+   * upstream briefly clears the field. Null pre-HT.
+   */
+  htHomeScore: number | null;
+  htAwayScore: number | null;
   bettingContractAddress?: string;
   /**
    * `true` when the API-Football upstream is in degraded mode (circuit open or

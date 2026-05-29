@@ -45,6 +45,14 @@ export interface Match {
    */
   elapsed: number | null;
   /**
+   * Halftime score (45'). Monotone — once captured by the backend it
+   * survives the HT pause where the upstream briefly clears the field.
+   * Null pre-HT. Used to gate the HALFTIME early-resolution + the
+   * `<HalftimeDelayBadge />` on the row.
+   */
+  htHomeScore: number | null;
+  htAwayScore: number | null;
+  /**
    * Backend signal that API-Football is in degraded mode (circuit open or
    * daily quota exhausted). When true, the score may be stale — UI renders a
    * "Stale data" badge so the user doesn't trust the displayed value blindly.

@@ -7,7 +7,8 @@
  *   WINNER / HALFTIME : 0=Home, 1=Draw, 2=Away
  *   GOALS_TOTAL       : 0=Under, 1=Over     (line = tenths of goals — 25 → 2.5)
  *   BOTH_SCORE        : 0=No,    1=Yes
- *   FIRST_SCORER      : 0=Home,  1=Away,    2=None
+ *   DOUBLE_CHANCE     : 0=No,    1=Yes      (line encodes variant — 0=1X, 1=12, 2=2X)
+ *   FIRST_SCORER      : 0=Home,  1=Away,    2=None     (legacy, no longer seeded)
  *
  * When `marketType` is null/unknown, falls back to WINNER semantics — preserves
  * the legacy behaviour for events indexed before `market_events.payload.line`
@@ -53,6 +54,22 @@ export function selectionToBetLabel(args: BetLabelArgs): BetLabel {
     if (market === 'BOTH_SCORE') {
         if (sel === 0) return { subType: 'btts_no',  display: 'No' };
         if (sel === 1) return { subType: 'btts_yes', display: 'Yes' };
+        return outOfRange(sel);
+    }
+
+    if (market === 'DOUBLE_CHANCE') {
+        // line encodes the variant: 0=1X (Home or Draw), 1=12 (Home or Away),
+        // 2=2X (Draw or Away). The selection is just No/Yes for that variant.
+        // Variant label is enriched for display; subType stays compact +
+        // collision-free with other markets' subTypes (prefixed `dc_`).
+        const variantTag = args.line === 0 ? '1X' : args.line === 1 ? '12' : args.line === 2 ? '2X' : '?';
+        const variantText =
+            args.line === 0 ? `${args.homeTeam} or Draw` :
+            args.line === 1 ? `${args.homeTeam} or ${args.awayTeam}` :
+            args.line === 2 ? `Draw or ${args.awayTeam}` :
+            'Double Chance';
+        if (sel === 0) return { subType: `dc_${variantTag}_no`,  display: `${variantText}: No` };
+        if (sel === 1) return { subType: `dc_${variantTag}_yes`, display: `${variantText}: Yes` };
         return outOfRange(sel);
     }
 

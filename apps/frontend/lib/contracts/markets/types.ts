@@ -6,6 +6,7 @@ export type MarketKey =
     | 'goalstotal'
     | 'bothscore'
     | 'halftime'
+    | 'doublechance'
     | 'firstscorer'
     | 'goalsexact'
     | 'bb-winner'

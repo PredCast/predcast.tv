@@ -11,6 +11,7 @@ export const MARKET_TYPE_HASHES = {
     GOALS_TOTAL: keccak256(toBytes('GOALS_TOTAL')),
     BOTH_SCORE: keccak256(toBytes('BOTH_SCORE')),
     HALFTIME: keccak256(toBytes('HALFTIME')),
+    DOUBLE_CHANCE: keccak256(toBytes('DOUBLE_CHANCE')),
     FIRST_SCORER: keccak256(toBytes('FIRST_SCORER')),
     CORRECT_SCORE: keccak256(toBytes('CORRECT_SCORE')),
     GOALS_EXACT: keccak256(toBytes('GOALS_EXACT')),
@@ -22,9 +23,16 @@ export const MARKET_TYPE_HASHES = {
     POINTS_EXACT: keccak256(toBytes('POINTS_EXACT')),
 } as const;
 
-/** Markets that exist on-chain but the front silently filters out. */
+/**
+ * Markets the contract still understands (legacy proxies emit them) but the
+ * v1 product no longer exposes. The front silently filters them everywhere.
+ * Mirrors the SUPPORTED_MARKET_TYPE_NAMES set in
+ * `packages/domain/src/markets/DefaultMarkets.ts` — keep them in lockstep.
+ */
 export const HIDDEN_MARKETS: ReadonlySet<string> = new Set([
     MARKET_TYPE_HASHES.CORRECT_SCORE.toLowerCase(),
+    MARKET_TYPE_HASHES.FIRST_SCORER.toLowerCase(),
+    MARKET_TYPE_HASHES.GOALS_EXACT.toLowerCase(),
 ]);
 
 /** True for any market the front should not list, dialog, or include in dashboards. */
@@ -37,10 +45,12 @@ export function isHiddenMarket(marketTypeHash: string | undefined): boolean {
 //   WINNER, HALFTIME : 0=Home, 1=Draw, 2=Away
 //   GOALS_TOTAL      : 0=Under, 1=Over   (line = tenths of goals — 25 ⇒ 2.5)
 //   BOTH_SCORE       : 0=No,    1=Yes
-//   FIRST_SCORER     : 0=Home,  1=Away,  2=No goal (simplified — contract supports 0..255)
+//   DOUBLE_CHANCE    : 0=No,    1=Yes    (line encodes variant: 0=1X, 1=12, 2=2X)
+//   FIRST_SCORER     : 0=Home,  1=Away,  2=No goal (legacy, hidden in v1)
 //
-// CORRECT_SCORE is in MARKET_TYPE_HASHES but not in FOOTBALL_MARKETS — it is
-// listed in HIDDEN_MARKETS and filtered everywhere on the front (D1 of plan).
+// CORRECT_SCORE / FIRST_SCORER / GOALS_EXACT are listed in HIDDEN_MARKETS and
+// filtered everywhere on the front. The contract still understands them for
+// legacy proxies deployed before the 8-market lineup.
 
 const winnerOutcomes = (homeTeam?: string, awayTeam?: string): ReadonlyArray<MarketOutcome> => [
     { selection: 0, label: homeTeam ?? 'Home', hint: 'Home win' },
@@ -89,6 +99,29 @@ export const FOOTBALL_MARKETS: Readonly<Record<string, MarketSpec>> = {
             { selection: 0, label: 'No', hint: 'At least one shut out' },
             { selection: 1, label: 'Yes', hint: 'Both teams score' },
         ],
+    },
+    // Double Chance — three separate markets (one per variant), each binary
+    // No/Yes. The `line` field encodes the variant: 0=1X (Home or Draw),
+    // 1=12 (Home or Away), 2=2X (Draw or Away). Each variant has its own
+    // marketId and pool — bettors can take positions on multiple variants
+    // (they're not mutually exclusive payoffs).
+    [MARKET_TYPE_HASHES.DOUBLE_CHANCE.toLowerCase()]: {
+        key: 'doublechance',
+        label: 'Double Chance',
+        hint: '1X / 12 / 2X',
+        hasLine: true,
+        supportsBetting: true,
+        getOutcomes: (line, homeTeam, awayTeam) => {
+            const variantText =
+                line === 0 ? `${homeTeam ?? 'Home'} or Draw`
+                : line === 1 ? `${homeTeam ?? 'Home'} or ${awayTeam ?? 'Away'}`
+                : line === 2 ? `Draw or ${awayTeam ?? 'Away'}`
+                : 'Double Chance';
+            return [
+                { selection: 0, label: `${variantText} — No`,  hint: 'Against this combo' },
+                { selection: 1, label: `${variantText} — Yes`, hint: 'For this combo' },
+            ];
+        },
     },
     [MARKET_TYPE_HASHES.FIRST_SCORER.toLowerCase()]: {
         key: 'firstscorer',

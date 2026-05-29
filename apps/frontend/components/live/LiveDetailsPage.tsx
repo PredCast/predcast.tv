@@ -76,6 +76,8 @@ const DUMMY_TEST_MATCH: Match = {
   homeForm: null,
   awayForm: null,
   elapsed: null,
+  htHomeScore: null,
+  htAwayScore: null,
 };
 
 export default function LiveDetailsPage({ id }: LiveDetailsPageProps) {
@@ -132,6 +134,8 @@ export default function LiveDetailsPage({ id }: LiveDetailsPageProps) {
         homeForm: null,
         awayForm: null,
         elapsed: null,
+        htHomeScore: null,
+        htAwayScore: null,
       };
     }
     return DUMMY_TEST_MATCH;
@@ -360,7 +364,12 @@ export default function LiveDetailsPage({ id }: LiveDetailsPageProps) {
               walletAddress={walletAddress || undefined}
               homeTeam={matchData.homeTeam}
               awayTeam={matchData.awayTeam}
-              match={{ status: matchData.status, kickoffAt: matchData.startTime }}
+              match={{
+                status: matchData.status,
+                kickoffAt: matchData.startTime,
+                htHomeScore: matchData.htHomeScore,
+                htAwayScore: matchData.htAwayScore,
+              }}
             />
           </div>
 

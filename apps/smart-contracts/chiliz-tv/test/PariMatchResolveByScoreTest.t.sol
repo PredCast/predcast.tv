@@ -59,6 +59,7 @@ contract PariMatchResolveByScoreTest is Test {
     bytes32 constant F_CORRECT      = keccak256("CORRECT_SCORE");
     bytes32 constant F_FIRST_SCORER = keccak256("FIRST_SCORER");
     bytes32 constant F_GOALS_EXACT  = keccak256("GOALS_EXACT");
+    bytes32 constant F_DOUBLE_CHANCE = keccak256("DOUBLE_CHANCE");
 
     bytes32 constant B_WINNER          = keccak256("WINNER");
     bytes32 constant B_TOTAL_POINTS    = keccak256("TOTAL_POINTS");
@@ -613,5 +614,105 @@ contract PariMatchResolveByScoreTest is Test {
         vm.prank(stranger);
         vm.expectRevert();
         bball.resolveByScore(s);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 15. FOOTBALL — DOUBLE_CHANCE
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// @dev DC variants encoded in `line`: 0=1X, 1=12, 2=2X. Each market is
+    ///      its own Yes/No pool (0=No, 1=Yes). The truth table is:
+    ///        line  | home win | draw | away win
+    ///        ──────┼──────────┼──────┼──────────
+    ///        0  1X | Yes      | Yes  | No
+    ///        1  12 | Yes      | No   | Yes
+    ///        2  2X | No       | Yes  | Yes
+    function test_Football_DoubleChance_HomeWin_ResolvesCorrectly() public {
+        uint256 m1X = _addAndOpenFoot(F_DOUBLE_CHANCE, 0);
+        uint256 m12 = _addAndOpenFoot(F_DOUBLE_CHANCE, 1);
+        uint256 m2X = _addAndOpenFoot(F_DOUBLE_CHANCE, 2);
+
+        _stakeFoot(alice, m1X, 1, 100e6); _stakeFoot(bob, m1X, 0, 50e6);
+        _stakeFoot(alice, m12, 1, 100e6); _stakeFoot(bob, m12, 0, 50e6);
+        _stakeFoot(alice, m2X, 1, 100e6); _stakeFoot(bob, m2X, 0, 50e6);
+
+        vm.startPrank(owner);
+        foot.closeMarket(m1X); foot.closeMarket(m12); foot.closeMarket(m2X);
+        vm.stopPrank();
+
+        FootballPariMatch.FootballScore memory s = FootballPariMatch.FootballScore({
+            homeGoals: 2, awayGoals: 0, htHomeGoals: 1, htAwayGoals: 0, firstScorerId: 0
+        });
+        vm.prank(oracle);
+        foot.resolveByScore(s);
+
+        assertEq(_footMarketResult(m1X), 1, "home win covers 1X");
+        assertEq(_footMarketResult(m12), 1, "home win covers 12");
+        assertEq(_footMarketResult(m2X), 0, "home win does not cover 2X");
+    }
+
+    function test_Football_DoubleChance_Draw_ResolvesCorrectly() public {
+        uint256 m1X = _addAndOpenFoot(F_DOUBLE_CHANCE, 0);
+        uint256 m12 = _addAndOpenFoot(F_DOUBLE_CHANCE, 1);
+        uint256 m2X = _addAndOpenFoot(F_DOUBLE_CHANCE, 2);
+
+        _stakeFoot(alice, m1X, 1, 100e6); _stakeFoot(bob, m1X, 0, 50e6);
+        _stakeFoot(alice, m12, 1, 100e6); _stakeFoot(bob, m12, 0, 50e6);
+        _stakeFoot(alice, m2X, 1, 100e6); _stakeFoot(bob, m2X, 0, 50e6);
+
+        vm.startPrank(owner);
+        foot.closeMarket(m1X); foot.closeMarket(m12); foot.closeMarket(m2X);
+        vm.stopPrank();
+
+        FootballPariMatch.FootballScore memory s = FootballPariMatch.FootballScore({
+            homeGoals: 2, awayGoals: 2, htHomeGoals: 1, htAwayGoals: 1, firstScorerId: 0
+        });
+        vm.prank(oracle);
+        foot.resolveByScore(s);
+
+        assertEq(_footMarketResult(m1X), 1, "draw covers 1X");
+        assertEq(_footMarketResult(m12), 0, "draw does not cover 12");
+        assertEq(_footMarketResult(m2X), 1, "draw covers 2X");
+    }
+
+    function test_Football_DoubleChance_AwayWin_ResolvesCorrectly() public {
+        uint256 m1X = _addAndOpenFoot(F_DOUBLE_CHANCE, 0);
+        uint256 m12 = _addAndOpenFoot(F_DOUBLE_CHANCE, 1);
+        uint256 m2X = _addAndOpenFoot(F_DOUBLE_CHANCE, 2);
+
+        _stakeFoot(alice, m1X, 1, 100e6); _stakeFoot(bob, m1X, 0, 50e6);
+        _stakeFoot(alice, m12, 1, 100e6); _stakeFoot(bob, m12, 0, 50e6);
+        _stakeFoot(alice, m2X, 1, 100e6); _stakeFoot(bob, m2X, 0, 50e6);
+
+        vm.startPrank(owner);
+        foot.closeMarket(m1X); foot.closeMarket(m12); foot.closeMarket(m2X);
+        vm.stopPrank();
+
+        FootballPariMatch.FootballScore memory s = FootballPariMatch.FootballScore({
+            homeGoals: 0, awayGoals: 2, htHomeGoals: 0, htAwayGoals: 1, firstScorerId: 0
+        });
+        vm.prank(oracle);
+        foot.resolveByScore(s);
+
+        assertEq(_footMarketResult(m1X), 0, "away win does not cover 1X");
+        assertEq(_footMarketResult(m12), 1, "away win covers 12");
+        assertEq(_footMarketResult(m2X), 1, "away win covers 2X");
+    }
+
+    function test_Football_DoubleChance_InvalidLine_Reverts() public {
+        // line = 3 is out of range; addMarketWithLine should revert with InvalidLine.
+        vm.prank(owner);
+        vm.expectRevert();
+        foot.addMarketWithLine(F_DOUBLE_CHANCE, 3);
+    }
+
+    function test_Football_DoubleChance_ComputeOutcome_View() public {
+        uint256 m = _addAndOpenFoot(F_DOUBLE_CHANCE, 0);  // 1X
+        FootballPariMatch.FootballScore memory s = FootballPariMatch.FootballScore({
+            homeGoals: 1, awayGoals: 0, htHomeGoals: 0, htAwayGoals: 0, firstScorerId: 0
+        });
+        (uint64 outcome, bool ok) = foot.computeOutcome(m, s);
+        assertTrue(ok);
+        assertEq(outcome, 1, "home win covers 1X via view");
     }
 }

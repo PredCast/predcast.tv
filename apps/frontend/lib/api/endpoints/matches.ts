@@ -29,6 +29,8 @@ function transformMatch(m: MatchResponseDto): Match {
     homeForm: m.homeForm,
     awayForm: m.awayForm,
     elapsed: m.elapsed,
+    htHomeScore: m.htHomeScore,
+    htAwayScore: m.htAwayScore,
     dataStale: m.dataStale ?? false,
   };
 }

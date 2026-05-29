@@ -25,6 +25,15 @@ export interface RawMatch {
    * displays a coherent minute counter across the break.
    */
   elapsed: number | null;
+  /**
+   * Score at halftime (45'). Null pre-HT; becomes a real value once the
+   * match reaches HT and stays non-null through FT. Required to resolve
+   * the HALFTIME market early (at HT, not at FT). Writers MUST preserve
+   * the last known value — never overwrite with null during HT pause when
+   * API-Football briefly clears the field.
+   */
+  htHomeScore: number | null;
+  htAwayScore: number | null;
 }
 
 export interface IFootballApiService {
