@@ -1,13 +1,19 @@
 import { keccak256, toBytes } from 'viem';
 
 const MARKET_TYPE_NAMES = [
+    // Football — seeded today
     'WINNER',
+    'HALFTIME',
     'GOALS_TOTAL',
     'BOTH_SCORE',
-    'HALFTIME',
+    'DOUBLE_CHANCE',
+    // Football — legacy (no longer seeded, but contracts deployed before the
+    // 8-market lineup still emit MarketCreated with these — keep the reverse
+    // lookup so the indexer + dashboard can still render their labels).
     'FIRST_SCORER',
     'CORRECT_SCORE',
     'GOALS_EXACT',
+    // Basketball (UI unsupported but contracts can emit them).
     'TOTAL_POINTS',
     'SPREAD',
     'QUARTER_WINNER',

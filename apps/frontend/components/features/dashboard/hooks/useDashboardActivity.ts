@@ -37,7 +37,10 @@ function betLabel(b: MyBet): string {
 function betPickFor(b: MyBet): BetPick {
     return {
         label: fmtSelection(b.outcome, b.match?.homeTeamName, b.match?.awayTeamName, b.marketType, b.line),
-        tint: tintForOutcome(b.marketType, b.outcome),
+        // Status drives the tint for resolved bets so the chip reflects
+        // win/lose, not the cosmetic label direction — load-bearing for
+        // DOUBLE_CHANCE where "No" can be a winning pick.
+        tint: tintForOutcome(b.marketType, b.outcome, b.status),
     };
 }
 

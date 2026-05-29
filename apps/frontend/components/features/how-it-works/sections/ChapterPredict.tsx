@@ -9,19 +9,37 @@ const STEPS: Step[] = [
     title: "Pick a market",
     body: (
       <>
-        <p className="m-0">Three core markets per match:</p>
+        <p className="m-0">Six market types open per match — every variant is a separate pool you can take a position on:</p>
         <ul className="mt-3.5 list-disc pl-4.5 text-[15px]">
           <li className="py-1">
-            <strong className="font-medium text-white">1X2 Winner</strong> — Home / Draw / Away
+            <strong className="font-medium text-white">1X2 Winner</strong> — Home / Draw / Away at full-time
           </li>
           <li className="py-1">
-            <strong className="font-medium text-white">Over/Under goals</strong> — e.g. over 2.5
+            <strong className="font-medium text-white">1X2 Halftime</strong> — same idea, settles at the break
+          </li>
+          <li className="py-1">
+            <strong className="font-medium text-white">Over/Under 1.5 goals</strong> — total goals fewer or more than 1.5
+          </li>
+          <li className="py-1">
+            <strong className="font-medium text-white">Over/Under 2.5 goals</strong> — same line bumped to 2.5
           </li>
           <li className="py-1">
             <strong className="font-medium text-white">Both teams to score</strong> — Yes / No
           </li>
+          <li className="py-1">
+            <strong className="font-medium text-white">Double Chance</strong> — 1X (home or draw), 12 (no draw), 2X (away or draw)
+          </li>
         </ul>
       </>
+    ),
+  },
+  {
+    n: "01b →",
+    title: "Halftime claim, not full-time",
+    body: (
+      <p className="m-0">
+        The Halftime market resolves the moment the score is locked at the whistle — you don&apos;t wait until 90&apos; to claim. If the upstream score is missing 15 min into the 2nd half, the market is cancelled and stakes refund automatically.
+      </p>
     ),
   },
   {

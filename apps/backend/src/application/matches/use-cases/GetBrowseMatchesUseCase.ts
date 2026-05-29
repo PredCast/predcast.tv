@@ -6,6 +6,7 @@ import { MatchFetchWindow } from '@chiliztv/domain/matches/value-objects/MatchFe
 import { Stream } from '@chiliztv/domain/streams/entities/Stream';
 import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import type { ICacheService } from '@chiliztv/domain/shared/ports/ICacheService';
+import type { IFootballApiService } from '@chiliztv/domain/shared/ports/IFootballApiService';
 import {
   BrowseMatchesResponseDto,
   BrowseLeagueDto,
@@ -25,6 +26,8 @@ export class GetBrowseMatchesUseCase {
     private readonly clock: IClock,
     @inject(TOKENS.ICacheService)
     private readonly cache: ICacheService,
+    @inject(TOKENS.IFootballApiService)
+    private readonly footballApi: IFootballApiService,
   ) {}
 
   async execute(): Promise<BrowseMatchesResponseDto> {
@@ -106,6 +109,7 @@ export class GetBrowseMatchesUseCase {
           : null,
         homeForm: props.homeForm ?? null,
         awayForm: props.awayForm ?? null,
+        elapsed: props.elapsed ?? null,
         contractAddress: props.bettingContractAddress ?? null,
         streamsPreview,
       };
@@ -116,6 +120,7 @@ export class GetBrowseMatchesUseCase {
     return {
       success: true,
       leagues: Array.from(leaguesMap.values()),
+      dataStale: this.footballApi.isDataStale(),
     };
   }
 }

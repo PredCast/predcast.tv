@@ -8,8 +8,13 @@
 #   ./deploy.sh --network chilizTestnet --all     # full platform (PariMatchFactory + StreamWalletFactory + ChilizSwapRouter, fully wired)
 #   ./deploy.sh --network chilizTestnet --pari    # PariMatchFactory + router + sample match (no streaming)
 #   ./deploy.sh --network chilizTestnet --stream  # StreamWalletFactory only
-#   ./deploy.sh --network chilizTestnet --swap    # ChilizSwapRouter only (wire it post-deploy)
+#   ./deploy.sh --network chilizTestnet --swap          # ChilizSwapRouter only (wire it post-deploy)
+#   ./deploy.sh --network chilizTestnet --redeploy-swap      # ChilizSwapRouter redeploy + auto-wire to existing factories
+#   ./deploy.sh --network chilizTestnet --upgrade-leaderboard # LeaderboardRewards V2 (UUPS upgradeToAndCall + initializeV2)
 #   ./deploy.sh --network chilizMainnet  --all
+#
+# Add `--dry-run` to simulate via forge without broadcasting — no on-chain tx,
+# no deployments/<network>.json update. Useful to preview gas + address layout.
 #
 # Set TRANSFER_OWNERSHIP=true in your env file to transfer Ownable.owner of
 # the deployed factories + router to SAFE_ADDRESS at the end of the run.
@@ -36,6 +41,7 @@ NC='\033[0m'
 # ── Parse arguments ──────────────────────────────────────────────────────────
 NETWORK=""
 DEPLOY_TYPE=""
+DRY_RUN=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -49,20 +55,26 @@ while [[ $# -gt 0 ]]; do
             DEPLOY_TYPE="stream"; shift ;;
         --swap)
             DEPLOY_TYPE="swap"; shift ;;
+        --redeploy-swap)
+            DEPLOY_TYPE="redeploy-swap"; shift ;;
+        --upgrade-leaderboard)
+            DEPLOY_TYPE="upgrade-leaderboard"; shift ;;
+        --dry-run)
+            DRY_RUN=true; shift ;;
         --match|--pool)
             echo -e "${RED}'$1' is no longer supported (LiquidityPool + BettingMatchFactory were removed).${NC}"
             echo -e "${RED}  Use --all for the full pari-mutuel platform, or --pari for pari-only.${NC}"
             exit 1 ;;
         *)
             echo -e "${RED}Unknown argument: $1${NC}"
-            echo "Usage: ./deploy.sh --network <chilizTestnet|chilizMainnet> <--all|--pari|--stream|--swap>"
+            echo "Usage: ./deploy.sh --network <chilizTestnet|chilizMainnet> <--all|--pari|--stream|--swap|--redeploy-swap|--upgrade-leaderboard> [--dry-run]"
             exit 1 ;;
     esac
 done
 
 if [ -z "$NETWORK" ] || [ -z "$DEPLOY_TYPE" ]; then
     echo -e "${RED}Missing required arguments.${NC}"
-    echo "Usage: ./deploy.sh --network <chilizTestnet|chilizMainnet> <--all|--pari|--stream|--swap>"
+    echo "Usage: ./deploy.sh --network <chilizTestnet|chilizMainnet> <--all|--pari|--stream|--swap|--redeploy-swap|--upgrade-leaderboard> [--dry-run]"
     exit 1
 fi
 
@@ -121,6 +133,8 @@ fi
 # ── Deploy type → script mapping ─────────────────────────────────────────────
 REQUIRES_KAYEN=false
 REQUIRES_USDC=false
+REQUIRES_FACTORIES=false
+REQUIRES_LEADERBOARD_PROXY=false
 case "$DEPLOY_TYPE" in
     all)
         SCRIPT="script/DeployAll.s.sol"
@@ -138,6 +152,14 @@ case "$DEPLOY_TYPE" in
         SCRIPT="script/DeploySwap.s.sol"
         REQUIRES_KAYEN=true
         REQUIRES_USDC=true ;;
+    redeploy-swap)
+        SCRIPT="script/RedeploySwapRouter.s.sol"
+        REQUIRES_KAYEN=true
+        REQUIRES_USDC=true
+        REQUIRES_FACTORIES=true ;;
+    upgrade-leaderboard)
+        SCRIPT="script/UpgradeLeaderboard.s.sol"
+        REQUIRES_LEADERBOARD_PROXY=true ;;
 esac
 
 # ── USDC / Kayen validation ──────────────────────────────────────────────────
@@ -172,6 +194,37 @@ if [ "$REQUIRES_KAYEN" = true ]; then
     echo ""
 fi
 
+# ── Leaderboard proxy validation (upgrade-leaderboard targets existing proxy) ─
+if [ "$REQUIRES_LEADERBOARD_PROXY" = true ]; then
+    if [ -z "$LEADERBOARD_PROXY" ]; then
+        echo -e "${RED}Missing in $ENV_FILE for --upgrade-leaderboard:${NC}"
+        echo -e "${RED}  - LEADERBOARD_PROXY${NC}"
+        echo -e "${YELLOW}  Must be the ERC1967 proxy address (NOT the implementation).${NC}"
+        echo -e "${YELLOW}  See deployments/${NETWORK}.json - ERC1967Proxy entry.${NC}"
+        exit 1
+    fi
+    echo -e "${CYAN}Upgrading leaderboard proxy...${NC}"
+    echo -e "  LEADERBOARD_PROXY: ${YELLOW}$LEADERBOARD_PROXY${NC}"
+    echo ""
+fi
+
+# ── Existing-factory validation (redeploy-swap rewires existing factories) ───
+if [ "$REQUIRES_FACTORIES" = true ]; then
+    MISSING=""
+    [ -z "$PARI_FACTORY_ADDRESS" ]   && MISSING="${MISSING}\n  - PARI_FACTORY_ADDRESS"
+    [ -z "$STREAM_FACTORY_ADDRESS" ] && MISSING="${MISSING}\n  - STREAM_FACTORY_ADDRESS"
+    if [ -n "$MISSING" ]; then
+        echo -e "${RED}Missing in $ENV_FILE for --redeploy-swap:${MISSING}${NC}"
+        echo -e "${YELLOW}  These must point at the EXISTING factories you want to rewire.${NC}"
+        echo -e "${YELLOW}  See deployments/${NETWORK}.json - PariMatchFactory + StreamWalletFactory.${NC}"
+        exit 1
+    fi
+    echo -e "${CYAN}Rewiring existing factories...${NC}"
+    echo -e "  PARI_FACTORY_ADDRESS:   ${YELLOW}$PARI_FACTORY_ADDRESS${NC}"
+    echo -e "  STREAM_FACTORY_ADDRESS: ${YELLOW}$STREAM_FACTORY_ADDRESS${NC}"
+    echo ""
+fi
+
 # ── Mainnet safety warning ───────────────────────────────────────────────────
 if [ "$NETWORK" = "chilizMainnet" ]; then
     echo -e "${RED}╔══════════════════════════════════════════════╗${NC}"
@@ -190,6 +243,7 @@ echo -e "${GREEN}ChilizTV Deployment${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo -e "Network:      ${YELLOW}$NETWORK${NC} (Chain ID: $CHAIN_ID)"
 echo -e "Deploy Type:  ${YELLOW}$DEPLOY_TYPE${NC}"
+[ "$DRY_RUN" = true ] && echo -e "Mode:         ${YELLOW}DRY-RUN (no --broadcast)${NC}"
 echo -e "Script:       ${YELLOW}$SCRIPT${NC}"
 echo -e "RPC URL:      ${YELLOW}$RPC_URL${NC}"
 echo -e "Safe Address: ${YELLOW}$SAFE_ADDRESS${NC}"
@@ -199,14 +253,22 @@ echo -e "${GREEN}========================================${NC}"
 echo ""
 
 # ── Confirm ──────────────────────────────────────────────────────────────────
-read -p "Deploy to $NETWORK? (yes/no): " CONFIRM
-if [ "$CONFIRM" != "yes" ]; then
-    echo -e "${RED}Deployment cancelled${NC}"
-    exit 0
+if [ "$DRY_RUN" = true ]; then
+    echo -e "${CYAN}Dry-run mode: skipping confirmation prompt (no broadcast will happen).${NC}"
+else
+    read -p "Deploy to $NETWORK? (yes/no): " CONFIRM
+    if [ "$CONFIRM" != "yes" ]; then
+        echo -e "${RED}Deployment cancelled${NC}"
+        exit 0
+    fi
 fi
 
 echo ""
-echo -e "${GREEN}Starting deployment...${NC}"
+if [ "$DRY_RUN" = true ]; then
+    echo -e "${GREEN}Starting forge simulation (dry-run)...${NC}"
+else
+    echo -e "${GREEN}Starting deployment...${NC}"
+fi
 echo ""
 
 # ── Prepare output directory ─────────────────────────────────────────────────
@@ -217,10 +279,17 @@ mkdir -p deployments
 # NOTE: --chain-id intentionally omitted. Forge's NamedChain registry rejects
 # Chiliz IDs (88882 / 88888) with "Chain not supported". RPC URL is enough
 # to detect the chain, and --legacy signing does not require chain id.
+# In --dry-run mode we drop --broadcast; forge runs the script locally
+# against a fork of $RPC_URL, simulating every tx without emitting one.
+if [ "$DRY_RUN" = true ]; then
+    BROADCAST_FLAG=""
+else
+    BROADCAST_FLAG="--broadcast"
+fi
 FORGE_CMD="forge script $SCRIPT \
     --rpc-url $RPC_URL \
     --private-key $PRIVATE_KEY \
-    --broadcast \
+    $BROADCAST_FLAG \
     --slow \
     $FORGE_FLAGS \
     -vvvv"
@@ -228,6 +297,15 @@ FORGE_CMD="forge script $SCRIPT \
 echo -e "${CYAN}$FORGE_CMD${NC}"
 echo ""
 eval $FORGE_CMD
+
+# In dry-run we never wrote a broadcast file, so skip the address extraction
+# and post-deploy guidance — there is nothing to record or follow up on.
+if [ "$DRY_RUN" = true ]; then
+    echo ""
+    echo -e "${GREEN}Dry-run complete. No on-chain transactions were sent.${NC}"
+    echo -e "${YELLOW}Re-run without --dry-run to actually deploy.${NC}"
+    exit 0
+fi
 
 # ── Extract deployed addresses from broadcast ────────────────────────────────
 BROADCAST_DIR="broadcast/$(basename $SCRIPT)/${CHAIN_ID}"
@@ -299,5 +377,56 @@ if [ "$DEPLOY_TYPE" = "swap" ]; then
     echo -e "     ${CYAN}cast send <MATCH> 'grantRole(bytes32,address)'  \$(cast keccak 'SWAP_ROUTER_ROLE') <NEW_ROUTER>${NC}"
     echo ""
     echo "RedeploySwapRouter.s.sol prints the per-match commands automatically."
+    echo ""
+fi
+
+if [ "$DEPLOY_TYPE" = "upgrade-leaderboard" ]; then
+    echo -e "${YELLOW}────────────────────────────────────────${NC}"
+    echo -e "${YELLOW}Leaderboard V2 - Post-Upgrade Steps:${NC}"
+    echo -e "${YELLOW}────────────────────────────────────────${NC}"
+    echo ""
+    echo "The proxy now points at the V2 implementation and initializeV2()"
+    echo "has been called (epochDuration = 30 days, epochStartTime = upgrade tx ts)."
+    echo ""
+    echo "The proxy address is UNCHANGED. The implementation address is new."
+    echo "If your deployments JSON tracks the impl separately, update it from"
+    echo "the forge log above."
+    echo ""
+    echo "Remaining manual steps:"
+    echo "  1. Verify on-chain views:"
+    echo "       cast call \$LEADERBOARD_PROXY 'currentEpoch()(uint256)' --rpc-url \$RPC_URL"
+    echo "       cast call \$LEADERBOARD_PROXY 'epochDuration()(uint64)' --rpc-url \$RPC_URL"
+    echo "  2. Restart backend so LeaderboardIndexer picks up the new event shapes"
+    echo "     (WinRecorded gained an epochId topic; EpochClosed renamed to EpochAdvanced)."
+    echo "  3. Frontend ABIs were regenerated as part of this change set; ensure"
+    echo "     the new generated.ts is deployed alongside any production rollout."
+    echo ""
+fi
+
+if [ "$DEPLOY_TYPE" = "redeploy-swap" ]; then
+    echo -e "${YELLOW}────────────────────────────────────────${NC}"
+    echo -e "${YELLOW}Router Redeploy - Post-Deployment Steps:${NC}"
+    echo -e "${YELLOW}────────────────────────────────────────${NC}"
+    echo ""
+    echo "RedeploySwapRouter already wired pariFactory.setWiring,"
+    echo "newRouter.setMatchFactory, streamFactory.setSwapRouter, and"
+    echo "newRouter.setStreamWalletFactory. The forge log above contains"
+    echo "the per-match revoke/grant cast commands for every existing match."
+    echo ""
+    echo "Remaining manual steps:"
+    echo "  1. Match admin (SAFE_ADDRESS) runs the printed cast commands"
+    echo "     per match to rotate SWAP_ROUTER_ROLE from OLD to NEW router."
+    echo "  2. Update env files with the new ChilizSwapRouter address:"
+    echo "       apps/frontend/.env       NEXT_PUBLIC_CHILIZ_SWAP_ROUTER_ADDRESS"
+    echo "       apps/frontend/.env.example  (same key)"
+    echo "       apps/backend/.env        CHILIZ_SWAP_ROUTER_ADDRESS"
+    echo "       apps/backend/.env.example   (same key)"
+    echo "  3. The ChilizSwapRouter entry in $DEPLOY_OUT is the new address."
+    echo "  4. Restart backend so ChilizSwapRouterIndexer re-targets the new addr."
+    echo ""
+    echo "Known limitation: existing StreamWallets cache the OLD router in their"
+    echo "per-wallet swapRouter storage. Donations/subs to those streamers via"
+    echo "the new router will revert. New wallets (lazy-deployed by the new"
+    echo "router on first donate/sub) get the new router automatically."
     echo ""
 fi

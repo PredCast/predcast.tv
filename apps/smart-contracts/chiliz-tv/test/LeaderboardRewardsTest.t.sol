@@ -9,19 +9,19 @@ import {MockUSDC}           from "./mocks/MockUSDC.sol";
 
 /**
  * @title LeaderboardRewardsTest
- * @notice Coverage for the leaderboard contract:
- *           1.  Initialization
- *           2.  recordWin auth (factory.isMatch + role-less)
- *           3.  Score accumulation across multiple winners
- *           4.  Epoch close: snapshot, merkle root, claim expiry
- *           5.  Claim with valid proof (single-leaf root)
- *           6.  Claim with invalid proof rejected
- *           7.  Double-claim rejected
- *           8.  Claim after expiry rejected
- *           9.  Two-user merkle distribution
- *          10.  Rollover after expiry returns unclaimed funds
- *          11.  Pause blocks recordWin + claim
- *          12.  Multi-epoch lifecycle invariants
+ * @notice V2 coverage:
+ *           1.  Initialization (V1 then V2 reinitializer)
+ *           2.  recordWin auth (factory.isMatch)
+ *           3.  Per-epoch score accumulation + isolation across epochs
+ *           4.  Auto-advance on the first interaction past the boundary
+ *           5.  Permissionless advanceEpoch + AdvanceNotReady revert
+ *           6.  Pro-rata claim payout (60/40 fixture)
+ *           7.  claim rejects: not closed, expired, already claimed, no score
+ *           8.  rolloverEpoch releases unclaimed remainder
+ *           9.  setEpochDuration admin-only + bounded
+ *          10.  Pause blocks recordWin + claim + advance
+ *          11.  Storage-layout sanity (V1 _score slot 2 stays cold)
+ *          12.  pendingClaim view
  */
 contract LeaderboardRewardsTest is Test {
 
@@ -29,10 +29,11 @@ contract LeaderboardRewardsTest is Test {
     // ACTORS
     // ═══════════════════════════════════════════════════════════════════════
 
-    address public admin   = makeAddr("admin");
-    address public oracle  = makeAddr("oracle");
-    address public alice   = makeAddr("alice");
-    address public bob     = makeAddr("bob");
+    address public admin    = makeAddr("admin");
+    address public oracle   = makeAddr("oracle");
+    address public alice    = makeAddr("alice");
+    address public bob      = makeAddr("bob");
+    address public carol    = makeAddr("carol");
     address public stranger = makeAddr("stranger");
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -42,14 +43,15 @@ contract LeaderboardRewardsTest is Test {
     MockUSDC public usdc;
     LeaderboardRewards public lb;
     MockMatchFactory public mockFactory;
-    address public matchA;  // authorized by mockFactory
-    address public matchB;  // authorized by mockFactory
+    address public matchA;
+    address public matchB;
 
-    // Hardcoded so it matches the contract.
     bytes32 constant ADMIN_ROLE    = keccak256("ADMIN_ROLE");
     bytes32 constant ORACLE_ROLE   = keccak256("ORACLE_ROLE");
     bytes32 constant PAUSER_ROLE   = keccak256("PAUSER_ROLE");
     bytes32 constant DEFAULT_ADMIN = 0x00;
+
+    uint64 constant EPOCH_DURATION = 30 days;
 
     function setUp() public {
         usdc = new MockUSDC();
@@ -63,7 +65,11 @@ contract LeaderboardRewardsTest is Test {
         );
         lb = LeaderboardRewards(address(new ERC1967Proxy(address(impl), init)));
 
-        // Plug in a mock factory that authorizes matchA + matchB.
+        // V2 init advances the reinitializer marker to 2 and anchors the
+        // epoch clock at the test's block timestamp. In production this is
+        // performed atomically inside `upgradeToAndCall`.
+        lb.initializeV2();
+
         mockFactory = new MockMatchFactory();
         matchA = makeAddr("matchA");
         matchB = makeAddr("matchB");
@@ -82,14 +88,21 @@ contract LeaderboardRewardsTest is Test {
         assertTrue(lb.hasRole(DEFAULT_ADMIN, admin),  "admin gets DEFAULT_ADMIN");
         assertTrue(lb.hasRole(ADMIN_ROLE,    admin),  "admin gets ADMIN_ROLE");
         assertTrue(lb.hasRole(PAUSER_ROLE,   admin),  "admin gets PAUSER_ROLE");
-        assertTrue(lb.hasRole(ORACLE_ROLE,   oracle), "oracle gets ORACLE_ROLE");
+        assertTrue(lb.hasRole(ORACLE_ROLE,   oracle), "oracle still has ORACLE_ROLE (backwards compat)");
         assertEq(address(lb.usdcToken()), address(usdc));
         assertEq(lb.epochIndex(), 0);
+        assertEq(uint256(lb.epochDuration()), EPOCH_DURATION);
+        assertEq(uint256(lb.epochStartTime()), block.timestamp);
     }
 
     function test_Revert_InitializeTwice() public {
         vm.expectRevert();
         lb.initialize(address(usdc), admin, oracle);
+    }
+
+    function test_Revert_InitializeV2Twice() public {
+        vm.expectRevert();
+        lb.initializeV2();
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -99,347 +112,373 @@ contract LeaderboardRewardsTest is Test {
     function test_RecordWin_AuthorizedMatch() public {
         vm.prank(matchA);
         lb.recordWin(alice, 100e6);
-        assertEq(lb.score(alice), 100e6);
+        assertEq(lb.epochScore(0, alice), 100e6);
+        assertEq(lb.epochTotalScore(0), 100e6);
     }
 
-    function test_Revert_RecordWin_UnauthorizedCaller() public {
+    function test_Revert_RecordWin_UnauthorizedMatch() public {
         vm.prank(stranger);
-        vm.expectRevert(
-            abi.encodeWithSelector(LeaderboardRewards.UnauthorizedMatch.selector, stranger)
-        );
+        vm.expectRevert(abi.encodeWithSelector(
+            LeaderboardRewards.UnauthorizedMatch.selector, stranger
+        ));
         lb.recordWin(alice, 100e6);
     }
 
-    function test_Revert_RecordWin_NoFactorySet() public {
+    function test_Revert_RecordWin_MatchFactoryNotSet() public {
         // Deploy a fresh proxy WITHOUT calling setMatchFactory.
-        LeaderboardRewards impl = new LeaderboardRewards();
+        LeaderboardRewards impl2 = new LeaderboardRewards();
         bytes memory init = abi.encodeWithSelector(
-            LeaderboardRewards.initialize.selector,
-            address(usdc),
-            admin,
-            oracle
+            LeaderboardRewards.initialize.selector, address(usdc), admin, oracle
         );
-        LeaderboardRewards bare = LeaderboardRewards(address(new ERC1967Proxy(address(impl), init)));
+        LeaderboardRewards lb2 = LeaderboardRewards(address(new ERC1967Proxy(address(impl2), init)));
+        lb2.initializeV2();
 
         vm.prank(matchA);
         vm.expectRevert(LeaderboardRewards.MatchFactoryNotSet.selector);
-        bare.recordWin(alice, 100e6);
+        lb2.recordWin(alice, 100e6);
     }
 
-    function test_RecordWin_ZeroAmountIsNoOp() public {
+    function test_RecordWin_ZeroPayout_NoOp() public {
         vm.prank(matchA);
         lb.recordWin(alice, 0);
-        assertEq(lb.score(alice), 0, "no event, no score change");
+        assertEq(lb.epochScore(0, alice), 0);
+        assertEq(lb.epochTotalScore(0), 0);
+    }
+
+    function test_Revert_RecordWin_ZeroUser() public {
+        vm.prank(matchA);
+        vm.expectRevert(LeaderboardRewards.ZeroAddress.selector);
+        lb.recordWin(address(0), 100e6);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 3. SCORE ACCUMULATION
+    // 3. PER-EPOCH SCORE ACCUMULATION
     // ═══════════════════════════════════════════════════════════════════════
 
-    function test_Score_AccumulatesAcrossMatches() public {
-        vm.prank(matchA); lb.recordWin(alice, 100e6);
-        vm.prank(matchB); lb.recordWin(alice, 250e6);
-        vm.prank(matchA); lb.recordWin(bob,    50e6);
+    function test_RecordWin_Accumulates_SameEpoch() public {
+        vm.startPrank(matchA);
+        lb.recordWin(alice, 30e6);
+        lb.recordWin(alice, 20e6);
+        lb.recordWin(bob,   50e6);
+        vm.stopPrank();
 
-        assertEq(lb.score(alice), 350e6);
-        assertEq(lb.score(bob),    50e6);
+        assertEq(lb.epochScore(0, alice), 50e6);
+        assertEq(lb.epochScore(0, bob),   50e6);
+        assertEq(lb.epochTotalScore(0),  100e6);
+    }
+
+    function test_RecordWin_MultipleMatches() public {
+        vm.prank(matchA);
+        lb.recordWin(alice, 40e6);
+        vm.prank(matchB);
+        lb.recordWin(alice, 60e6);
+        assertEq(lb.epochScore(0, alice), 100e6);
+        assertEq(lb.epochTotalScore(0),   100e6);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 4. EPOCH CLOSE
+    // 4. AUTO-ADVANCE
     // ═══════════════════════════════════════════════════════════════════════
 
-    function test_CloseEpoch_SnapshotsPool() public {
-        usdc.mint(address(lb), 1000e6);
+    function test_AutoAdvance_OnFirstInteractionPastBoundary() public {
+        // Score in epoch 0.
+        vm.prank(matchA);
+        lb.recordWin(alice, 100e6);
+        // Fund the contract so the snapshot is non-zero.
+        usdc.mint(address(lb), 1_000e6);
 
-        bytes32 root = _singleLeafRoot(alice, 500e6);
+        // Move past the boundary.
+        vm.warp(block.timestamp + EPOCH_DURATION + 1);
 
-        vm.prank(oracle);
-        uint256 closed = lb.closeEpoch(root, 7 days);
-        assertEq(closed, 0);
+        // Next recordWin advances epoch 0 → 1 and credits to epoch 1.
+        vm.prank(matchB);
+        lb.recordWin(bob, 200e6);
 
-        LeaderboardRewards.Epoch memory ep = lb.epoch(0);
-        assertEq(ep.prizePool, 1000e6, "pool snapshotted at close time");
-        assertEq(ep.merkleRoot, root);
-        assertTrue(ep.closed);
-        assertEq(uint256(ep.claimExpiry), block.timestamp + 7 days);
-        assertEq(lb.epochIndex(), 1, "epoch index incremented");
-        assertEq(lb.lockedInClosedEpochs(), 1000e6);
-        assertEq(lb.openPrizePool(), 0, "all funds locked");
+        assertEq(lb.epochIndex(), 1, "should have advanced");
+        // Epoch 0 frozen.
+        assertEq(lb.epochScore(0, alice), 100e6);
+        assertEq(lb.epochTotalScore(0),   100e6);
+        // Epoch 1 contains the new score.
+        assertEq(lb.epochScore(1, bob),   200e6);
+        assertEq(lb.epochTotalScore(1),   200e6);
+
+        LeaderboardRewards.Epoch memory ep0 = lb.epoch(0);
+        assertTrue(ep0.closed, "epoch 0 closed");
+        assertEq(uint256(ep0.prizePool), 1_000e6, "pool snapshotted");
     }
 
-    function test_Revert_CloseEpoch_NotOracle() public {
+    function test_RecordWin_PreBoundary_NoAdvance() public {
+        vm.prank(matchA);
+        lb.recordWin(alice, 100e6);
+
+        // Right at the boundary minus 1 second.
+        vm.warp(block.timestamp + EPOCH_DURATION - 1);
+
+        vm.prank(matchA);
+        lb.recordWin(alice, 50e6);
+
+        assertEq(lb.epochIndex(), 0, "no advance");
+        assertEq(lb.epochScore(0, alice), 150e6);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 5. advanceEpoch (PERMISSIONLESS)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    function test_AdvanceEpoch_Permissionless() public {
+        usdc.mint(address(lb), 500e6);
+        vm.prank(matchA);
+        lb.recordWin(alice, 100e6);
+
+        vm.warp(block.timestamp + EPOCH_DURATION + 1);
         vm.prank(stranger);
-        vm.expectRevert();
-        lb.closeEpoch(bytes32(uint256(1)), 1 days);
+        uint256 closedId = lb.advanceEpoch();
+        assertEq(closedId, 0);
+        assertEq(lb.epochIndex(), 1);
     }
 
-    function test_Revert_CloseEpoch_ZeroClaimDuration() public {
-        uint256 maxDur = lb.MAX_CLAIM_DURATION();
-        vm.prank(oracle);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                LeaderboardRewards.InvalidClaimDuration.selector,
-                uint256(0),
-                maxDur
-            )
-        );
-        lb.closeEpoch(bytes32(uint256(1)), 0);
-    }
-
-    function test_Revert_CloseEpoch_ClaimDurationTooLarge() public {
-        uint256 maxDur  = lb.MAX_CLAIM_DURATION();
-        uint256 tooLong = maxDur + 1;
-        vm.prank(oracle);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                LeaderboardRewards.InvalidClaimDuration.selector,
-                tooLong,
-                maxDur
-            )
-        );
-        lb.closeEpoch(bytes32(uint256(1)), tooLong);
+    function test_Revert_AdvanceEpoch_NotReady() public {
+        vm.prank(stranger);
+        vm.expectRevert(); // AdvanceNotReady
+        lb.advanceEpoch();
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 5. CLAIM (single-leaf merkle root)
+    // 6. PRO-RATA CLAIM
     // ═══════════════════════════════════════════════════════════════════════
 
-    function test_Claim_SingleLeaf_TransfersUsdc() public {
-        usdc.mint(address(lb), 1000e6);
+    function test_Claim_ProRata_60_40() public {
+        // Set up: alice has 60% of total, bob has 40%.
+        vm.startPrank(matchA);
+        lb.recordWin(alice, 60e6);
+        lb.recordWin(bob,   40e6);
+        vm.stopPrank();
 
-        bytes32 root = _singleLeafRoot(alice, 500e6);
-        vm.prank(oracle);
-        lb.closeEpoch(root, 7 days);
+        // Fund the pool, advance the epoch.
+        usdc.mint(address(lb), 100e6);
+        vm.warp(block.timestamp + EPOCH_DURATION + 1);
+        vm.prank(stranger);
+        lb.advanceEpoch();
 
-        // For a one-leaf tree, root == leaf and the proof is empty.
-        bytes32[] memory proof = new bytes32[](0);
-
-        uint256 before = usdc.balanceOf(alice);
+        // Alice claims first.
         vm.prank(alice);
-        lb.claim(0, 500e6, proof);
-        assertEq(usdc.balanceOf(alice) - before, 500e6);
-        assertTrue(lb.hasClaimed(0, alice));
+        uint256 aliceAmount = lb.claim(0);
+        assertEq(aliceAmount, 60e6, "alice gets 60% of pool");
+        assertEq(usdc.balanceOf(alice), 60e6);
 
-        LeaderboardRewards.Epoch memory ep = lb.epoch(0);
-        assertEq(ep.totalClaimed, 500e6);
-        assertEq(lb.lockedInClosedEpochs(), 500e6, "remainder still locked until rollover");
+        // Bob claims.
+        vm.prank(bob);
+        uint256 bobAmount = lb.claim(0);
+        assertEq(bobAmount, 40e6, "bob gets 40% of pool");
+        assertEq(usdc.balanceOf(bob), 40e6);
     }
 
-    function test_Revert_Claim_InvalidProof() public {
-        usdc.mint(address(lb), 1000e6);
-        bytes32 root = _singleLeafRoot(alice, 500e6);
-        vm.prank(oracle);
-        lb.closeEpoch(root, 7 days);
+    function test_PendingClaim_ReflectsPreview() public {
+        vm.prank(matchA);
+        lb.recordWin(alice, 50e6);
+        // Pre-close: nothing pending.
+        assertEq(lb.pendingClaim(0, alice), 0);
 
-        // Wrong amount → leaf doesn't match.
-        bytes32[] memory proof = new bytes32[](0);
-        vm.prank(alice);
-        vm.expectRevert(LeaderboardRewards.InvalidMerkleProof.selector);
-        lb.claim(0, 600e6, proof);
-    }
+        usdc.mint(address(lb), 100e6);
+        vm.warp(block.timestamp + EPOCH_DURATION + 1);
+        vm.prank(stranger);
+        lb.advanceEpoch();
 
-    function test_Revert_Claim_DoubleClaim() public {
-        usdc.mint(address(lb), 1000e6);
-        bytes32 root = _singleLeafRoot(alice, 500e6);
-        vm.prank(oracle);
-        lb.closeEpoch(root, 7 days);
-
-        bytes32[] memory proof = new bytes32[](0);
-        vm.prank(alice);
-        lb.claim(0, 500e6, proof);
+        // Single scorer takes the whole pool.
+        assertEq(lb.pendingClaim(0, alice), 100e6);
+        assertEq(lb.pendingClaim(0, bob),     0);
 
         vm.prank(alice);
-        vm.expectRevert(
-            abi.encodeWithSelector(LeaderboardRewards.AlreadyClaimed.selector, uint256(0), alice)
-        );
-        lb.claim(0, 500e6, proof);
-    }
-
-    function test_Revert_Claim_AfterExpiry() public {
-        usdc.mint(address(lb), 1000e6);
-        bytes32 root = _singleLeafRoot(alice, 500e6);
-        vm.prank(oracle);
-        lb.closeEpoch(root, 7 days);
-
-        vm.warp(block.timestamp + 7 days + 1);
-
-        bytes32[] memory proof = new bytes32[](0);
-        vm.prank(alice);
-        vm.expectRevert();
-        lb.claim(0, 500e6, proof);
+        lb.claim(0);
+        // Post-claim preview drops to zero.
+        assertEq(lb.pendingClaim(0, alice), 0);
     }
 
     function test_Revert_Claim_EpochNotClosed() public {
-        bytes32[] memory proof = new bytes32[](0);
+        vm.prank(matchA);
+        lb.recordWin(alice, 50e6);
+        usdc.mint(address(lb), 100e6);
+
         vm.prank(alice);
-        vm.expectRevert(
-            abi.encodeWithSelector(LeaderboardRewards.EpochNotClosed.selector, uint256(0))
-        );
-        lb.claim(0, 500e6, proof);
+        vm.expectRevert(abi.encodeWithSelector(
+            LeaderboardRewards.EpochNotClosed.selector, 0
+        ));
+        lb.claim(0);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // 6. TWO-USER MERKLE
-    // ═══════════════════════════════════════════════════════════════════════
+    function test_Revert_Claim_AlreadyClaimed() public {
+        vm.prank(matchA);
+        lb.recordWin(alice, 50e6);
+        usdc.mint(address(lb), 100e6);
+        vm.warp(block.timestamp + EPOCH_DURATION + 1);
+        vm.prank(stranger);
+        lb.advanceEpoch();
 
-    /// Build a 2-leaf merkle tree, close the epoch, both users claim.
-    function test_Claim_TwoLeaf_BothUsersClaim() public {
-        uint256 alicePrize = 600e6;
-        uint256 bobPrize   = 400e6;
-
-        usdc.mint(address(lb), 1000e6);
-
-        // Leaves (OZ double-hash convention).
-        bytes32 leafA = keccak256(bytes.concat(keccak256(abi.encode(alice, alicePrize))));
-        bytes32 leafB = keccak256(bytes.concat(keccak256(abi.encode(bob,   bobPrize))));
-
-        // 2-leaf parent: hash of (min(leafA, leafB), max(leafA, leafB)).
-        // (OZ's MerkleProof._hashPair sorts by lexicographic byte order.)
-        bytes32 root = _hashPair(leafA, leafB);
-
-        vm.prank(oracle);
-        lb.closeEpoch(root, 7 days);
-
-        // Alice's proof is just [leafB]; Bob's is [leafA].
-        bytes32[] memory proofA = new bytes32[](1);
-        proofA[0] = leafB;
-        bytes32[] memory proofB = new bytes32[](1);
-        proofB[0] = leafA;
-
-        uint256 aBefore = usdc.balanceOf(alice);
         vm.prank(alice);
-        lb.claim(0, alicePrize, proofA);
-        assertEq(usdc.balanceOf(alice) - aBefore, alicePrize);
+        lb.claim(0);
 
-        uint256 bBefore = usdc.balanceOf(bob);
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(
+            LeaderboardRewards.AlreadyClaimed.selector, 0, alice
+        ));
+        lb.claim(0);
+    }
+
+    function test_Revert_Claim_NoScore() public {
+        vm.prank(matchA);
+        lb.recordWin(alice, 50e6);
+        usdc.mint(address(lb), 100e6);
+        vm.warp(block.timestamp + EPOCH_DURATION + 1);
+        vm.prank(stranger);
+        lb.advanceEpoch();
+
         vm.prank(bob);
-        lb.claim(0, bobPrize, proofB);
-        assertEq(usdc.balanceOf(bob) - bBefore, bobPrize);
+        vm.expectRevert(abi.encodeWithSelector(
+            LeaderboardRewards.NothingToClaim.selector, 0, bob
+        ));
+        lb.claim(0);
+    }
 
-        LeaderboardRewards.Epoch memory ep = lb.epoch(0);
-        assertEq(ep.totalClaimed, alicePrize + bobPrize, "all prizes claimed");
-        assertEq(lb.lockedInClosedEpochs(), 0, "pool fully released");
+    function test_Revert_Claim_Expired() public {
+        vm.prank(matchA);
+        lb.recordWin(alice, 50e6);
+        usdc.mint(address(lb), 100e6);
+        // Advance past close.
+        vm.warp(block.timestamp + EPOCH_DURATION + 1);
+        vm.prank(stranger);
+        lb.advanceEpoch();
+        // Past the claim window too.
+        vm.warp(block.timestamp + EPOCH_DURATION + 1);
+
+        vm.prank(alice);
+        vm.expectRevert(); // EpochClaimWindowExpired
+        lb.claim(0);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 7. ROLLOVER
+    // 7. rolloverEpoch
     // ═══════════════════════════════════════════════════════════════════════
 
-    function test_Rollover_ReturnsUnclaimedToOpenPool() public {
-        usdc.mint(address(lb), 1000e6);
-        bytes32 root = _singleLeafRoot(alice, 500e6);
-        vm.prank(oracle);
-        lb.closeEpoch(root, 7 days);
+    function test_RolloverEpoch_ReleasesUnclaimed() public {
+        // Single scorer doesn't claim → entire pool rolls over.
+        vm.prank(matchA);
+        lb.recordWin(alice, 100e6);
+        usdc.mint(address(lb), 200e6);
+        vm.warp(block.timestamp + EPOCH_DURATION + 1);
+        vm.prank(stranger);
+        lb.advanceEpoch();
 
-        // Nobody claims. Warp past expiry.
-        vm.warp(block.timestamp + 7 days + 1);
+        // Open pool now equals: balance(200) - locked(200) = 0.
+        assertEq(lb.openPrizePool(), 0);
 
+        // Wait past claim window without claiming.
+        vm.warp(block.timestamp + EPOCH_DURATION + 1);
+        vm.prank(stranger);
         uint256 rolled = lb.rolloverEpoch(0);
-        assertEq(rolled, 1000e6, "full pool rolled");
-        assertEq(lb.lockedInClosedEpochs(), 0);
-        assertEq(lb.openPrizePool(), 1000e6, "released into open pool");
-
-        // A second close picks up the rolled-over balance.
-        bytes32 root2 = _singleLeafRoot(bob, 1000e6);
-        vm.prank(oracle);
-        lb.closeEpoch(root2, 1 days);
-
-        LeaderboardRewards.Epoch memory ep2 = lb.epoch(1);
-        assertEq(ep2.prizePool, 1000e6, "next epoch inherits rolled funds");
+        assertEq(rolled, 200e6);
+        // Open pool restored.
+        assertEq(lb.openPrizePool(), 200e6);
     }
 
-    function test_Revert_Rollover_BeforeExpiry() public {
-        usdc.mint(address(lb), 1000e6);
-        bytes32 root = _singleLeafRoot(alice, 500e6);
-        vm.prank(oracle);
-        lb.closeEpoch(root, 7 days);
+    function test_RolloverEpoch_RevertsBeforeExpiry() public {
+        vm.prank(matchA);
+        lb.recordWin(alice, 100e6);
+        usdc.mint(address(lb), 200e6);
+        vm.warp(block.timestamp + EPOCH_DURATION + 1);
+        vm.prank(stranger);
+        lb.advanceEpoch();
 
-        vm.expectRevert();
+        // Claim window still open.
+        vm.prank(stranger);
+        vm.expectRevert(); // EpochClaimWindowNotExpired
         lb.rolloverEpoch(0);
     }
 
-    function test_Rollover_PartiallyClaimed() public {
-        usdc.mint(address(lb), 1000e6);
-        bytes32 root = _singleLeafRoot(alice, 500e6);
-        vm.prank(oracle);
-        lb.closeEpoch(root, 7 days);
+    // ═══════════════════════════════════════════════════════════════════════
+    // 8. setEpochDuration
+    // ═══════════════════════════════════════════════════════════════════════
 
-        bytes32[] memory proof = new bytes32[](0);
-        vm.prank(alice);
-        lb.claim(0, 500e6, proof);
+    function test_SetEpochDuration_Admin() public {
+        vm.prank(admin);
+        lb.setEpochDuration(7 days);
+        assertEq(uint256(lb.epochDuration()), 7 days);
+    }
 
-        vm.warp(block.timestamp + 7 days + 1);
-        uint256 rolled = lb.rolloverEpoch(0);
-        assertEq(rolled, 500e6, "only the unclaimed remainder rolls");
-        assertEq(lb.lockedInClosedEpochs(), 0);
-        assertEq(lb.openPrizePool(), 500e6);
+    function test_Revert_SetEpochDuration_NonAdmin() public {
+        vm.prank(stranger);
+        vm.expectRevert();
+        lb.setEpochDuration(7 days);
+    }
+
+    function test_Revert_SetEpochDuration_BelowMin() public {
+        vm.prank(admin);
+        vm.expectRevert(); // InvalidEpochDuration
+        lb.setEpochDuration(0);
+    }
+
+    function test_Revert_SetEpochDuration_AboveMax() public {
+        vm.prank(admin);
+        vm.expectRevert(); // InvalidEpochDuration
+        lb.setEpochDuration(366 days);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 8. PAUSE
+    // 9. PAUSE
     // ═══════════════════════════════════════════════════════════════════════
 
-    function test_Pause_BlocksRecordWin() public {
+    function test_Pause_BlocksRecordWin_AndAdvance() public {
         vm.prank(admin);
         lb.emergencyPause();
 
         vm.prank(matchA);
         vm.expectRevert();
-        lb.recordWin(alice, 100e6);
+        lb.recordWin(alice, 50e6);
+
+        vm.warp(block.timestamp + EPOCH_DURATION + 1);
+        vm.prank(stranger);
+        vm.expectRevert();
+        lb.advanceEpoch();
     }
 
     function test_Pause_BlocksClaim() public {
-        usdc.mint(address(lb), 1000e6);
-        bytes32 root = _singleLeafRoot(alice, 500e6);
-        vm.prank(oracle);
-        lb.closeEpoch(root, 7 days);
+        vm.prank(matchA);
+        lb.recordWin(alice, 50e6);
+        usdc.mint(address(lb), 100e6);
+        vm.warp(block.timestamp + EPOCH_DURATION + 1);
+        vm.prank(stranger);
+        lb.advanceEpoch();
 
         vm.prank(admin);
         lb.emergencyPause();
 
-        bytes32[] memory proof = new bytes32[](0);
         vm.prank(alice);
         vm.expectRevert();
-        lb.claim(0, 500e6, proof);
+        lb.claim(0);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 9. ACCESS CONTROL
+    // 10. STORAGE-LAYOUT SANITY  (V1 _score slot stays cold)
     // ═══════════════════════════════════════════════════════════════════════
 
-    function test_Revert_SetMatchFactory_NotAdmin() public {
-        vm.prank(stranger);
-        vm.expectRevert();
-        lb.setMatchFactory(address(mockFactory));
-    }
+    /// @dev Storage slot 2 holds the legacy `_score` mapping pointer. The V2
+    ///      contract must not touch it. We write a sentinel into the slot
+    ///      derived from `keccak256(abi.encode(alice, 2))` (V1 mapping layout)
+    ///      and confirm that `recordWin` in V2 doesn't overwrite it — its
+    ///      new state lives at the V2 mappings at slots 8 / 9.
+    function test_StorageLayout_LegacyScoreSlotUntouched() public {
+        bytes32 legacyScoreSlot = keccak256(abi.encode(alice, uint256(2)));
+        vm.store(address(lb), legacyScoreSlot, bytes32(uint256(0xdeadbeef)));
 
-    function test_Revert_SetMatchFactory_ZeroAddress() public {
-        vm.prank(admin);
-        vm.expectRevert(LeaderboardRewards.ZeroAddress.selector);
-        lb.setMatchFactory(address(0));
-    }
+        vm.prank(matchA);
+        lb.recordWin(alice, 100e6);
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // HELPERS
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// @dev Single-leaf tree root: leaf is the root, proof is empty.
-    function _singleLeafRoot(address user, uint256 amount) internal pure returns (bytes32) {
-        return keccak256(bytes.concat(keccak256(abi.encode(user, amount))));
-    }
-
-    /// @dev OpenZeppelin MerkleProof._hashPair: lex-sorted concat then keccak.
-    function _hashPair(bytes32 a, bytes32 b) internal pure returns (bytes32) {
-        return a < b
-            ? keccak256(abi.encodePacked(a, b))
-            : keccak256(abi.encodePacked(b, a));
+        // V1 sentinel still there — V2 didn't reuse the slot.
+        assertEq(uint256(vm.load(address(lb), legacyScoreSlot)), 0xdeadbeef);
+        // V2 score recorded in the new mapping (slot 8).
+        assertEq(lb.epochScore(0, alice), 100e6);
     }
 }
 
-/// @dev Tiny stub that mimics `PariMatchFactory.isMatch`. The leaderboard
-///      reads this through the `IPariMatchFactoryView` interface, so the
-///      stub doesn't need anything else.
 contract MockMatchFactory {
     mapping(address => bool) public isMatch;
     function setMatch(address m, bool v) external { isMatch[m] = v; }

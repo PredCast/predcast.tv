@@ -75,6 +75,9 @@ const DUMMY_TEST_MATCH: Match = {
   contractAddress: "0xe43a99cb7dd0787ce47e5ba0d838d9faca6bec7a" as Address,
   homeForm: null,
   awayForm: null,
+  elapsed: null,
+  htHomeScore: null,
+  htAwayScore: null,
 };
 
 export default function LiveDetailsPage({ id }: LiveDetailsPageProps) {
@@ -130,6 +133,9 @@ export default function LiveDetailsPage({ id }: LiveDetailsPageProps) {
         contractAddress: latestProxy,
         homeForm: null,
         awayForm: null,
+        elapsed: null,
+        htHomeScore: null,
+        htAwayScore: null,
       };
     }
     return DUMMY_TEST_MATCH;
@@ -265,9 +271,11 @@ export default function LiveDetailsPage({ id }: LiveDetailsPageProps) {
         homeForm={matchData.homeForm}
         awayForm={matchData.awayForm}
         status={matchData.status}
+        elapsed={matchData.elapsed ?? undefined}
         kickoffAt={matchData.startTime}
         league={matchData.league}
         onChainMatch={!!matchData.contractAddress}
+        dataStale={matchData.dataStale}
         onBack={() => router.push("/live")}
       />
 
@@ -356,7 +364,12 @@ export default function LiveDetailsPage({ id }: LiveDetailsPageProps) {
               walletAddress={walletAddress || undefined}
               homeTeam={matchData.homeTeam}
               awayTeam={matchData.awayTeam}
-              match={{ status: matchData.status, kickoffAt: matchData.startTime }}
+              match={{
+                status: matchData.status,
+                kickoffAt: matchData.startTime,
+                htHomeScore: matchData.htHomeScore,
+                htAwayScore: matchData.htAwayScore,
+              }}
             />
           </div>
 

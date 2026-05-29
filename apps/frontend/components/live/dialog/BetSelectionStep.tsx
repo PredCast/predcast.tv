@@ -57,7 +57,7 @@ export function BetSelectionStep(props: BetSelectionStepProps) {
                 </div>
             )}
 
-            {(marketKey === 'winner' || marketKey === 'halftime' || marketKey === 'firstscorer') && (
+            {(marketKey === 'winner' || marketKey === 'halftime') && (
                 <WinnerPick {...props} disabled={!isOpen} />
             )}
             {marketKey === 'goalstotal' && (
@@ -66,7 +66,11 @@ export function BetSelectionStep(props: BetSelectionStepProps) {
             {marketKey === 'bothscore' && (
                 <BinaryPick {...props} kind="btts" disabled={!isOpen} />
             )}
+            {marketKey === 'doublechance' && (
+                <BinaryPick {...props} kind="dc" disabled={!isOpen} />
+            )}
             {(marketKey === 'goalsexact' || marketKey === 'pointsexact'
+                || marketKey === 'firstscorer'
                 || marketKey === 'bb-winner' || marketKey === 'totalpoints'
                 || marketKey === 'spread') && (
                 <GenericPick {...props} disabled={!isOpen} />
@@ -264,7 +268,14 @@ function WinnerPick({
     );
 }
 
-/** GOALS_TOTAL (kind=totals, arrows) and BOTH_SCORE (kind=btts, big YES/NO). */
+/**
+ * GOALS_TOTAL (kind=totals, arrows), BOTH_SCORE (kind=btts, big YES/NO),
+ * and DOUBLE_CHANCE (kind=dc, variant labels already in outcomes).
+ *
+ * For 'dc', the row labels already carry the variant text ("Home or Draw
+ * — Yes/No"). We surface a separate header below the picks so the user
+ * sees which variant they're acting on — line ∈ {0,1,2} maps to 1X/12/2X.
+ */
 function BinaryPick({
     outcomes,
     selectedSelection,
@@ -276,12 +287,24 @@ function BinaryPick({
     impliedProbBpsBySelection,
     outcomePoolsBySelection,
     usdcDecimals,
-}: VariantProps & { kind: 'totals' | 'btts' }) {
+}: VariantProps & { kind: 'totals' | 'btts' | 'dc' }) {
+    const dcVariantLabel =
+        kind === 'dc'
+            ? (line === 0 ? '1X — Home or Draw'
+            : line === 1 ? '12 — Home or Away'
+            : line === 2 ? '2X — Draw or Away'
+            : 'Variant')
+            : null;
     return (
         <div>
             {kind === 'totals' && line > 0 && (
                 <div className="font-mono-ctv mb-4 inline-flex items-center gap-2 rounded-md border border-[#1E1E1E] bg-[#111] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.16em] text-white/65">
                     Line · {(line / 10).toFixed(1)} goals
+                </div>
+            )}
+            {kind === 'dc' && dcVariantLabel && (
+                <div className="font-mono-ctv mb-4 inline-flex items-center gap-2 rounded-md border border-[#1E1E1E] bg-[#111] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.16em] text-white/65">
+                    Variant · {dcVariantLabel}
                 </div>
             )}
             <div className="grid gap-3 sm:grid-cols-2">
@@ -316,7 +339,7 @@ function BinaryPick({
                             )}
                             <div
                                 className="font-display leading-none uppercase tracking-[-0.01em] text-white"
-                                style={{ fontSize: kind === 'btts' ? 36 : 22, fontWeight: 800 }}
+                                style={{ fontSize: kind === 'btts' ? 36 : kind === 'dc' ? 18 : 22, fontWeight: 800 }}
                             >
                                 {o.label}
                             </div>

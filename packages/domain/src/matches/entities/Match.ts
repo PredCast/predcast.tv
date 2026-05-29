@@ -21,6 +21,19 @@ export interface MatchProps {
   homeForm?: string | null;
   /** Last 5 results from the away team's perspective. */
   awayForm?: string | null;
+  /**
+   * In-game minute persisted from the latest API-Football snapshot. NEVER
+   * overwritten with null — once a non-null value is captured we keep it
+   * across HT / post-FT so the UI minute counter doesn't reset visually.
+   */
+  elapsed?: number | null;
+  /**
+   * Score at halftime (45'). Monotone — once captured, never reset to null
+   * (HT pause briefly clears the upstream field). Required to resolve the
+   * HALFTIME market early via {@link ResolveHalftimeMarketUseCase}.
+   */
+  htHomeScore?: number | null;
+  htAwayScore?: number | null;
   bettingContractAddress?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -101,6 +114,45 @@ export class Match {
     return this.props.awayForm ?? null;
   }
 
+  getElapsed(): number | null {
+    return this.props.elapsed ?? null;
+  }
+
+  /**
+   * Monotone setter: silently ignores null/undefined to preserve the last
+   * known value across HT and post-FT gaps where API-Football clears the
+   * field. Use {@link updateScore} for plain score writes.
+   */
+  setElapsed(elapsed: number | null | undefined): void {
+    if (elapsed === null || elapsed === undefined) return;
+    this.props.elapsed = elapsed;
+    this.props.updatedAt = new Date();
+  }
+
+  getHtHomeScore(): number | null {
+    return this.props.htHomeScore ?? null;
+  }
+
+  getHtAwayScore(): number | null {
+    return this.props.htAwayScore ?? null;
+  }
+
+  /**
+   * Monotone setter for the halftime score — same null-guard semantics as
+   * {@link setElapsed}. Only persists when BOTH home AND away are real
+   * numbers (a partial HT score is meaningless for the resolveByScore
+   * input shape). Returns true if anything actually changed.
+   */
+  setHalftimeScore(homeScore: number | null | undefined, awayScore: number | null | undefined): boolean {
+    if (homeScore === null || homeScore === undefined) return false;
+    if (awayScore === null || awayScore === undefined) return false;
+    if (this.props.htHomeScore === homeScore && this.props.htAwayScore === awayScore) return false;
+    this.props.htHomeScore = homeScore;
+    this.props.htAwayScore = awayScore;
+    this.props.updatedAt = new Date();
+    return true;
+  }
+
   /** Flat snapshot of the internal props. Symmetric with `reconstitute` — meant for cache round-trip, not API responses (use `toJSON` for that). */
   toRaw(): MatchProps {
     return { ...this.props };
@@ -134,6 +186,9 @@ export class Match {
         : null,
       homeForm: this.props.homeForm ?? null,
       awayForm: this.props.awayForm ?? null,
+      elapsed: this.props.elapsed ?? null,
+      htHomeScore: this.props.htHomeScore ?? null,
+      htAwayScore: this.props.htAwayScore ?? null,
       bettingContractAddress: this.props.bettingContractAddress,
       createdAt: this.props.createdAt,
       updatedAt: this.props.updatedAt,

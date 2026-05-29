@@ -25,7 +25,11 @@ import {LeaderboardRewards} from "../src/leaderboard/LeaderboardRewards.sol";
  *           2. StreamWalletFactory  — Deploys StreamWallet proxies.
  *           3. ChilizSwapRouter     — Token-to-USDC swap adapter for both modules.
  *           4. LeaderboardRewards   — UUPS proxy. Receives 1% of every pool
- *                                      and distributes via epoch + merkle.
+ *                                      and distributes pro-rata per epoch.
+ *                                      Init runs both V1 `initialize(...)` and
+ *                                      V2 `initializeV2()` so fresh deploys
+ *                                      land directly on the on-chain pro-rata
+ *                                      model with a 30-day epoch clock.
  *
  *         Plus all the wiring required to leave the system bet-ready in a single run:
  *           - factory.setWiring(usdc, feeRecipient, swapRouter)
@@ -41,7 +45,10 @@ import {LeaderboardRewards} from "../src/leaderboard/LeaderboardRewards.sol";
  *
  * ENVIRONMENT VARIABLES (required):
  * ==================================
- *   PRIVATE_KEY          — Deployer private key
+ *   PRIVATE_KEY          — Deployer private key. Consumed by `forge script`
+ *                          via `--private-key`; the script reads it
+ *                          indirectly through `msg.sender` inside
+ *                          `vm.startBroadcast()` (line 87 below).
  *   SAFE_ADDRESS         — Multi-sig: receives streaming platform fees AND
  *                           serves as feeRecipient for match protocol fees.
  *   KAYEN_MASTER_ROUTER  — Kayen MasterRouterV2 (CHZ → USDC path).
@@ -126,7 +133,7 @@ contract DeployAll is Script {
     // ══════════════════════════════════════════════════════════════════════════
 
     function _deployPariFactory() internal {
-        console.log("[1/3] PARI MATCH FACTORY");
+        console.log("[1/4] PARI MATCH FACTORY");
         console.log("========================");
         pariFactory = new PariMatchFactory();
         console.log("PariMatchFactory    :", address(pariFactory));
@@ -136,7 +143,7 @@ contract DeployAll is Script {
     }
 
     function _deployStreamingFactory() internal {
-        console.log("[2/3] STREAM WALLET FACTORY");
+        console.log("[2/4] STREAM WALLET FACTORY");
         console.log("===========================");
         streamFactory = new StreamWalletFactory(
             deployer, treasury, platformFeeBps, kayenRouter, usdcAddress
@@ -163,10 +170,19 @@ contract DeployAll is Script {
         console.log("");
     }
 
-    /// @dev Deploys the LeaderboardRewards behind an ERC1967 proxy. The
-    ///      deployer is the admin; the treasury (Safe) is granted ORACLE_ROLE
-    ///      so it can post merkle roots from the off-chain ranker. Production
-    ///      should grant ORACLE_ROLE to a dedicated oracle EOA after deploy.
+    /// @dev Deploys the LeaderboardRewards behind an ERC1967 proxy and
+    ///      runs both initializers in order:
+    ///        - `initialize(usdc, admin, oracle)` — V1 marker, grants roles,
+    ///          binds the USDC token.
+    ///        - `initializeV2()` — V2 marker, anchors `epochStartTime` at
+    ///          `block.timestamp` and sets `epochDuration` to 30 days so
+    ///          the first auto-advance fires at the expected boundary.
+    ///      Skipping the V2 init leaves `epochStartTime = epochDuration = 0`,
+    ///      which causes every `recordWin` to advance the epoch in a tight
+    ///      loop — see V2 contract docs.
+    ///
+    ///      ORACLE_ROLE is still granted to the treasury for V1 compatibility
+    ///      (no entry point uses it in V2); admin can revoke it post-deploy.
     function _deployLeaderboard() internal {
         console.log("[4/4] LEADERBOARD REWARDS");
         console.log("=========================");
@@ -175,13 +191,15 @@ contract DeployAll is Script {
             LeaderboardRewards.initialize.selector,
             usdcAddress,
             deployer,   // admin (can transfer later)
-            treasury    // oracle placeholder — rotate to dedicated key post-deploy
+            treasury    // legacy ORACLE_ROLE recipient; unused in V2
         );
         leaderboard = LeaderboardRewards(address(new ERC1967Proxy(address(impl), initData)));
+        leaderboard.initializeV2();
         console.log("LeaderboardRewards   :", address(leaderboard));
         console.log("  Implementation     :", address(impl));
         console.log("  Admin              :", deployer);
-        console.log("  Oracle (initial)   :", treasury);
+        console.log("  ORACLE_ROLE (V1 compat, unused in V2) :", treasury);
+        console.log("  Epoch duration     :", uint256(leaderboard.epochDuration()), "seconds");
         console.log("");
     }
 
@@ -263,10 +281,10 @@ contract DeployAll is Script {
 
         console.log("");
         console.log("WARNING: the deployer EOA can no longer call:");
-        console.log("  pariFactory.{createFootballMatch, createBasketballMatch, setWiring, setImplementation}");
+        console.log("  pariFactory.{createFootballMatch, createBasketballMatch, setWiring, setImplementation, setLeaderboardWiring}");
         console.log("  streamFactory.{setSwapRouter, setImplementation, upgradeWallet, ...}");
         console.log("  swapRouter.{setMatchFactory, setStreamWalletFactory, setTreasury, setPlatformFeeBps}");
-        console.log("  leaderboard.{setMatchFactory, grantRole, revokeRole, upgradeToAndCall, pause}");
+        console.log("  leaderboard.{setMatchFactory, setEpochDuration, setUSDCToken, grantRole, revokeRole, upgradeToAndCall, pause}");
         console.log("Any such call must now come from the Safe.");
         console.log("");
     }
@@ -296,6 +314,7 @@ contract DeployAll is Script {
         console.log("StreamWalletFactory :", address(streamFactory));
         console.log("ChilizSwapRouter    :", address(swapRouter));
         console.log("LeaderboardRewards  :", address(leaderboard));
+        console.log("Treasury (Safe)     :", treasury);
         console.log("Owner of contracts  :", transferOwnership ? treasury : deployer);
         if (!transferOwnership) {
             console.log("");

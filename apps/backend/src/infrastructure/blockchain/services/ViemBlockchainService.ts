@@ -15,6 +15,7 @@ import {
     CloseMarketsResult,
     CancelMarketsResult,
     FootballScoreInput,
+    MarketState as MarketStateEnum,
 } from '@chiliztv/domain/shared/ports/IBlockchainService';
 import {
     PARI_MATCH_FACTORY_INLINE_ABI,
@@ -22,14 +23,12 @@ import {
     FOOTBALL_PARI_MATCH_INLINE_ABI,
     chainFor,
 } from '@chiliztv/blockchain';
+import { FOOTBALL_SEEDING_PAYLOAD } from '../markets/seedingPayload';
 import { logger } from '../../logging/logger';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const MARKET_CREATED_TOPIC = keccak256(toBytes('MatchCreated(address,uint8,address)'));
-const MARKET_WINNER       = keccak256(toBytes('WINNER'));
-const MARKET_GOALS_TOTAL  = keccak256(toBytes('GOALS_TOTAL'));
-const MARKET_BOTH_SCORE   = keccak256(toBytes('BOTH_SCORE'));
 const TX_DELAY_MS         = 4000;
 
 const MarketState = { Inactive: 0, Open: 1, Suspended: 2, Closed: 3, Resolved: 4, Cancelled: 5 } as const;
@@ -107,8 +106,16 @@ export class ViemBlockchainService implements IBlockchainService {
         return { contractAddress };
     }
 
+    /**
+     * Seeds the canonical 8-market lineup. Single source of truth is
+     * {@link FOOTBALL_SEEDING_PAYLOAD}; this path MUST stay behaviour-
+     * equivalent with {@link PariMatchDeploymentAdapter.setupDefaultMarkets}.
+     * The behavioural-equivalence test asserts both adapters send the same
+     * args to addMarketsBatch + openMarketsBatch — don't fork the payload here.
+     */
     async setupDefaultMarkets(contractAddress: string): Promise<void> {
         const addr = contractAddress as `0x${string}`;
+        const { hashes, lines, marketIds } = FOOTBALL_SEEDING_PAYLOAD;
 
         const sendAndWait = async (fn: () => Promise<`0x${string}`>) => {
             const hash = await fn();
@@ -119,30 +126,27 @@ export class ViemBlockchainService implements IBlockchainService {
             await delay();
         };
 
-        logger.info('Adding default parimutuel markets (WINNER + GOALS_TOTAL + BOTH_SCORE)', { contractAddress });
+        logger.info('Adding default parimutuel markets (8 markets, manifest order)', { contractAddress, count: hashes.length });
         await sendAndWait(() => this.walletClient.writeContract({
             chain: undefined,
             address: addr,
             abi: PARI_MATCH_BASE_INLINE_ABI,
             functionName: 'addMarketsBatch',
-            args: [
-                [MARKET_WINNER, MARKET_GOALS_TOTAL, MARKET_BOTH_SCORE],
-                [0, 25, 0],
-            ],
-            gas: 1_500_000n,
+            args: [hashes, lines],
+            gas: 3_000_000n,
         }));
 
-        logger.info('Opening markets', { contractAddress });
+        logger.info('Opening markets', { contractAddress, count: marketIds.length });
         await sendAndWait(() => this.walletClient.writeContract({
             chain: undefined,
             address: addr,
             abi: PARI_MATCH_BASE_INLINE_ABI,
             functionName: 'openMarketsBatch',
-            args: [[0n, 1n, 2n]],
-            gas: 600_000n,
+            args: [marketIds],
+            gas: 1_400_000n,
         }));
 
-        logger.info('Default markets created and opened', { contractAddress, count: 3 });
+        logger.info('Default markets created and opened', { contractAddress, count: hashes.length });
     }
 
     async resolveMarketsByScore(contractAddress: string, score: FootballScoreInput): Promise<number> {
@@ -207,9 +211,9 @@ export class ViemBlockchainService implements IBlockchainService {
                 args: [{
                     homeGoals: score.homeGoals,
                     awayGoals: score.awayGoals,
-                    htHomeGoals: score.htHomeGoals,
-                    htAwayGoals: score.htAwayGoals,
-                    firstScorerId: score.firstScorerId,
+                    htHomeGoals: score.htHomeGoals ?? 0,
+                    htAwayGoals: score.htAwayGoals ?? 0,
+                    firstScorerId: score.firstScorerId ?? 0,
                 }],
             });
             const receipt = await this.publicClient.waitForTransactionReceipt({ hash, timeout: 180_000 });
@@ -244,6 +248,99 @@ export class ViemBlockchainService implements IBlockchainService {
             score,
         });
         return resolvedCount;
+    }
+
+    /**
+     * Single-step `resolveByScore` — caller is expected to have already
+     * Closed the markets they want resolved. The HALFTIME early-resolution
+     * path closes marketId=1 manually then calls this; only Closed markets
+     * resolve, the rest stay Open.
+     *
+     * Returns the count of markets that transitioned to `Resolved`. Markets
+     * cancelled by the contract's void protection (winningPool == 0) are
+     * NOT counted in this number — caller can diff getMarketCore states
+     * pre/post to count them separately.
+     */
+    async resolveAlreadyClosedMarkets(contractAddress: string, score: FootballScoreInput): Promise<number> {
+        const addr = contractAddress as `0x${string}`;
+
+        let count: number;
+        try {
+            count = Number(await this.publicClient.readContract({
+                address: addr,
+                abi: PARI_MATCH_BASE_INLINE_ABI,
+                functionName: 'marketCount',
+            }));
+        } catch (err: any) {
+            logger.error('resolveAlreadyClosedMarkets: failed to read marketCount', { contractAddress, error: err?.message ?? err });
+            return 0;
+        }
+        if (count === 0) return 0;
+
+        // Snapshot pre-resolve states so we can compute the diff. Markets
+        // that were already terminal (Resolved/Cancelled) before our tx
+        // shouldn't be attributed to it.
+        const preStates: number[] = [];
+        for (let id = 0; id < count; id++) {
+            try {
+                const core = await this.publicClient.readContract({
+                    address: addr,
+                    abi: PARI_MATCH_BASE_INLINE_ABI,
+                    functionName: 'getMarketCore',
+                    args: [BigInt(id)],
+                }) as { state: number };
+                preStates.push(core.state);
+            } catch {
+                preStates.push(-1);
+            }
+        }
+
+        try {
+            const hash = await this.walletClient.writeContract({
+                chain: undefined,
+                address: addr,
+                abi: FOOTBALL_PARI_MATCH_INLINE_ABI,
+                functionName: 'resolveByScore',
+                args: [{
+                    homeGoals: score.homeGoals,
+                    awayGoals: score.awayGoals,
+                    htHomeGoals: score.htHomeGoals ?? 0,
+                    htAwayGoals: score.htAwayGoals ?? 0,
+                    firstScorerId: score.firstScorerId ?? 0,
+                }],
+            });
+            const receipt = await this.publicClient.waitForTransactionReceipt({ hash, timeout: 180_000 });
+            if (receipt.status === 'reverted') {
+                throw new Error(`resolveByScore reverted (hash: ${hash})`);
+            }
+            await delay();
+        } catch (err: any) {
+            logger.error('resolveAlreadyClosedMarkets: resolveByScore failed', { contractAddress, error: err?.message ?? err });
+            return 0;
+        }
+
+        let newlyResolved = 0;
+        for (let id = 0; id < count; id++) {
+            try {
+                const core = await this.publicClient.readContract({
+                    address: addr,
+                    abi: PARI_MATCH_BASE_INLINE_ABI,
+                    functionName: 'getMarketCore',
+                    args: [BigInt(id)],
+                }) as { state: number };
+                if (core.state === MarketState.Resolved && preStates[id] !== MarketState.Resolved) {
+                    newlyResolved++;
+                }
+            } catch {
+                // Silent — best-effort tally.
+            }
+        }
+        logger.info('Markets resolved via resolveByScore (no pre-close)', {
+            contractAddress: contractAddress.slice(0, 10) + '…',
+            newlyResolved,
+            score,
+        });
+        return newlyResolved;
     }
 
     async closeOpenMarketsForMatch(contractAddress: string): Promise<CloseMarketsResult> {
@@ -362,6 +459,129 @@ export class ViemBlockchainService implements IBlockchainService {
             }
         }
         return { cancelled, skipped };
+    }
+
+    /**
+     * Close a caller-specified subset of markets. Used by the HALFTIME
+     * early-resolution path which closes ONLY marketId=1 — the other 7
+     * markets stay Open so live bets keep flowing. Idempotent on already-
+     * non-Open markets (the contract `closeMarketsBatch` skips them).
+     */
+    async closeMarketsByIds(contractAddress: string, marketIds: ReadonlyArray<bigint>): Promise<CloseMarketsResult> {
+        const addr = contractAddress as `0x${string}`;
+        if (marketIds.length === 0) return { closed: 0, skipped: 0 };
+
+        // Filter to ids whose state is currently Open — `closeMarketsBatch` is
+        // idempotent but a tx with all-skipped ids burns gas for nothing.
+        const openIds: bigint[] = [];
+        let skipped = 0;
+        for (const id of marketIds) {
+            try {
+                const core = await this.publicClient.readContract({
+                    address: addr,
+                    abi: PARI_MATCH_BASE_INLINE_ABI,
+                    functionName: 'getMarketCore',
+                    args: [id],
+                }) as { state: number };
+                if (core.state === MarketState.Open) openIds.push(id);
+                else skipped++;
+            } catch (err: any) {
+                logger.warn('closeMarketsByIds: getMarketCore failed', { contractAddress, id: Number(id), error: err?.message ?? err });
+                skipped++;
+            }
+        }
+
+        if (openIds.length === 0) return { closed: 0, skipped };
+
+        try {
+            const hash = await this.walletClient.writeContract({
+                chain: undefined,
+                address: addr,
+                abi: PARI_MATCH_BASE_INLINE_ABI,
+                functionName: 'closeMarketsBatch',
+                args: [openIds],
+            });
+            await this.publicClient.waitForTransactionReceipt({ hash, timeout: 90_000 });
+            await delay();
+            logger.info('Markets closed (subset)', {
+                contractAddress: contractAddress.slice(0, 10) + '…',
+                closed: openIds.length,
+                ids: openIds.map(Number),
+                txHash: hash,
+            });
+            return { closed: openIds.length, skipped };
+        } catch (err: any) {
+            logger.error('closeMarketsByIds: closeMarketsBatch failed', {
+                contractAddress, ids: openIds.map(Number), error: err?.message ?? err,
+            });
+            return { closed: 0, skipped };
+        }
+    }
+
+    /**
+     * Cancel a single market. Returns cancelled: 1 on success, 0 if the
+     * market was already in a terminal state (Resolved/Cancelled) at the
+     * pre-flight read — avoids burning gas on guaranteed-revert paths.
+     */
+    async cancelMarket(contractAddress: string, marketId: bigint, reason: string): Promise<CancelMarketsResult> {
+        const addr = contractAddress as `0x${string}`;
+        const TERMINAL = new Set<number>([MarketState.Resolved, MarketState.Cancelled]);
+
+        try {
+            const core = await this.publicClient.readContract({
+                address: addr,
+                abi: PARI_MATCH_BASE_INLINE_ABI,
+                functionName: 'getMarketCore',
+                args: [marketId],
+            }) as { state: number };
+            if (TERMINAL.has(core.state)) return { cancelled: 0, skipped: 1 };
+        } catch (err: any) {
+            logger.warn('cancelMarket: pre-flight getMarketCore failed', {
+                contractAddress, marketId: Number(marketId), error: err?.message ?? err,
+            });
+            return { cancelled: 0, skipped: 0 };
+        }
+
+        try {
+            const hash = await this.walletClient.writeContract({
+                chain: undefined,
+                address: addr,
+                abi: PARI_MATCH_BASE_INLINE_ABI,
+                functionName: 'cancelMarket',
+                args: [marketId, reason],
+            });
+            await this.publicClient.waitForTransactionReceipt({ hash, timeout: 90_000 });
+            await delay();
+            logger.info('Market cancelled (single)', {
+                contractAddress: contractAddress.slice(0, 10) + '…',
+                marketId: Number(marketId), reason, txHash: hash,
+            });
+            return { cancelled: 1, skipped: 0 };
+        } catch (err: any) {
+            logger.error('cancelMarket: cancel tx failed', {
+                contractAddress, marketId: Number(marketId), reason, error: err?.message ?? err,
+            });
+            return { cancelled: 0, skipped: 0 };
+        }
+    }
+
+    /**
+     * Cheap pre-flight read used by callers that want to know a market's
+     * state before issuing a tx. Returns null on invalid marketId.
+     */
+    async getMarketState(contractAddress: string, marketId: bigint): Promise<MarketStateEnum | null> {
+        const addr = contractAddress as `0x${string}`;
+        try {
+            const core = await this.publicClient.readContract({
+                address: addr,
+                abi: PARI_MATCH_BASE_INLINE_ABI,
+                functionName: 'getMarketCore',
+                args: [marketId],
+            }) as { state: number };
+            return core.state as MarketStateEnum;
+        } catch {
+            return null;
+        }
     }
 
     getAdminAddress(): string {

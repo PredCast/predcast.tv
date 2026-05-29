@@ -36,12 +36,27 @@ export interface BetPick {
 }
 
 /**
- * Tint per `(marketType, outcome)` for the bet pick chip. Uses palette
- * colors from CLAUDE.md §5 — green for "yes/over" answers, red shades for
- * "no/under/home", gold for draw, away in `#A50044` (matches the away
- * team crest in the bet dialog).
+ * Tint for the bet pick chip. Tinting rule depends on the bet status:
+ *
+ *   - **Resolved (WON / LOST / REFUNDED)** — tint based on actual outcome
+ *     vs the user's pick, NOT on the label. Critical for DOUBLE_CHANCE
+ *     where a `1X — No` bet wins when AwayWin happens (the label "No"
+ *     doesn't communicate win/lose by itself).
+ *   - **Unresolved (PENDING / unknown)** — tint based on the pick
+ *     direction (cosmetic only, kept from the old WINNER/etc. palette).
+ *
+ * The status param is optional so legacy callers that don't have it stay
+ * compiling — they get the unresolved-tint path (cosmetic).
  */
-export function tintForOutcome(marketType: string | null | undefined, outcome: string): string {
+export function tintForOutcome(
+    marketType: string | null | undefined,
+    outcome: string,
+    status?: 'PENDING' | 'WON' | 'LOST' | 'REFUNDED' | string,
+): string {
+    if (status === 'WON') return '#2dd4a4';
+    if (status === 'LOST') return 'rgba(255,255,255,0.45)';
+    if (status === 'REFUNDED') return 'rgba(255,255,255,0.65)';
+
     const idx = Number(outcome);
     if (!marketType) return '#fff';
     switch (marketType) {
@@ -54,7 +69,10 @@ export function tintForOutcome(marketType: string | null | undefined, outcome: s
             return '#fff';
         case 'GOALS_TOTAL':
         case 'BOTH_SCORE':
-            // 0 = Under / No (red), 1 = Over / Yes (green)
+        case 'DOUBLE_CHANCE':
+            // 0 = Under / No (red), 1 = Over / Yes (green). For DOUBLE_CHANCE,
+            // this is purely cosmetic — label is "Variant — No/Yes". The
+            // actual win/lose tint is applied above when status is set.
             return idx === 1 ? '#2dd4a4' : '#FF1737';
         default:
             return '#fff';

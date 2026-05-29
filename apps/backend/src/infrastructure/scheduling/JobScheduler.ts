@@ -1,7 +1,9 @@
 import { inject, injectable } from 'tsyringe';
 import cron from 'node-cron';
 import { SyncMatchesJob } from './jobs/SyncMatchesJob';
+import { SyncLiveMatchesJob } from './jobs/SyncLiveMatchesJob';
 import { ResolveMarketsJob } from './jobs/ResolveMarketsJob';
+import { ResolveHalftimeMarketsJob } from './jobs/ResolveHalftimeMarketsJob';
 import { CloseLiveMarketsJob } from './jobs/CloseLiveMarketsJob';
 import { CleanupStreamsJob } from './jobs/CleanupStreamsJob';
 import { StaleStreamCleanupJob } from './jobs/StaleStreamCleanupJob';
@@ -26,10 +28,15 @@ import { logger } from '../logging/logger';
 export class JobScheduler {
     private cronTasks: cron.ScheduledTask[] = [];
     private intervals: NodeJS.Timeout[] = [];
+    /** Self-rescheduled timeouts (NOT setInterval). Tracked so `stop()` can cancel pending wake-ups. */
+    private timeouts: NodeJS.Timeout[] = [];
+    private stopped = false;
 
     constructor(
         private readonly syncMatchesJob: SyncMatchesJob,
+        private readonly syncLiveMatchesJob: SyncLiveMatchesJob,
         private readonly resolveMarketsJob: ResolveMarketsJob,
+        private readonly resolveHalftimeMarketsJob: ResolveHalftimeMarketsJob,
         private readonly closeLiveMarketsJob: CloseLiveMarketsJob,
         private readonly cleanupStreamsJob: CleanupStreamsJob,
         private readonly staleStreamCleanupJob: StaleStreamCleanupJob,
@@ -64,6 +71,10 @@ export class JobScheduler {
             () => this.resolveMarketsJob.execute());
         this.startIntervalJob('CloseLiveMarkets', this.closeLiveMarketsJob.getIntervalMs(), JobLocks.closeLiveMarkets,
             () => this.closeLiveMarketsJob.execute());
+        this.startSelfRescheduledJob('SyncLiveMatches', this.syncLiveMatchesJob.getIntervalMs(), JobLocks.syncLiveMatches,
+            () => this.syncLiveMatchesJob.execute());
+        this.startSelfRescheduledJob('ResolveHalftimeMarkets', this.resolveHalftimeMarketsJob.getIntervalMs(), JobLocks.resolveHalftimeMarkets,
+            () => this.resolveHalftimeMarketsJob.execute());
         this.startIntervalJob('RefreshTokenPrices', this.refreshTokenPricesJob.getIntervalMs(), JobLocks.refreshTokenPrices,
             () => this.refreshTokenPricesJob.execute());
         this.startIntervalJob('SettlePredictions', this.settlePredictionsJob.getIntervalMs(), JobLocks.settlePredictions,
@@ -74,10 +85,13 @@ export class JobScheduler {
 
     stop(): void {
         logger.info('Stopping job scheduler');
+        this.stopped = true;
         this.cronTasks.forEach(task => task.stop());
         this.cronTasks = [];
         this.intervals.forEach(interval => clearInterval(interval));
         this.intervals = [];
+        this.timeouts.forEach(timeout => clearTimeout(timeout));
+        this.timeouts = [];
         logger.info('Job scheduler stopped');
     }
 
@@ -122,6 +136,38 @@ export class JobScheduler {
                 error: error instanceof Error ? error.message : 'Unknown error',
             });
         });
+    }
+
+    /**
+     * Self-rescheduling alternative to `startIntervalJob`. The next tick is
+     * scheduled ONLY after the current one finishes (success or failure), so
+     * a slow tick (Supabase lag, slow upstream) can never overlap with itself
+     * — eliminating the lock-contention storm that `setInterval` would cause
+     * when ticks drift past their cadence.
+     *
+     * Trade-off vs `setInterval`: the effective period becomes
+     * `tick_duration + intervalMs`, not strict `intervalMs`. For a 30s cadence
+     * with sub-second ticks this is invisible; if you needed strict periodicity
+     * (e.g. a heartbeat), use `setInterval` instead.
+     */
+    private startSelfRescheduledJob(name: string, intervalMs: number, lock: JobLockConfig, handler: () => Promise<void>): void {
+        logger.info(`Starting self-rescheduled job: ${name}`, { intervalMs, lockKey: lock.key });
+
+        logger.info(`Executing initial run for: ${name}`);
+        const tick = async (): Promise<void> => {
+            try {
+                await this.runLocked(name, lock, handler);
+            } catch (error) {
+                logger.error(`Self-rescheduled job ${name} failed`, {
+                    error: error instanceof Error ? error.message : 'Unknown error',
+                });
+            } finally {
+                if (this.stopped) return;
+                const timeout = setTimeout(() => { void tick(); }, intervalMs);
+                this.timeouts.push(timeout);
+            }
+        };
+        void tick();
     }
 
     private startIntervalJob(name: string, intervalMs: number, lock: JobLockConfig, handler: () => Promise<void>): void {

@@ -21,15 +21,21 @@ export function isLive(status: string): boolean {
 /**
  * In-game minute, clamped to the half / extra-time window.
  *
+ * Prefers the backend-persisted `elapsed` (authoritative — comes straight
+ * from API-Football). Falls back to the kickoff-derived calc when the
+ * backend hasn't seen a live snapshot yet (matches pre-migration 032 or
+ * first 30s after kickoff before SyncLiveMatchesJob fires).
+ *
  * `now` is nullable because pages start with a `null` clock to avoid SSR
- * hydration mismatches (server `new Date()` ≠ client `new Date()`); the
- * real value is set after mount.
+ * hydration mismatches; real value is set after mount.
  */
 export function getMinute(
   status: string,
   kickoffAt: string,
   now: Date | null,
+  elapsedFromBackend?: number | null,
 ): number | null {
+  if (typeof elapsedFromBackend === 'number') return elapsedFromBackend;
   if (!now) return null;
   const elapsed = Math.floor(
     (now.getTime() - new Date(kickoffAt).getTime()) / 60_000,

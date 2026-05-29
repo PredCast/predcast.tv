@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { type Address, formatUnits } from "viem";
-import { Trophy, Target, Users, Hash, Flag, Clock3, type LucideIcon } from "lucide-react";
+import { Trophy, Target, Users, Hash, Flag, Clock3, Shuffle, type LucideIcon } from "lucide-react";
 import { isBettable, type BettableResult } from "@chiliztv/domain/matches/policies/BettablePolicy";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -24,11 +24,14 @@ import {
   stateLabel as catalogStateLabel,
   stateAccent,
   MarketState,
+  MARKET_TYPE_HASHES,
   type MarketKey,
   type MarketPoolSnapshot,
 } from "@/lib/contracts/markets";
+import { sortMarketsByManifest } from "@chiliztv/domain/markets/sortMarketsByManifest";
 import { MarketBetDialog } from "./MarketBetDialog";
 import { UnsupportedSportPanel } from "./UnsupportedSportPanel";
+import { HalftimeDelayBadge } from "@/components/shared/HalftimeDelayBadge";
 
 const BETTING_CHAIN_ID = chilizConfig.chainId;
 
@@ -41,6 +44,13 @@ export interface MatchBettableContext {
   status: string;
   /** Kickoff ISO string. */
   kickoffAt: string;
+  /**
+   * Last persisted halftime score. Null pre-HT or while API-Football
+   * hasn't reported it yet. Used to surface the {@link HalftimeDelayBadge}
+   * on the HALFTIME row when the score is overdue.
+   */
+  htHomeScore?: number | null;
+  htAwayScore?: number | null;
 }
 
 interface MatchMarketsListProps {
@@ -77,11 +87,32 @@ function bettableBlockLabel(verdict: BettableResult, kickoffAt: string, now: Dat
   }
 }
 
+/**
+ * True when the HALFTIME row should surface the "delayed" badge: the row is
+ * the HALFTIME market, it's still Open, the match has reached HT/2H/ET/...
+ * and the upstream hasn't reported the halftime score yet. Conservative
+ * threshold (immediate surface as soon as we're in/past HT without data) —
+ * a 2-min grace would be nicer UX but is a follow-up refinement.
+ */
+const POST_HT_STATUSES_FOR_BADGE: ReadonlySet<string> = new Set(['HT', '2H', 'ET', 'BT', 'P', 'LIVE']);
+function isHalftimeDelayed(
+  marketKey: MarketKey | undefined,
+  isMarketOpen: boolean,
+  match: MatchBettableContext | undefined,
+): boolean {
+  if (marketKey !== 'halftime' || !isMarketOpen || !match) return false;
+  if (!POST_HT_STATUSES_FOR_BADGE.has(match.status)) return false;
+  const htMissing = match.htHomeScore === null || match.htHomeScore === undefined
+    || match.htAwayScore === null || match.htAwayScore === undefined;
+  return htMissing;
+}
+
 const MARKET_ICONS: Record<MarketKey, LucideIcon> = {
   winner: Trophy,
   goalstotal: Target,
   bothscore: Users,
   halftime: Clock3,
+  doublechance: Shuffle,
   firstscorer: Flag,
   goalsexact: Hash,
   'bb-winner': Trophy,
@@ -183,6 +214,7 @@ function MarketRow({ contractAddress, snapshot, homeTeam, awayTeam, match, now, 
                 O/U {lineLabel}
               </span>
             )}
+            <HalftimeDelayBadge delayed={isHalftimeDelayed(spec?.key, isOpen, match)} />
           </div>
           <div className="font-mono-ctv mt-1 truncate text-[10px] uppercase tracking-[0.16em] text-white/45">
             {hint}
@@ -335,10 +367,11 @@ export function MatchMarketsList({
   // Single round-trip multicall for every market on this proxy.
   const { data: pools, isLoading } = useMarketPools(contractAddress);
 
+  // Stable order = manifest order (marketId 0..7 per
+  // packages/domain/src/markets/DefaultMarkets.ts). Centralised in
+  // sortMarketsByManifest so no consumer re-implements the rule.
   const sortedMarkets = useMemo(
-    () => [...(pools?.markets ?? [])].sort(
-      (a, b) => Number(BigInt(a.marketId) - BigInt(b.marketId)),
-    ),
+    () => sortMarketsByManifest(pools?.markets ?? []),
     [pools?.markets],
   );
 
@@ -397,10 +430,21 @@ export function MatchMarketsList({
     return <EmptyState message="No markets opened yet on this match." />;
   }
 
+  // Partition Double Chance markets (marketTypeHash matches DOUBLE_CHANCE)
+  // so they render under a single visual group header. The 3 variants
+  // remain independent on-chain markets — the grouping is purely
+  // presentational. If a new market type is inserted between marketIds
+  // 5-7 in the manifest, re-evaluate this partition logic: the trio of
+  // DC rows MUST stay contiguous in `sortedMarkets` for the header
+  // grouping to make sense.
+  const dcHash = MARKET_TYPE_HASHES.DOUBLE_CHANCE.toLowerCase();
+  const nonDcMarkets = sortedMarkets.filter(m => m.marketType.toLowerCase() !== dcHash);
+  const dcMarkets = sortedMarkets.filter(m => m.marketType.toLowerCase() === dcHash);
+
   return (
     <>
       <div>
-        {sortedMarkets.map((snapshot) => (
+        {nonDcMarkets.map((snapshot) => (
           <MarketRow
             key={snapshot.marketId}
             contractAddress={contractAddress}
@@ -412,6 +456,26 @@ export function MatchMarketsList({
             onBet={setActiveMarket}
           />
         ))}
+        {dcMarkets.length > 0 && (
+          <div className="mt-3 border-t border-[#1E1E1E] pt-3">
+            <div className="font-mono-ctv mb-2 inline-flex items-center gap-2.5 text-[10px] font-bold uppercase tracking-[0.16em] text-[#E8001D]">
+              <span aria-hidden className="block h-0.5 w-4 bg-[#E8001D]" />
+              Double Chance
+            </div>
+            {dcMarkets.map((snapshot) => (
+              <MarketRow
+                key={snapshot.marketId}
+                contractAddress={contractAddress}
+                snapshot={snapshot}
+                homeTeam={homeTeam}
+                awayTeam={awayTeam}
+                match={match}
+                now={now}
+                onBet={setActiveMarket}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       <MarketBetDialog

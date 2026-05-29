@@ -36,7 +36,7 @@ export function MatchCardDonut({
     onWatch?: (match: FlatMatch) => void;
 }) {
     const live = isLive(match.status);
-    const minute = live ? getMinute(match.status, match.kickoffAt, now) : null;
+    const minute = live ? getMinute(match.status, match.kickoffAt, now, match.elapsed) : null;
     const totalViewers = match.streamsPreview.reduce((s, sp) => s + sp.viewers, 0);
 
     const distribution = useMatchPoolDistribution({

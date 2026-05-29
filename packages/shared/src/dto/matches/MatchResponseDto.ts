@@ -48,7 +48,24 @@ export interface MatchResponseDto {
   /** Latest W/D/L results for each team (oldest → newest, up to 5 chars). */
   homeForm: string | null;
   awayForm: string | null;
+  /**
+   * Last in-game minute the backend persisted (monotone — never reset to
+   * null once a real value was seen). Null when the match hasn't started.
+   */
+  elapsed: number | null;
+  /**
+   * Halftime score (45'). Monotone — survives the HT pause when the
+   * upstream briefly clears the field. Null pre-HT.
+   */
+  htHomeScore: number | null;
+  htAwayScore: number | null;
   bettingContractAddress?: string;
+  /**
+   * `true` when the API-Football upstream is in degraded mode (circuit open or
+   * daily quota exhausted) and scores may be stale. Optional for back-compat —
+   * older clients ignore it; the new badge UI renders an amber pill when set.
+   */
+  dataStale?: boolean;
   /** ISO 8601 — sérialisé depuis Date */
   createdAt: string;
 }
