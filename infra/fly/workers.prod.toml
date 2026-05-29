@@ -14,11 +14,12 @@ primary_region = "cdg"
   force_https = true
   # Workers run the BlockchainEventListener + JobScheduler continuously.
   # Auto-stop would let the indexer fall behind silently — keep the machine
-  # always-on. `min_machines_running=1` is the safety net; `auto_stop` off
-  # prevents Fly from suspending on the idle HTTP timer.
+  # always-on. `min_machines_running=2` provides HA: if one machine crashes
+  # the other keeps the JobScheduler running (distributed lock handles the
+  # concurrency cleanly, only one instance grabs each tick).
   auto_stop_machines = "off"
   auto_start_machines = true
-  min_machines_running = 1
+  min_machines_running = 2
   processes = ["app"]
 
   [[http_service.checks]]
@@ -27,6 +28,12 @@ primary_region = "cdg"
     method = "GET"
     path = "/health"
     timeout = "5s"
+
+# Always-restart guard: if the node process exits (crash, panic, exit 0),
+# Fly relaunches the machine instead of leaving it Stopped.
+[[restart]]
+  policy = "always"
+  retries = 10
 
 [[vm]]
   memory = "1gb"
