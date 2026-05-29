@@ -44,6 +44,12 @@ contract FootballPariMatch is PariMatchBase {
     bytes32 public constant MARKET_CORRECT_SCORE = keccak256("CORRECT_SCORE");
     bytes32 public constant MARKET_FIRST_SCORER  = keccak256("FIRST_SCORER");
     bytes32 public constant MARKET_GOALS_EXACT   = keccak256("GOALS_EXACT");
+    /// @notice Double-chance market: bettor picks one of the three 2-of-3
+    ///         WINNER unions encoded in `line` (0=1X, 1=12, 2=2X). Each
+    ///         instance resolves as a Yes/No pool (0=No, 1=Yes). Pari-mutuel
+    ///         math is identical to BTTS — one outcome per market — so the
+    ///         three DC variants are three separate markets at setup time.
+    bytes32 public constant MARKET_DOUBLE_CHANCE = keccak256("DOUBLE_CHANCE");
 
     // ═══════════════════════════════════════════════════════════════════════
     // TYPES
@@ -98,7 +104,8 @@ contract FootballPariMatch is PariMatchBase {
             || marketType == MARKET_HALFTIME
             || marketType == MARKET_CORRECT_SCORE
             || marketType == MARKET_FIRST_SCORER
-            || marketType == MARKET_GOALS_EXACT;
+            || marketType == MARKET_GOALS_EXACT
+            || marketType == MARKET_DOUBLE_CHANCE;
     }
 
     function _getMaxOutcome(bytes32 marketType, int16 line) internal pure override returns (uint8) {
@@ -111,6 +118,11 @@ contract FootballPariMatch is PariMatchBase {
         if (marketType == MARKET_GOALS_EXACT) {
             if (line < 1 || line > 255) revert InvalidLine(marketType, line);
             return uint8(uint16(line));
+        }
+        if (marketType == MARKET_DOUBLE_CHANCE) {
+            // line encodes the DC variant: 0=1X, 1=12, 2=2X.
+            if (line < 0 || line > 2) revert InvalidLine(marketType, line);
+            return 1;   // 0=No 1=Yes
         }
         revert InvalidMarketType(marketType);
     }
@@ -226,6 +238,21 @@ contract FootballPariMatch is PariMatchBase {
             uint8 cap = spec.maxOutcome;
             if (total >= cap) return (uint64(cap), true);
             return (uint64(total), true);
+        }
+
+        if (t == MARKET_DOUBLE_CHANCE) {
+            int16 dc = spec.line;
+            // line is validated to [0,2] at addMarket time, but guard against
+            // a future addMarketAdvanced edge case where the spec was edited.
+            if (dc < 0 || dc > 2) return (0, false);
+            bool homeWin = s.homeGoals  > s.awayGoals;
+            bool draw    = s.homeGoals == s.awayGoals;
+            bool awayWin = s.homeGoals  < s.awayGoals;
+            bool covered =
+                (dc == 0 && (homeWin || draw))     // 1X
+             || (dc == 1 && (homeWin || awayWin))  // 12
+             || (dc == 2 && (awayWin || draw));    // 2X
+            return (covered ? uint64(1) : uint64(0), true);
         }
 
         return (0, false);

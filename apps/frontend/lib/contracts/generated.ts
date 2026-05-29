@@ -2183,6 +2183,13 @@ export const footballPariMatchAbi = [
   {
     type: 'function',
     inputs: [],
+    name: 'MARKET_DOUBLE_CHANCE',
+    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
     name: 'MARKET_FIRST_SCORER',
     outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
     stateMutability: 'view',
@@ -8522,6 +8529,15 @@ export const useFootballPariMatchReadMarketCorrectScore =
   /*#__PURE__*/ createUseReadContract({
     abi: footballPariMatchAbi,
     functionName: 'MARKET_CORRECT_SCORE',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"MARKET_DOUBLE_CHANCE"`
+ */
+export const useFootballPariMatchReadMarketDoubleChance =
+  /*#__PURE__*/ createUseReadContract({
+    abi: footballPariMatchAbi,
+    functionName: 'MARKET_DOUBLE_CHANCE',
   })
 
 /**
