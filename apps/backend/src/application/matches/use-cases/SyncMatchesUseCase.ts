@@ -172,8 +172,10 @@ export class SyncMatchesUseCase {
 
         // Preserve last-known elapsed when the upstream returns null (HT, post-FT)
         // so the 10-min cron doesn't erase the value that SyncLiveMatchesUseCase
-        // wrote on its 30s tick.
+        // wrote on its 30s tick. Same null-guard for HT score.
         const elapsedToPersist = raw.elapsed ?? existingJson.elapsed ?? null;
+        const htHomeToPersist  = raw.htHomeScore ?? existingJson.htHomeScore ?? null;
+        const htAwayToPersist  = raw.htAwayScore ?? existingJson.htAwayScore ?? null;
 
         const updated = Match.reconstitute({
             id:                     existingJson.id,
@@ -197,6 +199,8 @@ export class SyncMatchesUseCase {
             homeForm,
             awayForm,
             elapsed:                elapsedToPersist,
+            htHomeScore:            htHomeToPersist,
+            htAwayScore:            htAwayToPersist,
             bettingContractAddress: existing.getBettingContractAddress(),
             createdAt:              existingJson.createdAt,
             updatedAt:              this.clock.now(),
@@ -233,6 +237,8 @@ export class SyncMatchesUseCase {
             homeForm,
             awayForm,
             elapsed:       raw.elapsed ?? null,
+            htHomeScore:   raw.htHomeScore ?? null,
+            htAwayScore:   raw.htAwayScore ?? null,
         });
 
         const saved = await this.matchRepository.save(newMatch);

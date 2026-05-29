@@ -19,6 +19,7 @@
     "match:scenario": "ts-node src/presentation/cli/match-scenario.ts",
     "match:reset": "ts-node src/presentation/cli/match-reset.ts",
     "match:resolve": "ts-node src/presentation/cli/match-resolve.ts",
+    "match:halftime": "ts-node src/presentation/cli/match-halftime.ts",
     "leaderboard:close-epoch": "ts-node src/presentation/cli/leaderboard-close-epoch.ts",
     "db:migrate": "ts-node scripts/run-migrations.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts"

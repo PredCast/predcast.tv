@@ -52,11 +52,19 @@ export class ResolveFinishedMatchesUseCase {
             if (this.inFlight.has(addr)) continue;
             this.inFlight.add(addr);
             try {
+                // Pass HT scores when known so the HALFTIME market resolves
+                // here in the FT fallback path (if SyncLiveMatchesJob /
+                // ResolveHalftimeMarketsJob both missed it). When HT scores
+                // are still null, the adapter defaults them to 0 — the
+                // contract void-protects the HALFTIME market on a 0-0 ghost
+                // resolve (winningPool == 0 → Cancelled, stakers refund).
                 const count = await this.blockchainService.resolveMarketsByScore(
                     json.bettingContractAddress!,
                     {
                         homeGoals: json.score!.home!,
                         awayGoals: json.score!.away!,
+                        htHomeGoals: json.htHomeScore ?? undefined,
+                        htAwayGoals: json.htAwayScore ?? undefined,
                     },
                 );
                 marketsResolved += count;

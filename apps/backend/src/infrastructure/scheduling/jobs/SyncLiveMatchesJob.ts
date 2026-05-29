@@ -2,6 +2,7 @@ import { inject, injectable } from 'tsyringe';
 import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { container } from '../../config/di-container';
 import { SyncLiveMatchesUseCase } from '../../../application/matches/use-cases/SyncLiveMatchesUseCase';
+import { ResolveHalftimeMarketUseCase } from '../../../application/matches/use-cases/ResolveHalftimeMarketUseCase';
 import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import { logger } from '../../logging/logger';
 
@@ -42,12 +43,36 @@ export class SyncLiveMatchesJob {
                     duration,
                     matchesFetched: result.matchesFetched,
                     matchesUpdated: result.matchesUpdated,
+                    halftimeReady: result.halftimeReadyMatchIds.length,
                 });
             } else {
                 logger.debug('SyncLiveMatchesJob: idle tick', {
                     duration,
                     matchesFetched: result.matchesFetched,
                 });
+            }
+
+            // Event-driven hot path: every match where we JUST learnt the
+            // halftime score gets its HALFTIME market resolved immediately
+            // — drops claim-availability latency from the 60s backup cron
+            // to <5s. The use case has a per-contract `inFlight` guard so
+            // a concurrent cron tick is a no-op, not a double-resolve.
+            for (const apiFootballId of result.halftimeReadyMatchIds) {
+                try {
+                    const resolveUc = container.resolve(ResolveHalftimeMarketUseCase);
+                    const r = await resolveUc.execute(apiFootballId);
+                    if (r.resolved > 0) {
+                        logger.info('SyncLiveMatchesJob: HALFTIME resolved event-driven', {
+                            apiFootballId,
+                            resolved: r.resolved,
+                        });
+                    }
+                } catch (err) {
+                    logger.warn('SyncLiveMatchesJob: event-driven HALFTIME trigger failed', {
+                        apiFootballId,
+                        error: err instanceof Error ? err.message : String(err),
+                    });
+                }
             }
         } catch (error) {
             logger.error('SyncLiveMatchesJob failed', {

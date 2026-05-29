@@ -20,6 +20,16 @@ export interface ApiFootballMatch {
         country?: string;
         logo?: string;
     };
+    /**
+     * Per-period score breakdown. Always present in the live `/fixtures`
+     * payload; `halftime` becomes non-null once the match has reached HT.
+     * The upstream sometimes clears these back to null during HT/post-FT
+     * cleanups — callers MUST preserve the last known value (cf.
+     * Match.setHalftimeScore, mirroring the elapsed_minutes pattern).
+     */
+    score?: {
+        halftime?: { home: number | null; away: number | null };
+    };
     referee: string;
 }
 

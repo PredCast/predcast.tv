@@ -73,6 +73,7 @@ import { ResolveFinishedMatchesUseCase } from '../application/matches/use-cases/
 import { CloseLiveMatchesMarketsUseCase } from '../application/matches/use-cases/CloseLiveMatchesMarketsUseCase';
 import { SyncMatchesUseCase } from '../application/matches/use-cases/SyncMatchesUseCase';
 import { SyncLiveMatchesUseCase } from '../application/matches/use-cases/SyncLiveMatchesUseCase';
+import { ResolveHalftimeMarketUseCase } from '../application/matches/use-cases/ResolveHalftimeMarketUseCase';
 import { CleanupOldMatchesUseCase } from '../application/matches/use-cases/CleanupOldMatchesUseCase';
 
 // ─── Application — Chat ──────────────────────────────────────────────────────
@@ -156,7 +157,9 @@ import { LeaderboardController } from '../presentation/http/controllers/leaderbo
 // ─── Infrastructure — Scheduling ─────────────────────────────────────────────
 import { JobScheduler } from '../infrastructure/scheduling/JobScheduler';
 import { SyncMatchesJob } from '../infrastructure/scheduling/jobs/SyncMatchesJob';
+import { SyncLiveMatchesJob } from '../infrastructure/scheduling/jobs/SyncLiveMatchesJob';
 import { ResolveMarketsJob } from '../infrastructure/scheduling/jobs/ResolveMarketsJob';
+import { ResolveHalftimeMarketsJob } from '../infrastructure/scheduling/jobs/ResolveHalftimeMarketsJob';
 import { CloseLiveMarketsJob } from '../infrastructure/scheduling/jobs/CloseLiveMarketsJob';
 import { RefreshTokenPricesJob } from '../infrastructure/scheduling/jobs/RefreshTokenPricesJob';
 import { CleanupStreamsJob } from '../infrastructure/scheduling/jobs/CleanupStreamsJob';
@@ -289,6 +292,7 @@ export function setupDependencyInjection(): void {
   container.registerSingleton(CloseLiveMatchesMarketsUseCase);
   container.registerSingleton(SyncMatchesUseCase);
   container.registerSingleton(SyncLiveMatchesUseCase);
+  container.registerSingleton(ResolveHalftimeMarketUseCase);
   container.registerSingleton(CleanupOldMatchesUseCase);
 
   // ─── Use Cases — Chat ──────────────────────────────────────────────────────
@@ -363,7 +367,9 @@ export function setupDependencyInjection(): void {
 
   // ─── Infrastructure — Scheduling ───────────────────────────────────────────
   container.registerSingleton(SyncMatchesJob);
+  container.registerSingleton(SyncLiveMatchesJob);
   container.registerSingleton(ResolveMarketsJob);
+  container.registerSingleton(ResolveHalftimeMarketsJob);
   container.registerSingleton(CloseLiveMarketsJob);
   container.registerSingleton(RefreshTokenPricesJob);
   container.registerSingleton(CleanupStreamsJob);

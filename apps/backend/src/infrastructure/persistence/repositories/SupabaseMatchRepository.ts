@@ -23,6 +23,8 @@ interface MatchRow {
   home_form: string | null;
   away_form: string | null;
   elapsed_minutes: number | null;
+  ht_home_score: number | null;
+  ht_away_score: number | null;
   betting_contract_address?: string | null;
   created_at: string;
   updated_at: string;
@@ -381,6 +383,8 @@ export class SupabaseMatchRepository implements IMatchRepository {
       homeForm: row.home_form,
       awayForm: row.away_form,
       elapsed: row.elapsed_minutes,
+      htHomeScore: row.ht_home_score,
+      htAwayScore: row.ht_away_score,
       bettingContractAddress: row.betting_contract_address || undefined,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
@@ -411,6 +415,8 @@ export class SupabaseMatchRepository implements IMatchRepository {
       home_form: json.homeForm ?? null,
       away_form: json.awayForm ?? null,
       elapsed_minutes: json.elapsed ?? null,
+      ht_home_score: json.htHomeScore ?? null,
+      ht_away_score: json.htAwayScore ?? null,
       // Normalize to lowercase so it joins against `bets.contract_address`
       // (which the indexer always writes lowercased). Mixed-case rows that
       // predate this fix break the join and surface as "Unknown match".

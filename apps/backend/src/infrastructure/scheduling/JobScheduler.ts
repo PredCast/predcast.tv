@@ -3,6 +3,7 @@ import cron from 'node-cron';
 import { SyncMatchesJob } from './jobs/SyncMatchesJob';
 import { SyncLiveMatchesJob } from './jobs/SyncLiveMatchesJob';
 import { ResolveMarketsJob } from './jobs/ResolveMarketsJob';
+import { ResolveHalftimeMarketsJob } from './jobs/ResolveHalftimeMarketsJob';
 import { CloseLiveMarketsJob } from './jobs/CloseLiveMarketsJob';
 import { CleanupStreamsJob } from './jobs/CleanupStreamsJob';
 import { StaleStreamCleanupJob } from './jobs/StaleStreamCleanupJob';
@@ -35,6 +36,7 @@ export class JobScheduler {
         private readonly syncMatchesJob: SyncMatchesJob,
         private readonly syncLiveMatchesJob: SyncLiveMatchesJob,
         private readonly resolveMarketsJob: ResolveMarketsJob,
+        private readonly resolveHalftimeMarketsJob: ResolveHalftimeMarketsJob,
         private readonly closeLiveMarketsJob: CloseLiveMarketsJob,
         private readonly cleanupStreamsJob: CleanupStreamsJob,
         private readonly staleStreamCleanupJob: StaleStreamCleanupJob,
@@ -71,6 +73,8 @@ export class JobScheduler {
             () => this.closeLiveMarketsJob.execute());
         this.startSelfRescheduledJob('SyncLiveMatches', this.syncLiveMatchesJob.getIntervalMs(), JobLocks.syncLiveMatches,
             () => this.syncLiveMatchesJob.execute());
+        this.startSelfRescheduledJob('ResolveHalftimeMarkets', this.resolveHalftimeMarketsJob.getIntervalMs(), JobLocks.resolveHalftimeMarkets,
+            () => this.resolveHalftimeMarketsJob.execute());
         this.startIntervalJob('RefreshTokenPrices', this.refreshTokenPricesJob.getIntervalMs(), JobLocks.refreshTokenPrices,
             () => this.refreshTokenPricesJob.execute());
         this.startIntervalJob('SettlePredictions', this.settlePredictionsJob.getIntervalMs(), JobLocks.settlePredictions,

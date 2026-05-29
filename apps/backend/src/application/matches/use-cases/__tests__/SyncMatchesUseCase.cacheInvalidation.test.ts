@@ -38,6 +38,8 @@ function rawMatchAt(score: { home: number; away: number } | null, status = '2H')
     homeScore: score?.home ?? null,
     awayScore: score?.away ?? null,
     elapsed: null,
+    htHomeScore: null,
+    htAwayScore: null,
   };
 }
 

@@ -11,6 +11,14 @@ import { logger } from '../../../infrastructure/logging/logger';
 export interface SyncLiveMatchesResult {
     matchesFetched: number;
     matchesUpdated: number;
+    /**
+     * `apiFootballId` of matches where the halftime score transitioned from
+     * null → known during this tick. The caller (job) uses this list to fire
+     * `ResolveHalftimeMarketUseCase.execute` immediately instead of waiting
+     * for the 60s backup cron — drops "HT whistle → claim possible" latency
+     * from ~3 min to <30s.
+     */
+    halftimeReadyMatchIds: number[];
 }
 
 /**
@@ -41,12 +49,13 @@ export class SyncLiveMatchesUseCase {
     async execute(): Promise<SyncLiveMatchesResult> {
         const live = await this.footballApiService.fetchLiveMatches();
         if (live.length === 0) {
-            return { matchesFetched: 0, matchesUpdated: 0 };
+            return { matchesFetched: 0, matchesUpdated: 0, halftimeReadyMatchIds: [] };
         }
 
         let matchesUpdated = 0;
         const changedMatchIds: number[] = [];
         const changedLeagueIds = new Set<number>();
+        const halftimeReadyMatchIds: number[] = [];
 
         for (const raw of live) {
             try {
@@ -62,11 +71,14 @@ export class SyncLiveMatchesUseCase {
                     continue;
                 }
 
-                const mutated = await this.updateLiveSnapshot(existing, raw);
+                const { mutated, halftimeNewlyKnown } = await this.updateLiveSnapshot(existing, raw);
                 if (mutated) {
                     matchesUpdated++;
                     changedMatchIds.push(raw.apiFootballId);
                     changedLeagueIds.add(raw.leagueId);
+                }
+                if (halftimeNewlyKnown && existing.getBettingContractAddress()) {
+                    halftimeReadyMatchIds.push(raw.apiFootballId);
                 }
             } catch (err) {
                 logger.warn('SyncLiveMatchesUseCase: per-match failure', {
@@ -77,17 +89,23 @@ export class SyncLiveMatchesUseCase {
         }
 
         await this.invalidateCache(changedMatchIds, changedLeagueIds);
-        return { matchesFetched: live.length, matchesUpdated };
+        return { matchesFetched: live.length, matchesUpdated, halftimeReadyMatchIds };
     }
 
     /**
-     * Diff-then-write. Score, status, and elapsed are the only fields the live
-     * payload meaningfully supplies; everything else (teams, league, kickoff)
-     * is invariant during a match. `setElapsed` is monotone and silently
-     * ignores null/undefined, so the previous minute survives the HT pause
-     * even though API-Football clears the field there.
+     * Diff-then-write. Score, status, elapsed, and halftime score are the only
+     * fields the live payload supplies; everything else (teams, league,
+     * kickoff) is invariant during a match. Monotone setters preserve the
+     * previous values when the upstream briefly clears the field (HT pause).
+     *
+     * Returns `halftimeNewlyKnown: true` when the HT score transitioned from
+     * null → known on this tick — caller uses this to trigger the HALFTIME
+     * early resolution immediately.
      */
-    private async updateLiveSnapshot(existing: Match, raw: RawMatch): Promise<boolean> {
+    private async updateLiveSnapshot(
+        existing: Match,
+        raw: RawMatch,
+    ): Promise<{ mutated: boolean; halftimeNewlyKnown: boolean }> {
         const json = existing.toJSON();
         const currentScore = json.score ? { home: json.score.home, away: json.score.away } : null;
         const newScore = (raw.homeScore !== null && raw.awayScore !== null)
@@ -98,11 +116,20 @@ export class SyncLiveMatchesUseCase {
         const statusChanged = json.status !== raw.status;
         const elapsedChanged = raw.elapsed !== null && raw.elapsed !== json.elapsed;
 
-        if (!scoreChanged && !statusChanged && !elapsedChanged) return false;
+        const htWasUnknown = json.htHomeScore === null || json.htAwayScore === null;
+        const htNowKnown = raw.htHomeScore !== null && raw.htAwayScore !== null;
+        const halftimeNewlyKnown = htWasUnknown && htNowKnown;
+        const htChanged = halftimeNewlyKnown
+            || (htNowKnown && (raw.htHomeScore !== json.htHomeScore || raw.htAwayScore !== json.htAwayScore));
+
+        if (!scoreChanged && !statusChanged && !elapsedChanged && !htChanged) {
+            return { mutated: false, halftimeNewlyKnown: false };
+        }
 
         existing.updateStatus(raw.status);
         if (newScore) existing.updateScore(newScore.home, newScore.away);
         existing.setElapsed(raw.elapsed);
+        existing.setHalftimeScore(raw.htHomeScore, raw.htAwayScore);
 
         const updated = Match.reconstitute({
             ...existing.toJSON(),
@@ -128,7 +155,7 @@ export class SyncLiveMatchesUseCase {
         });
 
         await this.matchRepository.update(updated);
-        return true;
+        return { mutated: true, halftimeNewlyKnown };
     }
 
     private async invalidateCache(changedMatchIds: number[], changedLeagueIds: Set<number>): Promise<void> {

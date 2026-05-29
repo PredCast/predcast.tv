@@ -7,6 +7,7 @@ import {
     PARI_MATCH_BASE_INLINE_ABI,
     chainFor,
 } from '@chiliztv/blockchain';
+import { FOOTBALL_SEEDING_PAYLOAD } from '../markets/seedingPayload';
 import { logger } from '../../logging/logger';
 
 if (!process.env.PARI_MATCH_FACTORY_ADDRESS) {
@@ -19,11 +20,6 @@ const ADMIN_ADDRESS = process.env.ADMIN_ADDRESS as `0x${string}`;
 // PariMatchBase MarketState enum (cf. PariMatchBase.sol:102-108).
 const MarketState = { Inactive: 0, Open: 1, Suspended: 2, Closed: 3, Resolved: 4, Cancelled: 5 } as const;
 
-// Market type hashes (keccak256 of the ASCII name, cf. FootballPariMatch.sol:42-48).
-const MARKET_WINNER = keccak256(toBytes('WINNER'));
-const MARKET_GOALS_TOTAL = keccak256(toBytes('GOALS_TOTAL'));
-const MARKET_BOTH_SCORE = keccak256(toBytes('BOTH_SCORE'));
-
 const TX_DELAY_MS = 4000;
 function delay(ms: number = TX_DELAY_MS): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -31,8 +27,10 @@ function delay(ms: number = TX_DELAY_MS): Promise<void> {
 
 /**
  * Deploys FootballPariMatch proxies via the PariMatchFactory and seeds the
- * default 3-market lineup (WINNER + GOALS_TOTAL 2.5 + BOTH_SCORE). In the
- * parimutuel model markets carry no initial odds — pools emerge from stakes.
+ * canonical 8-market lineup defined by {@link FOOTBALL_SEEDING_PAYLOAD}
+ * (WINNER, HALFTIME, GOALS_TOTAL ×2 lines, BOTH_SCORE, DOUBLE_CHANCE ×3
+ * variants). In the parimutuel model markets carry no initial odds —
+ * pools emerge from stakes.
  */
 @injectable()
 export class PariMatchDeploymentAdapter {
@@ -104,12 +102,20 @@ export class PariMatchDeploymentAdapter {
     }
 
     /**
-     * Seed and open the default 3-market lineup on a freshly-deployed proxy.
-     * No odds parameter in parimutuel — implied probabilities emerge from
-     * the outcome pools as stakes accumulate.
+     * Seed and open the canonical 8-market lineup on a freshly-deployed proxy.
+     * The payload is the single source of truth — see
+     * {@link FOOTBALL_SEEDING_PAYLOAD}. No odds parameter in parimutuel —
+     * implied probabilities emerge from the outcome pools as stakes
+     * accumulate.
+     *
+     * MUST stay behaviour-equivalent with {@link ViemBlockchainService.setupDefaultMarkets}.
+     * Both consume the same {@link FOOTBALL_SEEDING_PAYLOAD}; the
+     * behavioural-equivalence test asserts deepEqual on both `addMarketsBatch`
+     * AND `openMarketsBatch` args. Don't fork the payload here.
      */
     async setupDefaultMarkets(contractAddress: string): Promise<void> {
         const matchAddr = contractAddress as `0x${string}`;
+        const { hashes, lines, marketIds } = FOOTBALL_SEEDING_PAYLOAD;
 
         const sendAndWait = async (fn: () => Promise<`0x${string}`>) => {
             const hash = await fn();
@@ -126,30 +132,28 @@ export class PariMatchDeploymentAdapter {
             await delay();
         };
 
-        // Batch-add the 3 default markets in one tx (line=0 for WINNER and
-        // BOTH_SCORE, line=25 = 2.5 goals for GOALS_TOTAL).
-        logger.info('Adding default markets (WINNER + GOALS_TOTAL + BOTH_SCORE)', { contractAddress });
+        // Batch-add all 8 markets in one tx. Gas bumped to 3M for 8 SSTORE-heavy
+        // _addMarket calls (was 1.5M for 3 markets). Verify on Anvil fork before
+        // changing if the contract internals shift.
+        logger.info('Adding default markets (8 markets, manifest order)', { contractAddress, marketsCount: hashes.length });
         await sendAndWait(() => this.walletClient.writeContract({
             address: matchAddr,
             abi: PARI_MATCH_BASE_INLINE_ABI,
             functionName: 'addMarketsBatch',
-            args: [
-                [MARKET_WINNER, MARKET_GOALS_TOTAL, MARKET_BOTH_SCORE],
-                [0, 25, 0],
-            ],
-            gas: 1_500_000n,
+            args: [hashes, lines],
+            gas: 3_000_000n,
         }));
 
-        logger.info('Opening markets', { contractAddress });
+        logger.info('Opening markets', { contractAddress, marketsCount: marketIds.length });
         await sendAndWait(() => this.walletClient.writeContract({
             address: matchAddr,
             abi: PARI_MATCH_BASE_INLINE_ABI,
             functionName: 'openMarketsBatch',
-            args: [[0n, 1n, 2n]],
-            gas: 600_000n,
+            args: [marketIds],
+            gas: 1_400_000n,
         }));
 
-        logger.info('Default markets created and opened', { contractAddress, marketsCount: 3 });
+        logger.info('Default markets created and opened', { contractAddress, marketsCount: hashes.length });
     }
 
     async getMarketCount(contractAddress: string): Promise<number> {

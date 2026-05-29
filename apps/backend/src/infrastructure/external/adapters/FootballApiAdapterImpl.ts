@@ -430,6 +430,8 @@ export class FootballApiAdapterImpl implements IFootballApiService {
             homeScore:      m.goals.home,
             awayScore:      m.goals.away,
             elapsed:        m.fixture.status.elapsed ?? null,
+            htHomeScore:    m.score?.halftime?.home ?? null,
+            htAwayScore:    m.score?.halftime?.away ?? null,
         };
     }
 
