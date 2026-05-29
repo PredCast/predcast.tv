@@ -15,6 +15,21 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(50).optional(),
 
   API_FOOTBALL_KEY: z.string().min(20),
+  // Comma-separated list of API-Football league IDs to ingest. Leagues NOT in
+  // this list are dropped post-fetch (the `/fixtures` endpoint isn't filterable
+  // by multi-league when used with date/live params). Set to a single ID to
+  // restrict ingest — e.g. `2` for UEFA Champions League only.
+  API_FOOTBALL_LEAGUE_IDS: z
+    .string()
+    .default('2,3,15,39,61,78,135,140,743')
+    .transform((raw) =>
+      raw
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0)
+        .map((s) => Number.parseInt(s, 10))
+        .filter((n) => Number.isFinite(n) && n > 0),
+    ),
 
   NETWORK: z.enum(['testnet', 'mainnet']).default('testnet'),
 

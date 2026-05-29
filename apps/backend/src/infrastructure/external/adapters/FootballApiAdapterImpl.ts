@@ -8,6 +8,7 @@ import type { ICacheService } from '@chiliztv/domain/shared/ports/ICacheService'
 import type { ILockService } from '@chiliztv/domain/shared/ports/ILockService';
 import { ApiFootballMatch } from '../types/ApiFootball.types';
 import { logger } from '../../logging/logger';
+import { env } from '../../config/environment';
 
 const FORM_CACHE_TTL_SECONDS = 3600;       // 1h — form moves max once per 3-7 days
 const FORM_NEGATIVE_TTL_SECONDS = 600;     // 10 min — team has no completed fixtures
@@ -41,17 +42,11 @@ const FETCH_LOCK_TTL_SECONDS = 90;
 export class FootballApiAdapterImpl implements IFootballApiService {
     private readonly BASE_URL = 'https://v3.football.api-sports.io';
     private readonly API_KEY = process.env.API_FOOTBALL_KEY;
-    private readonly ALLOWED_LEAGUE_IDS = [
-        743, // Saudi Pro League
-        15,  // FIFA World Cup
-        39,  // Premier League
-        61,  // Ligue 1
-        140, // La Liga
-        2,   // UEFA Champions League
-        3,   // UEFA Europa League
-        78,  // Bundesliga
-        135  // Serie A
-    ];
+    // Allowlist sourced from `API_FOOTBALL_LEAGUE_IDS` (env). Common IDs:
+    //   2 = UEFA Champions League · 3 = UEFA Europa League · 15 = FIFA World Cup
+    //   39 = Premier League · 61 = Ligue 1 · 78 = Bundesliga · 135 = Serie A
+    //   140 = La Liga · 743 = Saudi Pro League
+    private readonly ALLOWED_LEAGUE_IDS: ReadonlyArray<number> = env.API_FOOTBALL_LEAGUE_IDS;
 
     private readonly client: AxiosInstance;
     /**
