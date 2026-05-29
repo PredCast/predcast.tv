@@ -255,8 +255,12 @@ export class SyncMatchesUseCase {
             // No odds are pushed on-chain — parimutuel derives them from pools.
             await this.blockchainService.setupDefaultMarkets(contractAddress);
 
+            // Use `toRaw()` — it returns flat MatchProps and is symmetric with
+            // `reconstitute`. `toJSON()` would nest teams/league and the spread
+            // would leave `homeTeamId` / `homeTeamName` / `homeTeamLogo` undefined,
+            // which the next `toRow` would persist as empty JSONB objects.
             const matchWithContract = Match.reconstitute({
-                ...saved.toJSON(),
+                ...saved.toRaw(),
                 bettingContractAddress: contractAddress,
                 updatedAt: this.clock.now(),
             });

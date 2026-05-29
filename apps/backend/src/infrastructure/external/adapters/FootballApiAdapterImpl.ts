@@ -260,19 +260,45 @@ export class FootballApiAdapterImpl implements IFootballApiService {
             const now = this.clock.now();
             const from = this.formatDate(MatchFetchWindow.fetchFrom(now));
             const to   = this.formatDate(new Date(now.getTime() + daysAhead * 86_400_000));
+            // API-Football: `from + to` queries REQUIRE `season` to be set or the
+            // endpoint returns an empty `response` array (no error code). European
+            // football convention — a season N spans Aug N → May/Jun N+1.
+            const season = currentEuropeanSeason(now);
 
-            logger.info('Fetching matches from API-Football', { from, to, daysAhead });
-
-            const response = await this.client.get('/fixtures', {
-                params: { from, to, status: 'NS-LIVE-FT' },
+            logger.info('Fetching matches from API-Football', {
+                from, to, daysAhead, season, leagues: this.ALLOWED_LEAGUE_IDS,
             });
 
-            const all: ApiFootballMatch[] = response.data.response ?? [];
-            const filtered = all.filter(m => this.ALLOWED_LEAGUE_IDS.includes(m.league.id));
+            // `/fixtures?from=&to=&season=` alone returns an empty array — the
+            // endpoint requires `league` (or `team`) as a discriminator. We fire
+            // one call per allow-listed league in parallel and concat results.
+            const perLeague = await Promise.all(
+                this.ALLOWED_LEAGUE_IDS.map((league) =>
+                    this.client
+                        .get('/fixtures', { params: { from, to, season, league } })
+                        .then((resp) => {
+                            const errors = resp.data?.errors;
+                            const hasErrors =
+                                errors && typeof errors === 'object' && Object.keys(errors).length > 0;
+                            if (hasErrors) {
+                                logger.warn('API-Football returned errors', { league, errors });
+                            }
+                            return (resp.data?.response ?? []) as ApiFootballMatch[];
+                        })
+                        .catch((err) => {
+                            logger.warn('API-Football per-league fetch failed', {
+                                league,
+                                error: err instanceof Error ? err.message : String(err),
+                            });
+                            return [] as ApiFootballMatch[];
+                        }),
+                ),
+            );
+            const all = perLeague.flat();
 
-            logger.info('Matches fetched', { total: all.length, filtered: filtered.length });
+            logger.info('Matches fetched', { total: all.length, leagues: this.ALLOWED_LEAGUE_IDS.length });
 
-            const raws = filtered.map(m => this.toRawMatch(m));
+            const raws = all.map(m => this.toRawMatch(m));
             // Persist last good snapshot so callers can serve it during circuit-open / quota-exhausted windows.
             void this.cache.set(LAST_FETCH_CACHE_KEY, raws, LAST_FETCH_CACHE_TTL_SECONDS).catch((err) =>
                 logger.warn('lastFetch cache write failed', { error: err instanceof Error ? err.message : String(err) }),
@@ -453,4 +479,10 @@ export class FootballApiAdapterImpl implements IFootballApiService {
         const d = String(date.getDate()).padStart(2, '0');
         return `${y}-${m}-${d}`;
     }
+}
+
+/** API-Football season number for European leagues (Aug → May/Jun). */
+function currentEuropeanSeason(now: Date): number {
+    const year = now.getUTCFullYear();
+    return now.getUTCMonth() >= 7 ? year : year - 1;
 }
