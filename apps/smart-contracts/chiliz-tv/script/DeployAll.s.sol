@@ -45,7 +45,10 @@ import {LeaderboardRewards} from "../src/leaderboard/LeaderboardRewards.sol";
  *
  * ENVIRONMENT VARIABLES (required):
  * ==================================
- *   PRIVATE_KEY          — Deployer private key
+ *   PRIVATE_KEY          — Deployer private key. Consumed by `forge script`
+ *                          via `--private-key`; the script reads it
+ *                          indirectly through `msg.sender` inside
+ *                          `vm.startBroadcast()` (line 87 below).
  *   SAFE_ADDRESS         — Multi-sig: receives streaming platform fees AND
  *                           serves as feeRecipient for match protocol fees.
  *   KAYEN_MASTER_ROUTER  — Kayen MasterRouterV2 (CHZ → USDC path).
@@ -195,7 +198,7 @@ contract DeployAll is Script {
         console.log("LeaderboardRewards   :", address(leaderboard));
         console.log("  Implementation     :", address(impl));
         console.log("  Admin              :", deployer);
-        console.log("  Oracle (initial)   :", treasury);
+        console.log("  ORACLE_ROLE (V1 compat, unused in V2) :", treasury);
         console.log("  Epoch duration     :", uint256(leaderboard.epochDuration()), "seconds");
         console.log("");
     }
@@ -278,10 +281,10 @@ contract DeployAll is Script {
 
         console.log("");
         console.log("WARNING: the deployer EOA can no longer call:");
-        console.log("  pariFactory.{createFootballMatch, createBasketballMatch, setWiring, setImplementation}");
+        console.log("  pariFactory.{createFootballMatch, createBasketballMatch, setWiring, setImplementation, setLeaderboardWiring}");
         console.log("  streamFactory.{setSwapRouter, setImplementation, upgradeWallet, ...}");
         console.log("  swapRouter.{setMatchFactory, setStreamWalletFactory, setTreasury, setPlatformFeeBps}");
-        console.log("  leaderboard.{setMatchFactory, grantRole, revokeRole, upgradeToAndCall, pause}");
+        console.log("  leaderboard.{setMatchFactory, setEpochDuration, setUSDCToken, grantRole, revokeRole, upgradeToAndCall, pause}");
         console.log("Any such call must now come from the Safe.");
         console.log("");
     }
@@ -311,6 +314,7 @@ contract DeployAll is Script {
         console.log("StreamWalletFactory :", address(streamFactory));
         console.log("ChilizSwapRouter    :", address(swapRouter));
         console.log("LeaderboardRewards  :", address(leaderboard));
+        console.log("Treasury (Safe)     :", treasury);
         console.log("Owner of contracts  :", transferOwnership ? treasury : deployer);
         if (!transferOwnership) {
             console.log("");
