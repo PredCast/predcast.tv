@@ -48,6 +48,11 @@ export interface MatchResponseDto {
   /** Latest W/D/L results for each team (oldest → newest, up to 5 chars). */
   homeForm: string | null;
   awayForm: string | null;
+  /**
+   * Last in-game minute the backend persisted (monotone — never reset to
+   * null once a real value was seen). Null when the match hasn't started.
+   */
+  elapsed: number | null;
   bettingContractAddress?: string;
   /**
    * `true` when the API-Football upstream is in degraded mode (circuit open or

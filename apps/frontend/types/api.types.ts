@@ -39,6 +39,12 @@ export interface Match {
   homeForm: string | null;
   awayForm: string | null;
   /**
+   * In-game minute as last persisted by the backend. Authoritative source —
+   * use this rather than recalculating from kickoff client-side. Null
+   * before kickoff (NS) or when no API-Football data has arrived yet.
+   */
+  elapsed: number | null;
+  /**
    * Backend signal that API-Football is in degraded mode (circuit open or
    * daily quota exhausted). When true, the score may be stale — UI renders a
    * "Stale data" badge so the user doesn't trust the displayed value blindly.

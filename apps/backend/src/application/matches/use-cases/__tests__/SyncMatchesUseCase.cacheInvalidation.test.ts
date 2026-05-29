@@ -37,12 +37,14 @@ function rawMatchAt(score: { home: number; away: number } | null, status = '2H')
     venue: 'San Siro',
     homeScore: score?.home ?? null,
     awayScore: score?.away ?? null,
+    elapsed: null,
   };
 }
 
-function fakeFootballApi(impl: { matches: RawMatch[]; forms?: Map<number, string | null> }): IFootballApiService {
+function fakeFootballApi(impl: { matches: RawMatch[]; forms?: Map<number, string | null>; liveMatches?: RawMatch[] }): IFootballApiService {
   return {
     fetchMatches: vi.fn().mockResolvedValue(impl.matches),
+    fetchLiveMatches: vi.fn().mockResolvedValue(impl.liveMatches ?? []),
     getTeamForm: vi.fn(async (teamId: number) => impl.forms?.get(teamId) ?? null),
     isDataStale: vi.fn().mockReturnValue(false),
   };

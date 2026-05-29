@@ -72,6 +72,7 @@ import { GetMarketPoolsUseCase } from '../application/matches/use-cases/GetMarke
 import { ResolveFinishedMatchesUseCase } from '../application/matches/use-cases/ResolveFinishedMatchesUseCase';
 import { CloseLiveMatchesMarketsUseCase } from '../application/matches/use-cases/CloseLiveMatchesMarketsUseCase';
 import { SyncMatchesUseCase } from '../application/matches/use-cases/SyncMatchesUseCase';
+import { SyncLiveMatchesUseCase } from '../application/matches/use-cases/SyncLiveMatchesUseCase';
 import { CleanupOldMatchesUseCase } from '../application/matches/use-cases/CleanupOldMatchesUseCase';
 
 // ─── Application — Chat ──────────────────────────────────────────────────────
@@ -287,6 +288,7 @@ export function setupDependencyInjection(): void {
   container.registerSingleton(ResolveFinishedMatchesUseCase);
   container.registerSingleton(CloseLiveMatchesMarketsUseCase);
   container.registerSingleton(SyncMatchesUseCase);
+  container.registerSingleton(SyncLiveMatchesUseCase);
   container.registerSingleton(CleanupOldMatchesUseCase);
 
   // ─── Use Cases — Chat ──────────────────────────────────────────────────────

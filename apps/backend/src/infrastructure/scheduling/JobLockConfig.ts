@@ -17,6 +17,7 @@ const baseKey = (slug: string): string => `lock:job:${slug}`;
 
 export const JobLocks = {
   syncMatches:          { key: baseKey('sync-matches'),          ttlSeconds: 120 } satisfies JobLockConfig,
+  syncLiveMatches:      { key: baseKey('sync-live-matches'),     ttlSeconds: 45  } satisfies JobLockConfig,
   resolveMarkets:       { key: baseKey('resolve-markets'),       ttlSeconds: 600 } satisfies JobLockConfig,
   closeLiveMarkets:     { key: baseKey('close-live-markets'),    ttlSeconds: 300 } satisfies JobLockConfig,
   settlePredictions:    { key: baseKey('settle-predictions'),    ttlSeconds: 180 } satisfies JobLockConfig,

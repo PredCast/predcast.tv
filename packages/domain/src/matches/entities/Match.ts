@@ -21,6 +21,12 @@ export interface MatchProps {
   homeForm?: string | null;
   /** Last 5 results from the away team's perspective. */
   awayForm?: string | null;
+  /**
+   * In-game minute persisted from the latest API-Football snapshot. NEVER
+   * overwritten with null — once a non-null value is captured we keep it
+   * across HT / post-FT so the UI minute counter doesn't reset visually.
+   */
+  elapsed?: number | null;
   bettingContractAddress?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -101,6 +107,21 @@ export class Match {
     return this.props.awayForm ?? null;
   }
 
+  getElapsed(): number | null {
+    return this.props.elapsed ?? null;
+  }
+
+  /**
+   * Monotone setter: silently ignores null/undefined to preserve the last
+   * known value across HT and post-FT gaps where API-Football clears the
+   * field. Use {@link updateScore} for plain score writes.
+   */
+  setElapsed(elapsed: number | null | undefined): void {
+    if (elapsed === null || elapsed === undefined) return;
+    this.props.elapsed = elapsed;
+    this.props.updatedAt = new Date();
+  }
+
   /** Flat snapshot of the internal props. Symmetric with `reconstitute` — meant for cache round-trip, not API responses (use `toJSON` for that). */
   toRaw(): MatchProps {
     return { ...this.props };
@@ -134,6 +155,7 @@ export class Match {
         : null,
       homeForm: this.props.homeForm ?? null,
       awayForm: this.props.awayForm ?? null,
+      elapsed: this.props.elapsed ?? null,
       bettingContractAddress: this.props.bettingContractAddress,
       createdAt: this.props.createdAt,
       updatedAt: this.props.updatedAt,

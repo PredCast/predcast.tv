@@ -59,7 +59,7 @@ export function DiscoverTicker({
       >
         {loop.map((m, i) => {
           const live = isLive(m.status);
-          const minuteValue = live ? getMinute(m.status, m.kickoffAt, now) : null;
+          const minuteValue = live ? getMinute(m.status, m.kickoffAt, now, m.elapsed) : null;
           const minuteLabel =
             minuteValue !== null ? `${minuteValue}'` : "LIVE";
           return (

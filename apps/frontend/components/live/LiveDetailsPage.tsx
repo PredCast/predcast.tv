@@ -75,6 +75,7 @@ const DUMMY_TEST_MATCH: Match = {
   contractAddress: "0xe43a99cb7dd0787ce47e5ba0d838d9faca6bec7a" as Address,
   homeForm: null,
   awayForm: null,
+  elapsed: null,
 };
 
 export default function LiveDetailsPage({ id }: LiveDetailsPageProps) {
@@ -130,6 +131,7 @@ export default function LiveDetailsPage({ id }: LiveDetailsPageProps) {
         contractAddress: latestProxy,
         homeForm: null,
         awayForm: null,
+        elapsed: null,
       };
     }
     return DUMMY_TEST_MATCH;
@@ -265,6 +267,7 @@ export default function LiveDetailsPage({ id }: LiveDetailsPageProps) {
         homeForm={matchData.homeForm}
         awayForm={matchData.awayForm}
         status={matchData.status}
+        elapsed={matchData.elapsed ?? undefined}
         kickoffAt={matchData.startTime}
         league={matchData.league}
         onChainMatch={!!matchData.contractAddress}

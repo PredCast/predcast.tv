@@ -2,7 +2,7 @@ export interface ApiFootballMatch {
     fixture: {
         id: number;
         date: string;
-        status: { short: string };
+        status: { short: string; elapsed: number | null };
         venue: { name: string };
     };
     teams: {

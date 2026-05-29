@@ -109,6 +109,7 @@ export class GetBrowseMatchesUseCase {
           : null,
         homeForm: props.homeForm ?? null,
         awayForm: props.awayForm ?? null,
+        elapsed: props.elapsed ?? null,
         contractAddress: props.bettingContractAddress ?? null,
         streamsPreview,
       };

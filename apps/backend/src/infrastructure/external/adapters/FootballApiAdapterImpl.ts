@@ -292,6 +292,46 @@ export class FootballApiAdapterImpl implements IFootballApiService {
     }
 
     /**
+     * In-play fixtures across allowed leagues. Uses `/fixtures?live=all` which
+     * returns ALL currently live matches in one request — quota cost is one
+     * call regardless of the number of concurrent live games. The league
+     * allowlist is applied post-fetch because the upstream `league` param is
+     * mutually exclusive with `live=all`.
+     *
+     * Intentionally cache-less: this is the freshness path. Quota and circuit
+     * gates still apply via the shared interceptors + helpers below.
+     */
+    async fetchLiveMatches(): Promise<RawMatch[]> {
+        if (!this.API_KEY) {
+            logger.error('API_FOOTBALL_KEY not configured');
+            return [];
+        }
+        if (this.isQuotaBlocked()) {
+            logger.warn('fetchLiveMatches skipped — quota exhausted for this UTC day');
+            return [];
+        }
+        if (this.isCircuitOpen()) {
+            logger.warn('fetchLiveMatches skipped — circuit open');
+            return [];
+        }
+
+        try {
+            const response = await this.client.get('/fixtures', {
+                params: { live: 'all' },
+            });
+            const all: ApiFootballMatch[] = response.data?.response ?? [];
+            const filtered = all.filter(m => this.ALLOWED_LEAGUE_IDS.includes(m.league.id));
+            logger.info('Live matches fetched', { total: all.length, filtered: filtered.length });
+            return filtered.map(m => this.toRawMatch(m));
+        } catch (error) {
+            logger.error('Error fetching live matches', {
+                error: error instanceof Error ? error.message : 'Unknown error',
+            });
+            return [];
+        }
+    }
+
+    /**
      * Last successful `fetchMatches` payload — used when the live API is
      * unreachable (circuit open, quota exhausted, or transient error after
      * retries). Empty array on cache miss; callers handle empty gracefully.
@@ -389,6 +429,7 @@ export class FootballApiAdapterImpl implements IFootballApiService {
             venue:          m.fixture.venue?.name,
             homeScore:      m.goals.home,
             awayScore:      m.goals.away,
+            elapsed:        m.fixture.status.elapsed ?? null,
         };
     }
 

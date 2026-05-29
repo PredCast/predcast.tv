@@ -170,6 +170,11 @@ export class SyncMatchesUseCase {
         const formChanged = existingJson.homeForm !== homeForm || existingJson.awayForm !== awayForm;
         const mutated = scoreChanged || statusChanged || formChanged;
 
+        // Preserve last-known elapsed when the upstream returns null (HT, post-FT)
+        // so the 10-min cron doesn't erase the value that SyncLiveMatchesUseCase
+        // wrote on its 30s tick.
+        const elapsedToPersist = raw.elapsed ?? existingJson.elapsed ?? null;
+
         const updated = Match.reconstitute({
             id:                     existingJson.id,
             apiFootballId:          raw.apiFootballId,
@@ -191,6 +196,7 @@ export class SyncMatchesUseCase {
             awayScore:              raw.awayScore ?? undefined,
             homeForm,
             awayForm,
+            elapsed:                elapsedToPersist,
             bettingContractAddress: existing.getBettingContractAddress(),
             createdAt:              existingJson.createdAt,
             updatedAt:              this.clock.now(),
@@ -226,6 +232,7 @@ export class SyncMatchesUseCase {
             awayScore:     raw.awayScore ?? undefined,
             homeForm,
             awayForm,
+            elapsed:       raw.elapsed ?? null,
         });
 
         const saved = await this.matchRepository.save(newMatch);
