@@ -201,10 +201,14 @@ jobs:
       - name: Promote staging URL to production
         id: promote
         if: steps.download.outcome == 'success'
+        # Use `npx -y vercel@latest` instead of `pnpm dlx` — pnpm isn't
+        # available on the runner in this code path (the pnpm/action-setup
+        # step lives in the fallback branch below). npx ships with the
+        # default Node install on ubuntu-latest, so it always works.
         run: |
           STAGING_URL=$(cat staging-deployment-url.txt)
           echo "Promoting $STAGING_URL to production"
-          pnpm dlx vercel promote "$STAGING_URL" --token=${{ secrets.VERCEL_TOKEN }}
+          npx -y vercel@latest promote "$STAGING_URL" --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_APP }}
