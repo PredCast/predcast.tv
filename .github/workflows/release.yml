@@ -205,10 +205,19 @@ jobs:
         # available on the runner in this code path (the pnpm/action-setup
         # step lives in the fallback branch below). npx ships with the
         # default Node install on ubuntu-latest, so it always works.
+        #
+        # `--scope predcast` forces the CLI to operate against the predcast
+        # team rather than the personal default team. Without this, even with
+        # VERCEL_ORG_ID set, the `promote` subcommand has been observed to
+        # default to the token's owner team and fail with "Deployment belongs
+        # to a different team". Belt-and-suspenders: keep both the env var
+        # and the explicit flag.
         run: |
           STAGING_URL=$(cat staging-deployment-url.txt)
           echo "Promoting $STAGING_URL to production"
-          npx -y vercel@latest promote "$STAGING_URL" --token=${{ secrets.VERCEL_TOKEN }}
+          npx -y vercel@latest promote "$STAGING_URL" \
+            --scope=predcast \
+            --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_APP }}
