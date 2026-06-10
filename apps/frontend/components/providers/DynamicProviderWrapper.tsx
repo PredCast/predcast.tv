@@ -8,8 +8,47 @@ import { EthereumWalletConnectors } from "@dynamic-labs/ethereum";
 import { DynamicWagmiConnector } from '@dynamic-labs/wagmi-connector';
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { networkType } from "@/config/chiliz.config";
 import { WagmiProviderWrapper } from "./WagmiProviderWrapper";
 import { UserProfileAutoSync } from "./UserProfileAutoSync";
+
+const SPICY_NETWORK = {
+    chainId: 88882,
+    networkId: 88882,
+    chainName: 'Chiliz Spicy Testnet',
+    name: 'Chiliz Spicy Testnet',
+    rpcUrls: ['https://spicy-rpc.chiliz.com'],
+    blockExplorerUrls: ['https://testnet.chiliscan.com'],
+    nativeCurrency: {
+        name: 'CHZ',
+        symbol: 'CHZ',
+        decimals: 18,
+    },
+    iconUrls: ['/predcast-mark.svg'],
+    isTestnet: true,
+};
+
+const CHILIZ_NETWORK = {
+    chainId: 88888,
+    networkId: 88888,
+    chainName: 'Chiliz Chain',
+    name: 'Chiliz Chain',
+    rpcUrls: ['https://rpc.ankr.com/chiliz'],
+    blockExplorerUrls: ['https://chiliscan.com'],
+    nativeCurrency: {
+        name: 'CHZ',
+        symbol: 'CHZ',
+        decimals: 18,
+    },
+    iconUrls: ['/predcast-mark.svg'],
+    isTestnet: false,
+};
+
+// The active network comes first — Dynamic lists networks in array order and
+// proposes the first one when prompting a switch.
+const EVM_NETWORKS = networkType === 'mainnet'
+    ? [CHILIZ_NETWORK, SPICY_NETWORK]
+    : [SPICY_NETWORK, CHILIZ_NETWORK];
 
 
 export default function DynamicSolanaWalletProvider({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -33,38 +72,7 @@ export default function DynamicSolanaWalletProvider({ children }: Readonly<{ chi
 
         initialAuthenticationMode: 'connect-and-sign' as const,
         overrides: {
-            evmNetworks: [
-                {
-                    chainId: 88882,
-                    networkId: 88882,
-                    chainName: 'Chiliz Spicy Testnet',
-                    name: 'Chiliz Spicy Testnet',
-                    rpcUrls: ['https://spicy-rpc.chiliz.com'],
-                    blockExplorerUrls: ['https://testnet.chiliscan.com'],
-                    nativeCurrency: {
-                        name: 'CHZ',
-                        symbol: 'CHZ',
-                        decimals: 18,
-                    },
-                    iconUrls: ['/predcast-mark.svg'],
-                    isTestnet: true,
-                },
-                {
-                    chainId: 88888,
-                    networkId: 88888,
-                    chainName: 'Chiliz Chain',
-                    name: 'Chiliz Chain',
-                    rpcUrls: ['https://rpc.ankr.com/chiliz'],
-                    blockExplorerUrls: ['https://chiliscan.com'],
-                    nativeCurrency: {
-                        name: 'CHZ',
-                        symbol: 'CHZ',
-                        decimals: 18,
-                    },
-                    iconUrls: ['/predcast-mark.svg'],
-                    isTestnet: false,
-                }
-            ],
+            evmNetworks: EVM_NETWORKS,
         },
         settings: {
             appEnvironment: 'production' as const,
