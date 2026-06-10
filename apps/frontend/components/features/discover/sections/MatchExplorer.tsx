@@ -12,6 +12,8 @@ import {
     type TabDescriptor,
 } from "../components";
 import {
+    buildMatchDays,
+    dayKey,
     groupByLeague,
     isLive,
     sortMatches,
@@ -42,6 +44,7 @@ export function MatchExplorer({
     const { setShowAuthFlow } = useDynamicContext();
     const [tab, setTab] = useState<MatchTab>("all");
     const [league, setLeague] = useState<string | null>(null);
+    const [day, setDay] = useState<string | null>(null);
     const [sort, setSort] = useState<SortMode>("time_asc");
     const [showFinished, setShowFinished] = useState(true);
 
@@ -54,14 +57,19 @@ export function MatchExplorer({
         [matches],
     );
 
+    // Day chips reflect the full dataset so the available days stay stable
+    // while other filters narrow the grid.
+    const days = useMemo(() => buildMatchDays(matches, now), [matches, now]);
+
     const filtered = useMemo(() => {
         let arr = matches;
         if (!showFinished) arr = arr.filter((m) => !FINISHED_STATUSES.has(m.status));
         if (tab === "live") arr = arr.filter((m) => isLive(m.status));
         if (tab === "upcoming") arr = arr.filter((m) => m.status === "NS");
         if (league) arr = arr.filter((m) => `${m.leagueId}_${m.leagueName}` === league);
+        if (day) arr = arr.filter((m) => dayKey(m.kickoffAt) === day);
         return sortMatches(arr, sort);
-    }, [matches, tab, league, sort, showFinished]);
+    }, [matches, tab, league, day, sort, showFinished]);
 
     // Batched pool snapshot for every visible match — drives the league
     // header "Total staked $X" + the empty/pooled partition consumed by
@@ -115,6 +123,9 @@ export function MatchExplorer({
                 leagues={leagues}
                 activeLeague={league}
                 onLeague={setLeague}
+                days={days}
+                activeDay={day}
+                onDay={setDay}
                 sortMode={sort}
                 onSort={setSort}
                 showFinished={showFinished}
@@ -140,7 +151,7 @@ export function MatchExplorer({
                                     ? "No live matches right now"
                                     : "Nothing matches that filter"
                             }
-                            hint="Try clearing the league or switching tab."
+                            hint="Try clearing the league or day filter, or switch tab."
                         />
                     )
                 ) : nothingToShow ? (
