@@ -39,6 +39,15 @@ export function EndCTA() {
           >
             Browse matches
           </Link>
+          <p className="font-mono-ctv m-0 mt-8 text-[11px] uppercase tracking-[0.16em] text-white/55">
+            Found a problem?{" "}
+            <a
+              href="mailto:contact@predcast.tv"
+              className="font-bold text-white/85 underline decoration-[#E8001D]/60 decoration-2 underline-offset-4 transition-colors hover:text-[#FF1737]"
+            >
+              contact@predcast.tv
+            </a>
+          </p>
         </div>
       </div>
     </section>

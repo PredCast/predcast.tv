@@ -13,7 +13,7 @@ type StakeZoneProps =
       };
 
 const COMMON_CLASSES =
-    "ctv-stake-zone -mx-5 -mb-4 mt-4 flex items-center justify-between gap-3 rounded-b-xl bg-[#E8001D] px-5 py-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8001D] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111]";
+    "ctv-stake-zone -mx-5 -mb-4 mt-4 flex items-center justify-between gap-3 rounded-b-xl bg-[#E8001D] px-5 py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8001D] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111]";
 
 /**
  * Magnetic red full-bleed CTA pinned to the card's bottom edge — the focal
@@ -33,15 +33,15 @@ export function StakeZone(props: StakeZoneProps) {
         return (
             <button type="button" onClick={props.onClick} className={COMMON_CLASSES}>
                 <span className="flex flex-col">
-                    <span className="font-display text-[24px] font-extrabold leading-none tracking-[-0.02em] text-white">
+                    <span className="font-display text-[17px] font-extrabold leading-none tracking-[-0.02em] text-white">
                         Be first
                     </span>
-                    <span className="font-mono-ctv mt-1.5 text-[10px] font-bold uppercase tracking-[0.13em] text-white/80">
+                    <span className="font-mono-ctv mt-1 text-[9px] font-bold uppercase tracking-[0.13em] text-white/80">
                         Your stake sets the price
                     </span>
                 </span>
-                <span className="font-mono-ctv flex items-center gap-2 text-[14px] font-extrabold uppercase tracking-[0.18em] text-white">
-                    Stake <span className="ctv-stake-arrow text-[17px]">→</span>
+                <span className="font-mono-ctv flex items-center gap-2 text-[12px] font-extrabold uppercase tracking-[0.16em] text-white">
+                    Stake <span className="ctv-stake-arrow text-[14px]">→</span>
                 </span>
             </button>
         );
@@ -50,16 +50,16 @@ export function StakeZone(props: StakeZoneProps) {
     return (
         <button type="button" onClick={props.onClick} className={COMMON_CLASSES}>
             <span className="flex flex-col">
-                <span className="font-display text-[28px] font-extrabold leading-none tracking-[-0.02em] text-white">
+                <span className="font-display text-[19px] font-extrabold leading-none tracking-[-0.02em] text-white">
                     {props.pool}
                 </span>
-                <span className="font-mono-ctv mt-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.13em] text-white/80">
+                <span className="font-mono-ctv mt-1 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.13em] text-white/80">
                     <span aria-hidden className="ctv-pulse-dot block h-[5px] w-[5px] rounded-full bg-white" />
                     Pool · {props.marketLabel}
                 </span>
             </span>
-            <span className="font-mono-ctv flex items-center gap-2.5 text-[15px] font-extrabold uppercase tracking-[0.2em] text-white">
-                Stake <span className="ctv-stake-arrow text-[18px]">→</span>
+            <span className="font-mono-ctv flex items-center gap-2 text-[12px] font-extrabold uppercase tracking-[0.16em] text-white">
+                Stake <span className="ctv-stake-arrow text-[14px]">→</span>
             </span>
         </button>
     );
