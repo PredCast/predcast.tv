@@ -255,10 +255,10 @@ jobs:
 
       - name: Create Sentry release
         if: env.SENTRY_TOKEN != ''
-        uses: getsentry/sentry-release-action@v3
+        uses: getsentry/action-release@v3
         with:
           environment: production
-          version: ${{ github.ref_name }}
+          release: ${{ github.ref_name }}
         env:
           SENTRY_AUTH_TOKEN: ${{ env.SENTRY_TOKEN }}
           SENTRY_ORG: predcast
