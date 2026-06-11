@@ -6,7 +6,7 @@
  */
 
 import {
-    fmtSelectionByMarket,
+    fmtSelectionWithMarket,
     MARKET_TYPE_HASHES,
     isHiddenMarket as isHiddenMarketByHash,
 } from '@/lib/contracts/markets';
@@ -146,7 +146,9 @@ export function fmtSelection(
 ): string {
     const hash = marketTypeHashFor(marketType);
     if (hash) {
-        return fmtSelectionByMarket(
+        // Market-qualified ("Mexico · Half-time") — bets from different
+        // markets on the same match are indistinguishable otherwise.
+        return fmtSelectionWithMarket(
             Number(outcome),
             hash,
             line ?? 0,
