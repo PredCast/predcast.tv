@@ -17,6 +17,8 @@ interface BetStakeStepProps {
     readonly insufficient: boolean;
     /** Optional FanX quote (USDC equivalent) — surfaces under the input + powers the payout preview. */
     readonly quotedUsdcAmount: number | null;
+    /** Price impact %, already thresholded by the shell — null hides the warning. */
+    readonly priceImpactPct?: number | null;
 }
 
 const PRESETS = ['10', '25', '50', '100', 'MAX'] as const;
@@ -40,6 +42,7 @@ export function BetStakeStep({
     selectionLabel,
     insufficient,
     quotedUsdcAmount,
+    priceImpactPct = null,
 }: BetStakeStepProps) {
     const [pickerOpen, setPickerOpen] = useState(false);
     const numericAmount = Number(amount);
@@ -134,6 +137,15 @@ export function BetStakeStep({
                         style={{ color: '#FF1737', background: 'rgba(255,23,55,0.08)', borderColor: 'rgba(255,23,55,0.4)' }}
                     >
                         <span aria-hidden>⚠</span> Insufficient balance
+                    </div>
+                )}
+
+                {priceImpactPct != null && (
+                    <div
+                        className="font-mono-ctv mt-3 inline-flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em]"
+                        style={{ color: '#F5C518', background: 'rgba(245,197,24,0.08)', borderColor: 'rgba(245,197,24,0.4)' }}
+                    >
+                        <span aria-hidden>⚠</span> High price impact ~{priceImpactPct.toFixed(1)}% — shallow {token.sym} pool, consider a smaller stake
                     </div>
                 )}
             </div>

@@ -5,7 +5,8 @@ import { erc20Abi, formatUnits, maxUint256, parseUnits, type Address } from "vie
 import { useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { useChilizSwapRouter } from "@/hooks/useChilizSwapRouter";
-import { useKayenQuote } from "@/hooks/useKayenQuote";
+import { useSwapRouterQuote } from "@/hooks/useSwapRouterQuote";
+import { useTokenDecimals } from "@/hooks/useTokenDecimals";
 import { usePoolDecimals } from "@/hooks/usePoolDecimals";
 import { useFanTokens } from "@/hooks/useFanTokens";
 import { chilizConfig } from "@/config/chiliz.config";
@@ -86,7 +87,10 @@ export function DonationModal({
 
   const tokenKind = selectedToken.token;
   const tokenSymbol = symbolFor(tokenKind);
-  const decimals = decimalsFor(tokenKind, usdcDecimals);
+  const erc20Decimals = useTokenDecimals(
+    tokenKind.kind === "ERC20" ? tokenKind.address : undefined,
+  );
+  const decimals = decimalsFor(tokenKind, usdcDecimals, erc20Decimals);
 
   const parsedAmount: bigint = useMemo(() => {
     if (!amount || decimals === undefined) return BigInt(0);
@@ -143,7 +147,7 @@ export function DonationModal({
     amountOut: quotedUsdcOut,
     error: quoteError,
     isLoading: quoteLoading,
-  } = useKayenQuote(parsedAmount > BigInt(0) ? parsedAmount : undefined, quoteTokenIn);
+  } = useSwapRouterQuote(parsedAmount > BigInt(0) ? parsedAmount : undefined, quoteTokenIn);
 
   const swapPathMissing =
     tokenKind.kind !== "USDC" &&

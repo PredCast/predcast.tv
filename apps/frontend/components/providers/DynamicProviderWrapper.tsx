@@ -33,7 +33,7 @@ const CHILIZ_NETWORK = {
     networkId: 88888,
     chainName: 'Chiliz Chain',
     name: 'Chiliz Chain',
-    rpcUrls: ['https://rpc.ankr.com/chiliz'],
+    rpcUrls: ['https://chiliz-rpc.publicnode.com'],
     blockExplorerUrls: ['https://chiliscan.com'],
     nativeCurrency: {
         name: 'CHZ',

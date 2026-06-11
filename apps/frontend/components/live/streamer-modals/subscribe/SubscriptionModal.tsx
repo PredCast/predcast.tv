@@ -5,7 +5,8 @@ import { erc20Abi, formatUnits, maxUint256, parseUnits, type Address } from "vie
 import { useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { useChilizSwapRouter } from "@/hooks/useChilizSwapRouter";
-import { useKayenQuote } from "@/hooks/useKayenQuote";
+import { useSwapRouterQuote } from "@/hooks/useSwapRouterQuote";
+import { useTokenDecimals } from "@/hooks/useTokenDecimals";
 import { usePoolDecimals } from "@/hooks/usePoolDecimals";
 import { useFanTokens } from "@/hooks/useFanTokens";
 import { useStreamWallet } from "@/hooks/useStreamWallet";
@@ -92,7 +93,10 @@ export function SubscriptionModal({
 
   const tokenKind = selectedToken.token;
   const tokenSymbol = symbolFor(tokenKind);
-  const decimals = decimalsFor(tokenKind, usdcDecimals);
+  const erc20Decimals = useTokenDecimals(
+    tokenKind.kind === "ERC20" ? tokenKind.address : undefined,
+  );
+  const decimals = decimalsFor(tokenKind, usdcDecimals, erc20Decimals);
 
   const totalUsd = monthlyPriceUsd * months;
 
@@ -112,7 +116,7 @@ export function SubscriptionModal({
     amountOut: oneUnitInUsdc,
     error: probeError,
     isLoading: probeLoading,
-  } = useKayenQuote(
+  } = useSwapRouterQuote(
     tokenKind.kind !== "USDC" && oneUnit > BigInt(0) ? oneUnit : undefined,
     probeTokenIn,
   );
@@ -124,8 +128,12 @@ export function SubscriptionModal({
     const unitUsd = Number(formatUnits(oneUnitInUsdc, usdcDecimals));
     if (!Number.isFinite(unitUsd) || unitUsd <= 0) return "";
     const raw = totalUsd / unitUsd;
-    return raw.toFixed(tokenKind.kind === "CHZ" ? 0 : 4);
-  }, [tokenKind.kind, totalUsd, oneUnitInUsdc, usdcDecimals]);
+    // Fraction digits capped at the token's decimals (0-dp fan tokens can't
+    // carry fractions — parseUnits would throw); ceil keeps totalUsd covered.
+    const fractionDigits = tokenKind.kind === "CHZ" ? 0 : Math.min(4, decimals ?? 0);
+    const factor = 10 ** fractionDigits;
+    return (Math.ceil(raw * factor) / factor).toFixed(fractionDigits);
+  }, [tokenKind.kind, totalUsd, oneUnitInUsdc, usdcDecimals, decimals]);
 
   const parsedAmount: bigint = useMemo(() => {
     if (!tokenAmountString || decimals === undefined) return BigInt(0);
@@ -143,7 +151,7 @@ export function SubscriptionModal({
     amountOut: quotedUsdcOut,
     error: quoteError,
     isLoading: quoteLoading,
-  } = useKayenQuote(
+  } = useSwapRouterQuote(
     parsedAmount > BigInt(0) ? parsedAmount : undefined,
     probeTokenIn,
   );

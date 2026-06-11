@@ -13,7 +13,7 @@ const NETWORK = (process.env.NEXT_PUBLIC_NETWORK || process.env.NETWORK || 'test
 const isTestnet = NETWORK !== 'mainnet';
 
 const SPICY_RPC_URL = 'https://spicy-rpc.chiliz.com';
-const CHILIZ_RPC_URL = 'https://rpc.ankr.com/chiliz';
+const CHILIZ_RPC_URL = 'https://chiliz-rpc.publicnode.com';
 
 const config = isTestnet
   ? createConfig({

@@ -11,8 +11,8 @@ import {
 } from "@chiliztv/ui";
 import { useBetTokenBalances } from "@/hooks/useBetTokenBalances";
 import { useChilizSwapRouter } from "@/hooks/useChilizSwapRouter";
-import { useKayenPairAvailability } from "@/hooks/useKayenPairAvailability";
-import { useKayenQuote } from "@/hooks/useKayenQuote";
+import { useSwapRouterTokenAvailability } from "@/hooks/useSwapRouterTokenAvailability";
+import { useSwapRouterQuote } from "@/hooks/useSwapRouterQuote";
 import { usePoolDecimals } from "@/hooks/usePoolDecimals";
 import { chilizConfig } from "@/config/chiliz.config";
 import { decodeContractError } from "@/lib/contracts/errors";
@@ -74,7 +74,9 @@ type BetToken =
 type Phase = "pick" | "stake" | "review" | "success" | "failure";
 
 const NATIVE_DECIMALS = 18;
-const FAN_TOKEN_DECIMALS = 18;
+// Price impact above which the stake step shows a shallow-pool warning.
+// Kayen fan-token pools are thin (100 PSG ≈ 32% impact at current depth).
+const PRICE_IMPACT_WARN_PCT = 3;
 // 60 min — generous enough to cover slow signs on wallets that can't auto-estimate
 // gas on Spicy (MetaMask shows "Network fee — unavailable" and the user has to
 // configure gas manually, which routinely takes >20 min). Frontrunning protection
@@ -95,10 +97,12 @@ function tokenLabel(t: BetToken): string {
   if (t.kind === "CHZ") return "CHZ";
   return t.symbol;
 }
+// ERC20 stake tokens are intentionally absent — their decimals MUST come from
+// the contract (mainnet fan tokens are 0-dp, Spicy mocks 18-dp).
 function tokenDecimals(t: BetToken, usdcDecimals: number | undefined): number | undefined {
   if (t.kind === "USDC") return usdcDecimals;
   if (t.kind === "CHZ") return NATIVE_DECIMALS;
-  return FAN_TOKEN_DECIMALS;
+  return undefined;
 }
 function tokenLogoBg(kind: BetToken["kind"]): string {
   if (kind === "USDC") return "#2775CA";
@@ -284,7 +288,7 @@ export function MarketBetDialog({
 
   const quoteTokenIn: Address | undefined =
     token.kind === "ERC20" ? token.address : token.kind === "CHZ" ? chilizConfig.wchz : undefined;
-  const { amountOut: quotedUsdcOut, error: quoteError, isLoading: quoteLoading } = useKayenQuote(
+  const { amountOut: quotedUsdcOut, error: quoteError, isLoading: quoteLoading } = useSwapRouterQuote(
     parsedAmount > BigInt(0) ? parsedAmount : undefined,
     quoteTokenIn,
   );
@@ -297,6 +301,29 @@ export function MarketBetDialog({
     const slippageMul = BigInt(10_000 - slippageBps);
     return (quotedUsdcOut * slippageMul) / BigInt(10_000);
   }, [token.kind, quotedUsdcOut, slippageBps]);
+
+  // ── Price impact (shallow Kayen pools) ─────────────────────────────────
+  // Reference = 1 whole token through the same route; impact compares the
+  // realized unit price of the full stake against it.
+  const oneTokenUnit: bigint =
+    token.kind !== "USDC" && decimals !== undefined ? BigInt(10) ** BigInt(decimals) : BigInt(0);
+  const { amountOut: oneTokenQuote } = useSwapRouterQuote(
+    oneTokenUnit > BigInt(0) && parsedAmount > oneTokenUnit ? oneTokenUnit : undefined,
+    quoteTokenIn,
+  );
+  const priceImpactPct: number | null = useMemo(() => {
+    if (
+      token.kind === "USDC" ||
+      quotedUsdcOut === undefined ||
+      oneTokenQuote === undefined ||
+      oneTokenQuote === BigInt(0) ||
+      parsedAmount <= oneTokenUnit
+    ) return null;
+    const realized = Number(quotedUsdcOut) / Number(parsedAmount);
+    const spot = Number(oneTokenQuote) / Number(oneTokenUnit);
+    if (!Number.isFinite(realized) || !Number.isFinite(spot) || spot <= 0) return null;
+    return Math.max(0, (1 - realized / spot) * 100);
+  }, [token.kind, quotedUsdcOut, oneTokenQuote, parsedAmount, oneTokenUnit]);
 
   // USDC amount the contract will actually see (post-swap on non-USDC paths).
   const expectedStakeUsdc: bigint =
@@ -404,10 +431,9 @@ export function MarketBetDialog({
 
   const policyBlockMessage = !policyAllowsBetting && match && now ? policyMessageFor(verdict, match.kickoffAt, now) : "";
 
-  // Swappable currencies require a live Kayen pair against USDC — a bet in a
-  // pairless token reverts at swap time (mainnet fan tokens have no direct
-  // USDC pair today). Testnet is exempt.
-  const { chzAvailable, isAvailable: isPairAvailable } = useKayenPairAvailability();
+  // Swappable currencies require a route the router can actually execute
+  // (wrap + [.., WCHZ, USDC]) — probed via quoteTokenToUSDC. Testnet is exempt.
+  const { chzAvailable, isAvailable: isPairAvailable } = useSwapRouterTokenAvailability();
 
   // Map the stake decimal stream into the token shape the StakeStep wants.
   const fanTokens = (chilizConfig.tokens || []).filter(
@@ -464,13 +490,18 @@ export function MarketBetDialog({
       sym,
       name: token.kind === "USDC" ? "USD Coin" : token.kind === "CHZ" ? "Chiliz" : token.name,
       balance,
-      decimals: token.kind === "USDC" ? usdcDecimals ?? 2 : 4,
+      decimals:
+        token.kind === "USDC"
+          ? usdcDecimals ?? 2
+          : token.kind === "ERC20"
+            ? fetchedErc20Decimals ?? 4
+            : 4,
       needsSwap: token.kind !== "USDC",
       logoTxt: tokenLogoTxt(token.kind),
       logoBg: tokenLogoBg(token.kind),
       logoUrl: tokenLogoFor(sym) ?? undefined,
     };
-  }, [token, balance, usdcDecimals]);
+  }, [token, balance, usdcDecimals, fetchedErc20Decimals]);
 
   // ── Submit tx (approve OR placeBet) ─────────────────────────────────────
   const needsApproval =
@@ -899,6 +930,11 @@ export function MarketBetDialog({
                   quotedUsdcAmount={
                     quotedUsdcOut !== undefined && usdcDecimals !== undefined
                       ? Number(formatUnits(quotedUsdcOut, usdcDecimals))
+                      : null
+                  }
+                  priceImpactPct={
+                    priceImpactPct !== null && priceImpactPct >= PRICE_IMPACT_WARN_PCT
+                      ? priceImpactPct
                       : null
                   }
                 />

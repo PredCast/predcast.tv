@@ -37,6 +37,11 @@ const SUBSCRIPTION_WITH_TOKEN = parseAbiItem(
 const SUBSCRIPTION_WITH_USDC = parseAbiItem(
     'event SubscriptionWithUSDCEvent(address indexed subscriber, address indexed streamer, uint256 amount, uint256 platformFee, uint256 duration)',
 );
+// Fires inside fan-token swaps (CAP-20 wrap before [wrapped, WCHZ, USDC]) —
+// lets analytics tell wrapped bets apart from plain ERC20 ones.
+const FAN_TOKEN_WRAPPED = parseAbiItem(
+    'event FanTokenWrapped(address indexed token, address indexed wrapped, uint256 amountIn, uint256 wrappedAmount)',
+);
 
 // Bet events carry a marketId in their payload; persisting them in
 // `market_events` keeps the audit colocated with the PariMatch events.
@@ -53,6 +58,7 @@ const ALL_EVENTS = [
     SUBSCRIPTION_WITH_CHZ,
     SUBSCRIPTION_WITH_TOKEN,
     SUBSCRIPTION_WITH_USDC,
+    FAN_TOKEN_WRAPPED,
 ];
 
 /**

@@ -14,7 +14,7 @@ const config = createConfig({
   multiInjectedProviderDiscovery: false,
   transports: {
     [spicy.id]: http('https://spicy-rpc.chiliz.com'),
-    [chiliz.id]: http('https://rpc.ankr.com/chiliz'),
+    [chiliz.id]: http('https://chiliz-rpc.publicnode.com'),
   },
 });
 

@@ -1508,6 +1508,16 @@ export const chilizSwapRouterAbi = [
   },
   {
     type: 'function',
+    inputs: [
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'quoteTokenToUSDC',
+    outputs: [{ name: 'usdcOut', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     inputs: [],
     name: 'renounceOwnership',
     outputs: [],
@@ -1538,6 +1548,13 @@ export const chilizSwapRouterAbi = [
     type: 'function',
     inputs: [{ name: '_treasury', internalType: 'address', type: 'address' }],
     name: 'setTreasury',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_factory', internalType: 'address', type: 'address' }],
+    name: 'setWrapperFactory',
     outputs: [],
     stateMutability: 'nonpayable',
   },
@@ -1593,6 +1610,17 @@ export const chilizSwapRouterAbi = [
   },
   {
     type: 'function',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'swapRouteFor',
+    outputs: [
+      { name: 'swapToken', internalType: 'address', type: 'address' },
+      { name: 'swapAmountPerUnit', internalType: 'uint256', type: 'uint256' },
+      { name: 'path', internalType: 'address[]', type: 'address[]' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     inputs: [],
     name: 'tokenRouter',
     outputs: [
@@ -1626,6 +1654,19 @@ export const chilizSwapRouterAbi = [
     inputs: [],
     name: 'wchz',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'wrapperFactory',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract IChilizWrapperFactory',
+        type: 'address',
+      },
+    ],
     stateMutability: 'view',
   },
   {
@@ -1876,6 +1917,37 @@ export const chilizSwapRouterAbi = [
     anonymous: false,
     inputs: [
       {
+        name: 'token',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'wrapped',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amountIn',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'wrappedAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'FanTokenWrapped',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
         name: 'oldFactory',
         internalType: 'address',
         type: 'address',
@@ -2094,6 +2166,25 @@ export const chilizSwapRouterAbi = [
       },
     ],
     name: 'TreasurySet',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'oldFactory',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newFactory',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'WrapperFactorySet',
   },
   {
     type: 'error',
@@ -8058,12 +8149,30 @@ export const useChilizSwapRouterReadPlatformFeeBps =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"quoteTokenToUSDC"`
+ */
+export const useChilizSwapRouterReadQuoteTokenToUsdc =
+  /*#__PURE__*/ createUseReadContract({
+    abi: chilizSwapRouterAbi,
+    functionName: 'quoteTokenToUSDC',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"streamWalletFactory"`
  */
 export const useChilizSwapRouterReadStreamWalletFactory =
   /*#__PURE__*/ createUseReadContract({
     abi: chilizSwapRouterAbi,
     functionName: 'streamWalletFactory',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"swapRouteFor"`
+ */
+export const useChilizSwapRouterReadSwapRouteFor =
+  /*#__PURE__*/ createUseReadContract({
+    abi: chilizSwapRouterAbi,
+    functionName: 'swapRouteFor',
   })
 
 /**
@@ -8099,6 +8208,15 @@ export const useChilizSwapRouterReadWchz = /*#__PURE__*/ createUseReadContract({
   abi: chilizSwapRouterAbi,
   functionName: 'wchz',
 })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"wrapperFactory"`
+ */
+export const useChilizSwapRouterReadWrapperFactory =
+  /*#__PURE__*/ createUseReadContract({
+    abi: chilizSwapRouterAbi,
+    functionName: 'wrapperFactory',
+  })
 
 /**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__
@@ -8203,6 +8321,15 @@ export const useChilizSwapRouterWriteSetTreasury =
   /*#__PURE__*/ createUseWriteContract({
     abi: chilizSwapRouterAbi,
     functionName: 'setTreasury',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"setWrapperFactory"`
+ */
+export const useChilizSwapRouterWriteSetWrapperFactory =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: chilizSwapRouterAbi,
+    functionName: 'setWrapperFactory',
   })
 
 /**
@@ -8347,6 +8474,15 @@ export const useChilizSwapRouterSimulateSetTreasury =
   })
 
 /**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"setWrapperFactory"`
+ */
+export const useChilizSwapRouterSimulateSetWrapperFactory =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: chilizSwapRouterAbi,
+    functionName: 'setWrapperFactory',
+  })
+
+/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"subscribeWithCHZ"`
  */
 export const useChilizSwapRouterSimulateSubscribeWithChz =
@@ -8443,6 +8579,15 @@ export const useChilizSwapRouterWatchDonationWithUsdcEvent =
   })
 
 /**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `eventName` set to `"FanTokenWrapped"`
+ */
+export const useChilizSwapRouterWatchFanTokenWrapped =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: chilizSwapRouterAbi,
+    eventName: 'FanTokenWrapped',
+  })
+
+/**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `eventName` set to `"MatchFactorySet"`
  */
 export const useChilizSwapRouterWatchMatchFactorySet =
@@ -8512,6 +8657,15 @@ export const useChilizSwapRouterWatchTreasurySet =
   /*#__PURE__*/ createUseWatchContractEvent({
     abi: chilizSwapRouterAbi,
     eventName: 'TreasurySet',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `eventName` set to `"WrapperFactorySet"`
+ */
+export const useChilizSwapRouterWatchWrapperFactorySet =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: chilizSwapRouterAbi,
+    eventName: 'WrapperFactorySet',
   })
 
 /**

@@ -41,7 +41,9 @@ export const chilizMainnet = defineChain({
     },
     rpcUrls: {
         default: {
-            http: ['https://rpc.ankr.com/chiliz'],
+            // publicnode over rpc.chiliz.com: the official balancer serves
+            // nodes up to ~70k blocks stale (balances/pools flicker on reads).
+            http: ['https://chiliz-rpc.publicnode.com'],
         },
     },
     blockExplorers: {

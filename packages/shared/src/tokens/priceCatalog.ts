@@ -42,6 +42,7 @@ export const PRICE_CATALOG: ReadonlyArray<PriceCatalogEntry> = [
     { symbol: 'SCCP',   coingeckoId: 'corinthians-fan-token',             displayName: 'Corinthians' },
 
     // Other sports
+    { symbol: 'SAUBER', coingeckoId: 'alfa-romeo-racing-orlen-fan-token', displayName: 'Sauber F1 Team' },
     { symbol: 'OG',     coingeckoId: 'og-fan-token',                      displayName: 'OG Esports' },
     { symbol: 'UFC',    coingeckoId: 'ufc-fan-token',                     displayName: 'UFC' },
 ];

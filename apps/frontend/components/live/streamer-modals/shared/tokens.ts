@@ -26,7 +26,6 @@ export interface StreamerTokenView {
 }
 
 const NATIVE_DECIMALS = 18;
-const FAN_TOKEN_DECIMALS = 18;
 
 /** Build the (always-present) USDC + CHZ + active fan-token list. */
 export function buildStreamerTokenList(): StreamerTokenView[] {
@@ -64,14 +63,20 @@ export function buildStreamerTokenList(): StreamerTokenView[] {
   ];
 }
 
-/** Decimals for a given token (USDC reads from the pool, CHZ/ERC20 are 18). */
+/**
+ * Decimals for a given token. USDC reads from the pool, CHZ is 18, ERC20
+ * MUST be the contract-reported value (mainnet fan tokens are 0-dp, Spicy
+ * mocks 18-dp) — callers pass it from `useTokenDecimals`; undefined while
+ * loading keeps parseUnits gated.
+ */
 export function decimalsFor(
   token: StreamerTokenKind,
   usdcDecimals: number | undefined,
+  erc20Decimals: number | undefined,
 ): number | undefined {
   if (token.kind === "USDC") return usdcDecimals;
   if (token.kind === "CHZ") return NATIVE_DECIMALS;
-  return FAN_TOKEN_DECIMALS;
+  return erc20Decimals;
 }
 
 /** Display symbol for a token kind. */
