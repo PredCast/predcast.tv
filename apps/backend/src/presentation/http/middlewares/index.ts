@@ -1,5 +1,6 @@
 export { errorHandler } from './error-handler.middleware';
 export { authenticate } from './authentication.middleware';
+export { requireNotBanned } from './require-not-banned.middleware';
 export {
   globalLimiter,
   authLimiter,
@@ -9,4 +10,5 @@ export {
   streamCreationLimiter,
   webhookLimiter,
   adminLimiter,
+  reportsLimiter,
 } from './rate-limit.middleware';

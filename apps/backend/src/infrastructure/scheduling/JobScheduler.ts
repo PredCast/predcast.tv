@@ -13,6 +13,7 @@ import { ViewerReconcileJob } from './jobs/ViewerReconcileJob';
 import { CloudflareReconcileJob } from './jobs/CloudflareReconcileJob';
 import { RefreshTokenPricesJob } from './jobs/RefreshTokenPricesJob';
 import { CloseMonthlyEpochJob } from './jobs/CloseMonthlyEpochJob';
+import { LiftExpiredBansJob } from './jobs/LiftExpiredBansJob';
 import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import type { ILockService } from '@chiliztv/domain/shared/ports/ILockService';
 import { JobLocks, type JobLockConfig } from './JobLockConfig';
@@ -46,6 +47,7 @@ export class JobScheduler {
         private readonly cloudflareReconcileJob: CloudflareReconcileJob,
         private readonly refreshTokenPricesJob: RefreshTokenPricesJob,
         private readonly closeMonthlyEpochJob: CloseMonthlyEpochJob,
+        private readonly liftExpiredBansJob: LiftExpiredBansJob,
         @inject(TOKENS.ILockService) private readonly locks: ILockService,
     ) {}
 
@@ -79,6 +81,8 @@ export class JobScheduler {
             () => this.refreshTokenPricesJob.execute());
         this.startIntervalJob('SettlePredictions', this.settlePredictionsJob.getIntervalMs(), JobLocks.settlePredictions,
             () => this.settlePredictionsJob.execute());
+        this.startIntervalJob('LiftExpiredBans', this.liftExpiredBansJob.getIntervalMs(), JobLocks.liftExpiredBans,
+            () => this.liftExpiredBansJob.execute());
 
         logger.info('Job scheduler started successfully');
     }

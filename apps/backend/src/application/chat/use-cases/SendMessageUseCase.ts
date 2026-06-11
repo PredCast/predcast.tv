@@ -27,6 +27,7 @@ export class SendMessageUseCase {
       message: dto.message,
       type: MessageType.REGULAR,
       isFeatured,
+      clientTempId: dto.clientTempId,
     });
 
     await this.chatRepository.updateUserActivity(dto.matchId, dto.userId);

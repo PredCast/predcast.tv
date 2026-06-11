@@ -68,6 +68,18 @@ export class SupabaseMarketEventRepository implements IMarketEventRepository {
         return { marketType, line };
     }
 
+    async countByEventName(eventName: string): Promise<number> {
+        const { count, error } = await supabase
+            .from('market_events')
+            .select('*', { count: 'exact', head: true })
+            .eq('event_name', eventName);
+        if (error) {
+            logger.warn('countByEventName failed', { eventName, error: error.message });
+            return 0;
+        }
+        return count ?? 0;
+    }
+
     async findCreatedMissingLine(): Promise<ReadonlyArray<MissingLineRow>> {
         // Two predicates: `payload->>'line'` is the JSON-text projection;
         // PostgREST's `is` filter against `null` matches both missing keys and

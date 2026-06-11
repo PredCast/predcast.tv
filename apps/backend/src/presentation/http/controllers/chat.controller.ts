@@ -65,7 +65,10 @@ export class ChatController {
   async sendMessage(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const matchId = parseInt(req.params.matchId);
-      const { userId, walletAddress, username, message, isFeatured, streamId } = req.body;
+      const { userId, username, message, isFeatured, streamId, clientTempId } = req.body;
+      // Wallet identity is stamped from the JWT, never trusted from the body
+      // (closes the pre-existing client-side spoofing path).
+      const walletAddress = req.user?.walletAddress ?? req.body.walletAddress;
 
       const chatMessage = await this.sendMessageUseCase.execute({
         matchId,
@@ -75,6 +78,7 @@ export class ChatController {
         username,
         message,
         isFeatured,
+        clientTempId,
       });
 
       res.json({

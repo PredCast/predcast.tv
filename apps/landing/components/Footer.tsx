@@ -3,7 +3,7 @@ import Link from "next/link";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
-const X_URL = "https://x.com/predcast";
+const X_URL = "https://x.com/ChilizTv";
 const DISCORD_URL = "https://discord.gg";
 
 const NAV_LINKS: { label: string; href: string; external?: boolean }[] = [
@@ -108,10 +108,16 @@ export function Footer() {
 
         {/* Fine print */}
         <div className="border-t border-[#161616]">
-          <div className="mx-auto flex max-w-[1400px] px-8 py-4 sm:px-14">
+          <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-x-6 gap-y-1 px-8 py-4 sm:px-14">
             <span className="font-mono-ctv text-[9px] uppercase tracking-[0.18em] text-white/30">
               © {new Date().getFullYear()} PredCast · all rights reserved
             </span>
+            <a
+              href="mailto:contact@predcast.tv"
+              className="font-mono-ctv text-[9px] uppercase tracking-[0.18em] text-white/30 transition-colors hover:text-white/60"
+            >
+              Facing an issue? · contact@predcast.tv
+            </a>
           </div>
         </div>
       </footer>

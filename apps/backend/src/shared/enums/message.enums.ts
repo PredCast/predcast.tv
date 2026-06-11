@@ -11,7 +11,9 @@ export enum SystemMessageType {
     MATCH_END = 'match_end',
     GOAL = 'goal',
     USER_JOINED = 'user_joined',
-    USER_LEFT = 'user_left'
+    USER_LEFT = 'user_left',
+    MESSAGE_REMOVED = 'message_removed',
+    STREAM_STOPPED = 'stream_stopped'
 }
 
 // Bet type enum

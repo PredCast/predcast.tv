@@ -4,9 +4,11 @@ import { useState } from "react";
 import {
   SORT_OPTIONS,
   type LeagueDto,
+  type MatchDay,
   type MatchTab,
   type SortMode,
 } from "../domain";
+import { DayFilterRow } from "./DayFilterRow";
 
 export interface TabDescriptor {
   key: MatchTab;
@@ -21,6 +23,9 @@ interface FilterBarProps {
   leagues: LeagueDto[];
   activeLeague: string | null;
   onLeague: (key: string | null) => void;
+  days: MatchDay[];
+  activeDay: string | null;
+  onDay: (key: string | null) => void;
   sortMode: SortMode;
   onSort: (s: SortMode) => void;
   showFinished: boolean;
@@ -41,6 +46,9 @@ export function FilterBar({
   leagues,
   activeLeague,
   onLeague,
+  days,
+  activeDay,
+  onDay,
   sortMode,
   onSort,
   showFinished,
@@ -121,7 +129,10 @@ export function FilterBar({
           </div>
         </div>
 
-        {/* Row 2: leagues */}
+        {/* Row 2: days */}
+        <DayFilterRow days={days} activeDay={activeDay} onDay={onDay} />
+
+        {/* Row 3: leagues */}
         <div className="-mx-2 flex items-center gap-2 overflow-x-auto py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <button
             type="button"

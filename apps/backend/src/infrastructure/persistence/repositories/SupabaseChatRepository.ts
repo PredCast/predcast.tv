@@ -21,6 +21,8 @@ interface ChatMessageRow {
   bet_sub_type?: string;
   amount?: number;
   odds?: number;
+  client_temp_id?: string | null;
+  removed_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -200,7 +202,39 @@ export class SupabaseChatRepository implements IChatRepository {
       betSubType: row.bet_sub_type,
       amount: row.amount,
       odds: row.odds,
+      clientTempId: row.client_temp_id ?? undefined,
+      removedAt: row.removed_at ? new Date(row.removed_at) : null,
     });
+  }
+
+  async findMessageById(messageId: string): Promise<ChatMessage | null> {
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('id', messageId)
+      .maybeSingle();
+
+    if (error) {
+      logger.error('Failed to load chat message by id', { error: error.message, messageId });
+      throw new Error('Failed to load chat message');
+    }
+    return data ? this.rowToMessage(data as ChatMessageRow) : null;
+  }
+
+  async softDeleteMessage(messageId: string, actionId: string, at: Date): Promise<{ matchId: number } | null> {
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .update({ removed_at: at.toISOString(), removed_by_action_id: actionId })
+      .eq('id', messageId)
+      .is('removed_at', null)
+      .select('match_id');
+
+    if (error) {
+      logger.error('Failed to soft-delete chat message', { error: error.message, messageId });
+      throw new Error('Failed to soft-delete chat message');
+    }
+    const rows = data as Array<{ match_id: number }>;
+    return rows.length > 0 ? { matchId: rows[0]!.match_id } : null;
   }
 
   private messageToRow(message: ChatMessage): any {
@@ -220,6 +254,7 @@ export class SupabaseChatRepository implements IChatRepository {
       system_type: json.systemType ?? null,
       amount: json.amount,
       odds: json.odds,
+      client_temp_id: json.clientTempId ?? null,
       created_at: new Date(json.timestamp).toISOString(),
       updated_at: new Date(json.timestamp).toISOString(),
     };

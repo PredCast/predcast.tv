@@ -29,16 +29,35 @@ export interface UseChatRoomResult {
 const chatService = new SupabaseChatService();
 
 // Single dedup rule shared by realtime push and the polling fallback —
-// optimistic rows match by (message, userId) so the DB row takes their slot
-// instead of being appended as a duplicate when the realtime push is missed.
+// deterministic match by clientTempId first (echoed back by the backend),
+// then the legacy (message, userId) heuristic for rows missing it. Rows
+// already present are refreshed in place when their removedAt changed
+// (moderation soft-delete reaching us via the polling fallback).
 function mergeAndDedupOptimistic(prev: ChatMessage[], incoming: ChatMessage): ChatMessage[] {
-    if (prev.some(m => m.id === incoming.id)) return prev;
-    const optimisticIdx = prev.findIndex(
-        m =>
-            m.id.startsWith('optimistic-') &&
-            m.message === incoming.message &&
-            m.userId === incoming.userId,
-    );
+    const existingIdx = prev.findIndex(m => m.id === incoming.id);
+    if (existingIdx !== -1) {
+        const existing = prev[existingIdx]!;
+        const existingRemoved = existing.removedAt?.getTime() ?? null;
+        const incomingRemoved = incoming.removedAt?.getTime() ?? null;
+        if (existingRemoved === incomingRemoved) return prev;
+        const next = [...prev];
+        next[existingIdx] = incoming;
+        return next;
+    }
+    let optimisticIdx = -1;
+    if (incoming.clientTempId) {
+        optimisticIdx = prev.findIndex(
+            m => m.id.startsWith('optimistic-') && m.clientTempId === incoming.clientTempId,
+        );
+    }
+    if (optimisticIdx === -1) {
+        optimisticIdx = prev.findIndex(
+            m =>
+                m.id.startsWith('optimistic-') &&
+                m.message === incoming.message &&
+                m.userId === incoming.userId,
+        );
+    }
     if (optimisticIdx !== -1) {
         const next = [...prev];
         next[optimisticIdx] = incoming;
@@ -109,10 +128,16 @@ export function useChatRoom({
             }
         };
 
+        // Moderation soft-deletes arrive as UPDATEs — swap the row in place
+        // (no unread bump: nothing new to read).
+        const handleMessageUpdate = (msg: ChatMessage) => {
+            setMessages(prev => prev.map(m => (m.id === msg.id ? msg : m)));
+        };
+
         if (roomType === 'stream') {
-            chatService.subscribeToStreamMessages(roomIdStr, handleNewMessage);
+            chatService.subscribeToStreamMessages(roomIdStr, handleNewMessage, handleMessageUpdate);
         } else {
-            chatService.subscribeToMatchMessages(matchId, handleNewMessage);
+            chatService.subscribeToMatchMessages(matchId, handleNewMessage, handleMessageUpdate);
         }
 
         // Optimistic banner: MarketBetDialog fires `chiliz:bet-confirmed` the
@@ -162,6 +187,7 @@ export function useChatRoom({
 
     const sendMessage = useCallback(
         async (text: string) => {
+            const clientTempId = crypto.randomUUID();
             const optimisticMsg: ChatMessage = {
                 id: `optimistic-${Date.now()}`,
                 matchId,
@@ -173,14 +199,15 @@ export function useChatRoom({
                 type: MessageType.REGULAR,
                 createdAt: new Date(),
                 updatedAt: new Date(),
+                clientTempId,
             };
             setMessages(prev => [...prev, optimisticMsg]);
 
             try {
                 if (roomType === 'stream') {
-                    await chatService.sendStreamMessage(roomIdStr, matchId, userId, username, walletAddress, text);
+                    await chatService.sendStreamMessage(roomIdStr, matchId, userId, username, walletAddress, text, clientTempId);
                 } else {
-                    await chatService.sendMessage(matchId, userId, username, text, walletAddress);
+                    await chatService.sendMessage(matchId, userId, username, text, walletAddress, clientTempId);
                 }
             } catch (err) {
                 // Remove optimistic message on failure

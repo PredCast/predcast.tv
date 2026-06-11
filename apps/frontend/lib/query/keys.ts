@@ -64,4 +64,12 @@ export const queryKeys = {
     me: (wallet: string) => [...queryKeys.leaderboard.all, 'me', wallet.toLowerCase()] as const,
     claimable: (wallet: string) => [...queryKeys.leaderboard.me(wallet), 'claimable'] as const,
   },
+  bans: {
+    all: ['bans'] as const,
+    me: () => [...queryKeys.bans.all, 'me'] as const,
+  },
+  reports: {
+    all: ['reports'] as const,
+    config: () => [...queryKeys.reports.all, 'config'] as const,
+  },
 } as const;

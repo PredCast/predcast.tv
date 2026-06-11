@@ -4,6 +4,15 @@ export * from './types/ApiResponse';
 // WebSocket events
 export * from './events/SocketEvents';
 
+// DTOs — Platform stats
+export * from './dto/stats/PlatformStatsDto';
+
+// DTOs — Reporting / moderation
+export * from './dto/reporting/reasonCodes';
+export * from './dto/reporting/CreateReportDto';
+export * from './dto/reporting/BanStatusResponseDto';
+export * from './dto/reporting/ReportConfigDto';
+
 // DTOs — Input
 export * from './dto/chat/SendMessageDto';
 export * from './dto/matches/BrowseMatchesDto';

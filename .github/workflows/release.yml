@@ -132,16 +132,22 @@ jobs:
             --wait-timeout 180
 
       - name: Smoke — GET /health
+        # `|| echo "000"` neutralises curl's non-zero exit (28 on timeout,
+        # 7 on connection refused, etc.) so `set -e` doesn't kill the
+        # script before the retry loop can fire. Without this, a slow
+        # boot on `--strategy immediate` would fail the whole job after
+        # ONE curl timeout (~10s) instead of retrying 5×.
         run: |
           for i in 1 2 3 4 5; do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 https://api.predcast.tv/health)
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 https://api.predcast.tv/health || echo "000")
             if [ "$STATUS" = "200" ]; then
               echo "API health check passed (attempt $i)"
               exit 0
             fi
+            echo "API health check attempt $i — got $STATUS, retrying in 15s..."
             sleep 15
           done
-          echo "API health check failed"
+          echo "API health check failed after 5 attempts"
           exit 1
 
   # ── Deploy workers to production ──────────────────────────────────────────
@@ -168,16 +174,18 @@ jobs:
             --wait-timeout 180
 
       - name: Smoke — GET /health
+        # See API job above for why `|| echo "000"` is required.
         run: |
           for i in 1 2 3 4 5; do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 https://workers.predcast.tv/health)
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 https://workers.predcast.tv/health || echo "000")
             if [ "$STATUS" = "200" ]; then
               echo "Workers health check passed (attempt $i)"
               exit 0
             fi
+            echo "Workers health check attempt $i — got $STATUS, retrying in 15s..."
             sleep 15
           done
-          echo "Workers health check failed"
+          echo "Workers health check failed after 5 attempts"
           exit 1
 
   # ── Promote Vercel staging → production ───────────────────────────────────
@@ -188,52 +196,37 @@ jobs:
     if: needs.validate.outputs.prerelease == 'false'
     environment: production
     steps:
-      - name: Download staging deployment URL
-        id: download
-        uses: dawidd6/action-download-artifact@v6
-        with:
-          name: staging-deployment-url
-          workflow: deploy-app.yml
-          branch: main
-          path: .
-        continue-on-error: true
-
-      - name: Promote staging URL to production
-        id: promote
-        if: steps.download.outcome == 'success'
-        run: |
-          STAGING_URL=$(cat staging-deployment-url.txt)
-          echo "Promoting $STAGING_URL to production"
-          pnpm dlx vercel promote "$STAGING_URL" --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_APP }}
-
-      # Fallback: full prod build+deploy when no staging artefact is available.
+      # Always do a fresh prod build+deploy. We can't promote the staging
+      # deployment URL because deploy-app.yml builds staging with
+      # `--target=staging`, and `vercel promote` on a non-production target
+      # requires interactive confirmation (Vercel asks "rebuild for prod?")
+      # — that prompt hangs forever in CI and the CLI crashes with EPIPE.
+      # The promote optimisation is only valid if both staging and prod
+      # targets share the same build artifact, which isn't our case
+      # (NEXT_PUBLIC_STAGING + a few env vars differ between targets).
       - uses: actions/checkout@v4
-        if: steps.download.outcome != 'success'
 
       - uses: pnpm/action-setup@v4
-        if: steps.download.outcome != 'success'
         with:
           version: 10.28.1
 
       - uses: actions/setup-node@v4
-        if: steps.download.outcome != 'success'
         with:
           node-version: 22
           cache: pnpm
 
-      - name: Install (fallback)
-        if: steps.download.outcome != 'success'
+      - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Build + deploy to prod (fallback)
-        if: steps.download.outcome != 'success'
+      - name: Build + deploy to prod
+        # `--scope=predcast` forces the CLI to operate against the predcast
+        # team rather than the personal default team — without it, even with
+        # VERCEL_ORG_ID set, `vercel pull` has been observed to target the
+        # token's owner team and fail.
         run: |
-          pnpm dlx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-          pnpm dlx vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
-          pnpm dlx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+          npx -y vercel@latest pull --yes --environment=production --scope=predcast --token=${{ secrets.VERCEL_TOKEN }}
+          npx -y vercel@latest build --prod --token=${{ secrets.VERCEL_TOKEN }}
+          npx -y vercel@latest deploy --prebuilt --prod --scope=predcast --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_APP }}
@@ -248,19 +241,26 @@ jobs:
     strategy:
       matrix:
         project: [predcast-frontend, predcast-backend, predcast-landing]
+    # Injecting the secret as a job-level env lets us reference it via
+    # `env.SENTRY_TOKEN` in step-level `if:` conditions. GitHub Actions
+    # rejects `${{ secrets.X }}` in step `if:` since the 2024 security
+    # hardening (workflow fails to parse with 0 jobs run) — going through
+    # `env` is the documented workaround.
+    env:
+      SENTRY_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Create Sentry release
-        if: ${{ secrets.SENTRY_AUTH_TOKEN != '' }}
-        uses: getsentry/sentry-release-action@v3
+        if: env.SENTRY_TOKEN != ''
+        uses: getsentry/action-release@v3
         with:
           environment: production
-          version: ${{ github.ref_name }}
+          release: ${{ github.ref_name }}
         env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_AUTH_TOKEN: ${{ env.SENTRY_TOKEN }}
           SENTRY_ORG: predcast
           SENTRY_PROJECT: ${{ matrix.project }}
 
@@ -286,14 +286,28 @@ jobs:
   notify-discord:
     name: Notify Discord
     runs-on: ubuntu-latest
-    needs: [create-github-release]
+    # Depend on every job that materially affects the release outcome — not
+    # just create-github-release. Otherwise `contains(needs.*.result, ...)`
+    # only sees ONE result and reports SUCCESS even when an upstream deploy
+    # failed (downstream jobs end up `skipped`, which is not `failure`).
+    # We also check for `cancelled` and `skipped` (skipped here means an
+    # upstream needed job failed, transitively a failure).
+    needs:
+      - validate
+      - retag-image
+      - sign-image
+      - verify-image
+      - deploy-api-prod
+      - deploy-workers-prod
+      - deploy-app-prod
+      - create-github-release
     if: always() && needs.validate.outputs.prerelease == 'false'
     steps:
       - name: Post release notification
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          STATUS: ${{ contains(needs.*.result, 'failure') && 'FAILED' || 'SUCCESS' }}
-          COLOR: ${{ contains(needs.*.result, 'failure') && '15158332' || '3066993' }}
+          STATUS: ${{ (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')) && 'FAILED' || 'SUCCESS' }}
+          COLOR: ${{ (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')) && '15158332' || '3066993' }}
         run: |
           curl -s -X POST "$DISCORD_WEBHOOK_URL" \
             -H "Content-Type: application/json" \

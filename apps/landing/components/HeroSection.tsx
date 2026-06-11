@@ -2,9 +2,8 @@ import Image from "next/image";
 import oddsCardImg from "@/public/oddsCard.png";
 import { BackgroundFX } from "./landing/BackgroundFX";
 import { SmokeBackground } from "@chiliztv/ui";
-import { GateInline } from "./features/access/GateInline";
-
-const META_LABELS = ["Streams live", "Markets open", "Volume staked", "Settled today"];
+import { LaunchAppCta } from "./features/access/LaunchAppCta";
+import { HeroLiveMeta } from "./landing/HeroLiveMeta";
 
 export function HeroSection() {
   return (
@@ -57,25 +56,14 @@ export function HeroSection() {
               entirely on Chiliz Chain.
             </p>
 
-            <GateInline />
+            <LaunchAppCta />
 
             <div className="mt-12 border-t border-[#1E1E1E] pt-7">
               <div className="font-mono-ctv mb-5 inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-[#E8001D]">
                 <span aria-hidden className="block h-0.5 w-3 bg-[#E8001D]" />
-                Beta · Live on Spicy testnet
+                Live on Chiliz mainnet
               </div>
-              <div className="flex flex-wrap gap-8">
-                {META_LABELS.map((label) => (
-                  <div key={label}>
-                    <div className="font-mono-ctv mb-1.5 text-[10px] uppercase tracking-[0.14em] text-white/45">
-                      {label}
-                    </div>
-                    <div className="font-display text-[28px] font-bold leading-none text-white/25">
-                      —
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <HeroLiveMeta />
             </div>
           </div>
 

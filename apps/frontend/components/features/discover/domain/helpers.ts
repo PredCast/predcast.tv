@@ -47,7 +47,8 @@ export function getMinute(
 }
 
 /**
- * Pretty countdown until kickoff — `Now`, `in 12m`, `in 1h 24m`.
+ * Pretty countdown until kickoff — `Now`, `in 12m`, `in 1h 24m`, and from
+ * 24h onwards day-based: `in 3d`, `in 3d 2h`.
  *
  * Falls back to the formatted kickoff time when `now` is null (pre-hydration),
  * so the SSR markup stays deterministic.
@@ -64,9 +65,63 @@ export function getCountdown(kickoffAt: string, now: Date | null): string {
   );
   if (diff <= 0) return "Now";
   if (diff < 60) return `in ${diff}m`;
-  const h = Math.floor(diff / 60);
-  const m = diff % 60;
-  return m > 0 ? `in ${h}h ${m}m` : `in ${h}h`;
+  if (diff < 1_440) {
+    const h = Math.floor(diff / 60);
+    const m = diff % 60;
+    return m > 0 ? `in ${h}h ${m}m` : `in ${h}h`;
+  }
+  const d = Math.floor(diff / 1_440);
+  const h = Math.floor((diff % 1_440) / 60);
+  return h > 0 ? `in ${d}d ${h}h` : `in ${d}d`;
+}
+
+/** Local-timezone calendar key (`YYYY-MM-DD`) for a kickoff timestamp. */
+export function dayKey(kickoffAt: string): string {
+  const d = new Date(kickoffAt);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** A selectable calendar day in the match filter bar. */
+export interface MatchDay {
+  key: string;
+  label: string;
+  count: number;
+}
+
+/**
+ * Distinct kickoff days across `matches`, chronologically sorted, with
+ * display labels — `Today` / `Tomorrow` relative to `now`, otherwise
+ * `Thu 12 Jun`. With a null `now` (pre-hydration) all labels fall back to
+ * the date form so SSR output stays deterministic.
+ */
+export function buildMatchDays(
+  matches: FlatMatch[],
+  now: Date | null,
+): MatchDay[] {
+  const counts = new Map<string, number>();
+  for (const m of matches) {
+    const key = dayKey(m.kickoffAt);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const todayKey = now ? dayKey(now.toISOString()) : null;
+  const tomorrowKey = now
+    ? dayKey(new Date(now.getTime() + 86_400_000).toISOString())
+    : null;
+  return Array.from(counts.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, count]) => {
+      let label: string;
+      if (key === todayKey) label = "Today";
+      else if (key === tomorrowKey) label = "Tomorrow";
+      else
+        label = new Date(`${key}T12:00:00`).toLocaleDateString("en-GB", {
+          weekday: "short",
+          day: "numeric",
+          month: "short",
+        });
+      return { key, label, count };
+    });
 }
 
 /**

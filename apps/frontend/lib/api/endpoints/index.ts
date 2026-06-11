@@ -12,3 +12,5 @@ export * from './access';
 export * from './prices';
 export * from './markets';
 export * from './leaderboard';
+export * from './reports';
+export * from './bans';

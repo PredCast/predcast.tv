@@ -9,7 +9,9 @@ import {
   DialogContent,
   DialogTitle,
 } from "@chiliztv/ui";
+import { useBetTokenBalances } from "@/hooks/useBetTokenBalances";
 import { useChilizSwapRouter } from "@/hooks/useChilizSwapRouter";
+import { useKayenPairAvailability } from "@/hooks/useKayenPairAvailability";
 import { useKayenQuote } from "@/hooks/useKayenQuote";
 import { usePoolDecimals } from "@/hooks/usePoolDecimals";
 import { chilizConfig } from "@/config/chiliz.config";
@@ -224,7 +226,19 @@ export function MarketBetDialog({
   const { placeBet, betState, routerAddress } = useChilizSwapRouter();
   const { assetDecimals: usdcDecimals } = usePoolDecimals();
 
-  const decimals = tokenDecimals(token, usdcDecimals);
+  // Balances + on-chain decimals for the whole stake-currency list (token
+  // picker rows + amount parsing). Mainnet fan tokens are 0-dp, Spicy mocks
+  // are 18-dp — the contract-reported value is the only safe one.
+  const { byAddress: holdings, chzBalance } = useBetTokenBalances(
+    walletAddress as Address | undefined,
+    open,
+  );
+
+  const fetchedErc20Decimals =
+    token.kind === "ERC20" ? holdings.get(token.address.toLowerCase())?.decimals : undefined;
+  // For fan tokens, parse with the contract-reported decimals only — while
+  // they load, `undefined` keeps parsedAmount at 0 and the CTA disabled.
+  const decimals = token.kind === "ERC20" ? fetchedErc20Decimals : tokenDecimals(token, usdcDecimals);
   const numericAmount = Number(amount);
   const isValidAmount = !Number.isNaN(numericAmount) && numericAmount > 0;
   const parsedAmount: bigint =
@@ -390,15 +404,24 @@ export function MarketBetDialog({
 
   const policyBlockMessage = !policyAllowsBetting && match && now ? policyMessageFor(verdict, match.kickoffAt, now) : "";
 
+  // Swappable currencies require a live Kayen pair against USDC — a bet in a
+  // pairless token reverts at swap time (mainnet fan tokens have no direct
+  // USDC pair today). Testnet is exempt.
+  const { chzAvailable, isAvailable: isPairAvailable } = useKayenPairAvailability();
+
   // Map the stake decimal stream into the token shape the StakeStep wants.
-  const fanTokens = (chilizConfig.tokens || []).filter((t) => !!t.tokenAddress);
+  const fanTokens = (chilizConfig.tokens || []).filter(
+    (t) => !!t.tokenAddress && isPairAvailable(t.tokenAddress),
+  );
   const tokenOptions: ReadonlyArray<BetTokenOption & { kind: BetToken["kind"]; address?: Address }> = useMemo(() => {
     const usdc: BetTokenOption & { kind: BetToken["kind"] } = {
       kind: "USDC",
       key: "USDC",
       sym: "USDC",
       name: "USD Coin",
-      balance: token.kind === "USDC" ? balance : 0,
+      balance:
+        holdings.get(chilizConfig.usdc.toLowerCase())?.balance ??
+        (token.kind === "USDC" ? balance : 0),
       decimals: usdcDecimals ?? 2,
       needsSwap: false,
       logoTxt: "$",
@@ -410,26 +433,29 @@ export function MarketBetDialog({
       key: "CHZ",
       sym: "CHZ",
       name: "Chiliz",
-      balance: token.kind === "CHZ" ? balance : 0,
+      balance: chzBalance,
       decimals: 4,
       needsSwap: true,
       logoTxt: "C",
       logoBg: "#E8001D",
       logoUrl: tokenLogoFor("CHZ") ?? undefined,
     };
-    const erc20s = fanTokens.map((t) => ({
-      kind: "ERC20" as const,
-      address: t.tokenAddress as Address,
-      key: t.symbol,
-      sym: t.symbol,
-      name: t.name,
-      balance: token.kind === "ERC20" && token.address === t.tokenAddress ? balance : 0,
-      decimals: 4,
-      needsSwap: true,
-      logoUrl: tokenLogoFor(t.symbol) ?? undefined,
-    }));
-    return [usdc, chz, ...erc20s];
-  }, [fanTokens, token, balance, usdcDecimals]);
+    const erc20s = fanTokens.map((t) => {
+      const holding = holdings.get((t.tokenAddress as string).toLowerCase());
+      return {
+        kind: "ERC20" as const,
+        address: t.tokenAddress as Address,
+        key: t.symbol,
+        sym: t.symbol,
+        name: t.name,
+        balance: holding?.balance ?? 0,
+        decimals: holding?.decimals ?? 4,
+        needsSwap: true,
+        logoUrl: tokenLogoFor(t.symbol) ?? undefined,
+      };
+    });
+    return chzAvailable ? [usdc, chz, ...erc20s] : [usdc, ...erc20s];
+  }, [fanTokens, token, balance, usdcDecimals, holdings, chzBalance, chzAvailable]);
 
   const currentTokenOption: BetTokenOption = useMemo(() => {
     const sym = tokenLabel(token);
