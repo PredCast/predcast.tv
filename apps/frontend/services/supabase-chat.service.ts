@@ -1,6 +1,22 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { ChatMessage, BetMessage, SystemMessage, MessageType, SystemMessageType, BetType } from '@/models/chat.model';
+import { chatApi } from '@/lib/api/endpoints/chat';
+
+/** Wire shape of the backend's ChatMessage.toJSON(). */
+interface BackendChatMessage {
+    id: string;
+    matchId: number;
+    streamId?: string | null;
+    userId: string;
+    walletAddress: string;
+    username: string;
+    message: string;
+    timestamp: number;
+    type: string;
+    isFeatured?: boolean;
+    clientTempId?: string;
+}
 
 export interface ConnectedUser {
     id: string;
@@ -33,6 +49,8 @@ interface SupabaseChatRow {
     bet_sub_type?: string;
     amount?: number;
     odds?: number;
+    client_temp_id?: string | null;
+    removed_at?: string | null;
 }
 
 interface SupabaseUserRow {
@@ -66,67 +84,46 @@ export class SupabaseChatService {
     private subscriptions: Map<number, RealtimeChannel> = new Map();
     private streamSubscriptions: Map<string, RealtimeChannel> = new Map();
 
+    /**
+     * Writes go through the backend API (wallet stamped from the JWT,
+     * `requireNotBanned` enforced). Reads and Realtime stay direct — only
+     * the send path pays the API round-trip. Errors propagate so callers
+     * can roll back their optimistic row.
+     */
     async sendMessage(
         matchId: number,
         userId: string,
         username: string,
         message: string,
-        walletAddress: string
+        walletAddress: string,
+        clientTempId?: string
     ): Promise<ChatMessage> {
-        try {
-            const { data: matchExists, error: matchError } = await supabase
-                .from('matches')
-                .select('api_football_id')
-                .eq('api_football_id', matchId);
+        const { message: saved } = await chatApi.sendMessage(matchId, {
+            userId,
+            username,
+            message,
+            walletAddress,
+            clientTempId,
+        });
+        return this.mapBackendMessageToChatMessage(saved as unknown as BackendChatMessage);
+    }
 
-            if (matchError || !matchExists || matchExists.length === 0) {
-                console.warn(`Match ${matchId} n'existe pas dans Supabase`);
-                return {
-                    id: `simulated-${Date.now()}`,
-                    matchId: matchId,
-                    userId: userId,
-                    username: username,
-                    message: message,
-                    type: MessageType.REGULAR,
-                    walletAddress: walletAddress,
-                    createdAt: new Date(),
-                    updatedAt: new Date()
-                };
-            }
-
-            const { data, error } = await supabase
-                .from('chat_messages')
-                .insert({
-                    match_id: matchId,
-                    user_id: userId,
-                    username: username,
-                    message: message,
-                    message_type: MessageType.REGULAR,
-                    wallet_address: walletAddress?.toLowerCase() ?? walletAddress,
-                    created_at: new Date().toISOString()
-                })
-                .select()
-                .single();
-
-            if (error) {
-                throw new Error(`Erreur lors de l'envoi du message: ${error.message}`);
-            }
-
-            return this.mapSupabaseMessageToChatMessage(data);
-        } catch (err) {
-            console.error('Erreur sendMessage:', err);
-            return {
-                id: `error-${Date.now()}`,
-                matchId: matchId,
-                userId: userId,
-                username: username,
-                message: message,
-                type: MessageType.REGULAR,
-                walletAddress: walletAddress,
-                createdAt: new Date(),
-                updatedAt: new Date()
-            };
-        }
+    /** Backend `ChatMessage.toJSON()` wire shape → frontend model. */
+    private mapBackendMessageToChatMessage(raw: BackendChatMessage): ChatMessage {
+        return {
+            id: raw.id,
+            matchId: raw.matchId,
+            streamId: raw.streamId ?? null,
+            userId: raw.userId,
+            username: raw.username,
+            message: raw.message,
+            type: normalizeMessageType(String(raw.type)),
+            walletAddress: raw.walletAddress || '',
+            createdAt: new Date(raw.timestamp),
+            updatedAt: new Date(raw.timestamp),
+            isFeatured: raw.isFeatured,
+            clientTempId: raw.clientTempId,
+        };
     }
 
     async sendBetMessage(
@@ -437,28 +434,18 @@ export class SupabaseChatService {
         userId: string,
         username: string,
         walletAddress: string,
-        message: string
+        message: string,
+        clientTempId?: string
     ): Promise<ChatMessage> {
-        const { data, error } = await supabase
-            .from('chat_messages')
-            .insert({
-                match_id: matchId,
-                stream_id: streamId,
-                user_id: userId,
-                username: username,
-                message: message,
-                message_type: MessageType.REGULAR,
-                wallet_address: walletAddress?.toLowerCase() ?? walletAddress,
-                created_at: new Date().toISOString()
-            })
-            .select()
-            .single();
-
-        if (error) {
-            throw new Error(`Erreur lors de l'envoi du message stream: ${error.message}`);
-        }
-
-        return this.mapSupabaseMessageToChatMessage(data);
+        const { message: saved } = await chatApi.sendMessage(matchId, {
+            userId,
+            username,
+            message,
+            walletAddress,
+            streamId,
+            clientTempId,
+        });
+        return this.mapBackendMessageToChatMessage(saved as unknown as BackendChatMessage);
     }
 
     unsubscribeFromAll(): void {
@@ -500,7 +487,9 @@ export class SupabaseChatService {
             createdAt: new Date(data.created_at),
             updatedAt: data.updated_at ? new Date(data.updated_at) : new Date(data.created_at),
             isFeatured: data.is_featured,
-            systemEventType: data.system_type
+            systemEventType: data.system_type,
+            clientTempId: data.client_temp_id ?? undefined,
+            removedAt: data.removed_at ? new Date(data.removed_at) : null,
         };
     }
 

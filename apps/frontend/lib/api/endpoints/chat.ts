@@ -59,6 +59,10 @@ export interface SendMessageDTO {
   message: string;
   walletAddress: string;
   isFeatured?: boolean;
+  /** Targets a per-stream room instead of the match-general channel. */
+  streamId?: string;
+  /** Client-generated UUID for deterministic optimistic dedup. */
+  clientTempId?: string;
 }
 
 /**

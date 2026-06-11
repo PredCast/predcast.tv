@@ -5,6 +5,7 @@ import DynamicProviderWrapper from "@/components/providers/DynamicProviderWrappe
 import { AuthProvider } from "@/providers/auth-provider";
 import { QueryProvider } from "@/providers/query-provider";
 import { UsernameSetupGuard } from "@/components/providers/UsernameSetupGuard";
+import { BanRealtimeProvider } from "@/components/providers/BanRealtimeProvider";
 import { Toaster } from "@chiliztv/ui";
 
 const lexend = Lexend({
@@ -50,6 +51,7 @@ export default function RootLayout({
         <DynamicProviderWrapper>
           <AuthProvider>
             <QueryProvider>
+              <BanRealtimeProvider />
               <UsernameSetupGuard />
               {children}
               <Toaster position="top-right" richColors />

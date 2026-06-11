@@ -14,7 +14,9 @@ export enum SystemMessageType {
     USER_LEFT = 'user_left',
     DONATION = 'donation',
     SUBSCRIPTION = 'subscription',
-    BET_PLACED = 'bet'
+    BET_PLACED = 'bet',
+    MESSAGE_REMOVED = 'message_removed',
+    STREAM_STOPPED = 'stream_stopped'
 }
 
 export enum BetType {
@@ -49,6 +51,10 @@ export interface ChatMessage {
     updatedAt: Date;
     isFeatured?: boolean;
     systemEventType?: SystemMessageType;
+    /** Client-generated UUID echoed back by the backend — deterministic optimistic dedup. */
+    clientTempId?: string;
+    /** Soft-delete timestamp set by moderation; rendered as a placeholder, never hidden. */
+    removedAt?: Date | null;
 }
 
 export interface BetMessage extends ChatMessage {

@@ -49,3 +49,6 @@ export { useMarketPools } from './useMarketPools';
 export { useLeaderboardTop } from './useLeaderboardTop';
 export { useMyLeaderboardPosition } from './useMyLeaderboardPosition';
 export { useMyClaimableEpochs } from './useMyClaimableEpochs';
+export { useMyBan, useSetMyBan } from './useMyBan';
+export { useCreateReport } from './useCreateReport';
+export { useReportConfig } from './useReportConfig';

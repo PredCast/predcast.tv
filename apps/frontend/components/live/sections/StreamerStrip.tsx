@@ -2,6 +2,7 @@
 
 import { Eye, Heart, Gift, Star } from "lucide-react";
 import { Eyebrow, GhostBtn, GoldBtn, fmtViewersLive } from "../primitives";
+import { ReportButton } from "@/components/features/moderation/ReportButton";
 import type { LiveStream } from "@/models/stream.model";
 
 interface StreamerStripProps {
@@ -112,6 +113,14 @@ export function StreamerStrip({
               <GoldBtn onClick={onSubscribe} leading={<Star size={13} />}>
                 Subscribe
               </GoldBtn>
+            )}
+            {stream && (
+              <ReportButton
+                targetType="stream"
+                targetId={stream.id}
+                liveContextMatchId={stream.matchId}
+                liveContextStreamId={stream.id}
+              />
             )}
           </div>
         ) : (

@@ -7,6 +7,7 @@ import { useUserUpdateRequest } from '@dynamic-labs/sdk-react-core';
 import { apiClient } from '@/lib/api/client';
 import { ProfileAvatar } from '../components/ProfileAvatar';
 import { DashEyebrow } from '../components/DashEyebrow';
+import { BanDashboardTile } from '@/components/features/moderation/BanDashboardTile';
 import { truncAddr } from '../domain/formatters';
 import type { DashboardUser } from '../hooks/useDashboardUser';
 import { useKycVerified } from '../hooks/useKycVerified';
@@ -161,6 +162,8 @@ export function DashboardHero({ user }: DashboardHeroProps) {
                                 </span>
                             )}
                         </div>
+
+                        <BanDashboardTile />
                     </div>
                 </div>
 

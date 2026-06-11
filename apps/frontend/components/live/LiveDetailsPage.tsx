@@ -25,7 +25,9 @@ import {
   useFollowMutation,
   useUnfollowMutation,
   useMatch,
+  useMyBan,
 } from "@/hooks/api";
+import { BannedBanner } from "@/components/features/moderation/BannedBanner";
 import type { Address } from "viem";
 import {
   usePariMatchFactoryReadGetAllMatches,
@@ -150,6 +152,9 @@ export default function LiveDetailsPage({ id }: LiveDetailsPageProps) {
 
   const walletAddress = primaryWallet?.address ?? "";
 
+  const { data: myBanData } = useMyBan();
+  const myBan = myBanData?.ban ?? null;
+
   const [selectedStream, setSelectedStream] = useState<LiveStream | null>(null);
   const [myStream, setMyStream] = useState<LiveStream | null>(null);
   const [showSwitcherSheet, setShowSwitcherSheet] = useState(false);
@@ -222,6 +227,11 @@ export default function LiveDetailsPage({ id }: LiveDetailsPageProps) {
 
   if (loading) {
     return <CenterStatus message="Loading match…" />;
+  }
+
+  // Cosmetic gate — enforcement is server-side (requireNotBanned + RLS).
+  if (myBan && myBan.status === "active") {
+    return <BannedBanner ban={myBan} />;
   }
 
   if (noMatchDeployedYet) {
