@@ -41,6 +41,15 @@ export const PRICE_CATALOG: ReadonlyArray<PriceCatalogEntry> = [
     { symbol: 'SPFC',   coingeckoId: 'sao-paulo-fc-fan-token',            displayName: 'São Paulo FC' },
     { symbol: 'SCCP',   coingeckoId: 'corinthians-fan-token',             displayName: 'Corinthians' },
 
+    // Kayen-wrapped variants + legacy PSG — same market price as the base token
+    { symbol: 'WSCCP',   coingeckoId: 'corinthians-fan-token',             displayName: 'Wrapped Corinthians' },
+    { symbol: 'WPSG',    coingeckoId: 'paris-saint-germain-fan-token',     displayName: 'Wrapped Paris Saint-Germain' },
+    { symbol: 'WSAUBER', coingeckoId: 'alfa-romeo-racing-orlen-fan-token', displayName: 'Wrapped Sauber F1 Team' },
+    { symbol: 'WBAR',    coingeckoId: 'fc-barcelona-fan-token',            displayName: 'Wrapped FC Barcelona' },
+    { symbol: 'WLUFC',   coingeckoId: 'leeds-united-fan-token',            displayName: 'Wrapped Leeds United' },
+    { symbol: 'WCITY',   coingeckoId: 'manchester-city-fan-token',         displayName: 'Wrapped Manchester City' },
+    { symbol: 'PSG-L',   coingeckoId: 'paris-saint-germain-fan-token',     displayName: 'Paris Saint-Germain (Legacy)' },
+
     // Other sports
     { symbol: 'SAUBER', coingeckoId: 'alfa-romeo-racing-orlen-fan-token', displayName: 'Sauber F1 Team' },
     { symbol: 'OG',     coingeckoId: 'og-fan-token',                      displayName: 'OG Esports' },

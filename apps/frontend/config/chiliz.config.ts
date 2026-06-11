@@ -89,38 +89,24 @@ const TESTNET_TOKENS: ChilizToken[] = [
 // Mainnet configuration (Chiliz Chain Mainnet).
 // Curated to the fan tokens with real Kayen liquidity (docs/FAN_TOKENS_MAINNET.md
 // pool depths, 2026-06-11) — offering a shallow-pool token produces brutal
-// price impact on every swap. Ordered by depth.
+// price impact on every swap. Three families:
+//  - underlying CAP-20 (0 dp) — what Socios users hold; router wraps on swap
+//  - Kayen-wrapped W* (18 dp, fractionable) — what Kayen UI buyers hold
+//  - PSG-L legacy 18-dp PSG (0xFe1d…) — own direct WCHZ pool, still routable
 const MAINNET_TOKENS: ChilizToken[] = [
-    {
-        name: 'Corinthians',
-        symbol: 'SCCP',
-        tokenAddress: '0x20BFeab58f8bE903753d037Ba7e307fc77c97388'
-    },
-    {
-        name: 'Paris Saint-Germain',
-        symbol: 'PSG',
-        tokenAddress: '0xc2661815C69c2B3924D3dd0c2C1358A1E38A3105'
-    },
-    {
-        name: 'Sauber F1 Team',
-        symbol: 'SAUBER',
-        tokenAddress: '0xcF6d626203011E5554c82BaBe17DD7CDc4EE86bF'
-    },
-    {
-        name: 'FC Barcelona',
-        symbol: 'BAR',
-        tokenAddress: '0xFD3C73b3B09D418841dd6Aff341b2d6e3abA433b'
-    },
-    {
-        name: 'Leeds United',
-        symbol: 'LUFC',
-        tokenAddress: '0xF67A8a4299f7EBF0c58DbFb38941D0867f300C30'
-    },
-    {
-        name: 'Manchester City',
-        symbol: 'CITY',
-        tokenAddress: '0x6401b29F40a02578Ae44241560625232A01B3F79'
-    }
+    { name: 'Corinthians',          symbol: 'SCCP',    tokenAddress: '0x20BFeab58f8bE903753d037Ba7e307fc77c97388' },
+    { name: 'Paris Saint-Germain',  symbol: 'PSG',     tokenAddress: '0xc2661815C69c2B3924D3dd0c2C1358A1E38A3105' },
+    { name: 'Sauber F1 Team',       symbol: 'SAUBER',  tokenAddress: '0xcF6d626203011E5554c82BaBe17DD7CDc4EE86bF' },
+    { name: 'FC Barcelona',         symbol: 'BAR',     tokenAddress: '0xFD3C73b3B09D418841dd6Aff341b2d6e3abA433b' },
+    { name: 'Leeds United',         symbol: 'LUFC',    tokenAddress: '0xF67A8a4299f7EBF0c58DbFb38941D0867f300C30' },
+    { name: 'Manchester City',      symbol: 'CITY',    tokenAddress: '0x6401b29F40a02578Ae44241560625232A01B3F79' },
+    { name: 'Wrapped Corinthians',         symbol: 'WSCCP',   tokenAddress: '0x89c2b844Da2B9b12eE704E2b544cEC064a9243a2' },
+    { name: 'Wrapped Paris Saint-Germain', symbol: 'WPSG',    tokenAddress: '0x476eF844B3E8318b3bc887a7db07a1A0FEde5557' },
+    { name: 'Wrapped Sauber F1 Team',      symbol: 'WSAUBER', tokenAddress: '0x9632E5D03Bb7568b68096AbF34B1367B87295d82' },
+    { name: 'Wrapped FC Barcelona',        symbol: 'WBAR',    tokenAddress: '0xbaAAEF59F4A6C11cC87FF75EAa7a386e753b2666' },
+    { name: 'Wrapped Leeds United',        symbol: 'WLUFC',   tokenAddress: '0x2D271B3826090872a7A79DD69FFe660367f8579d' },
+    { name: 'Wrapped Manchester City',     symbol: 'WCITY',   tokenAddress: '0x368F1EB2E4FA30C1C5957980C576Df6163575416' },
+    { name: 'Paris Saint-Germain (Legacy)', symbol: 'PSG-L',  tokenAddress: '0xFe1d4A935df7A4A52F835f6104C97AF9D72217f2' }
 ];
 
 const NETWORK = (process.env.NEXT_PUBLIC_NETWORK || process.env.NETWORK || 'testnet').toLowerCase();

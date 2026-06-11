@@ -12,5 +12,14 @@ export function tokenLogoFor(symbol: string | undefined): string | null {
     const s = symbol.toUpperCase();
     if (s === 'USDC') return '/usdc.png';
     if (s === 'CHZ' || s === 'WCHZ') return '/chiliz_icon.png';
-    return getFanTokenAsset(s)?.logo ?? null;
+    const direct = getFanTokenAsset(s)?.logo;
+    if (direct) return direct;
+    // Kayen-wrapped (W-prefix) and legacy (-L suffix) variants reuse the
+    // base token's asset.
+    if (s.startsWith('W')) {
+        const base = getFanTokenAsset(s.slice(1))?.logo;
+        if (base) return base;
+    }
+    if (s.endsWith('-L')) return getFanTokenAsset(s.slice(0, -2))?.logo ?? null;
+    return null;
 }

@@ -1,5 +1,5 @@
 import { injectable } from 'tsyringe';
-import { createPublicClient, http } from 'viem';
+import { createPublicClient, formatUnits, http } from 'viem';
 import { chilizConfig, networkType } from '../../config/chiliz.config';
 import { ERC20_ABI, chainFor } from '@chiliztv/blockchain';
 import { logger } from '../../logging';
@@ -14,6 +14,8 @@ const FEATURED_THRESHOLD = 100;
 @injectable()
 export class FanTokenAdapter implements IFanTokenRepository {
   private publicClient;
+  // decimals are immutable per contract — cached for the process lifetime.
+  private readonly decimalsCache = new Map<string, number>();
 
   constructor() {
     const chain = chainFor(networkType);
@@ -24,24 +26,40 @@ export class FanTokenAdapter implements IFanTokenRepository {
     logger.info('FanTokenAdapter initialized', { network: networkType, chain: chain.name });
   }
 
+  private async getTokenDecimals(tokenAddress: string): Promise<number> {
+    const key = tokenAddress.toLowerCase();
+    const cached = this.decimalsCache.get(key);
+    if (cached !== undefined) return cached;
+    const decimals = Number(await this.publicClient.readContract({
+      address: tokenAddress as `0x${string}`,
+      abi: ERC20_ABI,
+      functionName: 'decimals',
+    }));
+    this.decimalsCache.set(key, decimals);
+    return decimals;
+  }
+
   /**
-   * @notice Get token balance for a specific token
-   * @param walletAddress User's wallet address
-   * @param tokenAddress Token contract address
-   * @return Token balance as number
+   * @notice Get token balance for a specific token, scaled by the
+   * contract-reported decimals (mainnet fan tokens are 0-dp, wrapped
+   * variants and Spicy mocks are 18-dp — raw units are never comparable).
+   * @return Human-readable token balance
    */
   private async getTokenBalance(walletAddress: string, tokenAddress: string): Promise<number> {
     try {
       logger.debug('Reading token balance from blockchain', { walletAddress, tokenAddress });
 
-      const balance = await this.publicClient.readContract({
-        address: tokenAddress as `0x${string}`,
-        abi: ERC20_ABI,
-        functionName: 'balanceOf',
-        args: [walletAddress as `0x${string}`],
-      });
+      const [balance, decimals] = await Promise.all([
+        this.publicClient.readContract({
+          address: tokenAddress as `0x${string}`,
+          abi: ERC20_ABI,
+          functionName: 'balanceOf',
+          args: [walletAddress as `0x${string}`],
+        }),
+        this.getTokenDecimals(tokenAddress),
+      ]);
 
-      const balanceNumber = Number(balance);
+      const balanceNumber = Number(formatUnits(balance as bigint, decimals));
       logger.debug('Token balance read successfully', { tokenAddress, balance: balanceNumber });
       return balanceNumber;
     } catch (error) {

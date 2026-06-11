@@ -1,7 +1,7 @@
 import { injectable } from 'tsyringe';
 import axios from 'axios';
 import { IPriceFeedService, PriceQuote } from '@chiliztv/domain/shared/ports/IPriceFeedService';
-import { getCatalogEntry, getCatalogEntryByCoingeckoId } from '@chiliztv/shared';
+import { getCatalogEntry } from '@chiliztv/shared';
 import { logger } from '../../logging/logger';
 
 interface CoinGeckoPriceMap {
@@ -23,9 +23,14 @@ export class CoinGeckoPriceFeed implements IPriceFeedService {
     }
 
     async fetchPrices(symbols: ReadonlyArray<string>): Promise<ReadonlyArray<PriceQuote>> {
-        const ids = symbols
-            .map((s) => getCatalogEntry(s)?.coingeckoId)
-            .filter((id): id is string => typeof id === 'string');
+        // Several symbols can share one CoinGecko id (wrapped/legacy variants
+        // of the same fan token) — dedupe for the request, then emit one
+        // quote per requested symbol so every variant gets priced.
+        const ids = [...new Set(
+            symbols
+                .map((s) => getCatalogEntry(s)?.coingeckoId)
+                .filter((id): id is string => typeof id === 'string'),
+        )];
         if (ids.length === 0) return [];
 
         try {
@@ -39,9 +44,13 @@ export class CoinGeckoPriceFeed implements IPriceFeedService {
             });
 
             const quotes: PriceQuote[] = [];
-            for (const [id, payload] of Object.entries(data)) {
-                const entry = getCatalogEntryByCoingeckoId(id);
-                if (!entry || typeof payload.usd !== 'number' || payload.usd < 0) continue;
+            const seen = new Set<string>();
+            for (const s of symbols) {
+                const entry = getCatalogEntry(s);
+                if (!entry || seen.has(entry.symbol)) continue;
+                const payload = data[entry.coingeckoId];
+                if (!payload || typeof payload.usd !== 'number' || payload.usd < 0) continue;
+                seen.add(entry.symbol);
                 quotes.push({
                     symbol: entry.symbol,
                     priceUsd: payload.usd,
