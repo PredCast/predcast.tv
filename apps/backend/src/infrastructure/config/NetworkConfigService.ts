@@ -18,7 +18,12 @@ export class NetworkConfigService implements INetworkConfig {
     constructor() {
         const isMainnet = env.NETWORK === 'mainnet';
         const chain = isMainnet ? chilizMainnet : chilizSpicy;
-        this.rpcUrl = env.CHILIZ_RPC_URL ?? chain.rpcUrls.default.http[0];
+        // Mainnet fallback is pinned to Ankr, NOT the chain default: the chain
+        // config defaults to publicnode for frontend reads, and publicnode
+        // rejects the indexers' multi-address getLogs filters (incident
+        // 2026-06-11 — PariMatchEvent stalled, bets stuck on Pending).
+        this.rpcUrl = env.CHILIZ_RPC_URL
+            ?? (isMainnet ? 'https://rpc.ankr.com/chiliz' : chain.rpcUrls.default.http[0]);
         this.chainId = chain.id;
         // Mainnet prefers the _MAINNET variants but falls back to the plain
         // vars — prod secrets historically carry the active-network value in

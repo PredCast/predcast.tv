@@ -37,6 +37,7 @@ function serializeBet(entry: BetWithMatchInfo): Record<string, unknown> {
                   awayTeamName: match.awayTeamName,
                   leagueName: match.leagueName,
                   matchDate: match.matchDate.toISOString(),
+                  status: match.status,
               }
             : null,
     };

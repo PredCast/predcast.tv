@@ -5,6 +5,7 @@ import { ChapterLead } from "../components/ChapterLead";
 const TILES = [
   { n: "// 01", title: "Predict", body: "On-chain pari-mutuel markets. Stake USDC, share the winning pool." },
   { n: "// 02", title: "Stream", body: "Broadcast with OBS. Earn USDC tips paid straight to your wallet." },
+  { n: "// 03", title: "Leaderboard", body: "1% of every winning pool funds the prize. Win predictions, climb the board, claim your share each epoch." },
 ];
 
 export function ChapterProduct() {
@@ -14,9 +15,9 @@ export function ChapterProduct() {
         Sports meet <span className="text-[#E8001D]">on-chain economics.</span>
       </ChapterHeading>
       <ChapterLead>
-        PredCast is a fan-first SocialFi platform on Chiliz Chain. Two primitives any user can pick up in minutes.
+        PredCast is a fan-first SocialFi platform on Chiliz Chain. Three primitives any user can pick up in minutes.
       </ChapterLead>
-      <div className="grid grid-cols-1 border-t border-l border-[#1E1E1E] lg:grid-cols-2">
+      <div className="grid grid-cols-1 border-t border-l border-[#1E1E1E] lg:grid-cols-3">
         {TILES.map(({ n, title, body }) => (
           <div
             key={n}

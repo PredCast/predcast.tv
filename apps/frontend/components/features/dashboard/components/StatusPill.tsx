@@ -2,7 +2,7 @@
 
 import type { BetStatus } from '../domain/bets';
 
-type DisplayStatus = Lowercase<BetStatus> | 'claimable' | 'claimed';
+type DisplayStatus = Lowercase<BetStatus> | 'claimable' | 'claimed' | 'resolving';
 
 interface StatusPillProps {
     readonly status: DisplayStatus;
@@ -10,6 +10,8 @@ interface StatusPillProps {
 
 const MAP: Record<DisplayStatus, { color: string; label: string; check?: boolean }> = {
     pending:   { color: '#F5C518',                 label: 'Pending' },
+    // Match finished, on-chain resolve + indexing in flight.
+    resolving: { color: '#F5C518',                 label: 'Resolving' },
     won:       { color: '#2dd4a4',                 label: 'Won' },
     lost:      { color: '#FF1737',                 label: 'Lost' },
     refunded:  { color: 'rgba(255,255,255,0.65)',  label: 'Refunded' },

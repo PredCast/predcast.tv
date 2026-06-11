@@ -290,7 +290,7 @@ export class SupabaseBetRepository implements IBetRepository {
 
         const { data, error } = await supabase
             .from('matches')
-            .select('api_football_id, home_team, away_team, league, match_date, betting_contract_address')
+            .select('api_football_id, home_team, away_team, league, match_date, status, betting_contract_address')
             .not('betting_contract_address', 'is', null);
         if (error) {
             logger.error('Failed to load match metadata for bets', { userAddress, error: error.message });
@@ -304,6 +304,7 @@ export class SupabaseBetRepository implements IBetRepository {
             away_team: JsonBlob;
             league: JsonBlob;
             match_date: string;
+            status: string;
             betting_contract_address: string;
         };
 
@@ -331,6 +332,7 @@ export class SupabaseBetRepository implements IBetRepository {
                 awayTeamName: teamName(row.away_team),
                 leagueName: leagueName(row.league),
                 matchDate: new Date(row.match_date),
+                status: row.status,
             });
         }
 

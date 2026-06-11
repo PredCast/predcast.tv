@@ -15,6 +15,9 @@ export interface BetWithMatchInfo {
         readonly awayTeamName: string;
         readonly leagueName: string | null;
         readonly matchDate: Date;
+        /** API-Football status code (NS, 1H, HT, 2H, FT…) — lets the UI tell
+         *  "match over, resolve in flight" apart from a plain pending bet. */
+        readonly status: string;
     } | null;
     /**
      * Market context joined from the `MarketCreated` event indexed for

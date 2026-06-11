@@ -13,8 +13,18 @@ const DEFAULT_VOID_AFTER_2H_SECONDS = 900;
 const VOID_REASON = 'halftime score unavailable';
 
 /** Status codes where the 2H period has clearly started (HT void timer
- *  arms from `2H` onward — `HT` itself just waits for the score). */
-const POST_HT_STATUSES: ReadonlySet<string> = new Set(['2H', 'ET', 'BT', 'P', 'LIVE']);
+ *  arms from `2H` onward — `HT` itself just waits for the score). Finished
+ *  statuses are included: a missed live window must still void/resolve. */
+const POST_HT_STATUSES: ReadonlySet<string> = new Set(['2H', 'ET', 'BT', 'P', 'LIVE', 'FT', 'AET', 'PEN']);
+
+/** Finished statuses still rescanned by the cron path. If the live window
+ *  was missed entirely (worker restart/deploy mid-match, late HT score from
+ *  the upstream — incident 2026-06-11 Mexico-RSA), the HALFTIME market
+ *  would otherwise stay Open until the global FT resolve. */
+const POST_LIVE_RESCUE_STATUSES: ReadonlySet<string> = new Set(['FT', 'AET', 'PEN']);
+/** Rescue scan window after kickoff — bounds the per-tick RPC pre-flights
+ *  so long-finished matches drop out of the scan. */
+const RESCUE_WINDOW_MS = 6 * 60 * 60 * 1000;
 
 export interface ResolveHalftimeMarketResult {
     /** Markets transitioned to Resolved on this run. */
@@ -92,7 +102,10 @@ export class ResolveHalftimeMarketUseCase {
         for (const match of all) {
             const json = match.toJSON();
             if (!json.bettingContractAddress) continue;
-            if (!LIVE_OR_LATER.has(json.status)) continue;
+            const eligible =
+                LIVE_OR_LATER.has(json.status) ||
+                this.isInRescueWindow(json.status, json.matchDate);
+            if (!eligible) continue;
             scanned++;
             const addr = json.bettingContractAddress.toLowerCase();
             if (this.inFlight.has(addr)) continue;
@@ -183,6 +196,12 @@ export class ResolveHalftimeMarketUseCase {
             htAwayScore: htAway,
         });
         return { resolved, voided: 0 };
+    }
+
+    private isInRescueWindow(status: string, matchDate: Date | string): boolean {
+        if (!POST_LIVE_RESCUE_STATUSES.has(status)) return false;
+        const kickoff = matchDate instanceof Date ? matchDate : new Date(matchDate);
+        return this.clock.now().getTime() - kickoff.getTime() <= RESCUE_WINDOW_MS;
     }
 
     private shouldVoid(status: string, matchDate: Date | string): boolean {

@@ -59,10 +59,10 @@ export function Hero() {
               </span>
             </h1>
             <p className="m-0 mb-10 max-w-135 text-[18px] font-light leading-[1.55] text-white/65">
-              Predict live football, stream matches yourself, and earn from the on-chain liquidity pool. The full picture — in under five minutes.
+              Predict live football, stream matches yourself, and climb the on-chain leaderboard. The full picture — in under five minutes.
             </p>
             <p className="font-mono-ctv text-[11px] font-medium uppercase tracking-[0.16em] text-white/40">
-              03 sections — 05 min read — no crypto experience required
+              04 sections — 05 min read — no crypto experience required
             </p>
           </div>
         </div>

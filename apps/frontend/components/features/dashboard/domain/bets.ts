@@ -45,6 +45,9 @@ export interface MyBet {
         readonly awayTeamName: string;
         readonly leagueName: string | null;
         readonly matchDate: string;
+        /** API-Football status code (NS, 1H, HT, 2H, FT…). Optional for
+         *  cached payloads that predate the field. */
+        readonly status?: string;
     } | null;
 }
 
@@ -57,6 +60,22 @@ function marketTypeHashFor(marketType: string | null | undefined): string | null
 export function isBetOnHiddenMarket(bet: Pick<MyBet, 'marketType'>): boolean {
     const hash = marketTypeHashFor(bet.marketType);
     return isHiddenMarketByHash(hash ?? undefined);
+}
+
+/** Match is over on the pitch — pending bets are now "resolving", not open. */
+const FINISHED_MATCH_STATUSES: ReadonlySet<string> = new Set(['FT', 'AET', 'PEN']);
+
+/**
+ * True when the match has finished but the market hasn't been resolved
+ * on-chain yet (resolver job + indexer in flight). Rendered as "Resolving"
+ * instead of "Pending" so the user knows nothing is stuck.
+ */
+export function isAwaitingResolve(bet: Pick<MyBet, 'status' | 'match'>): boolean {
+    return (
+        bet.status === 'PENDING' &&
+        bet.match?.status !== undefined &&
+        FINISHED_MATCH_STATUSES.has(bet.match.status)
+    );
 }
 
 export type BetFilter = 'all' | 'pending' | 'won' | 'lost' | 'refunded' | 'claimable' | 'refundable';

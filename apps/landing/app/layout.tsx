@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Barlow_Condensed, JetBrains_Mono, Lexend } from "next/font/google";
-import DynamicProviderWrapper from "@/components/providers/DynamicProviderWrapper";
+import QueryProvider from "@/components/providers/QueryProvider";
 import { Toaster } from "@chiliztv/ui";
 
 const lexend = Lexend({
@@ -42,10 +42,10 @@ export default function RootLayout({
       <body
         className={`${lexend.className} ${barlowCondensed.variable} ${jetbrainsMono.variable} antialiased bg-black`}
       >
-        <DynamicProviderWrapper>
+        <QueryProvider>
           {children}
           <Toaster richColors position="bottom-right" />
-        </DynamicProviderWrapper>
+        </QueryProvider>
       </body>
     </html>
   );

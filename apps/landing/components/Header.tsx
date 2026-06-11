@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
-import { useDynamicContext, DynamicConnectButton } from "@dynamic-labs/sdk-react-core";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
@@ -16,8 +15,6 @@ const NAV_LINKS = [
 ];
 
 export function Header() {
-  const { primaryWallet, handleLogOut } = useDynamicContext();
-  const connected = Boolean(primaryWallet?.address);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const dropdownVariants = {
@@ -70,30 +67,15 @@ export function Header() {
             {menuOpen ? <X size={28} /> : <Menu size={28} />}
           </button>
 
-          {/* Wallet button (Desktop) */}
+          {/* Launch App (Desktop) — wallet connection lives in the app only */}
           <div className="hidden md:flex items-center gap-3">
-            {!connected ? (
-              <DynamicConnectButton>
-                <span className="rounded-md bg-[#E8001D] px-7 py-3 text-[13px] font-bold uppercase tracking-[0.06em] text-white hover:-translate-y-px hover:bg-[#FF1737] transition-all inline-block cursor-pointer" style={{ boxShadow: "0 8px 32px rgba(232,0,29,0.25)" }}>
-                  Connect Wallet
-                </span>
-              </DynamicConnectButton>
-            ) : (
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 px-4 py-2 bg-[#E8001D]/20 border border-[#E8001D]/30 rounded-md">
-                  <div className="w-2 h-2 bg-[#2dd4a4] rounded-full animate-pulse" />
-                  <span className="font-mono-ctv text-white text-[12px] font-bold tracking-[0.06em]">
-                    {primaryWallet?.address?.slice(0, 6)}…{primaryWallet?.address?.slice(-4)}
-                  </span>
-                </div>
-                <button
-                  onClick={() => handleLogOut?.()}
-                  className="font-mono-ctv rounded-md border border-[#2A2A2A] px-5 py-3 text-[12px] font-bold uppercase tracking-[0.06em] text-white/65 hover:border-[#E8001D] hover:text-white transition-all"
-                >
-                  Disconnect
-                </button>
-              </div>
-            )}
+            <a
+              href={`${APP_URL}/browse`}
+              className="rounded-md bg-[#E8001D] px-7 py-3 text-[13px] font-bold uppercase tracking-[0.06em] text-white hover:-translate-y-px hover:bg-[#FF1737] transition-all inline-block"
+              style={{ boxShadow: "0 8px 32px rgba(232,0,29,0.25)" }}
+            >
+              Launch App
+            </a>
           </div>
         </div>
 
@@ -130,20 +112,13 @@ export function Header() {
                 )
               )}
               <div className="border-t border-white/10 pt-4">
-                {!connected ? (
-                  <DynamicConnectButton>
-                    <span className="block rounded-md bg-[#E8001D] px-6 py-3 text-center text-[13px] font-bold uppercase tracking-[0.06em] text-white cursor-pointer">
-                      Connect Wallet
-                    </span>
-                  </DynamicConnectButton>
-                ) : (
-                  <button
-                    onClick={() => { handleLogOut?.(); setMenuOpen(false); }}
-                    className="block w-full rounded-md border border-[#2A2A2A] px-6 py-3 text-center text-[13px] font-bold uppercase tracking-[0.06em] text-white/65"
-                  >
-                    Disconnect · {primaryWallet?.address?.slice(0, 6)}…{primaryWallet?.address?.slice(-4)}
-                  </button>
-                )}
+                <a
+                  href={`${APP_URL}/browse`}
+                  onClick={() => setMenuOpen(false)}
+                  className="block rounded-md bg-[#E8001D] px-6 py-3 text-center text-[13px] font-bold uppercase tracking-[0.06em] text-white"
+                >
+                  Launch App
+                </a>
               </div>
             </motion.div>
           )}

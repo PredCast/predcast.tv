@@ -15,6 +15,7 @@ import { usePoolDecimals } from '@/hooks/usePoolDecimals';
 import { fmtUsd, timeAgo } from '../domain/formatters';
 import {
     fmtSelection,
+    isAwaitingResolve,
     isClaimableNow,
     isLocallyClaimed,
     isRefundableNow,
@@ -46,6 +47,7 @@ export function BetRow({ bet }: BetRowProps) {
     const isWon = bet.status === 'WON';
     const isLost = bet.status === 'LOST';
     const isPending = bet.status === 'PENDING';
+    const isResolving = isAwaitingResolve(bet);
 
     // ── Claim / refund tx state ─────────────────────────────────────────
     const { writeContract: writeClaim, data: claimHash, isPending: claimPending, error: claimError } = usePariMatchBaseWriteClaim();
@@ -175,7 +177,7 @@ export function BetRow({ bet }: BetRowProps) {
                     </div>
                 )}
                 <div className="font-mono-ctv mt-0.5 text-[10px] uppercase tracking-[0.14em] text-white/45">
-                    {isPending ? 'Pending settle' : isWon ? 'Won' : isLost ? 'Lost' : 'Refund'}
+                    {isResolving ? 'Resolving' : isPending ? 'Pending settle' : isWon ? 'Won' : isLost ? 'Lost' : 'Refund'}
                 </div>
             </div>
 
@@ -205,7 +207,9 @@ export function BetRow({ bet }: BetRowProps) {
                         status={
                             locallyHandled
                                 ? 'claimed'
-                                : (bet.status.toLowerCase() as 'pending' | 'won' | 'lost' | 'refunded')
+                                : isResolving
+                                  ? 'resolving'
+                                  : (bet.status.toLowerCase() as 'pending' | 'won' | 'lost' | 'refunded')
                         }
                     />
                 )}

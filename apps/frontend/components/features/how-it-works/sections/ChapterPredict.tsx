@@ -47,7 +47,7 @@ const STEPS: Step[] = [
     title: "Choose side and amount",
     body: (
       <p className="m-0">
-        Pick an outcome. Stake in USDC, or any supported token — the router converts automatically via Kayen DEX. Dialog shows the live pool, your implied probability and an estimated payout.
+        Pick an outcome. Stake in USDC, or any supported token — the router converts automatically via Kayen DEX. Dialog shows the live pool, your implied probability and an estimated payout. Predictions close at kickoff — no in-play stakes, halftime included.
       </p>
     ),
   },
