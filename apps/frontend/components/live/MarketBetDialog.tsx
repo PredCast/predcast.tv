@@ -11,6 +11,7 @@ import {
 } from "@chiliztv/ui";
 import { useBetTokenBalances } from "@/hooks/useBetTokenBalances";
 import { useChilizSwapRouter } from "@/hooks/useChilizSwapRouter";
+import { useKayenPairAvailability } from "@/hooks/useKayenPairAvailability";
 import { useKayenQuote } from "@/hooks/useKayenQuote";
 import { usePoolDecimals } from "@/hooks/usePoolDecimals";
 import { chilizConfig } from "@/config/chiliz.config";
@@ -403,8 +404,15 @@ export function MarketBetDialog({
 
   const policyBlockMessage = !policyAllowsBetting && match && now ? policyMessageFor(verdict, match.kickoffAt, now) : "";
 
+  // Swappable currencies require a live Kayen pair against USDC — a bet in a
+  // pairless token reverts at swap time (mainnet fan tokens have no direct
+  // USDC pair today). Testnet is exempt.
+  const { chzAvailable, isAvailable: isPairAvailable } = useKayenPairAvailability();
+
   // Map the stake decimal stream into the token shape the StakeStep wants.
-  const fanTokens = (chilizConfig.tokens || []).filter((t) => !!t.tokenAddress);
+  const fanTokens = (chilizConfig.tokens || []).filter(
+    (t) => !!t.tokenAddress && isPairAvailable(t.tokenAddress),
+  );
   const tokenOptions: ReadonlyArray<BetTokenOption & { kind: BetToken["kind"]; address?: Address }> = useMemo(() => {
     const usdc: BetTokenOption & { kind: BetToken["kind"] } = {
       kind: "USDC",
@@ -446,8 +454,8 @@ export function MarketBetDialog({
         logoUrl: tokenLogoFor(t.symbol) ?? undefined,
       };
     });
-    return [usdc, chz, ...erc20s];
-  }, [fanTokens, token, balance, usdcDecimals, holdings, chzBalance]);
+    return chzAvailable ? [usdc, chz, ...erc20s] : [usdc, ...erc20s];
+  }, [fanTokens, token, balance, usdcDecimals, holdings, chzBalance, chzAvailable]);
 
   const currentTokenOption: BetTokenOption = useMemo(() => {
     const sym = tokenLabel(token);
