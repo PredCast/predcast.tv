@@ -23,14 +23,14 @@ process.on('uncaughtException', (err) => {
 });
 import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
-import { errorHandler, authenticate, globalLimiter, authLimiter, predictionsLimiter, chatLimiter, accessCodeLimiter, webhookLimiter } from './src/presentation/http/middlewares';
+import { errorHandler, authenticate, globalLimiter, authLimiter, predictionsLimiter, chatLimiter, accessCodeLimiter, webhookLimiter, reportsLimiter, requireNotBanned } from './src/presentation/http/middlewares';
 import { JobScheduler, BlockchainEventListener } from './src/infrastructure/services';
 import { CleanupOldMatchesUseCase } from './src/application/matches/use-cases/CleanupOldMatchesUseCase';
 import { RedisWarmupService } from './src/infrastructure/cache/RedisWarmupService';
 import { waitForRedisReady, type RedisClient } from './src/infrastructure/cache/RedisClient';
 config();
 setupDependencyInjection();
-import { authRoutes, accessRoutes, predictionRoutes, matchRoutes, chatRoutes, waitlistRoutes, streamRoutes, streamWalletRoutes, fanTokensRoutes, followRoutes, betRoutes, userRoutes, pricesRoutes, leaderboardRoutes, metricsRoutes } from './src/presentation/http/routes';
+import { authRoutes, accessRoutes, predictionRoutes, matchRoutes, chatRoutes, waitlistRoutes, streamRoutes, streamWalletRoutes, fanTokensRoutes, followRoutes, betRoutes, userRoutes, pricesRoutes, leaderboardRoutes, metricsRoutes, reportingRoutes, banRoutes } from './src/presentation/http/routes';
 import { cloudflareStreamWebhookRoutes } from './src/presentation/http/routes/cloudflare-stream-webhook.routes';
 
 // Controls which responsibilities this process takes on.
@@ -96,6 +96,8 @@ if (PROCESS_ROLE === 'api' || PROCESS_ROLE === 'all') {
 
     app.use('/follows', followRoutes);
     app.use('/chat', chatLimiter, chatRoutes);
+    app.use('/reports', reportsLimiter, requireNotBanned, reportingRoutes);
+    app.use('/bans', banRoutes);
     app.use('/stream-wallet', streamWalletRoutes);
     app.use('/fan-tokens', fanTokensRoutes);
     app.use('/predictions', predictionsLimiter, predictionRoutes);

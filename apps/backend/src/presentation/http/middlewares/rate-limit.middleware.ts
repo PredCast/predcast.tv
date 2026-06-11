@@ -88,11 +88,20 @@ interface LimiterSpec {
   extraSkip?: (req: Request) => boolean;
   /** Override key generator (e.g. wallet from JWT, signature hash). Defaults to `req.ip`. */
   keyGenerator?: Options['keyGenerator'];
+  /**
+   * Keep this limiter armed even while RATE_LIMIT_DISABLED is on. Reserved
+   * for abuse-critical surfaces (report spam) whose protection must not
+   * depend on the global kill switch. The IP whitelist still applies.
+   */
+  bypassKillSwitch?: boolean;
 }
 
 function createLimiter(spec: LimiterSpec): RequestHandler {
   const store = buildStore(spec.prefix);
-  const skip = (req: Request) => commonSkip(req) || (spec.extraSkip?.(req) ?? false);
+  const baseSkip = spec.bypassKillSwitch
+    ? (req: Request) => whitelist.has(req.ip ?? '')
+    : commonSkip;
+  const skip = (req: Request) => baseSkip(req) || (spec.extraSkip?.(req) ?? false);
   return rateLimit({
     windowMs: spec.windowMs,
     max: spec.max,
@@ -216,6 +225,40 @@ export const webhookLimiter = createLimiter({
     return req.ip ? ipKeyGenerator(req.ip) : 'unknown';
   },
 });
+
+/** Wallet-from-JWT key, IP fallback — for limiters stacked after `authenticate`. */
+function walletKeyGenerator(req: Request): string {
+  const auth = (req as Request & { user?: { walletAddress?: string } }).user;
+  if (auth?.walletAddress) return auth.walletAddress.toLowerCase();
+  return req.ip ? ipKeyGenerator(req.ip) : 'unknown';
+}
+
+/**
+ * Reports anti-spam — 5/min + 30/h per wallet. `bypassKillSwitch` is
+ * deliberate: with RATE_LIMIT_DISABLED active in prod, this limiter would
+ * otherwise be inert and report spam unbounded.
+ */
+const reportsShortLimiter = createLimiter({
+  prefix: 'reports-short',
+  windowMs: 60 * 1000,
+  max: isDevelopment ? 100 : 5,
+  errorCode: 'REPORTS_RATE_LIMIT_EXCEEDED',
+  errorMessage: 'Too many reports, please wait a minute',
+  keyGenerator: walletKeyGenerator,
+  bypassKillSwitch: true,
+});
+
+const reportsHourLimiter = createLimiter({
+  prefix: 'reports-hour',
+  windowMs: 60 * 60 * 1000,
+  max: isDevelopment ? 1_000 : 30,
+  errorCode: 'REPORTS_RATE_LIMIT_EXCEEDED',
+  errorMessage: 'Too many reports, please try again later',
+  keyGenerator: walletKeyGenerator,
+  bypassKillSwitch: true,
+});
+
+export const reportsLimiter: RequestHandler[] = [reportsShortLimiter, reportsHourLimiter];
 
 /**
  * Admin rate limiter — gates back-office endpoints (future scope). Keyed by

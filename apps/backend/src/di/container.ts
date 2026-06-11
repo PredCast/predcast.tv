@@ -9,6 +9,20 @@ import { IMatchRepository } from '@chiliztv/domain/matches/repositories/IMatchRe
 import { SupabaseMatchRepository } from '../infrastructure/persistence/repositories/SupabaseMatchRepository';
 import { IChatRepository } from '@chiliztv/domain/chat/repositories/IChatRepository';
 import { SupabaseChatRepository } from '../infrastructure/persistence/repositories/SupabaseChatRepository';
+import { IReportRepository } from '@chiliztv/domain/reporting/repositories/IReportRepository';
+import { IBanRepository } from '@chiliztv/domain/reporting/repositories/IBanRepository';
+import { IReportActionRepository } from '@chiliztv/domain/reporting/repositories/IReportActionRepository';
+import { IPresenceService } from '@chiliztv/domain/reporting/ports/IPresenceService';
+import { IBetHistoryService } from '@chiliztv/domain/reporting/ports/IBetHistoryService';
+import { IModerationNotifier } from '@chiliztv/domain/reporting/ports/IModerationNotifier';
+import { IReportConfigProvider } from '@chiliztv/domain/reporting/ports/IReportConfigProvider';
+import { SupabaseReportRepository } from '../infrastructure/persistence/repositories/SupabaseReportRepository';
+import { SupabaseBanRepository } from '../infrastructure/persistence/repositories/SupabaseBanRepository';
+import { SupabaseReportActionRepository } from '../infrastructure/persistence/repositories/SupabaseReportActionRepository';
+import { PresenceQueryService } from '../infrastructure/services/PresenceQueryService';
+import { BetHistoryService } from '../infrastructure/services/BetHistoryService';
+import { ReportConfigCache } from '../infrastructure/services/ReportConfigCache';
+import { SupabaseModerationNotifier } from '../infrastructure/services/SupabaseModerationNotifier';
 import { IWaitlistRepository } from '@chiliztv/domain/waitlist/repositories/IWaitlistRepository';
 import { SupabaseWaitlistRepository } from '../infrastructure/persistence/repositories/SupabaseWaitlistRepository';
 import { IStreamRepository } from '@chiliztv/domain/streams/repositories/IStreamRepository';
@@ -205,6 +219,14 @@ import { CloudflareStreamWebhookController } from '../presentation/http/controll
 import { PredictionController } from '../presentation/http/controllers/prediction.controller';
 import { MatchController } from '../presentation/http/controllers/match.controller';
 import { ChatController } from '../presentation/http/controllers/chat.controller';
+import { ReportingController } from '../presentation/http/controllers/reporting.controller';
+import { BanController } from '../presentation/http/controllers/ban.controller';
+import { CreateReportUseCase } from '../application/reporting/use-cases/CreateReportUseCase';
+import { EvaluateReportThresholdUseCase } from '../application/reporting/use-cases/EvaluateReportThresholdUseCase';
+import { SoftDeleteMessageUseCase } from '../application/reporting/use-cases/SoftDeleteMessageUseCase';
+import { StopStreamUseCase } from '../application/reporting/use-cases/StopStreamUseCase';
+import { BanAccountUseCase } from '../application/reporting/use-cases/BanAccountUseCase';
+import { LiftExpiredBansUseCase } from '../application/reporting/use-cases/LiftExpiredBansUseCase';
 import { WaitlistController } from '../presentation/http/controllers/waitlist.controller';
 import { AuthController } from '../presentation/http/controllers/auth.controller';
 import { AccessController } from '../presentation/http/controllers/access.controller';
@@ -268,6 +290,15 @@ export function setupDependencyInjection(): void {
   container.registerSingleton<IMarketEventRepository>(TOKENS.IMarketEventRepository, SupabaseMarketEventRepository);
   container.registerSingleton<IWiringAlertRepository>(TOKENS.IWiringAlertRepository, SupabaseWiringAlertRepository);
 
+  // ─── Reporting / moderation ────────────────────────────────────────────────
+  container.registerSingleton<IReportRepository>(TOKENS.IReportRepository, SupabaseReportRepository);
+  container.registerSingleton<IBanRepository>(TOKENS.IBanRepository, SupabaseBanRepository);
+  container.registerSingleton<IReportActionRepository>(TOKENS.IReportActionRepository, SupabaseReportActionRepository);
+  container.registerSingleton<IPresenceService>(TOKENS.IPresenceService, PresenceQueryService);
+  container.registerSingleton<IBetHistoryService>(TOKENS.IBetHistoryService, BetHistoryService);
+  container.registerSingleton<IModerationNotifier>(TOKENS.IModerationNotifier, SupabaseModerationNotifier);
+  container.registerSingleton<IReportConfigProvider>(TOKENS.IReportConfigProvider, ReportConfigCache);
+
   // ─── Blockchain Adapters ───────────────────────────────────────────────────
   container.registerSingleton(TokenBalanceAdapter);
   container.registerSingleton(PariMatchResolutionAdapter);
@@ -303,6 +334,14 @@ export function setupDependencyInjection(): void {
   container.registerSingleton(GetRoomMessagesUseCase);
   container.registerSingleton(GetConnectedUsersUseCase);
   container.registerSingleton(GetChatStatsUseCase);
+
+  // ─── Use Cases — Reporting / moderation ────────────────────────────────────
+  container.registerSingleton(CreateReportUseCase);
+  container.registerSingleton(EvaluateReportThresholdUseCase);
+  container.registerSingleton(SoftDeleteMessageUseCase);
+  container.registerSingleton(StopStreamUseCase);
+  container.registerSingleton(BanAccountUseCase);
+  container.registerSingleton(LiftExpiredBansUseCase);
 
   // ─── Use Cases — Waitlist ──────────────────────────────────────────────────
   container.registerSingleton(JoinWaitlistUseCase);
@@ -416,6 +455,8 @@ export function setupDependencyInjection(): void {
   container.registerSingleton(UserController);
   container.registerSingleton(PricesController);
   container.registerSingleton(LeaderboardController);
+  container.registerSingleton(ReportingController);
+  container.registerSingleton(BanController);
 }
 
 export { container };
