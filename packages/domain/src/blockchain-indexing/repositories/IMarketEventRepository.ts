@@ -14,6 +14,8 @@ export interface MissingLineRow {
 
 export interface IMarketEventRepository {
     insertIfAbsent(event: MarketEvent): Promise<boolean>;
+    /** Total rows for one event name — drives public platform counters. */
+    countByEventName(eventName: string): Promise<number>;
     /** Resolves the `MarketCreated` payload for a market — used to label bets. */
     findMarketContext(contractAddress: string, marketId: bigint): Promise<MarketContext | null>;
     /** Rows where `payload.line` is missing — fed to the backfill job. */

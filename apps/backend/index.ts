@@ -30,7 +30,7 @@ import { RedisWarmupService } from './src/infrastructure/cache/RedisWarmupServic
 import { waitForRedisReady, type RedisClient } from './src/infrastructure/cache/RedisClient';
 config();
 setupDependencyInjection();
-import { authRoutes, accessRoutes, predictionRoutes, matchRoutes, chatRoutes, waitlistRoutes, streamRoutes, streamWalletRoutes, fanTokensRoutes, followRoutes, betRoutes, userRoutes, pricesRoutes, leaderboardRoutes, metricsRoutes, reportingRoutes, banRoutes } from './src/presentation/http/routes';
+import { authRoutes, accessRoutes, predictionRoutes, matchRoutes, chatRoutes, waitlistRoutes, streamRoutes, streamWalletRoutes, fanTokensRoutes, followRoutes, betRoutes, userRoutes, pricesRoutes, leaderboardRoutes, metricsRoutes, reportingRoutes, banRoutes, statsRoutes } from './src/presentation/http/routes';
 import { cloudflareStreamWebhookRoutes } from './src/presentation/http/routes/cloudflare-stream-webhook.routes';
 
 // Controls which responsibilities this process takes on.
@@ -90,6 +90,7 @@ if (PROCESS_ROLE === 'api' || PROCESS_ROLE === 'all') {
     app.use('/matches', matchRoutes);
     app.use('/prices', pricesRoutes);
     app.use('/leaderboard', leaderboardRoutes);
+    app.use('/stats', statsRoutes);
 
     // All routes below require JWT
     app.use(authenticate);
