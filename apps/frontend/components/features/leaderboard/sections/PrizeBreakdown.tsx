@@ -51,7 +51,7 @@ export function PrizeBreakdown() {
 
             {isEmpty && (
                 <div className="font-mono-ctv rounded-xl border border-[#1E1E1E] bg-[#111] px-5 py-16 text-center text-[11px] uppercase tracking-[0.18em] text-white/45">
-                    No qualifying scores yet — predictions in progress.
+                    No qualifying scores yet — wins enter the board when winners claim.
                 </div>
             )}
 

@@ -54,7 +54,7 @@ export function PreviewTable() {
                     <span className="text-[#E8001D]">Live.</span>
                 </h2>
                 <p className="max-w-[640px] text-[15px] font-light leading-[1.55] text-white/55">
-                    Cumulative USDC payouts from winning predictions. Updated continuously by the indexer.
+                    Cumulative USDC payouts from claimed wins — claiming a winning prediction is what records your score.
                 </p>
             </div>
 
@@ -82,7 +82,7 @@ export function PreviewTable() {
 
                 {!isLoading && rows.length === 0 && (
                     <div className="font-mono-ctv px-5 py-16 text-center text-[11px] uppercase tracking-[0.18em] text-white/45">
-                        No predictions settled yet — be the first.
+                        No wins claimed yet — claim a winning prediction to enter the board.
                     </div>
                 )}
 
