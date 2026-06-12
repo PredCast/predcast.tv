@@ -149,7 +149,12 @@ export class AdminModerationController {
 
     async ban(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const ban = await this.createBan.execute(auditCtx(req), req.body.walletAddress, req.body.reason);
+            const ban = await this.createBan.execute(
+                auditCtx(req),
+                req.body.walletAddress,
+                req.body.reason,
+                req.body.durationHours,
+            );
             res.status(201).json({ success: true, data: serializeBan(ban) });
         } catch (error) {
             next(error);

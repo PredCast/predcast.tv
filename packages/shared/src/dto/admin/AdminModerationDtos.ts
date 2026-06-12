@@ -8,6 +8,8 @@ export type AdminReviewReportDto = z.infer<typeof AdminReviewReportSchema>;
 export const AdminCreateBanSchema = z.object({
     walletAddress: z.string().regex(/^0x[0-9a-fA-F]{40}$/),
     reason: z.string().trim().min(10).max(500),
+    /** Hours (1..8784), null = permanent, omitted = escalation policy. */
+    durationHours: z.number().int().min(1).max(8784).nullable().optional(),
 });
 export type AdminCreateBanDto = z.infer<typeof AdminCreateBanSchema>;
 

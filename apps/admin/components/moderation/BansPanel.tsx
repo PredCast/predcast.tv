@@ -16,18 +16,22 @@ export function BansPanel() {
 
   const [wallet, setWallet] = useState('');
   const [reason, setReason] = useState('');
+  // 'auto' = escalation policy, 'permanent', or a number of hours as string.
+  const [duration, setDuration] = useState('auto');
   const [liftingId, setLiftingId] = useState<string | null>(null);
   const [liftNote, setLiftNote] = useState('');
 
   const submitBan = (e: React.FormEvent) => {
     e.preventDefault();
+    const durationHours = duration === 'auto' ? undefined : duration === 'permanent' ? null : Number(duration);
     createBan.mutate(
-      { walletAddress: wallet.trim(), reason: reason.trim() },
+      { walletAddress: wallet.trim(), reason: reason.trim(), durationHours },
       {
         onSuccess: () => {
           toast.success('Ban issued');
           setWallet('');
           setReason('');
+          setDuration('auto');
         },
         onError: () => toast.error('Ban failed — invalid wallet or already banned'),
       },
@@ -71,6 +75,19 @@ export function BansPanel() {
             placeholder="Reason (min 10 chars, audited)"
             className="font-mono-ctv min-w-60 flex-1 rounded-md border border-[#2A2A2A] bg-[#0d0d0d] px-3 py-2 text-[12px] text-white outline-none focus-visible:ring-2 focus-visible:ring-[#E8001D]"
           />
+          <select
+            value={duration}
+            onChange={(e) => setDuration(e.target.value)}
+            aria-label="Ban duration"
+            className="font-mono-ctv rounded-md border border-[#2A2A2A] bg-[#0d0d0d] px-3 py-2 text-[12px] uppercase text-white outline-none focus-visible:ring-2 focus-visible:ring-[#E8001D]"
+          >
+            <option value="auto">Auto (escalation)</option>
+            <option value="24">24h</option>
+            <option value="72">72h</option>
+            <option value="168">7 days</option>
+            <option value="720">30 days</option>
+            <option value="permanent">Permanent</option>
+          </select>
           <button
             type="submit"
             disabled={createBan.isPending || !/^0x[0-9a-fA-F]{40}$/.test(wallet.trim()) || reason.trim().length < 10}
@@ -80,7 +97,7 @@ export function BansPanel() {
           </button>
         </div>
         <p className="font-mono-ctv mt-2 text-[10px] uppercase tracking-[0.12em] text-white/35">
-          Escalation applies from prior history · active stream is stopped · realtime notify
+          Auto follows escalation (24h → 168h → permanent) · active stream is stopped · realtime notify
         </p>
       </form>
 

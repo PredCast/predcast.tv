@@ -21,6 +21,11 @@ export interface BanAccountInput {
   quorumSnapshot: QuorumSnapshot;
   triggeredByReportId: string | null;
   triggeringLiveMatchId: number | null;
+  /**
+   * Admin-chosen duration: hours, or null for permanent. Undefined keeps the
+   * escalation policy (auto path). escalationIndex still tracks history.
+   */
+  durationHoursOverride?: number | null;
 }
 
 /**
@@ -47,7 +52,17 @@ export class BanAccountUseCase {
 
     const escalatingCount = await this.bans.countEscalating(wallet);
     const cfg = await this.config.get();
-    const terms = nextBan(escalatingCount, cfg, now);
+    const terms =
+      input.durationHoursOverride !== undefined
+        ? {
+            startsAt: now,
+            expiresAt:
+              input.durationHoursOverride === null
+                ? null
+                : new Date(now.getTime() + input.durationHoursOverride * 3_600_000),
+            escalationIndex: escalatingCount + 1,
+          }
+        : nextBan(escalatingCount, cfg, now);
 
     const ban = await this.bans.save(
       Ban.create({

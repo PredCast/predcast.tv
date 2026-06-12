@@ -16,8 +16,15 @@ export function useBans(filter: { status?: BanStatus; wallet?: string; cursor?: 
 export function useCreateBan() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ walletAddress, reason }: { walletAddress: string; reason: string }) =>
-      moderationApi.createBan(walletAddress, reason),
+    mutationFn: ({
+      walletAddress,
+      reason,
+      durationHours,
+    }: {
+      walletAddress: string;
+      reason: string;
+      durationHours?: number | null;
+    }) => moderationApi.createBan(walletAddress, reason, durationHours),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.bans.all });
     },

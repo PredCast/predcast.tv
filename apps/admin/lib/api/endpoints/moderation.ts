@@ -90,8 +90,9 @@ export const moderationApi = {
 
   listBans: (filter: { status?: BanStatus; wallet?: string; cursor?: string | null }) =>
     apiClient.get<{ success: boolean; data: Page<AdminBanDto> }>(`/admin/bans${qs(filter)}`),
-  createBan: (walletAddress: string, reason: string) =>
-    apiClient.post<{ success: boolean; data: AdminBanDto }>('/admin/bans', { walletAddress, reason }),
+  /** durationHours: hours, null = permanent, undefined = escalation policy. */
+  createBan: (walletAddress: string, reason: string, durationHours?: number | null) =>
+    apiClient.post<{ success: boolean; data: AdminBanDto }>('/admin/bans', { walletAddress, reason, durationHours }),
   liftBan: (id: string, note: string) =>
     apiClient.post<{ success: boolean; data: AdminBanDto }>(`/admin/bans/${id}/lift`, { note }),
 

@@ -19,11 +19,18 @@ export class CreateManualBanUseCase {
         @inject(TOKENS.IClock) private readonly clock: IClock,
     ) {}
 
-    async execute(ctx: AuditContext, walletAddress: string, reason: string): Promise<Ban> {
+    /** `durationHours`: hours, null = permanent, undefined = escalation policy. */
+    async execute(
+        ctx: AuditContext,
+        walletAddress: string,
+        reason: string,
+        durationHours?: number | null,
+    ): Promise<Ban> {
         const ban = await this.banAccount.execute({
             walletAddress,
             triggeredByReportId: null,
             triggeringLiveMatchId: null,
+            durationHoursOverride: durationHours,
             quorumSnapshot: {
                 trigger: 'admin_manual',
                 issuedBy: ctx.actorWallet,
@@ -41,7 +48,12 @@ export class CreateManualBanUseCase {
             action: 'moderation.ban.create',
             targetType: 'wallet',
             targetId: walletAddress.toLowerCase(),
-            newValue: { banId: ban.props.id, reason, expiresAt: ban.props.expiresAt?.toISOString() ?? null },
+            newValue: {
+                banId: ban.props.id,
+                reason,
+                duration: durationHours === undefined ? 'auto' : durationHours === null ? 'permanent' : `${durationHours}h`,
+                expiresAt: ban.props.expiresAt?.toISOString() ?? null,
+            },
         });
         return ban;
     }
