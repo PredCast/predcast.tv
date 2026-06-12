@@ -5,6 +5,7 @@ import type { IAdminAccessService } from '@chiliztv/domain/admin/ports/IAdminAcc
 import { isAllowed } from '@chiliztv/domain/admin/policies/AdminRolePolicy';
 import type { AdminRole } from '@chiliztv/domain/admin/types';
 import { ForbiddenError } from '@chiliztv/domain/shared/errors/ForbiddenError';
+import { isGateTokenValid } from './admin-gate';
 import { UnauthorizedError } from '@chiliztv/domain/shared/errors/UnauthorizedError';
 
 declare global {
@@ -25,6 +26,12 @@ export function requireAdmin(...allowed: AdminRole[]): RequestHandler {
     try {
       const wallet = req.user?.walletAddress;
       if (!wallet) throw new UnauthorizedError();
+
+      // Pre-wallet gate token (X-Admin-Gate) — a stolen JWT alone is not enough.
+      const gate = req.header('x-admin-gate') ?? undefined;
+      if (!isGateTokenValid(gate, new Date())) {
+        throw new ForbiddenError('Admin gate required');
+      }
 
       const access = container.resolve<IAdminAccessService>(TOKENS.IAdminAccessService);
       const role = await access.getActiveRole(wallet);

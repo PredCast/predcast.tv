@@ -1,8 +1,8 @@
--- Migration 038 — admin panel foundations (docs/admin-panel.plan.md, lot 0).
+-- Migration 037 — admin panel foundations (docs/admin-panel.plan.md, lot 0).
 --
 -- Three tables: admin_wallets (RBAC grants), audit_log (append-only trail),
 -- admin_onchain_actions (tx state machine for admin-signed operations).
--- 037 stays reserved for the chat RLS lockdown.
+-- The chat RLS lockdown (ex-037 reservation) takes the next free number when it ships.
 --
 -- The role CHECK is a frozen security invariant — taxonomy changes require
 -- a migration on purpose. Bootstrap grants go through `pnpm admin:grant`,

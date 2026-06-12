@@ -91,6 +91,8 @@ const envSchema = z.object({
   ADMIN_PRIVATE_KEY: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
 
   JWT_SECRET: z.string().min(32),
+  // Admin panel pre-wallet gate — unset disables the gate (local dev).
+  ADMIN_GATE_CODE: z.string().min(8).optional(),
   JWT_ISSUER: z.string().default('chiliz-football-api'),
   JWT_EXPIRY: z.string().default('24h'),
 
