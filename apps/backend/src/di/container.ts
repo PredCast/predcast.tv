@@ -26,6 +26,8 @@ import type { IAdminAccessService } from '@chiliztv/domain/admin/ports/IAdminAcc
 import type { IAuditTrail } from '@chiliztv/domain/admin/ports/IAuditTrail';
 import type { IAdminDirectoryRepository } from '@chiliztv/domain/admin/repositories/IAdminDirectoryRepository';
 import { SupabaseAdminDirectoryRepository } from '../infrastructure/persistence/repositories/SupabaseAdminDirectoryRepository';
+import type { IModerationAlerts } from '@chiliztv/domain/reporting/ports/IModerationAlerts';
+import { DiscordModerationAlerts } from '../infrastructure/observability/DiscordModerationAlerts';
 import { SupabaseReportActionRepository } from '../infrastructure/persistence/repositories/SupabaseReportActionRepository';
 import { PresenceQueryService } from '../infrastructure/services/PresenceQueryService';
 import { BetHistoryService } from '../infrastructure/services/BetHistoryService';
@@ -311,6 +313,7 @@ export function setupDependencyInjection(): void {
   container.registerSingleton<IPresenceService>(TOKENS.IPresenceService, PresenceQueryService);
   container.registerSingleton<IBetHistoryService>(TOKENS.IBetHistoryService, BetHistoryService);
   container.registerSingleton<IModerationNotifier>(TOKENS.IModerationNotifier, SupabaseModerationNotifier);
+  container.registerSingleton<IModerationAlerts>(TOKENS.IModerationAlerts, DiscordModerationAlerts);
   container.registerSingleton<IReportConfigProvider>(TOKENS.IReportConfigProvider, ReportConfigCache);
 
   // ─── Blockchain Adapters ───────────────────────────────────────────────────
