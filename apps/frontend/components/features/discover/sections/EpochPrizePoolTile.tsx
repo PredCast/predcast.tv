@@ -40,7 +40,7 @@ export function EpochPrizePoolTile({ hero }: EpochPrizePoolTileProps) {
         const id = setInterval(() => setNowMs(Date.now()), COUNTDOWN_TICK_MS);
         return () => clearInterval(id);
     }, []);
-    const countdown = nowMs !== null ? formatCountdown(cycleEndsMs, nowMs) : "—";
+    const countdown = nowMs !== null && cycleEndsMs !== null ? formatCountdown(cycleEndsMs, nowMs) : "—";
 
     return (
         <div
