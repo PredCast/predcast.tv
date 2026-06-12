@@ -2,6 +2,7 @@ import { apiClient } from '../client';
 
 export interface AdminPlayerDto {
   wallet: string;
+  username: string | null;
   betCount: number;
   /** Raw USDC 6dp decimal string. */
   totalStaked: string;
@@ -44,7 +45,9 @@ export interface AdminPlayerBetDto {
 export interface AdminMatchSummaryDto {
   id: number;
   homeTeamName: string;
+  homeTeamLogo: string | null;
   awayTeamName: string;
+  awayTeamLogo: string | null;
   leagueName: string;
   status: string;
   matchDate: string;
@@ -81,4 +84,11 @@ export const directoryApi = {
     apiClient.get<{ success: boolean; data: AggregatePage<AdminStreamerDto> }>(`/admin/streamers${qs(query)}`),
   listMatches: () =>
     apiClient.get<{ success: boolean; data: { items: AdminMatchSummaryDto[] } }>('/admin/matches'),
+
+  deployContract: (matchId: number) =>
+    apiClient.post<{ success: boolean; data: { contractAddress: string } }>(`/admin/matches/${matchId}/deploy`),
+  closeMarkets: (matchId: number) =>
+    apiClient.post<{ success: boolean; data: { closed: number; skipped: number } }>(
+      `/admin/matches/${matchId}/close-markets`,
+    ),
 };

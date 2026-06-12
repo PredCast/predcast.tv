@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { adminApi } from "@/lib/api/endpoints/admin";
 import { setGateToken } from "@/lib/api/auth";
 
@@ -38,8 +39,8 @@ export function GateScreen({ onPassed }: Readonly<{ onPassed: () => void }>) {
           <span aria-hidden className="block h-0.5 w-4 bg-[#E8001D]" />
           Restricted area
         </div>
-        <h1 className="font-display mt-3 text-[28px] font-extrabold uppercase leading-none text-white">
-          PredCast Admin
+        <h1 className="mt-4">
+          <Image src="/predcast-logo-white.svg" alt="PredCast Admin" width={160} height={32} priority />
         </h1>
         <p className="mt-2 text-[12px] font-light text-white/55">
           Enter the access code to continue.

@@ -6,10 +6,11 @@ import Link from 'next/link';
 import { usePlayers } from '@/hooks/api/usePlayers';
 import { fmtUsdcRaw } from '@/lib/format/amounts';
 import { WalletLabel } from '@/components/moderation/WalletLabel';
+import { CopyButton } from '@/components/common/CopyButton';
 import { OffsetPager } from './OffsetPager';
 
 const PAGE_SIZE = 25;
-const COLS = 'minmax(0,1.4fr) 80px 130px 130px 90px 90px 90px 130px';
+const COLS = 'minmax(0,1.2fr) 150px 70px 120px 120px 110px 130px';
 
 export function PlayersTable() {
   const [offset, setOffset] = useState(0);
@@ -22,13 +23,12 @@ export function PlayersTable() {
           className="font-mono-ctv grid gap-3 border-b border-[#1E1E1E] px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.14em] text-white/45"
           style={{ gridTemplateColumns: COLS }}
         >
+          <span>Player</span>
           <span>Wallet</span>
           <span className="text-right">Bets</span>
           <span className="text-right">Staked</span>
           <span className="text-right">Payouts</span>
-          <span className="text-right">Won</span>
-          <span className="text-right">Lost</span>
-          <span className="text-right">Pending</span>
+          <span className="text-right">W · L · P</span>
           <span className="text-right">Last bet</span>
         </div>
 
@@ -47,13 +47,23 @@ export function PlayersTable() {
             className="grid items-center gap-3 border-b border-[#1A1A1A] px-4 py-3 text-[13px] transition-colors last:border-b-0 hover:bg-white/[0.02]"
             style={{ gridTemplateColumns: COLS }}
           >
-            <WalletLabel wallet={player.wallet} />
+            <span className="min-w-0 truncate text-white/85">
+              {player.username ?? <span className="text-white/35">—</span>}
+            </span>
+            <span className="flex items-center gap-1">
+              <WalletLabel wallet={player.wallet} />
+              <CopyButton value={player.wallet} label="Copy wallet address" />
+            </span>
             <span className="text-right tabular-nums text-white/85">{player.betCount}</span>
             <span className="text-right tabular-nums text-white/85">{fmtUsdcRaw(player.totalStaked)}</span>
             <span className="text-right tabular-nums text-[#2dd4a4]">{fmtUsdcRaw(player.totalPayout)}</span>
-            <span className="text-right tabular-nums text-[#2dd4a4]">{player.wonCount}</span>
-            <span className="text-right tabular-nums text-white/55">{player.lostCount}</span>
-            <span className="text-right tabular-nums text-[#F5C518]">{player.pendingCount}</span>
+            <span className="text-right tabular-nums">
+              <span className="text-[#2dd4a4]">{player.wonCount}</span>
+              <span className="text-white/35"> · </span>
+              <span className="text-white/55">{player.lostCount}</span>
+              <span className="text-white/35"> · </span>
+              <span className="text-[#F5C518]">{player.pendingCount}</span>
+            </span>
             <span className="font-mono-ctv text-right text-[11px] tabular-nums text-white/55">
               {player.lastBetAt
                 ? new Date(player.lastBetAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })

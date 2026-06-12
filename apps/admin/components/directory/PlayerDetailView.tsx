@@ -1,6 +1,7 @@
 'use client';
 
 import { usePlayerDetail } from '@/hooks/api/usePlayers';
+import { CopyButton } from '@/components/common/CopyButton';
 import { PlayerSummaryCards } from './PlayerSummaryCards';
 import { PlayerBetsTable } from './PlayerBetsTable';
 
@@ -20,6 +21,13 @@ export function PlayerDetailView({ wallet }: Readonly<{ wallet: string }>) {
 
   return (
     <div>
+      <div className="mt-2 flex items-center gap-2">
+        {data.player.username && (
+          <span className="font-display text-[18px] font-bold uppercase text-white">{data.player.username}</span>
+        )}
+        <span className="font-mono-ctv text-[11px] tracking-[0.04em] text-white/55">{data.player.wallet}</span>
+        <CopyButton value={data.player.wallet} label="Copy wallet address" />
+      </div>
       <PlayerSummaryCards player={data.player} />
       <PlayerBetsTable bets={data.recentBets} />
     </div>

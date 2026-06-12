@@ -8,7 +8,6 @@ export default async function PlayerDetailPage({
   return (
     <div>
       <PageHeader eyebrow="Directory" title="Player" />
-      <p className="font-mono-ctv mt-2 text-[11px] tracking-[0.04em] text-white/55">{wallet}</p>
       <PlayerDetailView wallet={wallet} />
     </div>
   );
