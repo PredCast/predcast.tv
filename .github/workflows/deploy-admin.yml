@@ -23,11 +23,31 @@ permissions:
   pull-requests: write
 
 jobs:
+  # ── Guard: skip every deploy until the Vercel admin project is wired up ────
+  # secrets can't be read in a job-level `if:`, so a tiny job promotes the
+  # secret's presence to an output the deploy jobs gate on. Until
+  # VERCEL_PROJECT_ID_ADMIN is set, the deploys are SKIPPED (not failed).
+  guard:
+    name: Check admin project configured
+    runs-on: ubuntu-latest
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    steps:
+      - id: check
+        run: |
+          if [ -n "${{ secrets.VERCEL_PROJECT_ID_ADMIN }}" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice ::VERCEL_PROJECT_ID_ADMIN is not set — admin Vercel deploy skipped."
+          fi
+
   # ── Preview deploy (pull_request) ─────────────────────────────────────────
   deploy-preview:
     name: Preview deploy
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    needs: guard
+    if: github.event_name == 'pull_request' && needs.guard.outputs.configured == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -109,7 +129,8 @@ jobs:
   deploy-staging:
     name: Staging deploy
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    needs: guard
+    if: github.event_name == 'push' && needs.guard.outputs.configured == 'true'
     environment: staging
     outputs:
       deployment_url: ${{ steps.deploy.outputs.deployment_url }}
