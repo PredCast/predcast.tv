@@ -62,6 +62,11 @@ export const TOKENS = {
   IBetHistoryService:      Symbol.for('IBetHistoryService'),
   IModerationNotifier:     Symbol.for('IModerationNotifier'),
   IReportConfigProvider:   Symbol.for('IReportConfigProvider'),
+
+  // Admin panel
+  IAdminWalletRepository:  Symbol.for('IAdminWalletRepository'),
+  IAdminAccessService:     Symbol.for('IAdminAccessService'),
+  IAuditTrail:             Symbol.for('IAuditTrail'),
 } as const;
 
 export type TokenKey = keyof typeof TOKENS;

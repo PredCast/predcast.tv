@@ -268,6 +268,7 @@ export const adminLimiter = createLimiter({
   prefix: 'admin',
   windowMs: 60 * 60 * 1000,
   max: isDevelopment ? 10_000 : 1_000,
+  bypassKillSwitch: true,
   errorCode: 'ADMIN_RATE_LIMIT_EXCEEDED',
   errorMessage: 'Admin action rate exceeded',
   keyGenerator: (req) => {

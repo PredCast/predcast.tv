@@ -13,6 +13,7 @@ export { userRoutes } from './user.routes';
 export { pricesRoutes } from './prices.routes';
 export { leaderboardRoutes } from './leaderboard.routes';
 export { statsRoutes } from './stats.routes';
+export { adminRoutes } from './admin.routes';
 export { metricsRoutes } from './metrics.routes';
 export { reportingRoutes } from './reporting.routes';
 export { banRoutes } from './ban.routes';

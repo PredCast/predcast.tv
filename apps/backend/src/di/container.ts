@@ -18,6 +18,12 @@ import { IModerationNotifier } from '@chiliztv/domain/reporting/ports/IModeratio
 import { IReportConfigProvider } from '@chiliztv/domain/reporting/ports/IReportConfigProvider';
 import { SupabaseReportRepository } from '../infrastructure/persistence/repositories/SupabaseReportRepository';
 import { SupabaseBanRepository } from '../infrastructure/persistence/repositories/SupabaseBanRepository';
+import { SupabaseAdminWalletRepository } from '../infrastructure/persistence/repositories/SupabaseAdminWalletRepository';
+import { CachedAdminAccessService } from '../infrastructure/services/CachedAdminAccessService';
+import { SupabaseAuditTrail } from '../infrastructure/services/SupabaseAuditTrail';
+import type { IAdminWalletRepository } from '@chiliztv/domain/admin/repositories/IAdminWalletRepository';
+import type { IAdminAccessService } from '@chiliztv/domain/admin/ports/IAdminAccessService';
+import type { IAuditTrail } from '@chiliztv/domain/admin/ports/IAuditTrail';
 import { SupabaseReportActionRepository } from '../infrastructure/persistence/repositories/SupabaseReportActionRepository';
 import { PresenceQueryService } from '../infrastructure/services/PresenceQueryService';
 import { BetHistoryService } from '../infrastructure/services/BetHistoryService';
@@ -293,6 +299,11 @@ export function setupDependencyInjection(): void {
   // ─── Reporting / moderation ────────────────────────────────────────────────
   container.registerSingleton<IReportRepository>(TOKENS.IReportRepository, SupabaseReportRepository);
   container.registerSingleton<IBanRepository>(TOKENS.IBanRepository, SupabaseBanRepository);
+
+  // Admin panel (lot 0)
+  container.registerSingleton<IAdminWalletRepository>(TOKENS.IAdminWalletRepository, SupabaseAdminWalletRepository);
+  container.registerSingleton<IAdminAccessService>(TOKENS.IAdminAccessService, CachedAdminAccessService);
+  container.registerSingleton<IAuditTrail>(TOKENS.IAuditTrail, SupabaseAuditTrail);
   container.registerSingleton<IReportActionRepository>(TOKENS.IReportActionRepository, SupabaseReportActionRepository);
   container.registerSingleton<IPresenceService>(TOKENS.IPresenceService, PresenceQueryService);
   container.registerSingleton<IBetHistoryService>(TOKENS.IBetHistoryService, BetHistoryService);
