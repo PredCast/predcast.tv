@@ -62,7 +62,8 @@ app.use(cors({
     origin: allowedOrigins,
     credentials: true,
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    // X-Admin-Gate: admin panel gate token (require-admin middleware).
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Gate']
 }));
 
 app.use(globalLimiter);
