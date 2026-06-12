@@ -8,7 +8,7 @@ export class AdminController {
     async gate(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const code = typeof req.body?.code === 'string' ? req.body.code : '';
-            const ok = verifyGateCode(code);
+            const ok = await verifyGateCode(code);
             if (ok === null) {
                 res.json({ success: true, data: { gateToken: issueGateToken(new Date()), disabled: true } });
                 return;
