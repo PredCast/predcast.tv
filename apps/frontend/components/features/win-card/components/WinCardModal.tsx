@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import type { WinCardData } from '../domain/types';
 import { fmtMult } from '../domain/logic';
 import { WinCard } from './WinCard';
+import { captureWinCard } from './captureWinCard';
 
 const CARD_W = 1080;
 const CARD_H = 1920;
@@ -31,12 +32,14 @@ interface WinCardModalProps {
   readonly onClose: () => void;
 }
 
-/** Full-screen celebration overlay: the story card + Share / Replay actions.
- *  No claim here — claiming lives in 'Your positions'. */
+/** Full-screen celebration overlay: the story card + Share / Replay.
+ *  Share rasterises the card to a PNG (native file share on mobile, download
+ *  on desktop); falls back to a link share if capture fails. No claim here. */
 export function WinCardModal({ data, onClose }: WinCardModalProps) {
   const scale = useFitScale();
-  // Bumping the key remounts the card → replays the reveal animation.
   const [replayKey, setReplayKey] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const captureRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -50,18 +53,49 @@ export function WinCardModal({ data, onClose }: WinCardModalProps) {
     };
   }, [onClose]);
 
-  const share = async () => {
-    const url = `https://predcast.tv/live/${data.matchId}`;
-    const text = `Called it. ×${fmtMult(data.mult)} on PredCast.`;
+  const link = `https://predcast.tv/live/${data.matchId}`;
+  const text = `Called it. ×${fmtMult(data.mult)} on PredCast.`;
+
+  const shareLink = async () => {
     try {
       if (navigator.share) {
-        await navigator.share({ title: 'PredCast', text, url });
+        await navigator.share({ title: 'PredCast', text, url: link });
         return;
       }
-      await navigator.clipboard.writeText(`${text} ${url}`);
+      await navigator.clipboard.writeText(`${text} ${link}`);
       toast.success('Link copied — share your win');
     } catch {
-      // user cancelled the share sheet, or clipboard denied — no-op
+      // share sheet cancelled / clipboard denied — no-op
+    }
+  };
+
+  const share = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const node = captureRef.current;
+      const blob = node ? await captureWinCard(node) : null;
+      if (!blob) {
+        await shareLink();
+        return;
+      }
+      const file = new File([blob], 'predcast-win.png', { type: 'image/png' });
+      if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'PredCast', text });
+        return;
+      }
+      // Desktop / no file-share — download the PNG.
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'predcast-win.png';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast.success('Win card saved');
+    } catch {
+      await shareLink();
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -82,10 +116,17 @@ export function WinCardModal({ data, onClose }: WinCardModalProps) {
         ✕
       </button>
 
-      {/* card — click inside must not close */}
+      {/* visible card */}
       <div onClick={(e) => e.stopPropagation()} style={{ width: CARD_W * scale, height: CARD_H * scale, flex: 'none' }}>
         <div style={{ width: CARD_W, height: CARD_H, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
           <WinCard key={replayKey} data={data} format="story" />
+        </div>
+      </div>
+
+      {/* hidden full-size card — the rasterisation source (no animation) */}
+      <div aria-hidden="true" style={{ position: 'fixed', left: -99999, top: 0, width: CARD_W, height: CARD_H, pointerEvents: 'none', opacity: 0 }}>
+        <div ref={captureRef} style={{ width: CARD_W, height: CARD_H }}>
+          <WinCard data={data} format="story" isStatic />
         </div>
       </div>
 
@@ -94,11 +135,12 @@ export function WinCardModal({ data, onClose }: WinCardModalProps) {
         <button
           type="button"
           onClick={share}
-          className="font-display flex h-14 items-center justify-center gap-3 rounded-xl bg-[#E8001D] text-[19px] font-extrabold uppercase tracking-[0.03em] text-white transition-colors hover:bg-[#FF1737]"
+          disabled={busy}
+          className="font-display flex h-14 items-center justify-center gap-3 rounded-xl bg-[#E8001D] text-[19px] font-extrabold uppercase tracking-[0.03em] text-white transition-colors hover:bg-[#FF1737] disabled:opacity-60"
           style={{ boxShadow: '0 12px 30px rgba(232,0,29,0.32)' }}
         >
-          Share image
-          <span className="font-mono-ctv text-[13px] font-bold">→</span>
+          {busy ? 'Preparing…' : 'Share image'}
+          {!busy ? <span className="font-mono-ctv text-[13px] font-bold">→</span> : null}
         </button>
         <button
           type="button"

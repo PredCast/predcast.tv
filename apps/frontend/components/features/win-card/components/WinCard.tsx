@@ -55,8 +55,10 @@ function Crest({ logo, code, size }: Readonly<{ logo: string | null; code: strin
   return (
     <div className={styles.crest} style={{ width: size, height: size }}>
       {logo ? (
+        // crossOrigin so html-to-image can rasterise the crest without
+        // tainting the canvas (needs the CDN to send CORS headers).
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={logo} alt="" loading="lazy" />
+        <img src={logo} alt="" loading="lazy" crossOrigin="anonymous" />
       ) : (
         <span className={styles.wscDisp} style={{ fontSize: size * 0.33 }}>
           {code}
