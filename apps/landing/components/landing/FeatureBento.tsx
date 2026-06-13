@@ -79,7 +79,7 @@ function Body({
 
 const POOL_STATS = [
   { l: "Winning pool", v: "$1.24M", red: true },
-  { l: "Protocol fee", v: "5%" },
+  { l: "Protocol fee", v: "2%" },
   { l: "→ Leaderboard", v: "1%" },
 ];
 
@@ -117,7 +117,7 @@ export function FeatureBento() {
           <Body large>
             No fixed odds, no house. Pick an outcome, stake USDC into its pool.
             When the match settles, winners share the total pool pro-rata —
-            minus a 5% protocol fee that funds the leaderboard and treasury.
+            minus a 2% protocol fee that funds the leaderboard and treasury.
           </Body>
           <div className="mt-9 flex flex-wrap gap-4">
             {POOL_STATS.map(({ l, v, red }) => (

@@ -78,7 +78,7 @@ export function ChapterPredict() {
         Predict what <span className="text-[#E8001D]">you know.</span>
       </ChapterHeading>
       <ChapterLead>
-        On-chain markets per match. No bookmaker — the crowd&apos;s positions set the implied probability. 5% fee on the winning pool — 1% funds the leaderboard.
+        On-chain markets per match. No bookmaker — the crowd&apos;s positions set the implied probability. 2% fee on the winning pool — 1% funds the leaderboard.
       </ChapterLead>
       <StepsList items={STEPS} />
     </ChapterShell>

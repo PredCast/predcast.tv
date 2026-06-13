@@ -36,7 +36,7 @@ const STEPS: Step[] = [
     title: "Claim your share",
     body: (
       <p className="m-0">
-        Winners split <strong className="font-medium text-white">95%</strong> of the total pool, pro-rata to their stake on the winning outcome. <strong className="font-medium text-white">5%</strong> protocol fee — <strong className="font-medium text-white">1%</strong> funds the leaderboard rewards, <strong className="font-medium text-white">4%</strong> goes to treasury.
+        Winners split <strong className="font-medium text-white">98%</strong> of the total pool, pro-rata to their stake on the winning outcome. <strong className="font-medium text-white">2%</strong> protocol fee — <strong className="font-medium text-white">1%</strong> funds the leaderboard rewards, <strong className="font-medium text-white">1%</strong> goes to treasury.
       </p>
     ),
   },

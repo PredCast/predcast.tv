@@ -52,8 +52,8 @@ export function HeroSection() {
             <p className="mb-9 max-w-[520px] text-[17px] font-light leading-[1.55] text-white/65">
               PredCast pairs live football streams with on-chain pari-mutuel markets.
               No bookmaker, no fixed odds — winners share the pool pro-rata,
-              minus a 5% protocol fee that funds the leaderboard. Settles
-              entirely on Chiliz Chain.
+              minus a 2% protocol fee that funds the leaderboard and treasury.
+              Settles entirely on Chiliz Chain.
             </p>
 
             <LaunchAppCta />

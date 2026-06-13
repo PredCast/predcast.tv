@@ -21,7 +21,7 @@ export function HeroHeadline() {
             </h1>
             <p className="max-w-[540px] text-[17px] font-light leading-[1.55] text-white/65">
                 Every match is a pari-mutuel pool. Stake USDC on an outcome, the implied probability moves with the crowd.
-                When the match settles, <span className="text-white">winners share 95% of the pool</span> pro-rata to their stake.
+                When the match settles, <span className="text-white">winners share 98% of the pool</span> pro-rata to their stake.
                 No bookmaker, no fixed odds, no liquidity provider on the other side.
             </p>
             <div className="flex flex-wrap items-center gap-3">

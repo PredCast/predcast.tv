@@ -84,9 +84,9 @@ const PRICE_IMPACT_WARN_PCT = 3;
 const DEADLINE_MIN = 60; // minutes
 const DEFAULT_SLIPPAGE_BPS = 50; // 0.5%
 const SLIPPAGE_PRESETS_BPS = [10, 50, 100] as const;
-// Default fee — mirrors PariMatchBase.sol:91 (feeBps configurable, default 500 = 5%).
-// Read on-chain via usePariMatchBaseReadFeeBps; this constant is the fallback.
-const DEFAULT_FEE_BPS = 500;
+// Default fee — deployed matches run feeBps = 200 (2%). Read on-chain via
+// usePariMatchBaseReadFeeBps; this constant is only the read-failure fallback.
+const DEFAULT_FEE_BPS = 200;
 // Contract floor — PariMatchBase.sol:90 `uint256 public constant MIN_STAKE = 10_000;`
 // = 0.01 USDC at 6 dp. Pre-checked here so the user gets a clear UI message
 // rather than a wallet-popup gas-estimation revert (StakeBelowMinimum).
@@ -381,7 +381,7 @@ export function MarketBetDialog({
     enabled: open && phase !== 'success' && phase !== 'failure',
   });
 
-  // Fee in basis points — defaults to 500 (5%) per contract default. Read
+  // Fee in basis points — defaults to 200 (2%) per deployed config. Read
   // on-chain so configured overrides are picked up automatically.
   const { data: feeBpsOnchain } = usePariMatchBaseReadFeeBps({
     address: contractAddress,
