@@ -6,6 +6,7 @@ import {
     fmtViewers,
     getCountdown,
     getMinute,
+    isFinished,
     isLive,
     type FlatMatch,
 } from "../domain";
@@ -17,6 +18,7 @@ import { PendingPanel } from "./PendingPanel";
 import { BeFirstBar } from "./BeFirstBar";
 import { DistributionBar } from "./DistributionBar";
 import { StakeZone } from "./StakeZone";
+import { SettledFooter } from "./SettledFooter";
 
 /**
  * Match card — "Magnetic stake" layout from the claude.ai/design handoff
@@ -53,6 +55,7 @@ export function MatchCardDonut({
     onPredict?: (match: FlatMatch) => void;
 }) {
     const live = isLive(match.status);
+    const finished = isFinished(match.status);
     const minute = live ? getMinute(match.status, match.kickoffAt, now, match.elapsed) : null;
     const totalViewers = match.streamsPreview.reduce((s, sp) => s + sp.viewers, 0);
 
@@ -77,8 +80,9 @@ export function MatchCardDonut({
     return (
         <article
             className={[
-                // base — flex column card, brand surface
-                "group relative flex w-full flex-col rounded-xl border bg-[#111] px-5 pb-4 pt-4",
+                // base — flex column card, brand surface (dimmer once settled)
+                "group relative flex w-full flex-col rounded-xl border px-5 pb-4 pt-4",
+                finished ? "bg-[#0f0f0f]" : "bg-[#111]",
                 // hover lifts the card and lays a soft shadow under it. Slower
                 // than the stake-zone (300ms vs 220ms) so the zone reads as
                 // the focal magnet and the card body as supporting motion.
@@ -184,7 +188,21 @@ export function MatchCardDonut({
             </div>
 
             {/* Lower block — branches by state */}
-            {pending ? (
+            {finished ? (
+                <>
+                    {distribution.source === "pool" && (
+                        <DistributionBar
+                            shares={distribution.shares ?? []}
+                            labels={distribution.outcomeLabels}
+                            favIdx={distribution.favIdx}
+                        />
+                    )}
+                    <SettledFooter
+                        pool={fmtUsdcCompact(distribution.totalPool)}
+                        onView={() => onPredict?.(match)}
+                    />
+                </>
+            ) : pending ? (
                 <PendingPanel />
             ) : isBeFirst ? (
                 <>

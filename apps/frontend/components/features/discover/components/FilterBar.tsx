@@ -1,14 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import {
-  SORT_OPTIONS,
-  type LeagueDto,
-  type MatchDay,
-  type MatchTab,
-  type SortMode,
-} from "../domain";
-import { DayFilterRow } from "./DayFilterRow";
+import { SORT_OPTIONS, type LeagueDto, type MatchTab, type SortMode } from "../domain";
 
 export interface TabDescriptor {
   key: MatchTab;
@@ -23,13 +15,8 @@ interface FilterBarProps {
   leagues: LeagueDto[];
   activeLeague: string | null;
   onLeague: (key: string | null) => void;
-  days: MatchDay[];
-  activeDay: string | null;
-  onDay: (key: string | null) => void;
   sortMode: SortMode;
   onSort: (s: SortMode) => void;
-  showFinished: boolean;
-  onToggleFinished: () => void;
 }
 
 /**
@@ -39,6 +26,11 @@ interface FilterBarProps {
 export const leagueKey = (l: LeagueDto): string =>
   `${l.league.id}_${l.league.name}`;
 
+/**
+ * Sticky discover filter bar: status tabs (All / Live / Upcoming / Finished),
+ * a Time/Pool sort, and a horizontally-scrollable league row. Day grouping is
+ * handled by the Upcoming section's day bands, so there is no day filter here.
+ */
 export function FilterBar({
   tabs,
   activeTab,
@@ -46,32 +38,29 @@ export function FilterBar({
   leagues,
   activeLeague,
   onLeague,
-  days,
-  activeDay,
-  onDay,
   sortMode,
   onSort,
-  showFinished,
-  onToggleFinished,
 }: FilterBarProps) {
   return (
-    <div className="relative z-[5] border-y border-[#1E1E1E] bg-[#111]">
-      <div className="mx-auto flex max-w-[1400px] flex-col gap-0 px-8 sm:px-14">
+    <div className="sticky top-0 z-[5] border-y border-[#1E1E1E] bg-[#111]/[0.92] backdrop-blur-[10px]">
+      <div className="mx-auto flex max-w-[1400px] flex-col px-8 sm:px-14">
         {/* Row 1: status tabs + sort */}
-        <div className="flex flex-col items-start justify-between gap-3 border-b border-[#1E1E1E] py-4 sm:flex-row sm:items-center sm:gap-6">
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col items-start justify-between gap-3 py-3.5 sm:flex-row sm:items-center sm:gap-6">
+          <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Match status">
             {tabs.map((t) => {
               const active = activeTab === t.key;
               return (
                 <button
                   key={t.key}
                   type="button"
+                  role="tab"
+                  aria-selected={active}
                   onClick={() => onTab(t.key)}
                   className="font-mono-ctv inline-flex items-center gap-2 rounded-md border px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8001D]"
                   style={{
                     borderColor: active ? "#E8001D" : "#2A2A2A",
-                    background: active ? "rgba(232,0,29,0.08)" : "transparent",
-                    color: active ? "#fff" : "rgba(255,255,255,0.55)",
+                    background: active ? "rgba(232,0,29,0.09)" : "transparent",
+                    color: active ? "#fff" : "rgba(255,255,255,0.65)",
                   }}
                 >
                   {t.key === "live" && (
@@ -83,9 +72,9 @@ export function FilterBar({
                   {t.label}
                   {typeof t.count === "number" && t.count > 0 && (
                     <span
-                      className="ml-1 inline-flex h-[18px] min-w-[20px] items-center justify-center rounded-sm px-1 text-[9px] font-bold"
+                      className="ml-1 inline-flex h-[18px] min-w-[20px] items-center justify-center rounded-sm px-1 text-[9px] font-bold tabular-nums"
                       style={{
-                        background: active ? "rgba(232,0,29,0.2)" : "#1A1A1A",
+                        background: active ? "rgba(232,0,29,0.22)" : "#1A1A1A",
                         color: active ? "#E8001D" : "rgba(255,255,255,0.65)",
                       }}
                     >
@@ -95,12 +84,6 @@ export function FilterBar({
                 </button>
               );
             })}
-            <label className="ml-2 inline-flex cursor-pointer items-center gap-2 border-l border-[#1E1E1E] pl-4">
-              <span className="font-mono-ctv text-[10px] uppercase tracking-[0.16em] text-white/45">
-                Show finished
-              </span>
-              <FinishedSwitch on={showFinished} onChange={onToggleFinished} />
-            </label>
           </div>
 
           {/* Sort */}
@@ -114,11 +97,12 @@ export function FilterBar({
                 <button
                   key={s.value}
                   type="button"
+                  aria-pressed={active}
                   onClick={() => onSort(s.value)}
-                  className="font-mono-ctv rounded-md border px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8001D]"
+                  className="font-mono-ctv rounded-md border px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.13em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8001D]"
                   style={{
                     borderColor: active ? "#E8001D" : "#2A2A2A",
-                    color: active ? "#fff" : "rgba(255,255,255,0.55)",
+                    color: active ? "#fff" : "rgba(255,255,255,0.65)",
                     background: active ? "rgba(232,0,29,0.08)" : "transparent",
                   }}
                 >
@@ -129,22 +113,17 @@ export function FilterBar({
           </div>
         </div>
 
-        {/* Row 2: days */}
-        <DayFilterRow days={days} activeDay={activeDay} onDay={onDay} />
-
-        {/* Row 3: leagues */}
-        <div className="-mx-2 flex items-center gap-2 overflow-x-auto py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* Row 2: leagues */}
+        <div className="-mx-2 flex items-center gap-2 overflow-x-auto pb-3.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <button
             type="button"
+            aria-pressed={activeLeague === null}
             onClick={() => onLeague(null)}
-            className="font-mono-ctv flex-shrink-0 rounded-md border px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8001D]"
+            className="font-mono-ctv ml-2 flex-shrink-0 rounded-md border px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.13em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8001D]"
             style={{
               borderColor: activeLeague === null ? "#E8001D" : "#2A2A2A",
-              background:
-                activeLeague === null ? "rgba(232,0,29,0.08)" : "transparent",
-              color:
-                activeLeague === null ? "#fff" : "rgba(255,255,255,0.55)",
-              marginLeft: 8,
+              background: activeLeague === null ? "rgba(232,0,29,0.08)" : "transparent",
+              color: activeLeague === null ? "#fff" : "rgba(255,255,255,0.65)",
             }}
           >
             All leagues
@@ -156,12 +135,13 @@ export function FilterBar({
               <button
                 key={key}
                 type="button"
+                aria-pressed={active}
                 onClick={() => onLeague(key)}
-                className="font-mono-ctv flex flex-shrink-0 items-center gap-2 rounded-md border px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8001D]"
+                className="font-mono-ctv flex flex-shrink-0 items-center gap-2 rounded-md border px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.13em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8001D]"
                 style={{
                   borderColor: active ? "#E8001D" : "#2A2A2A",
                   background: active ? "rgba(232,0,29,0.08)" : "transparent",
-                  color: active ? "#fff" : "rgba(255,255,255,0.55)",
+                  color: active ? "#fff" : "rgba(255,255,255,0.65)",
                 }}
               >
                 {l.league.logoUrl && (
@@ -180,39 +160,5 @@ export function FilterBar({
         </div>
       </div>
     </div>
-  );
-}
-
-function FinishedSwitch({
-  on,
-  onChange,
-}: {
-  on: boolean;
-  onChange: () => void;
-}) {
-  // Tracked locally too so the switch is interactive even before the parent
-  // wires the toggle through (defensive UI).
-  const [local, setLocal] = useState(on);
-  const checked = on || local;
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => {
-        setLocal((v) => !v);
-        onChange();
-      }}
-      className="relative h-4 w-7 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8001D]"
-      style={{
-        background: checked ? "rgba(232,0,29,0.5)" : "#1A1A1A",
-        borderColor: checked ? "#E8001D" : "#2A2A2A",
-      }}
-    >
-      <span
-        className="absolute top-[1px] block h-2.5 w-2.5 rounded-full bg-white transition-all"
-        style={{ left: checked ? 14 : 2 }}
-      />
-    </button>
   );
 }

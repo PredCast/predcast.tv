@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { marketsApi, type MarketPoolsDto } from "@/lib/api/endpoints";
 import { queryKeys } from "@/lib/query/keys";
-import { type FlatMatch } from "../domain";
+import { isFinished, isLive, type FlatMatch } from "../domain";
 
 /** Pre-bucketed match list + per-contract pool totals for the league headers. */
 export interface MatchesByPoolStatus {
@@ -59,15 +59,24 @@ export function useMatchesByPoolStatus(matches: FlatMatch[]): MatchesByPoolStatu
         const poolByContract = new Map<string, bigint>();
 
         matches.forEach((m, i) => {
+            const q = queries[i];
+            if (m.contractAddress && q?.data) {
+                poolByContract.set(m.contractAddress.toLowerCase(), sumAcrossMarkets(q.data));
+            }
+
+            // Live and finished matches always belong in the main grid, even
+            // with an empty pool — the "be the first" fallback only makes
+            // sense pre-kickoff (staking on a live/closed market reverts).
+            if (isLive(m.status) || isFinished(m.status)) {
+                pooled.push(m);
+                return;
+            }
+
             if (!m.contractAddress) {
                 empty.push(m);
                 return;
             }
-            const q = queries[i];
             const totalAcrossMarkets = sumAcrossMarkets(q?.data);
-            if (q?.data) {
-                poolByContract.set(m.contractAddress.toLowerCase(), totalAcrossMarkets);
-            }
             if (totalAcrossMarkets > BigInt(0)) {
                 pooled.push(m);
                 return;

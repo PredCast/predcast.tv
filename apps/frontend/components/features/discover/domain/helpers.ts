@@ -18,6 +18,11 @@ export function isLive(status: string): boolean {
   return classifyStatus(status) === "live";
 }
 
+/** Played-out match (full time / after extra time / penalties / awarded). */
+export function isFinished(status: string): boolean {
+  return classifyStatus(status) === "finished";
+}
+
 /**
  * In-game minute, clamped to the half / extra-time window.
  *
@@ -217,9 +222,58 @@ export function buildStreams(
 export const SORT_OPTIONS: SortOption[] = [
   { value: "time_asc", label: "Time ↑" },
   { value: "time_desc", label: "Time ↓" },
-  { value: "league_asc", label: "League ↑" },
-  { value: "league_desc", label: "League ↓" },
+  { value: "pool_desc", label: "Pool ↓" },
 ];
+
+/** One kickoff-day band of matches, ready to render in the Upcoming section. */
+export interface DayGroup {
+  key: string;
+  /** `Today` / `Tomorrow` / weekday (`Thu`). */
+  label: string;
+  /** `14 JUN` — short date, always shown next to the label. */
+  date: string;
+  isToday: boolean;
+  matches: FlatMatch[];
+}
+
+/**
+ * Group matches by their kickoff day, days ascending. Within each day the
+ * input order is preserved (callers pass an already-sorted list). Labels are
+ * relative to `now` — `Today` / `Tomorrow`, else the weekday. With a null
+ * `now` (pre-hydration) every band falls back to the weekday so SSR stays
+ * deterministic.
+ */
+export function groupMatchesByDay(
+  matches: FlatMatch[],
+  now: Date | null,
+): DayGroup[] {
+  const todayKey = now ? dayKey(now.toISOString()) : null;
+  const tomorrowKey = now
+    ? dayKey(new Date(now.getTime() + 86_400_000).toISOString())
+    : null;
+
+  const map = new Map<string, FlatMatch[]>();
+  for (const m of matches) {
+    const k = dayKey(m.kickoffAt);
+    const bucket = map.get(k);
+    if (bucket) bucket.push(m);
+    else map.set(k, [m]);
+  }
+
+  return Array.from(map.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, ms]) => {
+      const noon = new Date(`${key}T12:00:00`);
+      let label: string;
+      if (key === todayKey) label = "Today";
+      else if (key === tomorrowKey) label = "Tomorrow";
+      else label = noon.toLocaleDateString("en-GB", { weekday: "short" });
+      const date = noon
+        .toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+        .toUpperCase();
+      return { key, label, date, isToday: key === todayKey, matches: ms };
+    });
+}
 
 /** A homogeneous bucket of matches for one league, ready to render. */
 export interface LeagueGroup {
@@ -261,7 +315,15 @@ export function groupByLeague(
   return groups;
 }
 
-export function sortMatches(matches: FlatMatch[], mode: SortMode): FlatMatch[] {
+/**
+ * Sort matches by kickoff time or by pool size. `poolOf` resolves a match to
+ * its current pool (raw USDC) — required for `pool_desc`, ignored otherwise.
+ */
+export function sortMatches(
+  matches: FlatMatch[],
+  mode: SortMode,
+  poolOf?: (m: FlatMatch) => bigint,
+): FlatMatch[] {
   const cp = matches.slice();
   switch (mode) {
     case "time_asc":
@@ -274,10 +336,14 @@ export function sortMatches(matches: FlatMatch[], mode: SortMode): FlatMatch[] {
         (a, b) =>
           new Date(b.kickoffAt).getTime() - new Date(a.kickoffAt).getTime(),
       );
-    case "league_asc":
-      return cp.sort((a, b) => a.leagueName.localeCompare(b.leagueName));
-    case "league_desc":
-      return cp.sort((a, b) => b.leagueName.localeCompare(a.leagueName));
+    case "pool_desc": {
+      const pool = poolOf ?? (() => BigInt(0));
+      return cp.sort((a, b) => {
+        const pa = pool(a);
+        const pb = pool(b);
+        return pa < pb ? 1 : pa > pb ? -1 : 0;
+      });
+    }
     default:
       return cp;
   }

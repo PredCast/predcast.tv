@@ -33,13 +33,9 @@ export interface StreamerCard extends StreamPreviewDto {
   featured?: boolean;
 }
 
-export type MatchTab = "all" | "live" | "upcoming";
+export type MatchTab = "all" | "live" | "upcoming" | "finished";
 
-export type SortMode =
-  | "time_asc"
-  | "time_desc"
-  | "league_asc"
-  | "league_desc";
+export type SortMode = "time_asc" | "time_desc" | "pool_desc";
 
 export interface SortOption {
   value: SortMode;

@@ -7,14 +7,11 @@ import { useAuth } from "@/providers/auth-provider";
 import {
     EmptyState,
     FilterBar,
-    LeagueSection,
     leagueKey,
     type TabDescriptor,
 } from "../components";
 import {
-    buildMatchDays,
-    dayKey,
-    groupByLeague,
+    isFinished,
     isLive,
     sortMatches,
     type FlatMatch,
@@ -23,9 +20,9 @@ import {
     type SortMode,
 } from "../domain";
 import { useMatchesByPoolStatus } from "../hooks";
-import { BeFirstStrip } from "./BeFirstStrip";
-
-const FINISHED_STATUSES = new Set(["FT", "AET", "PEN"]);
+import { LiveSection } from "./LiveSection";
+import { UpcomingSection } from "./UpcomingSection";
+import { FinishedSection } from "./FinishedSection";
 
 export function MatchExplorer({
     matches,
@@ -44,56 +41,62 @@ export function MatchExplorer({
     const { setShowAuthFlow } = useDynamicContext();
     const [tab, setTab] = useState<MatchTab>("all");
     const [league, setLeague] = useState<string | null>(null);
-    const [day, setDay] = useState<string | null>(null);
     const [sort, setSort] = useState<SortMode>("time_asc");
-    const [showFinished, setShowFinished] = useState(true);
 
-    const liveCount = useMemo(
-        () => matches.filter((m) => isLive(m.status)).length,
-        [matches],
+    // Pool totals per contract — batched and deduped against the per-card
+    // `useMarketPools` reads. Feeds the Pool ↓ sort and the settled-pool meta.
+    const { poolByContract } = useMatchesByPoolStatus(matches);
+    const poolOf = useCallback(
+        (m: FlatMatch): bigint => {
+            const addr = m.contractAddress?.toLowerCase();
+            return addr ? (poolByContract.get(addr) ?? BigInt(0)) : BigInt(0);
+        },
+        [poolByContract],
     );
-    const upcomingCount = useMemo(
-        () => matches.filter((m) => m.status === "NS").length,
-        [matches],
+
+    const byLeague = useCallback(
+        (m: FlatMatch) => !league || `${m.leagueId}_${m.leagueName}` === league,
+        [league],
     );
 
-    // Day chips reflect the full dataset so the available days stay stable
-    // while other filters narrow the grid.
-    const days = useMemo(() => buildMatchDays(matches, now), [matches, now]);
-
-    const filtered = useMemo(() => {
-        let arr = matches;
-        if (!showFinished) arr = arr.filter((m) => !FINISHED_STATUSES.has(m.status));
-        if (tab === "live") arr = arr.filter((m) => isLive(m.status));
-        if (tab === "upcoming") arr = arr.filter((m) => m.status === "NS");
-        if (league) arr = arr.filter((m) => `${m.leagueId}_${m.leagueName}` === league);
-        if (day) arr = arr.filter((m) => dayKey(m.kickoffAt) === day);
-        return sortMatches(arr, sort);
-    }, [matches, tab, league, day, sort, showFinished]);
-
-    // Batched pool snapshot for every visible match — drives the league
-    // header "Total staked $X" + the empty/pooled partition consumed by
-    // BeFirstStrip. Re-uses the same React Query cache as the per-card
-    // `useMarketPools` calls, so no duplicated network requests.
-    const { pooled, empty, poolByContract } = useMatchesByPoolStatus(filtered);
-
-    // Leagues are now the default layout. Sort direction stays under user
-    // control via the FilterBar — `league_desc` flips group order.
-    const groups = useMemo(() => {
-        const direction = sort === "league_desc" ? "desc" : "asc";
-        return groupByLeague(pooled, direction);
-    }, [pooled, sort]);
-
-    // BeFirstStrip targets pre-kickoff matches — staking on a live or
-    // finished market is rejected on-chain anyway (`StateNotOpen` revert).
-    const seedable = useMemo(
-        () => empty.filter((m) => m.status === "NS"),
-        [empty],
+    // Status partition. Anything neither live nor finished is "upcoming"
+    // (NS / TBD / postponed) so no match is ever dropped from the board.
+    const live = useMemo(
+        () => sortMatches(matches.filter((m) => isLive(m.status) && byLeague(m)), sort, poolOf),
+        [matches, byLeague, sort, poolOf],
     );
+    const finished = useMemo(
+        () => sortMatches(matches.filter((m) => isFinished(m.status) && byLeague(m)), sort, poolOf),
+        [matches, byLeague, sort, poolOf],
+    );
+    const upcoming = useMemo(
+        () =>
+            sortMatches(
+                matches.filter((m) => !isLive(m.status) && !isFinished(m.status) && byLeague(m)),
+                sort,
+                poolOf,
+            ),
+        [matches, byLeague, sort, poolOf],
+    );
+
+    const showLive = (tab === "all" || tab === "live") && live.length > 0;
+    const showUpcoming = (tab === "all" || tab === "upcoming") && upcoming.length > 0;
+    const showFinished = (tab === "all" || tab === "finished") && finished.length > 0;
+
+    // Tab counts reflect the full dataset (league filter doesn't narrow them).
+    const tabs: TabDescriptor[] = useMemo(() => {
+        const liveN = matches.filter((m) => isLive(m.status)).length;
+        const finishedN = matches.filter((m) => isFinished(m.status)).length;
+        return [
+            { key: "all", label: "All", count: matches.length },
+            { key: "live", label: "Live", count: liveN },
+            { key: "upcoming", label: "Upcoming", count: matches.length - liveN - finishedN },
+            { key: "finished", label: "Finished", count: finishedN },
+        ];
+    }, [matches]);
 
     // Visitors see Discover but cannot enter a live room until they connect —
-    // clicking a match pops Dynamic's auth flow instead of navigating, so the
-    // wallet-required UI on `/live/[id]` never renders for anonymous users.
+    // clicking a match pops Dynamic's auth flow instead of navigating.
     const goToMatch = useCallback(
         (m: FlatMatch) => {
             if (!isAuthenticated) {
@@ -105,14 +108,7 @@ export function MatchExplorer({
         [router, isAuthenticated, setShowAuthFlow],
     );
 
-    const tabs: TabDescriptor[] = [
-        { key: "all", label: "All", count: matches.length },
-        { key: "live", label: "Live", count: liveCount },
-        { key: "upcoming", label: "Upcoming", count: upcomingCount },
-    ];
-
-    const nothingFiltered = filtered.length === 0;
-    const nothingToShow = groups.length === 0 && seedable.length === 0;
+    const nothing = !showLive && !showUpcoming && !showFinished;
 
     return (
         <section id="explorer" className="relative z-[4]">
@@ -123,17 +119,12 @@ export function MatchExplorer({
                 leagues={leagues}
                 activeLeague={league}
                 onLeague={setLeague}
-                days={days}
-                activeDay={day}
-                onDay={setDay}
                 sortMode={sort}
                 onSort={setSort}
-                showFinished={showFinished}
-                onToggleFinished={() => setShowFinished((v) => !v)}
             />
 
             <div className="mx-auto max-w-[1400px] px-8 pb-20 pt-12 sm:px-14 sm:pb-28 sm:pt-16">
-                {nothingFiltered ? (
+                {nothing ? (
                     isLoading ? (
                         <EmptyState
                             label="Loading matches"
@@ -149,38 +140,30 @@ export function MatchExplorer({
                             label={
                                 tab === "live"
                                     ? "No live matches right now"
-                                    : "Nothing matches that filter"
+                                    : tab === "finished"
+                                        ? "No finished matches yet"
+                                        : "Nothing matches that filter"
                             }
-                            hint="Try clearing the league or day filter, or switch tab."
+                            hint="Try clearing the league filter, or switch tab."
                         />
                     )
-                ) : nothingToShow ? (
-                    <EmptyState
-                        label="Quiet pools"
-                        hint="Pool snapshots are still loading — refresh in a few seconds."
-                    />
                 ) : (
-                    groups.map((g) => {
-                        const total = g.matches.reduce((sum, m) => {
-                            const addr = m.contractAddress?.toLowerCase();
-                            return sum + (addr ? (poolByContract.get(addr) ?? BigInt(0)) : BigInt(0));
-                        }, BigInt(0));
-                        return (
-                            <LeagueSection
-                                key={g.leagueId}
-                                league={g.leagueName}
-                                logo={g.leagueLogo}
-                                matches={g.matches}
+                    <>
+                        {showLive && <LiveSection matches={live} now={now} onPredict={goToMatch} />}
+                        {showUpcoming && (
+                            <UpcomingSection matches={upcoming} now={now} onPredict={goToMatch} />
+                        )}
+                        {showFinished && (
+                            <FinishedSection
+                                matches={finished}
                                 now={now}
-                                totalPool={total}
                                 onPredict={goToMatch}
+                                poolOf={poolOf}
                             />
-                        );
-                    })
+                        )}
+                    </>
                 )}
             </div>
-
-            <BeFirstStrip matches={seedable} now={now} onPredict={goToMatch} />
         </section>
     );
 }
