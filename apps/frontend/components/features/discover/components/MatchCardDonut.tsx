@@ -67,6 +67,17 @@ export function MatchCardDonut({
     const isBeFirst = !pending && distribution.source === "empty";
     const isStakeable = !pending && distribution.source === "pool";
 
+    // Settled WINNER market (1X2, regulation time) → winning outcome derived
+    // from the 90' score so the finished card paints it green. Only the WINNER
+    // market is derivable from the score; other markets stay un-highlighted.
+    const winnerIdx = useMemo<number | null>(() => {
+        if (!finished || distribution.marketKey !== "winner" || !match.score) return null;
+        const { home, away } = match.score;
+        if (home > away) return 0;
+        if (home < away) return 2;
+        return 1;
+    }, [finished, distribution.marketKey, match.score]);
+
     const fmt = useMemo(
         () =>
             fmtMatchScore({
@@ -194,7 +205,8 @@ export function MatchCardDonut({
                         <DistributionBar
                             shares={distribution.shares ?? []}
                             labels={distribution.outcomeLabels}
-                            favIdx={distribution.favIdx}
+                            favIdx={winnerIdx === null ? distribution.favIdx : null}
+                            winnerIdx={winnerIdx}
                         />
                     )}
                     <SettledFooter
