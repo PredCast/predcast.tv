@@ -310,7 +310,7 @@ function MarketRow({ contractAddress, snapshot, homeTeam, awayTeam, match, now, 
                 onClick={() => handleCellClick(outcomeIdx)}
                 disabled={!canBet}
                 className={[
-                  "group relative flex flex-col gap-1.5 overflow-hidden rounded-[10px] border bg-[#1A1A1A] px-3.5 pb-3 pt-3.5 text-left transition-all duration-150",
+                  "group relative flex flex-col items-center gap-1.5 overflow-hidden rounded-[10px] border bg-[#1A1A1A] px-3.5 pb-3 pt-3.5 text-center transition-all duration-150",
                   "shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8001D]",
                   isLead ? "border-[#E8001D]" : "border-[#2A2A2A]",
                   canBet
@@ -327,7 +327,7 @@ function MarketRow({ contractAddress, snapshot, homeTeam, awayTeam, match, now, 
                   </span>
                 )}
                 <span
-                  className={`font-display truncate text-[13px] font-extrabold uppercase leading-none tracking-tight text-white ${isLead ? "pr-10" : ""}`}
+                  className={`font-display max-w-full truncate text-[13px] font-extrabold uppercase leading-none tracking-tight text-white ${isLead ? "px-7" : ""}`}
                 >
                   {o.label}
                 </span>
@@ -346,7 +346,7 @@ function MarketRow({ contractAddress, snapshot, homeTeam, awayTeam, match, now, 
                     : "Be the first to predict"}
                 </span>
                 {canBet && (
-                  <span className="font-mono-ctv flex translate-y-[3px] items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-[#E8001D] opacity-0 transition-all duration-150 group-hover:translate-y-0 group-hover:opacity-100">
+                  <span className="font-mono-ctv flex translate-y-[3px] items-center justify-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-[#E8001D] opacity-0 transition-all duration-150 group-hover:translate-y-0 group-hover:opacity-100">
                     Predict <span aria-hidden>→</span>
                   </span>
                 )}
