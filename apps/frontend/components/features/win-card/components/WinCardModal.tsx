@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import type { WinCardData } from '../domain/types';
 import { fmtMult } from '../domain/logic';
 import { WinCard } from './WinCard';
-import { captureWinCard } from './captureWinCard';
+import { captureWinCard, toDataUrl } from './captureWinCard';
 
 const CARD_W = 1080;
 const CARD_H = 1920;
@@ -40,6 +40,28 @@ export function WinCardModal({ data, onClose }: WinCardModalProps) {
   const [replayKey, setReplayKey] = useState(0);
   const [busy, setBusy] = useState(false);
   const captureRef = useRef<HTMLDivElement>(null);
+
+  // The capture card holds NO remote URL — crests start as codes and upgrade
+  // to data-URL logos once fetched, so the rasterised canvas is never tainted.
+  const [captureData, setCaptureData] = useState<WinCardData>(() => ({
+    ...data,
+    home: { ...data.home, logo: null },
+    away: { ...data.away, logo: null },
+  }));
+  useEffect(() => {
+    let off = false;
+    void (async () => {
+      const [home, away] = await Promise.all([
+        data.home.logo ? toDataUrl(data.home.logo) : Promise.resolve(null),
+        data.away.logo ? toDataUrl(data.away.logo) : Promise.resolve(null),
+      ]);
+      if (off) return;
+      setCaptureData({ ...data, home: { ...data.home, logo: home }, away: { ...data.away, logo: away } });
+    })();
+    return () => {
+      off = true;
+    };
+  }, [data]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -126,7 +148,7 @@ export function WinCardModal({ data, onClose }: WinCardModalProps) {
       {/* hidden full-size card — the rasterisation source (no animation) */}
       <div aria-hidden="true" style={{ position: 'fixed', left: -99999, top: 0, width: CARD_W, height: CARD_H, pointerEvents: 'none', opacity: 0 }}>
         <div ref={captureRef} style={{ width: CARD_W, height: CARD_H }}>
-          <WinCard data={data} format="story" isStatic />
+          <WinCard data={captureData} format="story" isStatic />
         </div>
       </div>
 
