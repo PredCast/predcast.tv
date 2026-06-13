@@ -6,12 +6,14 @@ on:
     paths:
       - 'apps/frontend/**'
       - 'packages/**'
+      - 'pnpm-lock.yaml'
   push:
     branches:
       - main
     paths:
       - 'apps/frontend/**'
       - 'packages/**'
+      - 'pnpm-lock.yaml'
 
 concurrency:
   group: deploy-app-${{ github.ref }}

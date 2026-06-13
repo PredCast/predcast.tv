@@ -8,6 +8,7 @@ on:
       - 'apps/backend/**'
       - 'packages/**'
       - 'Dockerfile'
+      - 'pnpm-lock.yaml'
 
 concurrency:
   group: deploy-api-staging

@@ -35,6 +35,7 @@ function serializeBet(entry: BetWithMatchInfo): Record<string, unknown> {
                   apiFootballId: match.apiFootballId,
                   homeTeamName: match.homeTeamName,
                   awayTeamName: match.awayTeamName,
+                  // logos + final score feed the win share card
                   homeTeamLogo: match.homeTeamLogo,
                   awayTeamLogo: match.awayTeamLogo,
                   leagueName: match.leagueName,

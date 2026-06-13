@@ -1,3 +1,4 @@
+// Client-side PNG rasterisation for the win share card.
 import { toBlob } from 'html-to-image';
 
 /**
