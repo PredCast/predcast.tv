@@ -1,6 +1,6 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
-import { ChatMessage, BetMessage, SystemMessage, MessageType, SystemMessageType, BetType } from '@/models/chat.model';
+import { ChatMessage, MessageType, SystemMessageType, BetType } from '@/models/chat.model';
 import { chatApi } from '@/lib/api/endpoints/chat';
 
 /** Wire shape of the backend's ChatMessage.toJSON(). */
@@ -126,139 +126,38 @@ export class SupabaseChatService {
         };
     }
 
-    async sendBetMessage(
-        matchId: number,
-        userId: string,
-        username: string,
-        betType: BetType,
-        betSubType: string,
-        amount: number,
-        odds: number,
-        walletAddress: string
-    ): Promise<BetMessage> {
-        const { data, error } = await supabase
-            .from('chat_messages')
-            .insert({
-                match_id: matchId,
-                user_id: userId,
-                username: username,
-                message: `Prediction ${betType} - ${betSubType}`,
-                message_type: MessageType.BET,
-                bet_type: betType,
-                bet_sub_type: betSubType,
-                amount: amount,
-                odds: odds,
-                wallet_address: walletAddress,
-                created_at: new Date().toISOString()
-            })
-            .select()
-            .single();
-
-        if (error) {
-            throw new Error(`Erreur lors de l'envoi du message de pari: ${error.message}`);
-        }
-
-        return this.mapSupabaseMessageToBetMessage(data);
-    }
-
-    async sendSystemMessage(
-        matchId: number,
-        systemType: SystemMessageType,
-        message: string
-    ): Promise<SystemMessage> {
-        const { data, error } = await supabase
-            .from('chat_messages')
-            .insert({
-                match_id: matchId,
-                user_id: 'system',
-                username: 'Système',
-                message: message,
-                message_type: MessageType.SYSTEM,
-                system_type: systemType,
-                created_at: new Date().toISOString()
-            })
-            .select()
-            .single();
-
-        if (error) {
-            throw new Error(`Erreur lors de l'envoi du message système: ${error.message}`);
-        }
-
-        return this.mapSupabaseMessageToSystemMessage(data);
-    }
-
-    async joinRoom(matchId: number, userId: string, username: string, walletAddress?: string): Promise<ConnectedUser> {
+    /**
+     * Presence join/leave go through the backend (service-role write, wallet
+     * stamped from the JWT, `requireNotBanned`). The anon client no longer
+     * writes `chat_connected_users` directly — RLS denies that after 039.
+     * Failures degrade gracefully to a synthetic presence row so the chat UI
+     * keeps working even if the presence write fails.
+     */
+    async joinRoom(matchId: number, userId: string, username: string, _walletAddress?: string): Promise<ConnectedUser> {
         try {
-            const { data: matchExists, error: matchError } = await supabase
-                .from('matches')
-                .select('api_football_id')
-                .eq('api_football_id', matchId);
-
-            if (matchError || !matchExists || matchExists.length === 0) {
-                console.warn(`Match ${matchId} n'existe pas dans la base de données Supabase`);
-                return {
-                    id: `${matchId}-${userId}`,
-                    username: username,
-                    connectedAt: new Date(),
-                    lastActivity: new Date()
-                };
-            }
-
-            // Upsert : insert si absent, update si déjà connecté (évite 409 en cas d'appels simultanés / React Strict Mode)
-            const connectedUserPayload = {
-                match_id: matchId,
-                user_id: userId,
-                username: username,
-                wallet_address: walletAddress?.toLowerCase() || null,
-                connected_at: new Date().toISOString(),
-                last_activity: new Date().toISOString()
+            const { user } = await chatApi.joinRoom(matchId, { userId, username });
+            return {
+                id: user.id,
+                username: user.username,
+                connectedAt: new Date(user.connectedAt),
+                lastActivity: new Date(user.lastActivity),
             };
-
-            const { data, error } = await supabase
-                .from('chat_connected_users')
-                .upsert(connectedUserPayload, {
-                    onConflict: 'match_id,user_id',
-                    ignoreDuplicates: false
-                })
-                .select()
-                .single();
-
-            if (error) {
-                console.warn("Erreur lors de la connexion à la room:", error);
-                return {
-                    id: `${matchId}-${userId}`,
-                    username: username,
-                    connectedAt: new Date(),
-                    lastActivity: new Date()
-                };
-            }
-
-            return this.mapSupabaseUserToConnectedUser(data);
         } catch (err) {
-            console.error('Erreur joinRoom:', err);
+            console.warn('joinRoom failed, using local presence:', err);
             return {
                 id: `${matchId}-${userId}`,
-                username: username,
+                username,
                 connectedAt: new Date(),
-                lastActivity: new Date()
+                lastActivity: new Date(),
             };
         }
     }
 
     async leaveRoom(matchId: number, userId: string): Promise<void> {
         try {
-            const { error } = await supabase
-                .from('chat_connected_users')
-                .delete()
-                .eq('match_id', matchId)
-                .eq('user_id', userId);
-
-            if (error) {
-                console.warn("Erreur lors de la déconnexion:", error);
-                // Ne pas lever d'erreur, juste logger
-            }
+            await chatApi.leaveRoom(matchId, { userId, username: '' });
         } catch (err) {
-            console.warn("Erreur lors de la déconnexion:", err);
+            console.warn('leaveRoom failed:', err);
         }
     }
 
@@ -526,25 +425,6 @@ export class SupabaseChatService {
             systemEventType: data.system_type,
             clientTempId: data.client_temp_id ?? undefined,
             removedAt: data.removed_at ? new Date(data.removed_at) : null,
-        };
-    }
-
-    private mapSupabaseMessageToBetMessage(data: SupabaseChatRow): BetMessage {
-        return {
-            ...this.mapSupabaseMessageToChatMessage(data),
-            type: MessageType.BET,
-            betType: data.bet_type!,
-            betSubType: data.bet_sub_type,
-            betAmount: data.amount!,
-            betOdds: data.odds!
-        };
-    }
-
-    private mapSupabaseMessageToSystemMessage(data: SupabaseChatRow): SystemMessage {
-        return {
-            ...this.mapSupabaseMessageToChatMessage(data),
-            type: MessageType.SYSTEM,
-            systemEventType: data.system_type
         };
     }
 
