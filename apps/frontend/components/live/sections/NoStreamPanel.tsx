@@ -5,7 +5,6 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { StreamerStrip } from "./StreamerStrip";
 import { StreamRevealBadge } from "./StreamRevealBadge";
 import { NoStreamPlayer } from "./NoStreamPlayer";
-import { SecondScreenHook } from "./SecondScreenHook";
 
 interface NoStreamPanelProps {
   /** Live stream count for the badge label. */
@@ -58,8 +57,6 @@ export function NoStreamPanel({ streamCount, onGoLive, onSwitchStreams }: NoStre
           onOpen={() => setRevealed(true)}
         />
       )}
-
-      <SecondScreenHook />
     </div>
   );
 }
