@@ -45,6 +45,8 @@ export interface WinCardData {
     readonly crowd: { readonly pre: string; readonly hi: string; readonly post: string };
 
     readonly pseudo: string;
+    /** Profile picture URL (or pre-inlined data URL for capture); null → gradient initial. */
+    readonly avatar: string | null;
     /** e.g. "#7 this week" — null when unranked. */
     readonly rank: string | null;
 }

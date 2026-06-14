@@ -59,6 +59,8 @@ interface MatchMarketsListProps {
   walletAddress?: string;
   homeTeam?: string;
   awayTeam?: string;
+  homeLogo?: string | null;
+  awayLogo?: string | null;
   /** Match metadata pour le check `isBettable` (couche 2 du defense-in-depth). */
   match?: MatchBettableContext;
 }
@@ -378,6 +380,8 @@ export function MatchMarketsList({
   walletAddress,
   homeTeam,
   awayTeam,
+  homeLogo,
+  awayLogo,
   match,
 }: MatchMarketsListProps) {
   const qc = useQueryClient();
@@ -529,6 +533,8 @@ export function MatchMarketsList({
         selection={activeMarket}
         homeTeam={homeTeam}
         awayTeam={awayTeam}
+        homeLogo={homeLogo}
+        awayLogo={awayLogo}
         match={match}
         now={now}
       />

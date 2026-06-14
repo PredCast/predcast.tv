@@ -41,7 +41,7 @@ export function isWinCardEligible(bet: MyBet): boolean {
  */
 export function buildWinCards(
   bets: ReadonlyArray<MyBet>,
-  player: { pseudo: string; rank: string | null },
+  player: { pseudo: string; rank: string | null; avatar?: string | null },
 ): WinCardData[] {
   const byContract = new Map<string, MyBet[]>();
   for (const bet of bets) {
@@ -61,14 +61,14 @@ export function buildWinCards(
 /** Single-match card from its winning bets. Exported for the live page (one match). */
 export function buildWinCard(
   bets: ReadonlyArray<MyBet>,
-  player: { pseudo: string; rank: string | null },
+  player: { pseudo: string; rank: string | null; avatar?: string | null },
 ): WinCardData | null {
   return buildOne(bets.filter(isWinCardEligible), player);
 }
 
 function buildOne(
   group: ReadonlyArray<MyBet>,
-  player: { pseudo: string; rank: string | null },
+  player: { pseudo: string; rank: string | null; avatar?: string | null },
 ): WinCardData | null {
   if (group.length === 0) return null;
   const first = group[0];
@@ -114,6 +114,7 @@ function buildOne(
     bets: items,
     crowd: winCrowd(mult),
     pseudo: player.pseudo,
+    avatar: player.avatar ?? null,
     rank: player.rank,
   };
 }

@@ -2,9 +2,13 @@
 
 import type { ReactNode } from 'react';
 
+import { TeamLogo } from '@/components/features/discover/components/TeamLogo';
+
 interface BetReviewStepProps {
     readonly homeTeam?: string;
     readonly awayTeam?: string;
+    readonly homeLogo?: string | null;
+    readonly awayLogo?: string | null;
     readonly leagueLabel: string;
     readonly marketBadge: string;
     readonly marketLabel: string;
@@ -38,26 +42,11 @@ function Row({ label, value, mono }: { label: string; value: ReactNode; mono?: b
     );
 }
 
-function TeamCrest({ label, color }: { label?: string; color: string }) {
-    const short = (label ?? 'TEAM').slice(0, 3).toUpperCase();
-    return (
-        <div
-            className="flex items-center justify-center rounded-full"
-            style={{ width: 36, height: 36, background: color, border: '1px solid rgba(255,255,255,0.1)' }}
-        >
-            <span
-                className="font-display font-extrabold uppercase tracking-[0.04em] text-white"
-                style={{ fontSize: 11 }}
-            >
-                {short}
-            </span>
-        </div>
-    );
-}
-
 export function BetReviewStep({
     homeTeam,
     awayTeam,
+    homeLogo,
+    awayLogo,
     leagueLabel,
     marketBadge,
     marketLabel,
@@ -87,7 +76,7 @@ export function BetReviewStep({
 
             {/* Match strip */}
             <div className="mt-5 flex items-center gap-4 rounded-xl border border-[#1E1E1E] bg-[#111] p-4">
-                <TeamCrest label={homeTeam} color="#E8001D" />
+                <TeamLogo name={homeTeam ?? 'Home'} logo={homeLogo ?? null} size={36} />
                 <div className="flex-1 text-center">
                     <div
                         className="font-display text-white/85 uppercase"
@@ -99,7 +88,7 @@ export function BetReviewStep({
                         {leagueLabel}
                     </div>
                 </div>
-                <TeamCrest label={awayTeam} color="#A50044" />
+                <TeamLogo name={awayTeam ?? 'Away'} logo={awayLogo ?? null} size={36} />
             </div>
 
             <div className="mt-4 rounded-xl border border-[#1E1E1E] bg-[#0d0d0d] px-5 py-2">

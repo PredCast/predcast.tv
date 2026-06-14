@@ -213,7 +213,7 @@ export function WinCard({ data, format = 'story', isStatic = false }: WinCardPro
         {/* footer */}
         <div className={styles.footer} style={{ paddingTop: story ? 36 : 26 }}>
           <div className={styles.player}>
-            <WinCardAvatar pseudo={data.pseudo} size={story ? 74 : 60} />
+            <WinCardAvatar pseudo={data.pseudo} avatar={data.avatar} size={story ? 74 : 60} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: story ? 8 : 6, minWidth: 0 }}>
               <span className={`${styles.pseudo} ${styles.wscMono}`} style={{ fontSize: story ? 28 : 23 }}>
                 {data.pseudo}

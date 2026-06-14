@@ -13,6 +13,8 @@ interface AboutLiveTabsProps {
   walletAddress?: string;
   homeTeam?: string;
   awayTeam?: string;
+  homeLogo?: string | null;
+  awayLogo?: string | null;
   match?: MatchBettableContext;
 }
 
@@ -50,6 +52,8 @@ export function AboutLiveTabs({
   walletAddress,
   homeTeam,
   awayTeam,
+  homeLogo,
+  awayLogo,
   match,
 }: AboutLiveTabsProps) {
   const [tab, setTab] = useState<Tab>("markets");
@@ -84,6 +88,8 @@ export function AboutLiveTabs({
           walletAddress={walletAddress}
           homeTeam={homeTeam}
           awayTeam={awayTeam}
+          homeLogo={homeLogo}
+          awayLogo={awayLogo}
           match={match}
         />
       ) : (

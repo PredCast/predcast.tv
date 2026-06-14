@@ -32,7 +32,7 @@ export function useWinCards(wallet: string | undefined): {
     if (!wallet || !bets?.bets) return { cards: [], byContract: new Map(), isLoading };
     const pseudo = profile?.username ?? shortAddr(wallet);
     const rank = position?.rank != null ? `#${position.rank} this week` : null;
-    const cards = buildWinCards(bets.bets, { pseudo, rank });
+    const cards = buildWinCards(bets.bets, { pseudo, rank, avatar: profile?.avatarUrl ?? null });
     const byContract = new Map(cards.map((c) => [c.contractAddress.toLowerCase(), c]));
     return { cards, byContract, isLoading };
   }, [wallet, bets, profile, position, isLoading]);

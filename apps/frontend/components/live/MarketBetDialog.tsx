@@ -60,6 +60,8 @@ interface MarketBetDialogProps {
   selection: MarketSelection | null;
   homeTeam?: string;
   awayTeam?: string;
+  homeLogo?: string | null;
+  awayLogo?: string | null;
   /** Match metadata pour le check `isBettable`. `undefined` ⇒ on ne bloque pas (fallback historique). */
   match?: MatchBettableContext;
   /** Horloge cliente — `null` en SSR. */
@@ -155,6 +157,8 @@ export function MarketBetDialog({
   selection,
   homeTeam,
   awayTeam,
+  homeLogo,
+  awayLogo,
   match,
   now,
 }: MarketBetDialogProps) {
@@ -944,6 +948,8 @@ export function MarketBetDialog({
                 <BetReviewStep
                   homeTeam={homeTeam}
                   awayTeam={awayTeam}
+                  homeLogo={homeLogo}
+                  awayLogo={awayLogo}
                   leagueLabel="Chiliz Spicy testnet"
                   marketBadge={(marketSpec?.key ?? "").toUpperCase()}
                   marketLabel={marketSpec?.label ?? "—"}

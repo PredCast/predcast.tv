@@ -47,16 +47,23 @@ export function WinCardModal({ data, onClose }: WinCardModalProps) {
     ...data,
     home: { ...data.home, logo: null },
     away: { ...data.away, logo: null },
+    avatar: null,
   }));
   useEffect(() => {
     let off = false;
     void (async () => {
-      const [home, away] = await Promise.all([
+      const [home, away, avatar] = await Promise.all([
         data.home.logo ? toDataUrl(data.home.logo) : Promise.resolve(null),
         data.away.logo ? toDataUrl(data.away.logo) : Promise.resolve(null),
+        data.avatar ? toDataUrl(data.avatar) : Promise.resolve(null),
       ]);
       if (off) return;
-      setCaptureData({ ...data, home: { ...data.home, logo: home }, away: { ...data.away, logo: away } });
+      setCaptureData({
+        ...data,
+        home: { ...data.home, logo: home },
+        away: { ...data.away, logo: away },
+        avatar,
+      });
     })();
     return () => {
       off = true;

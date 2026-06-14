@@ -420,6 +420,8 @@ export default function LiveDetailsPage({ id }: LiveDetailsPageProps) {
               walletAddress={walletAddress || undefined}
               homeTeam={matchData.homeTeam}
               awayTeam={matchData.awayTeam}
+              homeLogo={matchData.homeTeamLogo}
+              awayLogo={matchData.awayTeamLogo}
               match={{
                 status: matchData.status,
                 kickoffAt: matchData.startTime,
