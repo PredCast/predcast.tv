@@ -49,3 +49,5 @@ export * from './schemas/stream.schemas';
 // Tokens — pricing catalog + DTOs
 export * from './tokens/priceCatalog';
 export * from './tokens/priceQuote';
+export * from './tokens/teamFanTokens';
+export * from './tokens/fanTokenDeployments';
