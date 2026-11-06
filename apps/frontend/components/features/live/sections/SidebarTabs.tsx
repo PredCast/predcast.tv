@@ -4,11 +4,11 @@ import { useState } from "react";
 import type { Address } from "viem";
 
 import { useMyBetsOnMatch } from "@/components/features/dashboard/hooks/useMyBetsOnMatch";
-import { MyBetsOnMatch } from "@/components/live/MyBetsOnMatch";
 
 import { TabButton } from "../components/TabButton";
 import type { MatchBettableContext } from "../domain/types";
 import { MarketsTable } from "./MarketsTable";
+import { MyPredictionsPanel } from "./MyPredictionsPanel";
 
 type Tab = "markets" | "mybets";
 
@@ -46,7 +46,13 @@ export function SidebarTabs({ contractAddress, walletAddress, homeTeam, awayTeam
             onPicked={onMarketPicked}
           />
         ) : (
-          <MyBetsOnMatch contractAddress={contractAddress} walletAddress={walletAddress} onPickMarket={() => setTab("markets")} />
+          <MyPredictionsPanel
+            contractAddress={contractAddress}
+            walletAddress={walletAddress}
+            homeTeam={homeTeam}
+            awayTeam={awayTeam}
+            onPickMarket={() => setTab("markets")}
+          />
         )}
       </div>
     </section>

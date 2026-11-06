@@ -18,7 +18,11 @@ export function resolveSelectedMarket(
 }
 
 /** Short chip label for the market selector (e.g. "O/U 2.5", "Double chance · 1X"). */
-export function marketChipLabel(market: MarketPoolSnapshot, homeTeam?: string, awayTeam?: string): string {
+export function marketChipLabel(
+  market: Pick<MarketPoolSnapshot, "marketType" | "line">,
+  homeTeam?: string,
+  awayTeam?: string,
+): string {
   const spec = getMarketSpec(market.marketType);
   if (!spec) return "Market";
   switch (spec.key) {

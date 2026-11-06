@@ -1,28 +1,10 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import type { Address } from 'viem';
-import { useWaitForTransactionReceipt } from 'wagmi';
 import { Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
-import {
-    usePariMatchBaseWriteClaim,
-    usePariMatchBaseWriteClaimRefund,
-} from '@/lib/contracts/generated';
-import { chilizConfig } from '@/config/chiliz.config';
-import { describeError } from '@/lib/contracts/errors';
 import { usePoolDecimals } from '@/hooks/usePoolDecimals';
 import { fmtUsd, timeAgo } from '../domain/formatters';
-import {
-    fmtSelection,
-    isAwaitingResolve,
-    isClaimableNow,
-    isLocallyClaimed,
-    isRefundableNow,
-    type MyBet,
-} from '../domain/bets';
-import { useInvalidateMyBets } from '../hooks/useMyBets';
-import { useLocallyClaimed } from '../hooks/useLocallyClaimed';
+import { fmtSelection, type MyBet } from '../domain/bets';
+import { useBetClaim } from '../hooks/useBetClaim';
 import { StatusPill } from './StatusPill';
 import { WinCardRowButton } from '@/components/features/win-card/components/WinCardRowButton';
 
@@ -30,72 +12,14 @@ interface BetRowProps {
     readonly bet: MyBet;
 }
 
-/**
- * Single row in the My Bets table — owns its own claim/refund tx state.
- *
- * The "Claim" / "Refund" affordance flips to a "Claimed" / "Refunded" pill
- * the instant the on-chain receipt confirms. We persist that flip in a
- * locally-claimed pub/sub store (24h TTL) so a query refetch — which
- * arrives before the indexer has caught up — can't reset the UI back to
- * a callable button (which would revert when clicked again).
- */
+/** Single row in the dashboard My Bets table; claim / refund state lives in `useBetClaim`. */
 export function BetRow({ bet }: BetRowProps) {
     const { assetDecimals } = usePoolDecimals();
-    const { map: claimedOverlay, lookup, mark } = useLocallyClaimed();
-    const claimable = isClaimableNow(bet, claimedOverlay);
-    const refundable = isRefundableNow(bet, claimedOverlay);
-    const locallyHandled = isLocallyClaimed(bet, claimedOverlay);
+    const { claimable, refundable, claim: onClaim, isTxPending, isResolving, locallyHandled, showClaimedPill, showRefundedPill } =
+        useBetClaim(bet);
     const isWon = bet.status === 'WON';
     const isLost = bet.status === 'LOST';
     const isPending = bet.status === 'PENDING';
-    const isResolving = isAwaitingResolve(bet);
-
-    // ── Claim / refund tx state ─────────────────────────────────────────
-    const { writeContract: writeClaim, data: claimHash, isPending: claimPending, error: claimError } = usePariMatchBaseWriteClaim();
-    const { isLoading: claimConfirming, isSuccess: claimSuccess } = useWaitForTransactionReceipt({ hash: claimHash });
-
-    const { writeContract: writeRefund, data: refundHash, isPending: refundPending, error: refundError } = usePariMatchBaseWriteClaimRefund();
-    const { isLoading: refundConfirming, isSuccess: refundSuccess } = useWaitForTransactionReceipt({ hash: refundHash });
-
-    const invalidateBets = useInvalidateMyBets();
-    const handledTxRef = useRef<`0x${string}` | null>(null);
-
-    useEffect(() => {
-        const success = claimSuccess || refundSuccess;
-        if (!success) return;
-        const txHash = (claimHash ?? refundHash) as `0x${string}` | undefined;
-        if (!txHash || handledTxRef.current === txHash) return;
-        handledTxRef.current = txHash;
-
-        // Persistent overlay — survives the upcoming `invalidateBets` refetch
-        // even when the indexer hasn't yet recorded the Payout/Refund event.
-        mark(bet, claimSuccess ? 'claimed' : 'refunded', txHash);
-
-        toast.success(claimSuccess ? 'Payout claimed' : 'Refund collected', {
-            description: `${txHash.slice(0, 10)}…${txHash.slice(-8)}`,
-        });
-        // Trigger a refetch so the row eventually reconciles with the
-        // indexer's authoritative `claimedAt` / `refundedAt` (the overlay
-        // simply masks the gap until then).
-        invalidateBets();
-    }, [claimSuccess, refundSuccess, claimHash, refundHash, bet, invalidateBets, mark]);
-
-    useEffect(() => {
-        const err = claimError ?? refundError;
-        if (!err) return;
-        const { decoded } = describeError(err);
-        const fn = decoded.severity === 'info' ? toast.info : decoded.severity === 'warning' ? toast.warning : toast.error;
-        fn(decoded.title, { description: decoded.description });
-    }, [claimError, refundError]);
-
-    const onClaim = () => {
-        const args: readonly [bigint] = [BigInt(bet.marketId)];
-        const writeArgs = { address: bet.contractAddress as Address, args, chainId: chilizConfig.chainId } as const;
-        if (refundable) writeRefund(writeArgs);
-        else writeClaim(writeArgs);
-    };
-
-    const isTxPending = claimPending || claimConfirming || refundPending || refundConfirming;
     const decimals = assetDecimals ?? 6;
     const stake = Number(bet.stakeAmount) / 10 ** decimals;
     // Pari-mutuel: no fixed odds → no client-side "potential" computable
@@ -121,18 +45,6 @@ export function BetRow({ bet }: BetRowProps) {
         bet.marketType,
         bet.line,
     );
-
-    // Visible status — overlay first (the user just acted), server second.
-    // The indexer's authoritative `claimedAt` drives both pills (parimutuel
-    // collapses claim/refund into a single timestamp).
-    // Status-gated: overlay keys are (contract, marketId), shared by LOST rows.
-    const overlayEntry = lookup(bet);
-    const showClaimedPill =
-        (overlayEntry?.kind === 'claimed' && bet.status === 'WON') ||
-        (bet.status === 'WON' && bet.claimedAt !== null);
-    const showRefundedPill =
-        (overlayEntry?.kind === 'refunded' && bet.status === 'REFUNDED') ||
-        (bet.status === 'REFUNDED' && bet.claimedAt !== null);
 
     return (
         <div
