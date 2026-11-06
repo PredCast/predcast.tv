@@ -26,6 +26,7 @@ import { useStreamerFollow } from "./hooks/useStreamerFollow";
 import { AboutLiveTabs } from "./sections/AboutLiveTabs";
 import { LiveMediaSection } from "./sections/LiveMediaSection";
 import { LiveSidebar } from "./sections/LiveSidebar";
+import { SidebarChat } from "./sections/SidebarChat";
 import { LiveStreamControls } from "./sections/LiveStreamControls";
 import { LiveStreamerDialogs } from "./sections/LiveStreamerDialogs";
 
@@ -127,7 +128,8 @@ export function LivePage({ id }: LivePageProps) {
             onEndStream={() => session.endStreamRef.current?.()}
           />
 
-          <div className="grid gap-4 lg:grid-cols-[1fr_360px] lg:gap-6 xl:grid-cols-[1fr_400px]">
+          {/* Row 1: stream | chat (chat follows the stream height). Row 2: free space (fan-token charts) | ticket + pools. */}
+          <div className="grid gap-4 lg:grid-cols-[1fr_360px] lg:gap-x-6 xl:grid-cols-[1fr_400px]">
             <div className="flex min-w-0 flex-col gap-3 lg:gap-5">
               <LiveMediaSection
                 selectedStream={selectedStream}
@@ -142,23 +144,25 @@ export function LivePage({ id }: LivePageProps) {
                 onTip={streamForDialogs ? () => setShowDonation(true) : undefined}
                 onSubscribe={streamForDialogs ? () => setShowSubscription(true) : undefined}
               />
-              {/* Desktop keeps this space for the fan-token charts; markets live in the sidebar. */}
-              <div className="lg:hidden">
-                <AboutLiveTabs
-                  bettingContractAddress={contractAddress}
-                  walletAddress={walletAddress || undefined}
-                  homeTeam={match.homeTeam}
-                  awayTeam={match.awayTeam}
-                  homeLogo={match.homeTeamLogo}
-                  awayLogo={match.awayTeamLogo}
-                  match={bettable}
-                />
-              </div>
+            </div>
+
+            <SidebarChat {...chatProps} streamId={selectedStream?.id} />
+
+            {/* Mobile only until the bottom sheet lands; desktop markets live in the sidebar. */}
+            <div className="min-w-0 lg:hidden">
+              <AboutLiveTabs
+                bettingContractAddress={contractAddress}
+                walletAddress={walletAddress || undefined}
+                homeTeam={match.homeTeam}
+                awayTeam={match.awayTeam}
+                homeLogo={match.homeTeamLogo}
+                awayLogo={match.awayTeamLogo}
+                match={bettable}
+              />
             </div>
 
             <LiveSidebar
-              {...chatProps}
-              streamId={selectedStream?.id}
+              walletAddress={walletAddress}
               contractAddress={contractAddress}
               homeTeam={match.homeTeam}
               awayTeam={match.awayTeam}
