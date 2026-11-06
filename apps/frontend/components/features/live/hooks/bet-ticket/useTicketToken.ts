@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import { parseUnits, type Address } from "viem";
 import { useBalance } from "wagmi";
 
-import type { BetTokenOption } from "@/components/live/dialog/TokenSelectModal";
 import { chilizConfig } from "@/config/chiliz.config";
 import { useBetTokenBalances } from "@/hooks/useBetTokenBalances";
 import { usePoolDecimals } from "@/hooks/usePoolDecimals";
@@ -12,6 +11,7 @@ import { useSwapRouterTokenAvailability, type TokenRouteStatus } from "@/hooks/u
 import { tokenLogoFor } from "@/lib/tokens/tokenLogo";
 
 import { fixedTokenDecimals, tokenLabel, type BetToken } from "../../domain/betTicket";
+import type { BetTokenOption } from "../../domain/tokenOption";
 
 export type TicketTokenOption = BetTokenOption & { readonly kind: BetToken["kind"]; readonly address?: Address };
 

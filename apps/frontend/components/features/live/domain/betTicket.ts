@@ -5,15 +5,12 @@ export type BetToken =
   | { kind: "CHZ" }
   | { kind: "ERC20"; address: Address; symbol: string; name: string };
 
-/** Wizard steps; `success` / `failure` are derived from the tx state and override the stored step. */
-export type TicketStep = "pick" | "stake" | "review" | "success" | "failure";
-export type EditableStep = Exclude<TicketStep, "success" | "failure">;
 export type FailureKind = "rejected" | "reverted" | "unknown";
 
 /** Swap deadline. Wallets that cannot estimate gas on Spicy make signing slow, hence the wide window. */
 export const DEADLINE_MIN = 60;
+/** Slippage applied to the swap quote (0.5%); the inline ticket exposes no slippage control. */
 export const DEFAULT_SLIPPAGE_BPS = 50;
-export const SLIPPAGE_PRESETS_BPS = [10, 50, 100] as const;
 /** Kayen fan-token pools are thin; above this price impact the ticket warns. */
 export const PRICE_IMPACT_WARN_PCT = 3;
 /** Read-failure fallback only; the live value is `feeBps()` on the PariMatch proxy (`PariMatchBase.sol:317`). */
@@ -24,8 +21,8 @@ export const DEFAULT_LEADERBOARD_FEE_BPS = 100;
 export const MIN_STAKE_USDC_RAW = BigInt(10_000);
 const NATIVE_DECIMALS = 18;
 
+/** Editable ticket input; submission / tx state lives in wagmi and is derived, not stored. */
 export interface TicketState {
-  readonly step: EditableStep;
   readonly outcome: number | null;
   readonly amount: string;
   readonly token: BetToken;
@@ -40,8 +37,6 @@ export type TicketAction =
   | { type: "selectOutcome"; outcome: number | null }
   | { type: "setAmount"; amount: string }
   | { type: "setToken"; token: BetToken }
-  | { type: "setSlippage"; bps: number }
-  | { type: "goto"; step: EditableStep }
   | { type: "submitFailed"; message: string }
   | { type: "clearSubmitError" }
   | { type: "dismissBanner"; text: string }
@@ -49,7 +44,6 @@ export type TicketAction =
 
 export function initialTicketState(defaultOutcome?: number): TicketState {
   return {
-    step: defaultOutcome === undefined ? "pick" : "stake",
     outcome: defaultOutcome ?? null,
     amount: "",
     token: { kind: "USDC" },
@@ -67,10 +61,6 @@ export function ticketReducer(state: TicketState, action: TicketAction): TicketS
       return { ...state, amount: action.amount };
     case "setToken":
       return { ...state, token: action.token, amount: "" };
-    case "setSlippage":
-      return { ...state, slippageBps: action.bps };
-    case "goto":
-      return { ...state, step: action.step };
     case "submitFailed":
       return { ...state, submitError: action.message };
     case "clearSubmitError":

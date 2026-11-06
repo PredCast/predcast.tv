@@ -10,7 +10,7 @@ import { usePoolDecimals } from "@/hooks/usePoolDecimals";
 import { MarketsEmptyState } from "../components/markets/MarketsEmptyState";
 import { MarketsSkeletonRow } from "../components/markets/MarketsSkeletonRow";
 import { MarketsTableRow } from "../components/markets/MarketsTableRow";
-import { groupMarkets } from "../domain/marketGroups";
+import { freshPoolStatus } from "../domain/freshPool";
 import { buildMarketRowView } from "../domain/marketView";
 import { marketChipLabel, resolveSelectedMarket, ticketMarkets } from "../domain/selectedMarket";
 import type { MatchBettableContext } from "../domain/types";
@@ -40,7 +40,7 @@ export function MarketsTable({ contractAddress, homeTeam, awayTeam, match, onPic
   if (isLoading && !hasSnapshot) return <MarketsSkeletonRow first />;
   if (rows.length === 0) return <MarketsEmptyState message="No markets opened yet on this match." />;
 
-  const { allFresh, openCount } = groupMarkets(markets);
+  const { allFresh, openCount } = freshPoolStatus(markets);
   return (
     <>
     {allFresh && <FreshPoolHero marketsOpen={openCount} stacked />}

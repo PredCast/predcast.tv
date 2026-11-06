@@ -140,7 +140,7 @@ export function useChatRoom({
             chatService.subscribeToMatchMessages(matchId, handleNewMessage, handleMessageUpdate);
         }
 
-        // Optimistic banner: MarketBetDialog fires `chiliz:bet-confirmed` the
+        // Optimistic banner: useBetTicket fires `chiliz:bet-confirmed` the
         // moment the tx confirms. We synthesise a local SYSTEM row so the gold
         // banner updates instantly — the real row from the indexer (or the
         // realtime push) dedupes via the optimistic-* id check above.

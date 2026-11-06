@@ -1,8 +1,7 @@
 import { ChevronDown } from "lucide-react";
 
-import { TokenLogo } from "@/components/live/dialog/TokenSelectModal";
-
 import type { TicketTokenOption } from "../../hooks/bet-ticket/useTicketToken";
+import { TokenLogo } from "./TokenLogo";
 
 interface StakeInputProps {
   readonly amount: string;

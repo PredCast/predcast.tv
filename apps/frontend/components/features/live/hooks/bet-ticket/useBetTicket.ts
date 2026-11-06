@@ -8,7 +8,7 @@ import { DEFAULT_KICKOFF_BUFFER_SEC, isBettable } from "@chiliztv/domain/matches
 import { chilizConfig } from "@/config/chiliz.config";
 import { fmtSelectionByMarket, MarketState } from "@/lib/contracts/markets";
 
-import { DEADLINE_MIN, initialTicketState, swapTokenArg, ticketReducer, type TicketStep } from "../../domain/betTicket";
+import { DEADLINE_MIN, initialTicketState, swapTokenArg, ticketReducer } from "../../domain/betTicket";
 import { contractErrorMessage } from "../../domain/contractErrorMessage";
 import { policyMessageFor } from "../../domain/policyMessage";
 import { isActionableCta } from "../../domain/ticketCta";
@@ -32,8 +32,8 @@ export interface BetTicketArgs {
 }
 
 /**
- * Single implementation of the parimutuel bet flow (pick → stake → review → submit →
- * success / failure), shared by the desktop sidebar ticket, the mobile sheet and the dialog.
+ * Single implementation of the parimutuel bet flow (outcome + stake → approve / placeBet →
+ * success / failure), shared by the desktop sidebar ticket and the mobile sheet.
  * Consumers remount it (React `key`) when the market changes to start from a clean state.
  */
 export function useBetTicket({ contractAddress, walletAddress, selection, homeTeam, awayTeam, match, now }: BetTicketArgs) {
@@ -79,7 +79,6 @@ export function useBetTicket({ contractAddress, walletAddress, selection, homeTe
     txInFlight: tx.isPending || tx.isConfirming,
   });
 
-  const step: TicketStep = tx.outcome.kind === "idle" ? state.step : tx.outcome.kind;
   const selectionLabel = fmtSelectionByMarket(state.outcome ?? -1, selection.marketTypeHash, selection.line, homeTeam, awayTeam);
   const stakeUsdcEquiv =
     state.token.kind === "USDC"
@@ -111,7 +110,6 @@ export function useBetTicket({ contractAddress, walletAddress, selection, homeTe
   return {
     state,
     dispatch,
-    step,
     token,
     quote,
     approval,
@@ -129,11 +127,8 @@ export function useBetTicket({ contractAddress, walletAddress, selection, homeTe
       tx.reset();
       dispatch({ type: "restart" });
     },
-    /** Back to review after a failed tx. */
-    retry: () => {
-      tx.reset();
-      dispatch({ type: "goto", step: "review" });
-    },
+    /** Clears a failed tx so the same ticket can be submitted again. */
+    retry: tx.reset,
   };
 }
 

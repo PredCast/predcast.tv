@@ -59,7 +59,7 @@ export function useTicketGuards(a: GuardsArgs) {
     quoteStatus: a.quote.status,
     usdcZeroBalance: a.token.usdcZeroBalance,
     usdcAddressShort: `${chilizConfig.usdc.slice(0, 8)}…${chilizConfig.usdc.slice(-6)}`,
-    onStakeStep: a.state.step === "stake",
+    amountEntered: a.state.amount !== "",
   });
 
   return {

@@ -64,7 +64,7 @@ export function Dashboard() {
                 scrollToId('bets');
                 return;
             case 'swap':
-                // Swap CHZ/fan-token → USDC happens inside MarketBetDialog;
+                // Swap CHZ/fan-token → USDC happens in the live page bet ticket;
                 // bounce the user to a match where they can use it.
                 router.push('/browse');
                 return;

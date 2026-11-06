@@ -5,7 +5,6 @@ import type { Address } from "viem";
 
 import { presetAmountRaw, toInputAmount, type StakePresetPct } from "@chiliztv/domain/betting/stakePresets";
 
-import { TokenSelectModal } from "@/components/live/dialog/TokenSelectModal";
 import type { MarketPoolSnapshot } from "@/lib/contracts/markets";
 
 import { tokenLabel } from "../../domain/betTicket";
@@ -20,6 +19,7 @@ import { BetTicketTxStatus } from "./BetTicketTxStatus";
 import { OutcomeSegments } from "./OutcomeSegments";
 import { StakeInput } from "./StakeInput";
 import { StakePresets } from "./StakePresets";
+import { TokenSelectModal } from "./TokenSelectModal";
 
 interface BetTicketFormProps {
   readonly contractAddress: Address;
