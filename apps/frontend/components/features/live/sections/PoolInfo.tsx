@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import type { Address } from "viem";
 
-import { stateAccent, stateLabel } from "@/lib/contracts/markets";
+import { MarketState, stateAccent, stateLabel } from "@/lib/contracts/markets";
 
 import { BettingWindowProgress } from "../components/pool/BettingWindowProgress";
 import { ContractAddressRow } from "../components/pool/ContractAddressRow";
@@ -53,7 +53,11 @@ export function PoolInfo({ contractAddress, kickoffAt }: PoolInfoProps) {
         </div>
       </dl>
       <div className="mt-3">
-        <BettingWindowProgress kickoffAt={kickoffAt} now={now} />
+        <BettingWindowProgress
+          kickoffAt={kickoffAt}
+          now={now}
+          marketClosed={!!selected && selected.state !== MarketState.Open}
+        />
       </div>
     </SidebarCard>
   );

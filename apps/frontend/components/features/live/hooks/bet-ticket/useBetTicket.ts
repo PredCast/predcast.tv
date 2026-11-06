@@ -40,6 +40,8 @@ export function useBetTicket({ contractAddress, walletAddress, selection, homeTe
   const [state, dispatch] = useReducer(ticketReducer, selection.defaultSelection, initialTicketState);
   const wallet = walletAddress as Address | undefined;
   const marketOpen = selection.state === MarketState.Open;
+  const settlement =
+    selection.state === MarketState.Resolved ? "resolved" : selection.state === MarketState.Cancelled ? "cancelled" : null;
 
   const token = useTicketToken(state.token, state.amount, wallet, true);
   const quote = useTicketQuote(state.token, token.parsedAmount, token.decimals, state.slippageBps);
@@ -72,6 +74,7 @@ export function useBetTicket({ contractAddress, walletAddress, selection, homeTe
     walletConnected: !!wallet,
     verdict,
     marketOpen,
+    settlement,
     token,
     quote,
     approval,

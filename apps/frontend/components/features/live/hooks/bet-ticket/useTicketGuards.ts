@@ -19,6 +19,7 @@ interface GuardsArgs {
   readonly walletConnected: boolean;
   readonly verdict: BettableResult;
   readonly marketOpen: boolean;
+  readonly settlement: "resolved" | "cancelled" | null;
   readonly token: TicketToken;
   readonly quote: TicketQuote;
   readonly approval: { readonly needsApproval: boolean; readonly isApproving: boolean; readonly approveError: Error | null };
@@ -36,6 +37,7 @@ export function useTicketGuards(a: GuardsArgs) {
     wrongNetwork: isWrongChain,
     policyBlock: a.verdict.ok ? null : a.verdict.reason,
     marketOpen: a.marketOpen,
+    settlement: a.settlement,
     outcomeSelected: a.state.outcome !== null,
     amountValid: a.token.isValidAmount,
     insufficientBalance: a.token.insufficientBalance || a.token.usdcZeroBalance,

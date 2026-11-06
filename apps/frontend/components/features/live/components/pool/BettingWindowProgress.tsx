@@ -7,13 +7,15 @@ interface BettingWindowProgressProps {
   readonly kickoffAt: string;
   /** `null` on the server render: the bar renders empty to stay hydration-safe. */
   readonly now: Date | null;
+  /** Market no longer Open on-chain: the window is shut whatever the kickoff time says. */
+  readonly marketClosed?: boolean;
 }
 
 /** "Betting closes at kickoff" bar — the parimutuel analogue of a bonding-curve progress. */
-export function BettingWindowProgress({ kickoffAt, now }: BettingWindowProgressProps) {
+export function BettingWindowProgress({ kickoffAt, now, marketClosed = false }: BettingWindowProgressProps) {
   const window = fallbackBettingWindow(new Date(kickoffAt), DEFAULT_KICKOFF_BUFFER_SEC);
-  const pct = now ? Math.round(progress(window.opensAt, window.closesAt, now) * 100) : 0;
-  const left = now ? remainingMs(window.closesAt, now) : null;
+  const left = marketClosed ? 0 : now ? remainingMs(window.closesAt, now) : null;
+  const pct = marketClosed ? 100 : now ? Math.round(progress(window.opensAt, window.closesAt, now) * 100) : 0;
   const closed = left === 0;
 
   return (

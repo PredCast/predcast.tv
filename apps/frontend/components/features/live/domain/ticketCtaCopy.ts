@@ -13,6 +13,11 @@ export function ticketCtaCopy(cta: TicketCta, tokenSymbol: string, policyMessage
       return { label: "Connect wallet to predict", enabled: true };
     case "switch-network":
       return { label: "Switch network", enabled: true };
+    case "settled":
+      return {
+        label: cta.outcome === "resolved" ? "Resolved · claim in My predictions" : "Cancelled · refund in My predictions",
+        enabled: false,
+      };
     case "closed":
       return { label: cta.reason === "MARKET_NOT_OPEN" ? "Market closed" : policyMessage || "Predictions closed", enabled: false };
     case "pick-outcome":

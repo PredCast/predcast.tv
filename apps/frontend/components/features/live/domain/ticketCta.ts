@@ -7,6 +7,8 @@ export type TicketCta =
   | { readonly kind: "connect" }
   | { readonly kind: "switch-network" }
   | { readonly kind: "closed"; readonly reason: BlockReason | "MARKET_NOT_OPEN" }
+  /** On-chain settlement wins over the match policy: the next action lives in My predictions. */
+  | { readonly kind: "settled"; readonly outcome: "resolved" | "cancelled" }
   | { readonly kind: "pick-outcome" }
   | { readonly kind: "enter-amount" }
   | { readonly kind: "insufficient-balance" }
@@ -24,6 +26,8 @@ export interface TicketCtaInput {
   readonly wrongNetwork: boolean;
   readonly policyBlock: BlockReason | null;
   readonly marketOpen: boolean;
+  /** Market settled on-chain (Resolved / Cancelled), if any. */
+  readonly settlement: "resolved" | "cancelled" | null;
   readonly outcomeSelected: boolean;
   readonly amountValid: boolean;
   readonly insufficientBalance: boolean;
@@ -37,6 +41,7 @@ export interface TicketCtaInput {
 
 /** First blocking condition wins; order mirrors what the user must fix first. */
 export function resolveTicketCta(i: TicketCtaInput): TicketCta {
+  if (i.settlement) return { kind: "settled", outcome: i.settlement };
   if (i.policyBlock) return { kind: "closed", reason: i.policyBlock };
   if (!i.marketOpen) return { kind: "closed", reason: "MARKET_NOT_OPEN" };
   if (!i.walletConnected) return { kind: "connect" };
