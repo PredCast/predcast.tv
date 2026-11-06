@@ -22,6 +22,7 @@ import { buildScoreBreakdown } from "./domain/scoreBreakdown";
 import { useLiveMatchData } from "./hooks/useLiveMatchData";
 import { useLiveStreamSession } from "./hooks/useLiveStreamSession";
 import { useMatchMarketWatchers } from "./hooks/useMatchMarketWatchers";
+import { PREDICT_ANCHOR_MOBILE_ID, useScrollToPredict } from "./hooks/useScrollToPredict";
 import { useStreamerFollow } from "./hooks/useStreamerFollow";
 import { AboutLiveTabs } from "./sections/AboutLiveTabs";
 import { LiveMediaSection } from "./sections/LiveMediaSection";
@@ -49,6 +50,7 @@ export function LivePage({ id }: LivePageProps) {
   const session = useLiveStreamSession(userId);
   const { selectedStream, myStream } = session;
   const follow = useStreamerFollow(userId, selectedStream);
+  const scrollToPredict = useScrollToPredict();
 
   const [showSwitcher, setShowSwitcher] = useState(false);
   const [showStart, setShowStart] = useState(false);
@@ -124,6 +126,7 @@ export function LivePage({ id }: LivePageProps) {
             isOwnStream={isOwnSelectedStream}
             isStreamer={isStreamer}
             onSwitchStreams={() => setShowSwitcher(true)}
+            onPredict={scrollToPredict}
             onGoLive={() => setShowStart(true)}
             onEndStream={() => session.endStreamRef.current?.()}
           />
@@ -149,7 +152,11 @@ export function LivePage({ id }: LivePageProps) {
             <SidebarChat {...chatProps} streamId={selectedStream?.id} />
 
             {/* Mobile only until the bottom sheet lands; desktop markets live in the sidebar. */}
-            <div className="min-w-0 lg:hidden">
+            <div
+              id={PREDICT_ANCHOR_MOBILE_ID}
+              tabIndex={-1}
+              className="min-w-0 scroll-mt-[calc(var(--app-header-h)+16px)] focus-visible:outline-none lg:hidden"
+            >
               <AboutLiveTabs
                 bettingContractAddress={contractAddress}
                 walletAddress={walletAddress || undefined}

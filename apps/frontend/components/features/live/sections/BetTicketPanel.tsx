@@ -16,6 +16,7 @@ import type { MatchBettableContext } from "../domain/types";
 import { useBetSelection } from "../hooks/useBetSelection";
 import { useClientNow } from "../hooks/useClientNow";
 import { useMatchMarkets } from "../hooks/useMatchMarkets";
+import { PREDICT_ANCHOR_ID } from "../hooks/useScrollToPredict";
 
 interface BetTicketPanelProps {
   readonly contractAddress?: Address;
@@ -66,6 +67,7 @@ export function BetTicketPanel({ contractAddress, walletAddress, homeTeam, awayT
 
   return (
     <SidebarCard
+      id={PREDICT_ANCHOR_ID}
       eyebrow="Predict"
       aside={<span className="font-mono-ctv text-[9px] uppercase tracking-[0.16em] text-white/35">Pari-mutuel · USDC</span>}
     >
