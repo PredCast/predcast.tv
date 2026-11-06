@@ -13,15 +13,19 @@ import { BannedBanner } from "@/components/features/moderation/BannedBanner";
 import { StreamInterruptedBanner } from "@/components/features/streaming/StreamInterruptedBanner";
 import { WinCardAutoTrigger } from "@/components/features/win-card/components/WinCardAutoTrigger";
 import { WinCardModalProvider } from "@/components/features/win-card/components/WinCardModalProvider";
+import { chilizConfig } from "@/config/chiliz.config";
 
 import { CenterStatus } from "./components/CenterStatus";
 import { MatchNotFound } from "./components/MatchNotFound";
+import { BetSelectionProvider } from "./context/BetSelectionProvider";
 import { buildScoreBreakdown } from "./domain/scoreBreakdown";
 import { useLiveMatchData } from "./hooks/useLiveMatchData";
 import { useLiveStreamSession } from "./hooks/useLiveStreamSession";
+import { useMatchMarketWatchers } from "./hooks/useMatchMarketWatchers";
 import { useStreamerFollow } from "./hooks/useStreamerFollow";
 import { AboutLiveTabs } from "./sections/AboutLiveTabs";
 import { LiveMediaSection } from "./sections/LiveMediaSection";
+import { LiveSidebar } from "./sections/LiveSidebar";
 import { LiveStreamControls } from "./sections/LiveStreamControls";
 import { LiveStreamerDialogs } from "./sections/LiveStreamerDialogs";
 
@@ -37,6 +41,9 @@ export function LivePage({ id }: LivePageProps) {
   const userId = user?.userId;
 
   const { match, loading, notFound } = useLiveMatchData(id);
+  const contractAddress = match?.contractAddress as Address | undefined;
+  // Single mount per page: every extra watcher set costs RPC on the throttled Spicy endpoint.
+  useMatchMarketWatchers(contractAddress, chilizConfig.chainId);
   const { data: myBanData } = useMyBan();
   const session = useLiveStreamSession(userId);
   const { selectedStream, myStream } = session;
@@ -64,10 +71,16 @@ export function LivePage({ id }: LivePageProps) {
   if (myBanData?.ban?.status === "active") return <BannedBanner ban={myBanData.ban} />;
   if (notFound || !match) return <MatchNotFound onBack={() => router.push("/browse")} />;
 
-  const contractAddress = match.contractAddress as Address | undefined;
   const chatProps = { matchId: id, userId: userId ?? "", username: String(user?.username ?? ""), walletAddress };
+  const bettable = {
+    status: match.status,
+    kickoffAt: match.startTime,
+    htHomeScore: match.htHomeScore,
+    htAwayScore: match.htAwayScore,
+  };
 
   return (
+    <BetSelectionProvider>
     <WinCardModalProvider>
       <div className="relative min-h-full bg-[#0A0A0A] text-white">
         {contractAddress ? (
@@ -129,27 +142,28 @@ export function LivePage({ id }: LivePageProps) {
                 onTip={streamForDialogs ? () => setShowDonation(true) : undefined}
                 onSubscribe={streamForDialogs ? () => setShowSubscription(true) : undefined}
               />
-              <AboutLiveTabs
-                bettingContractAddress={contractAddress}
-                walletAddress={walletAddress || undefined}
-                homeTeam={match.homeTeam}
-                awayTeam={match.awayTeam}
-                homeLogo={match.homeTeamLogo}
-                awayLogo={match.awayTeamLogo}
-                match={{
-                  status: match.status,
-                  kickoffAt: match.startTime,
-                  htHomeScore: match.htHomeScore,
-                  htAwayScore: match.htAwayScore,
-                }}
-              />
+              {/* Desktop keeps this space for the fan-token charts; markets live in the sidebar. */}
+              <div className="lg:hidden">
+                <AboutLiveTabs
+                  bettingContractAddress={contractAddress}
+                  walletAddress={walletAddress || undefined}
+                  homeTeam={match.homeTeam}
+                  awayTeam={match.awayTeam}
+                  homeLogo={match.homeTeamLogo}
+                  awayLogo={match.awayTeamLogo}
+                  match={bettable}
+                />
+              </div>
             </div>
 
-            <aside className="hidden h-[680px] overflow-hidden rounded-xl border border-[#1E1E1E] bg-[#0d0d0d] lg:flex">
-              <div className="flex flex-1 flex-col">
-                <ChatPanel {...chatProps} streamId={selectedStream?.id} />
-              </div>
-            </aside>
+            <LiveSidebar
+              {...chatProps}
+              streamId={selectedStream?.id}
+              contractAddress={contractAddress}
+              homeTeam={match.homeTeam}
+              awayTeam={match.awayTeam}
+              match={bettable}
+            />
           </div>
 
           <footer className="mt-12 border-t border-[#1E1E1E] pt-6 text-center">
@@ -193,5 +207,6 @@ export function LivePage({ id }: LivePageProps) {
         </MobileChatBottomSheet>
       </div>
     </WinCardModalProvider>
+    </BetSelectionProvider>
   );
 }

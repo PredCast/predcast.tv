@@ -6,7 +6,6 @@ import type { Address } from "viem";
 import { MarketBetDialog } from "@/components/live/MarketBetDialog";
 import { FreshPoolHero } from "@/components/live/FreshPoolHero";
 import { UnsupportedSportPanel } from "@/components/live/UnsupportedSportPanel";
-import { chilizConfig } from "@/config/chiliz.config";
 
 import { DoubleChanceGroupHeading } from "../components/markets/DoubleChanceGroupHeading";
 import { MarketRow } from "../components/markets/MarketRow";
@@ -15,7 +14,6 @@ import { MarketsSkeletonRow } from "../components/markets/MarketsSkeletonRow";
 import { groupMarkets } from "../domain/marketGroups";
 import type { MarketSelection, MatchBettableContext } from "../domain/types";
 import { useClientNow } from "../hooks/useClientNow";
-import { useMatchMarketWatchers } from "../hooks/useMatchMarketWatchers";
 import { useMatchMarkets } from "../hooks/useMatchMarkets";
 
 interface MatchMarketsListProps {
@@ -40,7 +38,6 @@ export function MatchMarketsList({
   const [activeMarket, setActiveMarket] = useState<MarketSelection | null>(null);
   const now = useClientNow();
   const { markets, isLoading, hasSnapshot, isFootball } = useMatchMarkets(contractAddress);
-  useMatchMarketWatchers(contractAddress, chilizConfig.chainId);
 
   if (!contractAddress) return <MarketsEmptyState message="No prediction contract attached to this match." />;
   if (!isFootball) return <UnsupportedSportPanel />;
