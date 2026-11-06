@@ -13,6 +13,8 @@ export interface BetTokenOption {
     readonly logoBg?: string;
     readonly logoTxt?: string;
     readonly usdRate?: number;
+    /** Set when the token cannot be used right now (no swap quote, route still being checked). */
+    readonly unavailableReason?: string;
 }
 
 interface TokenSelectModalProps {
@@ -82,21 +84,26 @@ export function TokenSelectModal({ open, tokens, onPick, onClose }: TokenSelectM
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
                     {tokens.map((tk) => {
-                        const dim = tk.balance === 0;
+                        const unavailable = !!tk.unavailableReason;
+                        const dim = tk.balance === 0 || unavailable;
                         return (
                             <button
                                 key={tk.key}
                                 type="button"
                                 onClick={() => onPick(tk)}
-                                className={`flex w-full items-center gap-3 rounded-md px-3 py-3 text-left transition-colors hover:bg-[#111] ${dim ? 'opacity-45' : ''}`}
+                                disabled={unavailable}
+                                aria-disabled={unavailable}
+                                className={`flex w-full items-center gap-3 rounded-md px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8001D] ${unavailable ? 'cursor-not-allowed' : 'hover:bg-[#111]'} ${dim ? 'opacity-45' : ''}`}
                             >
                                 <TokenLogo token={tk} size={32} />
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2">
                                         <span className="font-display text-[14px] font-bold uppercase text-white">${tk.sym}</span>
-                                        {tk.needsSwap && (
+                                        {unavailable ? (
+                                            <span className="font-mono-ctv text-[8px] uppercase tracking-[0.16em] text-[#F5C518]">{tk.unavailableReason}</span>
+                                        ) : tk.needsSwap ? (
                                             <span className="font-mono-ctv text-[8px] uppercase tracking-[0.16em] text-[#E8001D]/70">Swaps via Kayen</span>
-                                        )}
+                                        ) : null}
                                     </div>
                                     <div className="font-mono-ctv text-[10px] uppercase tracking-[0.16em] text-white/45">{tk.name}</div>
                                 </div>

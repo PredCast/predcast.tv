@@ -129,6 +129,13 @@ export function useChilizSwapRouter() {
         [placeBetUsdc, placeBetChz, placeBetToken],
     );
 
+    /** Clears the three bet writes so a new prediction starts from an idle tx state. */
+    const resetBet = useCallback(() => {
+        placeBetUsdc.reset();
+        placeBetChz.reset();
+        placeBetToken.reset();
+    }, [placeBetUsdc, placeBetChz, placeBetToken]);
+
     const placeBetUsdcState = useTxState(placeBetUsdc);
     const placeBetChzState = useTxState(placeBetChz);
     const placeBetTokenState = useTxState(placeBetToken);
@@ -210,6 +217,7 @@ export function useChilizSwapRouter() {
     return {
         // Bet
         placeBet,
+        resetBet,
         betState: pickActive(placeBetUsdcState, placeBetChzState, placeBetTokenState),
 
         // Donate
