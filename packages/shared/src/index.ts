@@ -51,3 +51,4 @@ export * from './tokens/priceCatalog';
 export * from './tokens/priceQuote';
 export * from './tokens/teamFanTokens';
 export * from './tokens/fanTokenDeployments';
+export * from './dto/prices/PriceHistoryDto';
