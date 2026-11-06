@@ -2,49 +2,24 @@
 
 import { useState } from "react";
 import type { Address } from "viem";
+
 import { useMyBetsOnMatch } from "@/components/features/dashboard/hooks/useMyBetsOnMatch";
-import { MatchMarketsList, type MatchBettableContext } from "../MatchMarketsList";
-import { MyBetsOnMatch } from "../MyBetsOnMatch";
+import { MyBetsOnMatch } from "@/components/live/MyBetsOnMatch";
+
+import { TabButton } from "../components/TabButton";
+import type { MatchBettableContext } from "../domain/types";
+import { MatchMarketsList } from "./MatchMarketsList";
 
 type Tab = "markets" | "mybets";
 
 interface AboutLiveTabsProps {
-  bettingContractAddress?: Address;
-  walletAddress?: string;
-  homeTeam?: string;
-  awayTeam?: string;
-  homeLogo?: string | null;
-  awayLogo?: string | null;
-  match?: MatchBettableContext;
-}
-
-interface TabButtonProps {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-  badge?: number;
-}
-
-function TabButton({ active, onClick, children, badge }: TabButtonProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="font-mono-ctv inline-flex items-center gap-2 rounded-md border px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] transition-colors"
-      style={{
-        borderColor: active ? "#E8001D" : "#1E1E1E",
-        background: active ? "rgba(232,0,29,0.08)" : "transparent",
-        color: active ? "#fff" : "rgba(255,255,255,0.55)",
-      }}
-    >
-      {children}
-      {badge != null && badge > 0 && (
-        <span className="ml-0.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#E8001D] px-1 text-[9px] font-bold tabular-nums text-white">
-          {badge}
-        </span>
-      )}
-    </button>
-  );
+  readonly bettingContractAddress?: Address;
+  readonly walletAddress?: string;
+  readonly homeTeam?: string;
+  readonly awayTeam?: string;
+  readonly homeLogo?: string | null;
+  readonly awayLogo?: string | null;
+  readonly match?: MatchBettableContext;
 }
 
 export function AboutLiveTabs({
@@ -57,11 +32,7 @@ export function AboutLiveTabs({
   match,
 }: AboutLiveTabsProps) {
   const [tab, setTab] = useState<Tab>("markets");
-
-  const { bets } = useMyBetsOnMatch({
-    user: walletAddress,
-    contractAddress: bettingContractAddress,
-  });
+  const { bets } = useMyBetsOnMatch({ user: walletAddress, contractAddress: bettingContractAddress });
   const myBetsCount = bets.length;
 
   return (
@@ -70,11 +41,7 @@ export function AboutLiveTabs({
         <TabButton active={tab === "markets"} onClick={() => setTab("markets")}>
           Markets
         </TabButton>
-        <TabButton
-          active={tab === "mybets"}
-          onClick={() => setTab("mybets")}
-          badge={myBetsCount}
-        >
+        <TabButton active={tab === "mybets"} onClick={() => setTab("mybets")} badge={myBetsCount}>
           My predictions
         </TabButton>
         <span className="font-mono-ctv ml-auto text-[10px] uppercase tracking-[0.16em] text-white/35">

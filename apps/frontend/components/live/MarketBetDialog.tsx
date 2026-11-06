@@ -47,10 +47,13 @@ import { BetSuccessStep } from "./dialog/BetSuccessStep";
 import { BetFailureStep } from "./dialog/BetFailureStep";
 import { UnsupportedSportPanel } from "./UnsupportedSportPanel";
 import type { BetTokenOption } from "./dialog/TokenSelectModal";
-import type { MarketSelection, MatchBettableContext } from "./MatchMarketsList";
-import { isBettable, type BettableResult } from "@chiliztv/domain/matches/policies/BettablePolicy";
-
-const KICKOFF_BUFFER_SEC = 120;
+import type { MarketSelection, MatchBettableContext } from "@/components/features/live/domain/types";
+import { policyMessageFor } from "@/components/features/live/domain/policyMessage";
+import {
+  DEFAULT_KICKOFF_BUFFER_SEC,
+  isBettable,
+  type BettableResult,
+} from "@chiliztv/domain/matches/policies/BettablePolicy";
 
 interface MarketBetDialogProps {
   open: boolean;
@@ -130,23 +133,6 @@ function fmtUsd(n: number | null, dp = 2): string {
   if (n === null || Number.isNaN(n)) return "—";
   const sign = n < 0 ? "-" : "";
   return sign + "$" + Math.abs(n).toFixed(dp).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-}
-
-/** Label affiché dans le panneau "Betting closed" du dialog. */
-function policyMessageFor(verdict: BettableResult, kickoffAt: string, now: Date): string {
-  if (verdict.ok) return "";
-  switch (verdict.reason) {
-    case "LIVE":           return "Live · Predictions closed";
-    case "HALFTIME":       return "Halftime · Predictions closed";
-    case "KICKOFF_BUFFER": {
-      const mins = Math.max(1, Math.ceil((new Date(kickoffAt).getTime() - now.getTime()) / 60_000));
-      return `Kicks off in ${mins}m · Predictions closed`;
-    }
-    case "FINISHED":       return "Awaiting resolution";
-    case "POSTPONED":      return "Postponed";
-    case "UNKNOWN":
-    default:               return "Predictions unavailable";
-  }
 }
 
 export function MarketBetDialog({
@@ -421,7 +407,7 @@ export function MarketBetDialog({
   // (composant ancien call-site), `verdict.ok = true` par défaut.
   const verdict: BettableResult =
     match && now
-      ? isBettable(match, now, { kickoffBufferSec: KICKOFF_BUFFER_SEC })
+      ? isBettable(match, now, { kickoffBufferSec: DEFAULT_KICKOFF_BUFFER_SEC })
       : { ok: true };
   const policyAllowsBetting = verdict.ok;
 

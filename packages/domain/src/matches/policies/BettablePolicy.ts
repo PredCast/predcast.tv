@@ -50,6 +50,9 @@ export type BettableResult =
     | { readonly ok: true }
     | { readonly ok: false; readonly reason: BlockReason };
 
+/** Seconds before kickoff during which the UI stops accepting predictions (mirrors CloseLiveMatchesMarketsUseCase). */
+export const DEFAULT_KICKOFF_BUFFER_SEC = 120;
+
 export interface BettableOptions {
     /** Buffer en secondes appliqué avant le kickoff (default 0 = pas de buffer). */
     readonly kickoffBufferSec: number;

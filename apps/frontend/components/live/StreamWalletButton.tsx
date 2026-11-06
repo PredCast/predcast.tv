@@ -19,7 +19,7 @@ interface StreamWalletButtonProps {
 /**
  * Thin facade over the new design-spec `DonationModal`. The component
  * keeps the `StreamWalletButton` name + props shape so existing consumers
- * (chiefly `LiveDetailsPage`) don't need to change.
+ * (chiefly the live `LivePage`) don't need to change.
  *
  * When `isStreamer` is true the modal is suppressed — streamers shouldn't
  * tip themselves; their revenue dashboard lives in the dashboard surface.

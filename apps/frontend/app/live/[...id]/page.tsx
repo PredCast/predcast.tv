@@ -1,5 +1,5 @@
 import { Header } from "@/components/Header";
-import LiveDetailsPage from "@/components/live/LiveDetailsPage";
+import { LivePage as LiveFeaturePage } from "@/components/features/live";
 
 type LivePageProps = {
     params: Promise<{
@@ -10,10 +10,8 @@ type LivePageProps = {
 export default async function LivePage({ params }: LivePageProps) {
     const { id } = await params;
     // `app/live/[...id]` is a catch-all route, so `id` resolves to `string[]`
-    // at runtime (e.g. ["999999"]). LiveDetailsPage compares it with the
-    // literal "999999" sentinel, so collapse to the first segment here —
-    // otherwise `id === "999999"` is always false and the page falls into
-    // the "No match found" panel.
+    // at runtime (e.g. ["999999"]). The feature page compares it with the
+    // "999999" test sentinel, so it must receive the first segment only.
     const matchId = Array.isArray(id) ? id[0] : id;
 
     if (!matchId) {
@@ -24,7 +22,7 @@ export default async function LivePage({ params }: LivePageProps) {
         <main className="flex min-h-dvh flex-col bg-[#0A0A0A]">
             <Header />
             <div className="flex-1">
-                <LiveDetailsPage id={matchId} />
+                <LiveFeaturePage id={matchId} />
             </div>
         </main>
     );
