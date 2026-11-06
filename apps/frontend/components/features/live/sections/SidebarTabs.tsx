@@ -18,9 +18,11 @@ interface SidebarTabsProps {
   readonly homeTeam?: string;
   readonly awayTeam?: string;
   readonly match?: MatchBettableContext;
+  /** Called after a market row is picked (mobile opens the bet sheet). */
+  readonly onMarketPicked?: () => void;
 }
 
-export function SidebarTabs({ contractAddress, walletAddress, homeTeam, awayTeam, match }: SidebarTabsProps) {
+export function SidebarTabs({ contractAddress, walletAddress, homeTeam, awayTeam, match, onMarketPicked }: SidebarTabsProps) {
   const [tab, setTab] = useState<Tab>("markets");
   const { bets } = useMyBetsOnMatch({ user: walletAddress, contractAddress });
 
@@ -36,7 +38,13 @@ export function SidebarTabs({ contractAddress, walletAddress, homeTeam, awayTeam
       </div>
       <div className="p-3">
         {tab === "markets" ? (
-          <MarketsTable contractAddress={contractAddress} homeTeam={homeTeam} awayTeam={awayTeam} match={match} />
+          <MarketsTable
+            contractAddress={contractAddress}
+            homeTeam={homeTeam}
+            awayTeam={awayTeam}
+            match={match}
+            onPicked={onMarketPicked}
+          />
         ) : (
           <MyBetsOnMatch contractAddress={contractAddress} walletAddress={walletAddress} onPickMarket={() => setTab("markets")} />
         )}

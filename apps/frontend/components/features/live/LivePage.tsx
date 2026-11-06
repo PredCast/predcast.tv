@@ -1,14 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import type { Address } from "viem";
 
 import { useActiveStreams, useMyBan } from "@/hooks/api";
-import { ChatPanel, MobileChatBottomSheet, MobileChatFab } from "@/components/live/chat";
-import { LiveHero } from "@/components/live/sections";
-import { StartStreamSheet, StreamSwitcherSheet } from "@/components/live/sheets";
 import { BannedBanner } from "@/components/features/moderation/BannedBanner";
 import { StreamInterruptedBanner } from "@/components/features/streaming/StreamInterruptedBanner";
 import { WinCardAutoTrigger } from "@/components/features/win-card/components/WinCardAutoTrigger";
@@ -18,18 +15,20 @@ import { chilizConfig } from "@/config/chiliz.config";
 import { CenterStatus } from "./components/CenterStatus";
 import { MatchNotFound } from "./components/MatchNotFound";
 import { BetSelectionProvider } from "./context/BetSelectionProvider";
-import { buildScoreBreakdown } from "./domain/scoreBreakdown";
 import { useLiveMatchData } from "./hooks/useLiveMatchData";
 import { useLiveStreamSession } from "./hooks/useLiveStreamSession";
 import { useMatchMarketWatchers } from "./hooks/useMatchMarketWatchers";
-import { PREDICT_ANCHOR_MOBILE_ID, useScrollToPredict } from "./hooks/useScrollToPredict";
+import { usePredictShortcut } from "./hooks/usePredictShortcut";
 import { useStreamerFollow } from "./hooks/useStreamerFollow";
-import { AboutLiveTabs } from "./sections/AboutLiveTabs";
+import { LiveMatchHeader } from "./sections/LiveMatchHeader";
 import { LiveMediaSection } from "./sections/LiveMediaSection";
+import { LiveMobileDock } from "./sections/LiveMobileDock";
 import { LiveSidebar } from "./sections/LiveSidebar";
-import { SidebarChat } from "./sections/SidebarChat";
 import { LiveStreamControls } from "./sections/LiveStreamControls";
 import { LiveStreamerDialogs } from "./sections/LiveStreamerDialogs";
+import { LiveStreamSheets } from "./sections/LiveStreamSheets";
+import { SidebarChat } from "./sections/SidebarChat";
+import { SidebarTabs } from "./sections/SidebarTabs";
 
 interface LivePageProps {
   readonly id: string;
@@ -50,14 +49,15 @@ export function LivePage({ id }: LivePageProps) {
   const session = useLiveStreamSession(userId);
   const { selectedStream, myStream } = session;
   const follow = useStreamerFollow(userId, selectedStream);
-  const scrollToPredict = useScrollToPredict();
 
   const [showSwitcher, setShowSwitcher] = useState(false);
   const [showStart, setShowStart] = useState(false);
   const [showDonation, setShowDonation] = useState(false);
   const [showSubscription, setShowSubscription] = useState(false);
-  const [showMobileChat, setShowMobileChat] = useState(false);
+  const [showBetSheet, setShowBetSheet] = useState(false);
   const [streamerPreviewEl, setStreamerPreviewEl] = useState<HTMLDivElement | null>(null);
+  const openBetSheet = useCallback(() => setShowBetSheet(true), []);
+  const onPredict = usePredictShortcut(openBetSheet);
 
   const isStreamer = !!myStream && !!userId;
   const matchIdNum = Number(id);
@@ -81,143 +81,108 @@ export function LivePage({ id }: LivePageProps) {
     htHomeScore: match.htHomeScore,
     htAwayScore: match.htAwayScore,
   };
+  const marketProps = { contractAddress, homeTeam: match.homeTeam, awayTeam: match.awayTeam, match: bettable };
 
   return (
     <BetSelectionProvider>
-    <WinCardModalProvider>
-      <div className="relative min-h-full bg-[#0A0A0A] text-white">
-        {contractAddress ? (
-          <WinCardAutoTrigger wallet={walletAddress || undefined} scope={{ kind: "match", contractAddress }} />
-        ) : null}
-        <LiveHero
-          homeTeam={match.homeTeam}
-          awayTeam={match.awayTeam}
-          homeScore={match.homeScore}
-          awayScore={match.awayScore}
-          scoreBreakdown={buildScoreBreakdown(match)}
-          homeLogo={match.homeTeamLogo}
-          awayLogo={match.awayTeamLogo}
-          homeForm={match.homeForm}
-          awayForm={match.awayForm}
-          status={match.status}
-          elapsed={match.elapsed ?? undefined}
-          kickoffAt={match.startTime}
-          league={match.league}
-          onChainMatch={!!contractAddress}
-          dataStale={match.dataStale}
-          onBack={() => router.push("/live")}
-        />
+      <WinCardModalProvider>
+        <div className="relative min-h-full bg-[#0A0A0A] text-white">
+          {contractAddress ? (
+            <WinCardAutoTrigger wallet={walletAddress || undefined} scope={{ kind: "match", contractAddress }} />
+          ) : null}
+          <LiveMatchHeader match={match} onBack={() => router.push("/live")} />
 
-        <main className="mx-auto max-w-[1600px] px-3 py-4 sm:px-10 sm:py-8">
-          {session.interruptedBanner && (
-            <div className="mb-5">
-              <StreamInterruptedBanner
-                onRestart={() => {
-                  session.dismissInterrupted();
-                  setShowStart(true);
-                }}
-                onDismiss={session.dismissInterrupted}
-              />
-            </div>
-          )}
+          {/* Bottom padding on mobile keeps content clear of the sticky Predict dock. */}
+          <main className="mx-auto max-w-[1600px] px-3 pb-28 pt-4 sm:px-10 sm:pt-8 lg:pb-8">
+            {session.interruptedBanner && (
+              <div className="mb-5">
+                <StreamInterruptedBanner
+                  onRestart={() => {
+                    session.dismissInterrupted();
+                    setShowStart(true);
+                  }}
+                  onDismiss={session.dismissInterrupted}
+                />
+              </div>
+            )}
 
-          <LiveStreamControls
-            activeStream={selectedStream}
-            isOwnStream={isOwnSelectedStream}
-            isStreamer={isStreamer}
-            onSwitchStreams={() => setShowSwitcher(true)}
-            onPredict={scrollToPredict}
-            onGoLive={() => setShowStart(true)}
-            onEndStream={() => session.endStreamRef.current?.()}
-          />
-
-          {/* Row 1: stream | chat (chat follows the stream height). Row 2: free space (fan-token charts) | ticket + pools. */}
-          <div className="grid gap-4 lg:grid-cols-[1fr_360px] lg:gap-x-6 xl:grid-cols-[1fr_400px]">
-            <div className="flex min-w-0 flex-col gap-3 lg:gap-5">
-              <LiveMediaSection
-                selectedStream={selectedStream}
-                isStreamer={isStreamer}
-                isOwnSelectedStream={isOwnSelectedStream}
-                liveStreamCount={activeStreams?.count ?? 0}
-                follow={follow}
-                onStreamerPreviewRef={setStreamerPreviewEl}
-                onStreamEnded={session.onStreamEnded}
-                onSwitchStreams={() => setShowSwitcher(true)}
-                onGoLive={() => setShowStart(true)}
-                onTip={streamForDialogs ? () => setShowDonation(true) : undefined}
-                onSubscribe={streamForDialogs ? () => setShowSubscription(true) : undefined}
-              />
-            </div>
-
-            <SidebarChat {...chatProps} streamId={selectedStream?.id} />
-
-            {/* Mobile only until the bottom sheet lands; desktop markets live in the sidebar. */}
-            <div
-              id={PREDICT_ANCHOR_MOBILE_ID}
-              tabIndex={-1}
-              className="min-w-0 scroll-mt-[calc(var(--app-header-h)+16px)] focus-visible:outline-none lg:hidden"
-            >
-              <AboutLiveTabs
-                bettingContractAddress={contractAddress}
-                walletAddress={walletAddress || undefined}
-                homeTeam={match.homeTeam}
-                awayTeam={match.awayTeam}
-                homeLogo={match.homeTeamLogo}
-                awayLogo={match.awayTeamLogo}
-                match={bettable}
-              />
-            </div>
-
-            <LiveSidebar
-              walletAddress={walletAddress}
-              contractAddress={contractAddress}
-              homeTeam={match.homeTeam}
-              awayTeam={match.awayTeam}
-              match={bettable}
+            <LiveStreamControls
+              activeStream={selectedStream}
+              isOwnStream={isOwnSelectedStream}
+              isStreamer={isStreamer}
+              onSwitchStreams={() => setShowSwitcher(true)}
+              onPredict={onPredict}
+              onGoLive={() => setShowStart(true)}
+              onEndStream={() => session.endStreamRef.current?.()}
             />
-          </div>
 
-          <footer className="mt-12 border-t border-[#1E1E1E] pt-6 text-center">
-            <div className="font-mono-ctv text-[10px] uppercase tracking-[0.18em] text-white/35">
-              PredCast · self-hosted livestreams · settle on Chiliz
+            {/* Row 1: stream | chat (chat follows the stream height). Row 2: free space (fan-token charts) | ticket + pools. */}
+            <div className="grid gap-4 lg:grid-cols-[1fr_360px] lg:gap-x-6 xl:grid-cols-[1fr_400px]">
+              <div className="flex min-w-0 flex-col gap-3 lg:gap-5">
+                <LiveMediaSection
+                  selectedStream={selectedStream}
+                  isStreamer={isStreamer}
+                  isOwnSelectedStream={isOwnSelectedStream}
+                  liveStreamCount={activeStreams?.count ?? 0}
+                  follow={follow}
+                  onStreamerPreviewRef={setStreamerPreviewEl}
+                  onStreamEnded={session.onStreamEnded}
+                  onSwitchStreams={() => setShowSwitcher(true)}
+                  onGoLive={() => setShowStart(true)}
+                  onTip={streamForDialogs ? () => setShowDonation(true) : undefined}
+                  onSubscribe={streamForDialogs ? () => setShowSubscription(true) : undefined}
+                />
+              </div>
+
+              <SidebarChat {...chatProps} streamId={selectedStream?.id} />
+
+              {/* Mobile: same markets table + My predictions as the sidebar; a pick opens the bet sheet. */}
+              <div className="min-w-0 lg:hidden">
+                <SidebarTabs {...marketProps} walletAddress={walletAddress || undefined} onMarketPicked={openBetSheet} />
+              </div>
+
+              <LiveSidebar walletAddress={walletAddress} {...marketProps} />
             </div>
-          </footer>
-        </main>
 
-        <StreamSwitcherSheet
-          open={showSwitcher}
-          onClose={() => setShowSwitcher(false)}
-          matchId={parseInt(id)}
-          selectedStreamId={selectedStream?.id}
-          currentUserId={userId}
-          initialStreamId={initialStreamId}
-          onStreamSelect={session.selectStream}
-          onOwnStreamDetected={session.onOwnStreamDetected}
-        />
-        <StartStreamSheet
-          open={showStart}
-          onClose={() => setShowStart(false)}
-          matchId={parseInt(id)}
-          onStreamCreated={session.onStreamCreated}
-          onStreamEnded={session.onStreamEnded}
-          portalTarget={isStreamer ? streamerPreviewEl : null}
-          endStreamRef={session.endStreamRef}
-        />
-        <LiveStreamerDialogs
-          stream={streamForDialogs}
-          walletAddress={walletAddress}
-          donationOpen={showDonation}
-          onDonationOpenChange={setShowDonation}
-          subscriptionOpen={showSubscription}
-          onSubscriptionOpenChange={setShowSubscription}
-        />
+            <footer className="mt-12 border-t border-[#1E1E1E] pt-6 text-center">
+              <div className="font-mono-ctv text-[10px] uppercase tracking-[0.18em] text-white/35">
+                PredCast · self-hosted livestreams · settle on Chiliz
+              </div>
+            </footer>
+          </main>
 
-        <MobileChatFab onClick={() => setShowMobileChat(true)} hidden={showMobileChat} />
-        <MobileChatBottomSheet open={showMobileChat} onClose={() => setShowMobileChat(false)}>
-          <ChatPanel {...chatProps} streamId={myStream?.id ?? selectedStream?.id} />
-        </MobileChatBottomSheet>
-      </div>
-    </WinCardModalProvider>
+          <LiveStreamSheets
+            matchId={parseInt(id)}
+            userId={userId}
+            initialStreamId={initialStreamId}
+            selectedStreamId={selectedStream?.id}
+            switcherOpen={showSwitcher}
+            onSwitcherClose={() => setShowSwitcher(false)}
+            startOpen={showStart}
+            onStartClose={() => setShowStart(false)}
+            onStreamSelect={session.selectStream}
+            onOwnStreamDetected={session.onOwnStreamDetected}
+            onStreamCreated={session.onStreamCreated}
+            onStreamEnded={session.onStreamEnded}
+            portalTarget={isStreamer ? streamerPreviewEl : null}
+            endStreamRef={session.endStreamRef}
+          />
+          <LiveStreamerDialogs
+            stream={streamForDialogs}
+            walletAddress={walletAddress}
+            donationOpen={showDonation}
+            onDonationOpenChange={setShowDonation}
+            subscriptionOpen={showSubscription}
+            onSubscriptionOpenChange={setShowSubscription}
+          />
+          <LiveMobileDock
+            chat={{ ...chatProps, streamId: myStream?.id ?? selectedStream?.id }}
+            betSheetOpen={showBetSheet}
+            onBetSheetChange={setShowBetSheet}
+            {...marketProps}
+          />
+        </div>
+      </WinCardModalProvider>
     </BetSelectionProvider>
   );
 }

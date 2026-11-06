@@ -16,7 +16,6 @@ import type { MatchBettableContext } from "../domain/types";
 import { useBetSelection } from "../hooks/useBetSelection";
 import { useClientNow } from "../hooks/useClientNow";
 import { useMatchMarkets } from "../hooks/useMatchMarkets";
-import { PREDICT_ANCHOR_ID } from "../hooks/useScrollToPredict";
 
 interface BetTicketPanelProps {
   readonly contractAddress?: Address;
@@ -24,10 +23,12 @@ interface BetTicketPanelProps {
   readonly homeTeam?: string;
   readonly awayTeam?: string;
   readonly match?: MatchBettableContext;
+  /** Scroll anchor of the desktop instance; omitted in the mobile sheet to keep ids unique. */
+  readonly anchorId?: string;
 }
 
 /** Predict card: market selector + inline ticket, without any modal. */
-export function BetTicketPanel({ contractAddress, walletAddress, homeTeam, awayTeam, match }: BetTicketPanelProps) {
+export function BetTicketPanel({ contractAddress, walletAddress, homeTeam, awayTeam, match, anchorId }: BetTicketPanelProps) {
   const now = useClientNow();
   const { markets, isLoading, hasSnapshot, isFootball } = useMatchMarkets(contractAddress);
   const { marketId, requestedOutcome, selectMarket } = useBetSelection();
@@ -67,7 +68,7 @@ export function BetTicketPanel({ contractAddress, walletAddress, homeTeam, awayT
 
   return (
     <SidebarCard
-      id={PREDICT_ANCHOR_ID}
+      id={anchorId}
       eyebrow="Predict"
       aside={<span className="font-mono-ctv text-[9px] uppercase tracking-[0.16em] text-white/35">Pari-mutuel · USDC</span>}
     >

@@ -1,6 +1,7 @@
 import type { Address } from "viem";
 
 import type { MatchBettableContext } from "../domain/types";
+import { PREDICT_ANCHOR_ID } from "../hooks/usePredictShortcut";
 import { BetTicketPanel } from "./BetTicketPanel";
 import { PoolInfo } from "./PoolInfo";
 import { PoolStats } from "./PoolStats";
@@ -20,7 +21,13 @@ export function LiveSidebar({ walletAddress, contractAddress, homeTeam, awayTeam
   const wallet = walletAddress || undefined;
   return (
     <aside aria-label="Predictions" className="hidden min-w-0 flex-col gap-3 lg:col-start-2 lg:flex">
-      <BetTicketPanel contractAddress={contractAddress} walletAddress={wallet} match={match} {...teams} />
+      <BetTicketPanel
+        anchorId={PREDICT_ANCHOR_ID}
+        contractAddress={contractAddress}
+        walletAddress={wallet}
+        match={match}
+        {...teams}
+      />
       <SidebarTabs contractAddress={contractAddress} walletAddress={wallet} match={match} {...teams} />
       <PoolStats contractAddress={contractAddress} {...teams} />
       <PoolInfo contractAddress={contractAddress} kickoffAt={match.kickoffAt} />

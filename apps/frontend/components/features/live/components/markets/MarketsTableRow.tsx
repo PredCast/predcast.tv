@@ -1,5 +1,6 @@
 import { leadingOutcome, outcomeSharesBps } from "@chiliztv/domain/markets/poolShares";
 
+import { HalftimeDelayBadge } from "@/components/shared/HalftimeDelayBadge";
 import { BET_TOKEN_SYMBOL, formatBetAmount } from "@/components/live/utils/betToken";
 import type { MarketPoolSnapshot } from "@/lib/contracts/markets";
 
@@ -39,6 +40,7 @@ export function MarketsTableRow({ snapshot, view, chipLabel, selected, assetDeci
         >
           {view.pillLabel}
         </span>
+        <HalftimeDelayBadge delayed={view.halftimeDelayed} />
       </button>
       <span className="font-mono-ctv text-right text-[11px] tabular-nums text-white/65">
         {formatBetAmount(view.totalPool, assetDecimals)} {BET_TOKEN_SYMBOL}
