@@ -1,6 +1,7 @@
 import type { MatchScenario } from './types';
 import { halftimeScenario } from './halftime.scenario';
 import { kickoffBufferEdgeScenario } from './kickoff-buffer-edge.scenario';
+import { liveFirstHalfScenario } from './live-first-half.scenario';
 import { upcomingSaturdayScenario } from './upcoming-saturday.scenario';
 import { cancelFlowScenario } from './cancel-flow.scenario';
 import { noLiveBettingFullScenario } from './no-live-betting-full.scenario';
@@ -8,6 +9,7 @@ import { noLiveBettingFullScenario } from './no-live-betting-full.scenario';
 const ALL: ReadonlyArray<MatchScenario> = [
     upcomingSaturdayScenario,
     kickoffBufferEdgeScenario,
+    liveFirstHalfScenario,
     halftimeScenario,
     cancelFlowScenario,
     noLiveBettingFullScenario,

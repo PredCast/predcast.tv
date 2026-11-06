@@ -26,6 +26,14 @@ pnpm match:reset                               # DELETE FROM matches WHERE api_f
 **Expected outcome**: 1 NS row whose `match_date` is 90s in the future. `isBettable(match, clock.now(), { kickoffBufferSec: 120 })` returns `{ ok: false, reason: 'KICKOFF_BUFFER' }`.
 **Cleanup**: `pnpm match:reset`.
 
+### `live-first-half`
+
+**Intent**: verify the generic "Live · Betting closed" state (in-game, not halftime) on `/live/[id]` and in the Discover grid.
+
+**Expected outcome**: 1 row with `status = '1H'`, score 0-0, kickoff -20 min. `isBettable` returns `{ ok: false, reason: 'LIVE' }`. With the backend running, the next `CloseLiveMarketsJob` tick moves the Open markets to `Closed`.
+
+**Cleanup**: `pnpm match:reset`.
+
 ### `halftime`
 **Intent**: verify the "Halftime · Betting closed" UI pill and the L2 layer of the no-live-betting plan.
 **Expected outcome**: 1 row with `status = 'HT'`, score 1-0, kickoff -50 min. Front renders pill differentiated from generic "Live · Betting closed".
@@ -145,6 +153,6 @@ Wait for `BackfillMarketLinesJob` to tick (≤ 1h, env override
 ## Conventions
 
 - Fixture IDs are reserved to the `999000-999999` range. Production matches keep their API-Football IDs (well below).
-- Scenarios must be idempotent: a second invocation should not duplicate rows (auto IDs via `nextTestMatchId`).
+- Scenarios can be stacked: the runner skips fixture IDs already present in `matches` before applying a scenario, so successive `run` invocations allocate fresh IDs instead of colliding on 999000 (auto IDs via `nextTestMatchId`).
 - Composition via `await otherScenario.apply(ctx)`. No `Promise.all` — the nonce manager on the admin wallet serialises tx ordering already, but the composition runs sequentially to keep error traces readable.
 - For time-dependent assertions (e.g. "after the close-live-markets job ticks"), use the L4 integration suite where `MockClock.advanceBy*` is available. The CLI runs against `SystemClock` and cannot fast-forward real wall-clock.

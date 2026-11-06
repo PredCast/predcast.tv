@@ -26,6 +26,14 @@ export function nextTestMatchId(): number {
     return nextId++;
 }
 
+/**
+ * Moves the counter past IDs already persisted — the counter restarts at 999000
+ * in every CLI process, and `matches` inserts would otherwise collide.
+ */
+export async function skipTakenTestMatchIds(isTaken: (id: number) => Promise<boolean>): Promise<void> {
+    while (await isTaken(nextId)) nextId++;
+}
+
 /** Resets the in-module counter — call from `beforeEach` to keep tests isolated. */
 export function __resetTestMatchIdForTesting(): void {
     nextId = FIXTURE_ID_START;
