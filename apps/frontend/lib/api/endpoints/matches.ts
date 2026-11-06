@@ -32,6 +32,8 @@ function transformMatch(m: MatchResponseDto): Match {
     htHomeScore: m.htHomeScore,
     htAwayScore: m.htAwayScore,
     dataStale: m.dataStale ?? false,
+    homeFanToken: m.homeFanToken ?? null,
+    awayFanToken: m.awayFanToken ?? null,
   };
 }
 

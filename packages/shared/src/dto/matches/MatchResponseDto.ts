@@ -89,6 +89,9 @@ export interface MatchResponseDto {
    * older clients ignore it; the new badge UI renders an amber pill when set.
    */
   dataStale?: boolean;
+  /** Fan-token base symbol of each side (`PSG`, `OM`…); null when the club has none. Optional for cached payloads. */
+  homeFanToken?: string | null;
+  awayFanToken?: string | null;
   /** ISO 8601 — sérialisé depuis Date */
   createdAt: string;
 }
