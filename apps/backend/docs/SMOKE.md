@@ -49,6 +49,21 @@ pnpm match:reset                               # DELETE FROM matches WHERE api_f
 **Expected outcome**: 3 rows in DB (one per sub-scenario). Combined `matchesCreated = 3`, `contractsDeployed` depends on `--no-deploy`.
 **Cleanup**: `pnpm match:reset`.
 
+### `fan-token-derby`
+**Intent**: fan-token charts under the stream with both tokens + the cross pair. Real API-Football team IDs (PSG 85, OM 81, see [team.fixtures.ts](src/testing/fixtures/team.fixtures.ts)).
+**Expected outcome**: 2 rows: PSG vs OM `NS` (kickoff +3h) and PSG vs OM `1H` (kickoff -20 min). `/live/<id>` shows the `PSG/USDC`, `OM/USDC` and `PSG/OM` tabs; the live one draws the kickoff marker inside the 1H range.
+**Cleanup**: `pnpm match:reset`.
+
+### `single-fan-token`
+**Intent**: only one side has a fan token.
+**Expected outcome**: 1 row, PSG (85) vs Lens (116) `NS` (kickoff +4h). A single `PSG/USDC` tab, no cross pair.
+**Cleanup**: `pnpm match:reset`.
+
+### `no-fan-token`
+**Intent**: no fan token on either side.
+**Expected outcome**: 1 row, Lille (79) vs Rennes (94) `NS` (kickoff +5h). The chart block is not rendered at all (no placeholder).
+**Cleanup**: `pnpm match:reset`.
+
 ## Authoring a new scenario
 
 1. Create `src/testing/scenarios/<name>.scenario.ts` exporting a `MatchScenario` (see [types.ts](src/testing/scenarios/types.ts)).

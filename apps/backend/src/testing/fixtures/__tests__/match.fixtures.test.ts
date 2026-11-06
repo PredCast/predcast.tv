@@ -6,6 +6,7 @@ import {
     skipTakenTestMatchIds,
     type FixtureName,
 } from '../match.fixtures';
+import { TEAM_FIXTURES } from '../team.fixtures';
 
 const FIXTURE_NAMES: ReadonlyArray<FixtureName> = [
     'upcoming', 'kickoffImminent', 'firstHalf', 'halftime', 'secondHalf',
@@ -90,6 +91,14 @@ describe('nextTestMatchId', () => {
         nextTestMatchId();
         __resetTestMatchIdForTesting();
         expect(nextTestMatchId()).toBe(999000);
+    });
+});
+
+describe('matchFixture — real team identities', () => {
+    it('keeps the API-Football team ids used by the fan-token mapping', () => {
+        const json = matchFixture.upcoming({ homeTeam: TEAM_FIXTURES.PSG, awayTeam: TEAM_FIXTURES.OM }).toJSON();
+        expect(json.homeTeam).toMatchObject({ id: 85, name: 'Paris Saint-Germain' });
+        expect(json.awayTeam).toMatchObject({ id: 81, name: 'Olympique de Marseille' });
     });
 });
 
