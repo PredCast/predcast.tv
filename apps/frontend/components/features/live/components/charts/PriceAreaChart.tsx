@@ -16,6 +16,7 @@ import {
 
 import type { PricePoint } from "@chiliztv/domain/prices/priceHistory";
 
+import { formatCrosshairTime, formatTickMark } from "./chartTimeFormat";
 import { ChartTooltip, type ChartTooltipState } from "./ChartTooltip";
 
 export interface ChartEventMarker {
@@ -56,9 +57,10 @@ export default function PriceAreaChart({ points, markers, precision, unit, showD
         fontSize: 10,
         attributionLogo: true,
       },
+      localization: { timeFormatter: formatCrosshairTime },
       grid: { vertLines: { color: "#141414" }, horzLines: { color: "#1A1A1A" } },
       rightPriceScale: { borderColor: "#1E1E1E" },
-      timeScale: { borderColor: "#1E1E1E", timeVisible: true, secondsVisible: false },
+      timeScale: { borderColor: "#1E1E1E", timeVisible: true, secondsVisible: false, tickMarkFormatter: formatTickMark },
       crosshair: {
         mode: CrosshairMode.Magnet,
         vertLine: { color: "rgba(255,255,255,0.25)", labelBackgroundColor: "#1A1A1A" },
