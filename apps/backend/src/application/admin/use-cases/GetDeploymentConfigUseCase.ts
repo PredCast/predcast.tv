@@ -2,6 +2,7 @@ import { inject, injectable } from 'tsyringe';
 
 import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { DEFAULT_KICKOFF_BUFFER_SEC } from '@chiliztv/domain/matches/policies/BettablePolicy';
+import { DEFAULT_FOOTBALL_MARKETS, getDefaultFootballMarkets } from '@chiliztv/domain/markets/DefaultMarkets';
 import type { IBettingChainRegistry } from '@chiliztv/domain/shared/ports/IBettingChainRegistry';
 import type { IBettingDeploymentService } from '@chiliztv/domain/shared/ports/IBettingDeploymentService';
 import type { ICacheService } from '@chiliztv/domain/shared/ports/ICacheService';
@@ -9,7 +10,8 @@ import type { DeploymentConfigDto } from '@chiliztv/shared';
 
 /** Below this many deployments' worth of gas, the admin shows a low-balance alert. */
 export const LOW_BALANCE_DEPLOYMENTS = 10n;
-const CACHE_KEY = 'admin:deployment-config';
+const CACHE_KEY = 'admin:deployment-config:v2';
+const REGULAR_MARKET_IDS = new Set(getDefaultFootballMarkets({ isKnockout: false }).map((spec) => spec.marketId));
 // Short: the balance drops with every deploy and the admin wants to see it.
 const CACHE_TTL_SECONDS = 15;
 
@@ -47,6 +49,11 @@ export class GetDeploymentConfigUseCase {
                 lowBalance: balance < threshold,
             },
             kickoffBufferSec: DEFAULT_KICKOFF_BUFFER_SEC,
+            marketLineup: DEFAULT_FOOTBALL_MARKETS.map((spec) => ({
+                marketId: spec.marketId,
+                label: spec.displayLabel,
+                knockoutOnly: !REGULAR_MARKET_IDS.has(spec.marketId),
+            })),
         };
     }
 }

@@ -100,5 +100,11 @@ export const DeploymentConfigDtoSchema = z.object({
         lowBalance: z.boolean(),
     }),
     kickoffBufferSec: z.number().int(),
+    /** Markets a deployment opens, in marketId order; `knockoutOnly` ones only on knockout fixtures. */
+    marketLineup: z.array(z.object({
+        marketId: z.number().int(),
+        label: z.string(),
+        knockoutOnly: z.boolean(),
+    })),
 });
 export type DeploymentConfigDto = z.infer<typeof DeploymentConfigDtoSchema>;
