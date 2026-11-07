@@ -25,6 +25,15 @@ describe('toMatchResponseDto', () => {
     expect(dto).toMatchObject({ homeFanToken: 'PSG', awayFanToken: null, dataStale: true });
   });
 
+  it('serialises the phase start times as ISO strings', () => {
+    const dto = toMatchResponseDto(matchFixture.secondHalf({ kickoffAt: new Date('2026-11-07T20:00:00Z') }), false);
+    expect(dto).toMatchObject({
+      firstHalfStartedAt: '2026-11-07T20:00:00.000Z',
+      halftimeStartedAt: '2026-11-07T20:47:00.000Z',
+      secondHalfStartedAt: '2026-11-07T21:02:00.000Z',
+    });
+  });
+
   it('exposes the penalty winner after a shootout', () => {
     const match = matchFixture.afterPenalties({ aetScore: { home: 2, away: 2 }, penScore: { home: 5, away: 4 } });
     expect(toMatchResponseDto(match, false).penaltyWinner).toBe('home');

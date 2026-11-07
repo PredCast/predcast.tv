@@ -67,31 +67,11 @@ async function main(): Promise<void> {
     // frontend display "still HT" after FT resolution.
     const json = match.toJSON();
     const updated = Match.reconstitute({
-        id: json.id,
-        apiFootballId: json.apiFootballId,
-        homeTeamId: json.homeTeam.id,
-        homeTeamName: json.homeTeam.name,
-        homeTeamLogo: json.homeTeam.logo,
-        awayTeamId: json.awayTeam.id,
-        awayTeamName: json.awayTeam.name,
-        awayTeamLogo: json.awayTeam.logo,
-        leagueId: json.league.id,
-        leagueName: json.league.name,
-        leagueLogo: json.league.logo,
-        leagueCountry: json.league.country,
-        season: json.season,
+        ...match.toRaw(),
         status: 'FT',
-        matchDate: new Date(json.matchDate),
-        venue: json.venue,
         homeScore: homeGoals,
         awayScore: awayGoals,
-        homeForm: json.homeForm,
-        awayForm: json.awayForm,
         elapsed: 90,
-        htHomeScore: json.htHomeScore,
-        htAwayScore: json.htAwayScore,
-        bettingContractAddress: contract,
-        createdAt: new Date(json.createdAt),
         updatedAt: new Date(),
     });
     await matches.update(updated);

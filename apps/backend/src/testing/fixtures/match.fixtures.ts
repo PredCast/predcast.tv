@@ -1,4 +1,5 @@
 import { Match } from '@chiliztv/domain/matches/entities/Match';
+import { NO_PHASE_TIMES, type MatchPhaseTimes } from '@chiliztv/domain/matches/policies/matchPhaseTimes';
 
 export interface MatchFixtureOverride {
     apiFootballId?: number;
@@ -45,6 +46,21 @@ interface BuildArgs {
     score?: { home: number; away: number };
     /** Default knockout flag for this fixture kind — overridable per call via MatchFixtureOverride.isKnockout. */
     isKnockout?: boolean;
+    /** Last phase reached, so the phase start times match what the sync would have recorded. */
+    reached?: 'first' | 'half' | 'second';
+}
+
+const HALFTIME_AFTER_MS = 47 * 60_000;
+const SECOND_HALF_AFTER_MS = 62 * 60_000;
+
+function phaseTimesFor(kickoff: Date, reached: BuildArgs['reached']): MatchPhaseTimes {
+    if (!reached) return NO_PHASE_TIMES;
+    const at = (offsetMs: number) => new Date(kickoff.getTime() + offsetMs);
+    return {
+        firstHalfStartedAt: kickoff,
+        halftimeStartedAt: reached === 'first' ? null : at(HALFTIME_AFTER_MS),
+        secondHalfStartedAt: reached === 'second' ? at(SECOND_HALF_AFTER_MS) : null,
+    };
 }
 
 const DEFAULT_HOME = { id: 5, name: 'Inter', logo: '' };
@@ -86,6 +102,7 @@ function buildMatch(args: BuildArgs, override?: MatchFixtureOverride): Match {
         isKnockout: override?.isKnockout ?? args.isKnockout ?? false,
         homeForm: override?.homeForm ?? null,
         awayForm: override?.awayForm ?? null,
+        ...phaseTimesFor(kickoff, args.reached),
         bettingContractAddress: override?.bettingContractAddress,
     });
 }
@@ -101,25 +118,25 @@ const HOUR = 60 * MIN;
 export const matchFixture = {
     upcoming:        (o?: MatchFixtureOverride) => buildMatch({ status: 'NS',  kickoffOffsetMs:  60 * MIN }, o),
     kickoffImminent: (o?: MatchFixtureOverride) => buildMatch({ status: 'NS',  kickoffOffsetMs:  90_000 }, o),
-    firstHalf:       (o?: MatchFixtureOverride) => buildMatch({ status: '1H',  kickoffOffsetMs: -10 * MIN, score: { home: 0, away: 0 } }, o),
-    halftime:        (o?: MatchFixtureOverride) => buildMatch({ status: 'HT',  kickoffOffsetMs: -50 * MIN, score: { home: 1, away: 0 } }, o),
-    secondHalf:      (o?: MatchFixtureOverride) => buildMatch({ status: '2H',  kickoffOffsetMs: -70 * MIN, score: { home: 1, away: 1 } }, o),
-    extraTime:       (o?: MatchFixtureOverride) => buildMatch({ status: 'ET',  kickoffOffsetMs: -95 * MIN, score: { home: 1, away: 1 } }, o),
-    breakTime:       (o?: MatchFixtureOverride) => buildMatch({ status: 'BT',  kickoffOffsetMs: -91 * MIN, score: { home: 1, away: 1 } }, o),
-    penalty:         (o?: MatchFixtureOverride) => buildMatch({ status: 'P',   kickoffOffsetMs: -120 * MIN, score: { home: 2, away: 2 } }, o),
-    suspended:       (o?: MatchFixtureOverride) => buildMatch({ status: 'SUSP',kickoffOffsetMs: -25 * MIN, score: { home: 0, away: 0 } }, o),
-    interrupted:     (o?: MatchFixtureOverride) => buildMatch({ status: 'INT', kickoffOffsetMs: -25 * MIN, score: { home: 0, away: 0 } }, o),
-    fullTime:        (o?: MatchFixtureOverride) => buildMatch({ status: 'FT',  kickoffOffsetMs: -2 * HOUR, score: { home: 2, away: 1 } }, o),
+    firstHalf:       (o?: MatchFixtureOverride) => buildMatch({ status: '1H',  kickoffOffsetMs: -10 * MIN, score: { home: 0, away: 0 }, reached: 'first' }, o),
+    halftime:        (o?: MatchFixtureOverride) => buildMatch({ status: 'HT',  kickoffOffsetMs: -50 * MIN, score: { home: 1, away: 0 }, reached: 'half' }, o),
+    secondHalf:      (o?: MatchFixtureOverride) => buildMatch({ status: '2H',  kickoffOffsetMs: -70 * MIN, score: { home: 1, away: 1 }, reached: 'second' }, o),
+    extraTime:       (o?: MatchFixtureOverride) => buildMatch({ status: 'ET',  kickoffOffsetMs: -95 * MIN, score: { home: 1, away: 1 }, reached: 'second' }, o),
+    breakTime:       (o?: MatchFixtureOverride) => buildMatch({ status: 'BT',  kickoffOffsetMs: -91 * MIN, score: { home: 1, away: 1 }, reached: 'second' }, o),
+    penalty:         (o?: MatchFixtureOverride) => buildMatch({ status: 'P',   kickoffOffsetMs: -120 * MIN, score: { home: 2, away: 2 }, reached: 'second' }, o),
+    suspended:       (o?: MatchFixtureOverride) => buildMatch({ status: 'SUSP',kickoffOffsetMs: -25 * MIN, score: { home: 0, away: 0 }, reached: 'first' }, o),
+    interrupted:     (o?: MatchFixtureOverride) => buildMatch({ status: 'INT', kickoffOffsetMs: -25 * MIN, score: { home: 0, away: 0 }, reached: 'first' }, o),
+    fullTime:        (o?: MatchFixtureOverride) => buildMatch({ status: 'FT',  kickoffOffsetMs: -2 * HOUR, score: { home: 2, away: 1 }, reached: 'second' }, o),
     // AET / PEN fixtures default `isKnockout: true` since these statuses only
     // occur in knockout fixtures. Override to false on a per-call basis if a
     // test needs to exercise the "AET on a non-knockout proxy" edge.
-    afterExtraTime:  (o?: MatchFixtureOverride) => buildMatch({ status: 'AET', kickoffOffsetMs: -3 * HOUR, score: { home: 2, away: 2 }, isKnockout: true }, o),
-    afterPenalties:  (o?: MatchFixtureOverride) => buildMatch({ status: 'PEN', kickoffOffsetMs: -3 * HOUR, score: { home: 3, away: 2 }, isKnockout: true }, o),
+    afterExtraTime:  (o?: MatchFixtureOverride) => buildMatch({ status: 'AET', kickoffOffsetMs: -3 * HOUR, score: { home: 2, away: 2 }, isKnockout: true, reached: 'second' }, o),
+    afterPenalties:  (o?: MatchFixtureOverride) => buildMatch({ status: 'PEN', kickoffOffsetMs: -3 * HOUR, score: { home: 3, away: 2 }, isKnockout: true, reached: 'second' }, o),
     /** Knockout fixture in NS — useful to exercise the 9-market seed lineup without waiting for AET/PEN status. */
     upcomingKnockout: (o?: MatchFixtureOverride) => buildMatch({ status: 'NS', kickoffOffsetMs: 60 * MIN, isKnockout: true }, o),
     postponed:       (o?: MatchFixtureOverride) => buildMatch({ status: 'PST', kickoffOffsetMs: 24 * HOUR }, o),
     cancelled:       (o?: MatchFixtureOverride) => buildMatch({ status: 'CANC',kickoffOffsetMs: -30 * MIN }, o),
-    abandoned:       (o?: MatchFixtureOverride) => buildMatch({ status: 'ABD', kickoffOffsetMs: -30 * MIN, score: { home: 1, away: 1 } }, o),
+    abandoned:       (o?: MatchFixtureOverride) => buildMatch({ status: 'ABD', kickoffOffsetMs: -30 * MIN, score: { home: 1, away: 1 }, reached: 'first' }, o),
     awarded:         (o?: MatchFixtureOverride) => buildMatch({ status: 'AWD', kickoffOffsetMs: -2 * HOUR, score: { home: 3, away: 0 } }, o),
     walkover:        (o?: MatchFixtureOverride) => buildMatch({ status: 'WO',  kickoffOffsetMs: -2 * HOUR, score: { home: 3, away: 0 } }, o),
 } as const;

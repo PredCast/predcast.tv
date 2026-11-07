@@ -102,6 +102,28 @@ describe('matchFixture — real team identities', () => {
     });
 });
 
+describe('matchFixture — phase start times', () => {
+    const kickoffAt = new Date('2026-11-07T20:00:00Z');
+
+    it('has no phase times before kick-off', () => {
+        expect(matchFixture.upcoming({ kickoffAt }).getPhaseTimes()).toEqual({
+            firstHalfStartedAt: null, halftimeStartedAt: null, secondHalfStartedAt: null,
+        });
+    });
+
+    it('starts the first half at kick-off and leaves the break unknown in 1H', () => {
+        const phases = matchFixture.firstHalf({ kickoffAt }).getPhaseTimes();
+        expect(phases.firstHalfStartedAt).toEqual(kickoffAt);
+        expect(phases.halftimeStartedAt).toBeNull();
+    });
+
+    it('records the break and the second half once 2H is reached', () => {
+        const phases = matchFixture.secondHalf({ kickoffAt }).getPhaseTimes();
+        expect(phases.halftimeStartedAt).toEqual(new Date('2026-11-07T20:47:00Z'));
+        expect(phases.secondHalfStartedAt).toEqual(new Date('2026-11-07T21:02:00Z'));
+    });
+});
+
 describe('skipTakenTestMatchIds', () => {
     it('skips IDs already persisted by a previous run', async () => {
         const taken = new Set([999000, 999001, 999002]);

@@ -12,6 +12,7 @@ setupDependencyInjection();
 import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import type { IMatchRepository } from '@chiliztv/domain/matches/repositories/IMatchRepository';
 import { Match } from '@chiliztv/domain/matches/entities/Match';
+import { nextPhaseTimes } from '@chiliztv/domain/matches/policies/matchPhaseTimes';
 import { ResolveHalftimeMarketUseCase } from '../../application/matches/use-cases/ResolveHalftimeMarketUseCase';
 import { logger } from '../../infrastructure/logging/logger';
 
@@ -78,36 +79,20 @@ async function main(): Promise<void> {
         htAwayGoals,
     });
 
+    const now = new Date();
     const updated = Match.reconstitute({
-        id: json.id,
-        apiFootballId: json.apiFootballId,
-        homeTeamId: json.homeTeam.id,
-        homeTeamName: json.homeTeam.name,
-        homeTeamLogo: json.homeTeam.logo,
-        awayTeamId: json.awayTeam.id,
-        awayTeamName: json.awayTeam.name,
-        awayTeamLogo: json.awayTeam.logo,
-        leagueId: json.league.id,
-        leagueName: json.league.name,
-        leagueLogo: json.league.logo,
-        leagueCountry: json.league.country,
-        season: json.season,
+        ...match.toRaw(),
+        ...nextPhaseTimes(match.getPhaseTimes(), 'HT', { firstHalfStartedAt: null, secondHalfStartedAt: null }, now),
         status: 'HT',
-        matchDate: new Date(json.matchDate),
-        venue: json.venue,
         // At HT the live score IS the HT score. Persisting both lines lets
         // downstream consumers (frontend, indexer) see a coherent snapshot
         // without waiting for SyncLiveMatchesJob to backfill.
         homeScore: htHomeGoals,
         awayScore: htAwayGoals,
-        homeForm: json.homeForm,
-        awayForm: json.awayForm,
         elapsed: 45,
         htHomeScore: htHomeGoals,
         htAwayScore: htAwayGoals,
-        bettingContractAddress: contract,
-        createdAt: new Date(json.createdAt),
-        updatedAt: new Date(),
+        updatedAt: now,
     });
     await matches.update(updated);
 

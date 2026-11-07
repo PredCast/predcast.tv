@@ -51,7 +51,7 @@ pnpm match:reset                               # DELETE FROM matches WHERE api_f
 
 ### `fan-token-derby`
 **Intent**: fan-token charts under the stream with both tokens + the cross pair. Real API-Football team IDs (PSG 85, OM 81, see [team.fixtures.ts](src/testing/fixtures/team.fixtures.ts)).
-**Expected outcome**: 2 rows: PSG vs OM `NS` (kickoff +3h) and PSG vs OM `1H` (kickoff -20 min). `/live/<id>` shows the `PSG/USDC`, `OM/USDC` and `PSG/OM` tabs; the live one draws the kickoff marker inside the 1H range.
+**Expected outcome**: 3 rows: PSG vs OM `NS` (kickoff +3h), `1H` (kickoff -20 min) and `2H` (kickoff -80 min, HT stamped at +47 min, 2nd half at +62 min). `/live/<id>` shows the `PSG/USDC`, `OM/USDC` and `PSG/OM` tabs; the `1H` match draws the kick-off marker, the `2H` match draws kick-off, HT and 2nd-half markers on 24H (HT and 2nd half on 1H).
 **Cleanup**: `pnpm match:reset`.
 
 ### `single-fan-token`

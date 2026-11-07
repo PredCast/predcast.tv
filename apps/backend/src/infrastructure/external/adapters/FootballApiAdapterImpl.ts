@@ -19,6 +19,8 @@ const QUOTA_COUNTER_TTL_SECONDS = 36 * 3600; // 36h — survives daily reset, au
 const QUOTA_WARN_PCT = 80;
 const QUOTA_ERROR_PCT = 95;
 
+const fromUnixSeconds = (s: number | null | undefined): Date | null => (s ? new Date(s * 1000) : null);
+
 const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_BACKOFFS_MS = [1000, 2000, 4000];
 const RETRY_JITTER_PCT = 20;
@@ -476,6 +478,8 @@ export class FootballApiAdapterImpl implements IFootballApiService {
             aetAwayScore:   m.score?.extratime?.away ?? null,
             penHomeScore:   m.score?.penalty?.home ?? null,
             penAwayScore:   m.score?.penalty?.away ?? null,
+            firstHalfStartedAt:  fromUnixSeconds(m.fixture.periods?.first),
+            secondHalfStartedAt: fromUnixSeconds(m.fixture.periods?.second),
         };
     }
 

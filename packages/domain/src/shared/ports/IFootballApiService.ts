@@ -62,6 +62,9 @@ export interface RawMatch {
    */
   penHomeScore: number | null;
   penAwayScore: number | null;
+  /** Provider start of each half (`fixture.periods`); null until that half kicks off. */
+  firstHalfStartedAt: Date | null;
+  secondHalfStartedAt: Date | null;
 }
 
 export interface IFootballApiService {

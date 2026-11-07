@@ -57,6 +57,10 @@ export const MatchResponseDtoSchema = z.object({
   /** Score after extra time when played, else the 90' score. */
   finalScore: z.object({ home: z.number().int(), away: z.number().int() }).nullable(),
   penaltyWinner: z.enum(['home', 'away']).nullable(),
+  /** Actual phase starts (ISO); null until observed. HT is stamped by the sync, ±1 poll. */
+  firstHalfStartedAt: z.string().datetime().nullable(),
+  halftimeStartedAt: z.string().datetime().nullable(),
+  secondHalfStartedAt: z.string().datetime().nullable(),
   bettingContractAddress: z.string().optional(),
   /** Upstream in degraded mode (circuit open or quota exhausted): scores may be stale. */
   dataStale: z.boolean(),

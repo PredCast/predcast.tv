@@ -106,30 +106,13 @@ export class TestMatchLifecycleCommand {
         match: Match,
         override: { status?: string; score?: { home: number; away: number }; bettingContractAddress?: string },
     ): Match {
-        const json = match.toJSON();
+        const raw = match.toRaw();
         return Match.reconstitute({
-            id: json.id,
-            apiFootballId: json.apiFootballId,
-            homeTeamId: json.homeTeam.id,
-            homeTeamName: json.homeTeam.name,
-            homeTeamLogo: json.homeTeam.logo,
-            awayTeamId: json.awayTeam.id,
-            awayTeamName: json.awayTeam.name,
-            awayTeamLogo: json.awayTeam.logo,
-            leagueId: json.league.id,
-            leagueName: json.league.name,
-            leagueLogo: json.league.logo,
-            leagueCountry: json.league.country,
-            season: json.season,
-            status: override.status ?? json.status,
-            matchDate: new Date(json.matchDate),
-            venue: json.venue,
-            homeScore: override.score?.home ?? json.score?.home,
-            awayScore: override.score?.away ?? json.score?.away,
-            homeForm: json.homeForm ?? null,
-            awayForm: json.awayForm ?? null,
-            bettingContractAddress: override.bettingContractAddress ?? json.bettingContractAddress,
-            createdAt: new Date(json.createdAt),
+            ...raw,
+            status: override.status ?? raw.status,
+            homeScore: override.score?.home ?? raw.homeScore,
+            awayScore: override.score?.away ?? raw.awayScore,
+            bettingContractAddress: override.bettingContractAddress ?? raw.bettingContractAddress,
             updatedAt: this.clock.now(),
         });
     }
