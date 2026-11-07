@@ -92,8 +92,9 @@ const envSchema = z.object({
 
   JWT_SECRET: z.string().min(32),
   // Admin panel pre-wallet gate, scrypt "<saltHex>:<hashHex>" (same format
-  // and gen script as ACCESS_CODE_HASH). Unset disables the gate (local dev).
-  ADMIN_GATE_CODE_HASH: z.string().regex(/^[0-9a-f]+:[0-9a-f]+$/).optional(),
+  // and gen script as ACCESS_CODE_HASH). Unset or empty disables the gate (local
+  // dev: an empty value in .env.local overrides a hash set in .env).
+  ADMIN_GATE_CODE_HASH: z.union([z.literal(''), z.string().regex(/^[0-9a-f]+:[0-9a-f]+$/)]).optional(),
   // Discord #admin channel webhook — ban/unban alerts. Unset = alerts off.
   DISCORD_ADMIN_WEBHOOK_URL: z.string().url().optional(),
   // CoinGecko Demo key (header `x-cg-demo-api-key`). Unset = public API, as before.
