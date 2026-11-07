@@ -20,16 +20,29 @@ const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), textarea:not([
 export function Modal({ open, title, eyebrow, dismissible = true, onClose, children }: Readonly<ModalProps>) {
   const titleId = useId();
   const panel = useRef<HTMLDivElement>(null);
+  const content = useRef<HTMLDivElement>(null);
+  // Parents pass a new `onClose` on every render (e.g. each keystroke in a field): read it through a
+  // ref so re-renders never re-run the effects below.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
+  // Initial focus only when the dialog opens, on the first control of the body (not the close button).
   useEffect(() => {
     if (!open) return;
-    panel.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
+    const target = content.current?.querySelector<HTMLElement>(FOCUSABLE) ?? panel.current?.querySelector<HTMLElement>(FOCUSABLE);
+    target?.focus();
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || !dismissible) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && dismissible) onClose();
+      if (e.key === 'Escape') onCloseRef.current();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, dismissible, onClose]);
+  }, [open, dismissible]);
 
   if (!open) return null;
 
@@ -67,7 +80,9 @@ export function Modal({ open, title, eyebrow, dismissible = true, onClose, child
             </button>
           )}
         </div>
-        <div className="px-5 py-4">{children}</div>
+        <div ref={content} className="px-5 py-4">
+          {children}
+        </div>
       </div>
     </div>
   );
