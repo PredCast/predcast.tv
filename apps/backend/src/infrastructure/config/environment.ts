@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { config } from 'dotenv';
+import { productionEnvProblems } from './productionEnvGuards';
 
 config();
 
@@ -136,3 +137,10 @@ if (!parseResult.success) {
 }
 
 export const env = parseResult.data;
+
+const guards = productionEnvProblems(env);
+for (const message of guards.errors) console.error(`❌ ${message}`);
+if (guards.fatal.length > 0) {
+  for (const message of guards.fatal) console.error(`❌ ${message}`);
+  process.exit(1);
+}
