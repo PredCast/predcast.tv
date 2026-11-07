@@ -16,6 +16,8 @@ export interface IMatchRepository {
    * its kickoff sits; the sync job alone caps how far ahead we ingest.
    */
   findFromDate(from: Date): Promise<Match[]>;
+  /** Same window as {@link findFromDate}, restricted in SQL to matches visible in the app (deployed + published). */
+  findVisibleFromDate(from: Date): Promise<Match[]>;
   findById(id: number): Promise<Match | null>;
   findByApiFootballId(apiId: number): Promise<Match | null>;
   findByLeagueId(leagueId: number): Promise<Match[]>;

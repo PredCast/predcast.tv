@@ -1,10 +1,14 @@
 import type { IMatchRepository } from '@chiliztv/domain/matches/repositories/IMatchRepository';
+import type { IMatchDeploymentRepository } from '@chiliztv/domain/matches/repositories/IMatchDeploymentRepository';
 import type { IBlockchainService } from '@chiliztv/domain/shared/ports/IBlockchainService';
 import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
-import { Match } from '@chiliztv/domain/matches/entities/Match';
+import type { Match } from '@chiliztv/domain/matches/entities/Match';
 
 export interface ScenarioContext {
     readonly matchRepo: IMatchRepository;
+    readonly deploymentRepo: IMatchDeploymentRepository;
+    /** Chain the scenario deploys on (the current NETWORK). */
+    readonly chainId: number;
     readonly blockchain: IBlockchainService;
     readonly clock: IClock;
     /** When false the scenario must not deploy on-chain (DB-only fast path). */
@@ -49,12 +53,12 @@ export async function persistAndMaybeDeploy(
         const { contractAddress } = await ctx.blockchain.deployBettingContract(matchName, adminAddress);
         await ctx.blockchain.setupDefaultMarkets(contractAddress, { isKnockout: json.isKnockout === true });
 
-        const withContract = Match.reconstitute({
-            ...saved.toRaw(),
-            bettingContractAddress: contractAddress,
-            updatedAt: ctx.clock.now(),
-        });
-        await ctx.matchRepo.update(withContract);
+        // Same end state as an admin deployment: contract + chain, markets open, published.
+        const apiFootballId = saved.toRaw().apiFootballId;
+        const now = ctx.clock.now();
+        await ctx.deploymentRepo.recordContractDeployed(apiFootballId, contractAddress, ctx.chainId);
+        await ctx.deploymentRepo.setBettingOpenedAt(apiFootballId, now);
+        await ctx.deploymentRepo.setPublishedAt(apiFootballId, now);
         return 1;
     } catch (err) {
         warnings.push(`deploy/setup failed for match ${json.id}: ${err instanceof Error ? err.message : String(err)}`);

@@ -64,6 +64,12 @@ export interface MatchProps {
   halftimeStartedAt?: Date | null;
   secondHalfStartedAt?: Date | null;
   bettingContractAddress?: string;
+  /** Chain of the betting contract (migration 041); NULL on legacy rows means the current NETWORK chain. */
+  bettingChainId?: number | null;
+  /** When the markets finished opening (end of the deployment setup). */
+  bettingOpenedAt?: Date | null;
+  /** NULL hides the match from app users. Written only through IMatchDeploymentRepository. */
+  publishedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }

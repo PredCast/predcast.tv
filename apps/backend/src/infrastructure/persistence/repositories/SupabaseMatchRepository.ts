@@ -7,40 +7,7 @@ import { MatchFetchWindow } from '@chiliztv/domain/matches/value-objects/MatchFe
 import { LIVE_STATUSES, BLOCKED_STATUSES, UPCOMING_STATUSES } from '@chiliztv/domain/matches/policies/BettablePolicy';
 import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import { logger } from '../../logging/logger';
-
-interface MatchRow {
-  id: number;
-  api_football_id: number;
-  home_team: any;
-  away_team: any;
-  home_score: number | null;
-  away_score: number | null;
-  match_date: string;
-  status: string;
-  league: any;
-  season: number;
-  venue: string | null;
-  home_form: string | null;
-  away_form: string | null;
-  elapsed_minutes: number | null;
-  ht_home_score: number | null;
-  ht_away_score: number | null;
-  // Migration 035 — optional on the read side to tolerate pre-migration rows
-  // and Supabase's "missing column → undefined" REST behaviour.
-  aet_home_score?: number | null;
-  aet_away_score?: number | null;
-  pen_home_score?: number | null;
-  pen_away_score?: number | null;
-  is_knockout?: boolean | null;
-  first_half_started_at?: string | null;
-  halftime_started_at?: string | null;
-  second_half_started_at?: string | null;
-  betting_contract_address?: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-const toDateOrNull = (iso: string | null | undefined): Date | null => (iso ? new Date(iso) : null);
+import { ADMIN_OWNED_COLUMNS, matchFromRow, matchToRow, matchToUpdateRow } from './matchRowMapper';
 
 @injectable()
 export class SupabaseMatchRepository implements IMatchRepository {
@@ -59,7 +26,7 @@ export class SupabaseMatchRepository implements IMatchRepository {
       throw new Error('Failed to find matches');
     }
 
-    return rows ? rows.map(row => this.toDomain(row)) : [];
+    return rows ? rows.map(row => matchFromRow(row)) : [];
   }
 
   async findByDateRange(from: Date, to: Date): Promise<Match[]> {
@@ -75,7 +42,7 @@ export class SupabaseMatchRepository implements IMatchRepository {
       throw new Error('Failed to find matches');
     }
 
-    return rows ? rows.map(row => this.toDomain(row)) : [];
+    return rows ? rows.map(row => matchFromRow(row)) : [];
   }
 
   async findFromDate(from: Date): Promise<Match[]> {
@@ -90,7 +57,24 @@ export class SupabaseMatchRepository implements IMatchRepository {
       throw new Error('Failed to find matches');
     }
 
-    return rows ? rows.map(row => this.toDomain(row)) : [];
+    return rows ? rows.map(row => matchFromRow(row)) : [];
+  }
+
+  async findVisibleFromDate(from: Date): Promise<Match[]> {
+    const { data: rows, error } = await supabase
+      .from('matches')
+      .select('*')
+      .gte('match_date', from.toISOString())
+      .not('betting_contract_address', 'is', null)
+      .not('published_at', 'is', null)
+      .order('match_date', { ascending: true });
+
+    if (error) {
+      logger.error('Failed to find visible matches from date', { error: error.message });
+      throw new Error('Failed to find matches');
+    }
+
+    return rows ? rows.map(row => matchFromRow(row)) : [];
   }
 
   async findById(id: number): Promise<Match | null> {
@@ -105,7 +89,7 @@ export class SupabaseMatchRepository implements IMatchRepository {
       throw new Error('Failed to find match');
     }
 
-    return row ? this.toDomain(row) : null;
+    return row ? matchFromRow(row) : null;
   }
 
   async findByApiFootballId(apiFootballId: number): Promise<Match | null> {
@@ -120,7 +104,7 @@ export class SupabaseMatchRepository implements IMatchRepository {
       throw new Error('Failed to find match');
     }
 
-    return row ? this.toDomain(row) : null;
+    return row ? matchFromRow(row) : null;
   }
 
   async findByLeagueId(leagueId: number): Promise<Match[]> {
@@ -139,7 +123,7 @@ export class SupabaseMatchRepository implements IMatchRepository {
       throw new Error('Failed to find matches');
     }
 
-    return rows ? rows.map(row => this.toDomain(row)) : [];
+    return rows ? rows.map(row => matchFromRow(row)) : [];
   }
 
   async findLive(): Promise<Match[]> {
@@ -154,7 +138,7 @@ export class SupabaseMatchRepository implements IMatchRepository {
       throw new Error('Failed to find live matches');
     }
 
-    return rows ? rows.map(row => this.toDomain(row)) : [];
+    return rows ? rows.map(row => matchFromRow(row)) : [];
   }
 
   /**
@@ -189,7 +173,7 @@ export class SupabaseMatchRepository implements IMatchRepository {
       throw new Error('Failed to find open-contract candidates');
     }
 
-    return rows ? rows.map(row => this.toDomain(row)) : [];
+    return rows ? rows.map(row => matchFromRow(row)) : [];
   }
 
   async findUpcoming(): Promise<Match[]> {
@@ -209,12 +193,11 @@ export class SupabaseMatchRepository implements IMatchRepository {
       throw new Error('Failed to find upcoming matches');
     }
 
-    return rows ? rows.map(row => this.toDomain(row)) : [];
+    return rows ? rows.map(row => matchFromRow(row)) : [];
   }
 
   async save(match: Match): Promise<Match> {
-    const row = this.toRow(match);
-    const { id, ...insertRow } = row;
+    const { id: _id, ...insertRow } = matchToRow(match);
 
     logger.info('Saving match to database', {
       apiFootballId: insertRow.api_football_id,
@@ -240,11 +223,16 @@ export class SupabaseMatchRepository implements IMatchRepository {
       awayTeam: data.away_team
     });
 
-    return this.toDomain(data);
+    return matchFromRow(data);
   }
 
   async saveMany(matches: Match[]): Promise<Match[]> {
-    const rows = matches.map(m => this.toRow(m));
+    // Admin-owned columns are left out so an upsert never resets a publication or a deployment.
+    const rows = matches.map((m) => {
+      const row = matchToRow(m);
+      for (const column of ADMIN_OWNED_COLUMNS) delete row[column];
+      return row;
+    });
 
     const { data, error } = await supabase
       .from('matches')
@@ -256,12 +244,11 @@ export class SupabaseMatchRepository implements IMatchRepository {
       throw new Error('Failed to save matches');
     }
 
-    return data ? data.map(row => this.toDomain(row)) : [];
+    return data ? data.map(row => matchFromRow(row)) : [];
   }
 
   async update(match: Match): Promise<Match> {
-    const row = this.toRow(match);
-    const { id, ...updateRow } = row;
+    const updateRow = matchToUpdateRow(match);
 
     const json = match.toJSON();
     const { data, error } = await supabase
@@ -276,7 +263,7 @@ export class SupabaseMatchRepository implements IMatchRepository {
       throw new Error('Failed to update match');
     }
 
-    return this.toDomain(data);
+    return matchFromRow(data);
   }
 
   async deleteOldMatches(
@@ -365,92 +352,6 @@ export class SupabaseMatchRepository implements IMatchRepository {
       liveMatches,
       upcomingMatches,
       finishedMatches,
-    };
-  }
-
-  private toDomain(row: MatchRow): Match {
-    const homeTeam = typeof row.home_team === 'string' ? JSON.parse(row.home_team) : row.home_team;
-    const awayTeam = typeof row.away_team === 'string' ? JSON.parse(row.away_team) : row.away_team;
-    const league = typeof row.league === 'string' ? JSON.parse(row.league) : row.league;
-
-    return Match.reconstitute({
-      id: row.id,
-      apiFootballId: row.api_football_id,
-      homeTeamId: homeTeam?.id || 0,
-      homeTeamName: homeTeam?.name || 'Unknown',
-      homeTeamLogo: homeTeam?.logo,
-      awayTeamId: awayTeam?.id || 0,
-      awayTeamName: awayTeam?.name || 'Unknown',
-      awayTeamLogo: awayTeam?.logo,
-      leagueId: league?.id || 0,
-      leagueName: league?.name || 'Unknown',
-      leagueLogo: league?.logo,
-      leagueCountry: league?.country,
-      season: row.season,
-      status: row.status,
-      matchDate: new Date(row.match_date),
-      venue: row.venue || undefined,
-      homeScore: row.home_score ?? undefined,
-      awayScore: row.away_score ?? undefined,
-      homeForm: row.home_form,
-      awayForm: row.away_form,
-      elapsed: row.elapsed_minutes,
-      htHomeScore: row.ht_home_score,
-      htAwayScore: row.ht_away_score,
-      aetHomeScore: row.aet_home_score ?? null,
-      aetAwayScore: row.aet_away_score ?? null,
-      penHomeScore: row.pen_home_score ?? null,
-      penAwayScore: row.pen_away_score ?? null,
-      isKnockout: row.is_knockout === true,
-      firstHalfStartedAt: toDateOrNull(row.first_half_started_at),
-      halftimeStartedAt: toDateOrNull(row.halftime_started_at),
-      secondHalfStartedAt: toDateOrNull(row.second_half_started_at),
-      bettingContractAddress: row.betting_contract_address || undefined,
-      createdAt: new Date(row.created_at),
-      updatedAt: new Date(row.updated_at),
-    });
-  }
-
-  private toRow(match: Match): any {
-    const json = match.toJSON();
-
-    logger.info('toRow - Converting to database format', {
-      homeTeam: json.homeTeam,
-      awayTeam: json.awayTeam,
-      league: json.league
-    });
-
-    return {
-      id: json.id,
-      api_football_id: json.apiFootballId,
-      home_team: json.homeTeam,
-      away_team: json.awayTeam,
-      league: json.league,
-      season: json.season,
-      status: json.status,
-      match_date: json.matchDate,
-      venue: json.venue,
-      home_score: json.score?.home,
-      away_score: json.score?.away,
-      home_form: json.homeForm ?? null,
-      away_form: json.awayForm ?? null,
-      elapsed_minutes: json.elapsed ?? null,
-      ht_home_score: json.htHomeScore ?? null,
-      ht_away_score: json.htAwayScore ?? null,
-      aet_home_score: json.aetHomeScore ?? null,
-      aet_away_score: json.aetAwayScore ?? null,
-      pen_home_score: json.penHomeScore ?? null,
-      pen_away_score: json.penAwayScore ?? null,
-      is_knockout: json.isKnockout === true,
-      first_half_started_at: json.firstHalfStartedAt ?? null,
-      halftime_started_at: json.halftimeStartedAt ?? null,
-      second_half_started_at: json.secondHalfStartedAt ?? null,
-      // Normalize to lowercase so it joins against `bets.contract_address`
-      // (which the indexer always writes lowercased). Mixed-case rows that
-      // predate this fix break the join and surface as "Unknown match".
-      betting_contract_address: json.bettingContractAddress?.toLowerCase(),
-      created_at: json.createdAt,
-      updated_at: json.updatedAt,
     };
   }
 }

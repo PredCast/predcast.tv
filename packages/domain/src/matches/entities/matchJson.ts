@@ -44,6 +44,9 @@ export function matchToJSON(props: MatchProps): any {
     halftimeStartedAt: props.halftimeStartedAt ?? null,
     secondHalfStartedAt: props.secondHalfStartedAt ?? null,
     bettingContractAddress: props.bettingContractAddress,
+    bettingChainId: props.bettingChainId ?? null,
+    bettingOpenedAt: props.bettingOpenedAt ?? null,
+    publishedAt: props.publishedAt ?? null,
     createdAt: props.createdAt,
     updatedAt: props.updatedAt,
   };

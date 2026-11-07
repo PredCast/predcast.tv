@@ -99,6 +99,18 @@ export class Match {
     return this.props.bettingContractAddress;
   }
 
+  getBettingChainId(): number | null {
+    return this.props.bettingChainId ?? null;
+  }
+
+  getBettingOpenedAt(): Date | null {
+    return this.props.bettingOpenedAt ?? null;
+  }
+
+  getPublishedAt(): Date | null {
+    return this.props.publishedAt ?? null;
+  }
+
   getHomeForm(): string | null {
     return this.props.homeForm ?? null;
   }

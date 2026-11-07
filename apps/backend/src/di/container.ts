@@ -6,7 +6,11 @@ import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { IPredictionRepository } from '@chiliztv/domain/predictions/repositories/IPredictionRepository';
 import { SupabasePredictionRepository } from '../infrastructure/persistence/repositories/SupabasePredictionRepository';
 import { IMatchRepository } from '@chiliztv/domain/matches/repositories/IMatchRepository';
+import type { IMatchDeploymentRepository } from '@chiliztv/domain/matches/repositories/IMatchDeploymentRepository';
+import type { IMatchOperationRepository } from '@chiliztv/domain/matches/repositories/IMatchOperationRepository';
 import { SupabaseMatchRepository } from '../infrastructure/persistence/repositories/SupabaseMatchRepository';
+import { SupabaseMatchDeploymentRepository } from '../infrastructure/persistence/repositories/SupabaseMatchDeploymentRepository';
+import { SupabaseMatchOperationRepository } from '../infrastructure/persistence/repositories/SupabaseMatchOperationRepository';
 import { IChatRepository } from '@chiliztv/domain/chat/repositories/IChatRepository';
 import { SupabaseChatRepository } from '../infrastructure/persistence/repositories/SupabaseChatRepository';
 import { IReportRepository } from '@chiliztv/domain/reporting/repositories/IReportRepository';
@@ -290,6 +294,8 @@ export function setupDependencyInjection(): void {
   // ─── Repositories ──────────────────────────────────────────────────────────
   container.registerSingleton<IPredictionRepository>(TOKENS.IPredictionRepository, SupabasePredictionRepository);
   container.registerSingleton<IMatchRepository>(TOKENS.IMatchRepository, SupabaseMatchRepository);
+  container.registerSingleton<IMatchDeploymentRepository>(TOKENS.IMatchDeploymentRepository, SupabaseMatchDeploymentRepository);
+  container.registerSingleton<IMatchOperationRepository>(TOKENS.IMatchOperationRepository, SupabaseMatchOperationRepository);
   container.registerSingleton<IChatRepository>(TOKENS.IChatRepository, SupabaseChatRepository);
   container.registerSingleton<IWaitlistRepository>(TOKENS.IWaitlistRepository, SupabaseWaitlistRepository);
   container.registerSingleton<IStreamRepository>(TOKENS.IStreamRepository, SupabaseStreamRepository);

@@ -1,6 +1,8 @@
 export const TOKENS = {
   // Repositories
   IMatchRepository:        Symbol.for('IMatchRepository'),
+  IMatchDeploymentRepository: Symbol.for('IMatchDeploymentRepository'),
+  IMatchOperationRepository:  Symbol.for('IMatchOperationRepository'),
   IPredictionRepository:   Symbol.for('IPredictionRepository'),
   IChatRepository:         Symbol.for('IChatRepository'),
   IStreamRepository:       Symbol.for('IStreamRepository'),
