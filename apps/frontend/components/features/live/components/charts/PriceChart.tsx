@@ -69,7 +69,12 @@ export default function PriceChart({ series, markers, precision, unit, showDate 
       });
     };
     chart.subscribeCrosshairMove(onMove);
-    return () => chart.unsubscribeCrosshairMove(onMove);
+    // Touch screens only show the crosshair after a long press; a tap goes through the click event.
+    chart.subscribeClick(onMove);
+    return () => {
+      chart.unsubscribeCrosshairMove(onMove);
+      chart.unsubscribeClick(onMove);
+    };
   }, [kind, precision, showDate]);
 
   useEffect(() => {
