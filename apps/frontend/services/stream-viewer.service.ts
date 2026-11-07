@@ -39,9 +39,11 @@ export class StreamViewerService {
             return await streamsApi.create(request);
         } catch (error) {
             console.error('❌ Error creating stream:', error);
+            // The backend refuses streams on matches that are not open (unpublished, undeployed, finished).
+            const backendMessage = (error as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error?.message;
             return {
                 success: false,
-                error: error instanceof Error ? error.message : 'Unknown error'
+                error: backendMessage ?? (error instanceof Error ? error.message : 'Unknown error')
             };
         }
     }

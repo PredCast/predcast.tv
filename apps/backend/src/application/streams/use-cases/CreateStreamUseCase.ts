@@ -4,6 +4,10 @@ import { Stream, StreamStatus } from '@chiliztv/domain/streams/entities/Stream';
 import { IStreamRepository } from '@chiliztv/domain/streams/repositories/IStreamRepository';
 import { IStreamingService, StreamMeta } from '@chiliztv/domain/streams/ports/IStreamingService';
 import { CreateStreamDto } from '@chiliztv/shared/dto/streams/CreateStreamDto';
+import { BusinessRuleError } from '@chiliztv/domain/shared/errors/BusinessRuleError';
+import { canStartStream } from '@chiliztv/domain/matches/policies/MatchVisibilityPolicy';
+import { GetMatchByIdUseCase } from '../../matches/use-cases/GetMatchByIdUseCase';
+import { requireVisibleMatch } from '../../matches/visibility/requireVisibleMatch';
 
 @injectable()
 export class CreateStreamUseCase {
@@ -12,9 +16,20 @@ export class CreateStreamUseCase {
     private readonly streamRepository: IStreamRepository,
     @inject(TOKENS.IStreamingService)
     private readonly streamingService: IStreamingService,
+    @inject(GetMatchByIdUseCase)
+    private readonly getMatch: GetMatchByIdUseCase,
   ) {}
 
   async execute(dto: CreateStreamDto): Promise<Stream> {
+    // Streams only open on matches app users can see, and never once the match is over.
+    const match = await requireVisibleMatch(this.getMatch, dto.matchId);
+    const decision = canStartStream({
+      contractAddress: match.getBettingContractAddress(),
+      publishedAt: match.getPublishedAt(),
+      status: match.getStatus(),
+    });
+    if (!decision.ok) throw new BusinessRuleError(`Cannot start a stream on this match (${decision.reason})`, { reason: decision.reason });
+
     const sourceType = dto.sourceType ?? 'obs';
     const streamId = crypto.randomUUID();
 
