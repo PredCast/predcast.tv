@@ -63,6 +63,20 @@ function shortName(name: string): string {
 
 function TeamCrest({ name, logo, size = 56 }: { name: string; logo?: string; size?: number }) {
   const [err, setErr] = useState(false);
+  if (logo && !err) {
+    return (
+      <Image
+        src={logo}
+        alt={name}
+        width={size}
+        height={size}
+        className="shrink-0 object-contain"
+        style={{ width: size, height: size }}
+        onError={() => setErr(true)}
+      />
+    );
+  }
+  // Frame only for the initials fallback, which needs a shape to read as a crest.
   return (
     <div
       className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-md"
@@ -73,20 +87,9 @@ function TeamCrest({ name, logo, size = 56 }: { name: string; logo?: string; siz
         border: "1px solid #2A2A2A",
       }}
     >
-      {logo && !err ? (
-        <Image
-          src={logo}
-          alt={name}
-          width={Math.round(size * 0.85)}
-          height={Math.round(size * 0.85)}
-          className="object-contain"
-          onError={() => setErr(true)}
-        />
-      ) : (
-        <span className="font-display text-[18px] font-extrabold uppercase tracking-tight text-white">
-          {shortName(name)}
-        </span>
-      )}
+      <span className="font-display text-[18px] font-extrabold uppercase tracking-tight text-white">
+        {shortName(name)}
+      </span>
     </div>
   );
 }
