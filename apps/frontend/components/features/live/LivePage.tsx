@@ -139,12 +139,7 @@ export function LivePage({ id }: LivePageProps) {
 
               {/* Desktop: the free cell under the stream (row 2, column 1). Mobile: right under the stream. */}
               <div className="min-w-0 lg:self-start">
-                <MatchFanTokenCharts
-                  homeFanToken={match.homeFanToken}
-                  awayFanToken={match.awayFanToken}
-                  status={match.status}
-                  kickoffAt={match.startTime}
-                />
+                <MatchFanTokenCharts match={match} />
               </div>
 
               {/* Mobile: same markets table + My predictions as the sidebar; a pick opens the bet sheet. */}

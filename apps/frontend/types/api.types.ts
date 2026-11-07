@@ -76,6 +76,10 @@ export interface Match {
   /** Fan-token base symbol of each side; null when the club has none. */
   homeFanToken: string | null;
   awayFanToken: string | null;
+  /** Actual phase starts (ISO); null until observed. */
+  firstHalfStartedAt: string | null;
+  halftimeStartedAt: string | null;
+  secondHalfStartedAt: string | null;
 }
 
 /**

@@ -1,4 +1,7 @@
+import type { ChartEvent } from "@chiliztv/domain/prices/chartMath";
 import type { PriceHistoryRangeDto } from "@chiliztv/shared";
+
+import type { Match } from "@/types/api.types";
 
 export type FanTokenChartTab =
   | { readonly id: string; readonly kind: "token"; readonly symbol: string; readonly label: string }
@@ -37,3 +40,16 @@ export function crossBucketMs(range: PriceHistoryRangeDto): number {
 }
 
 export const RANGE_LABELS: Record<PriceHistoryRangeDto, string> = { "1h": "1H", "24h": "24H", "7d": "7D" };
+
+export type MatchTimeline = Pick<Match, "startTime" | "firstHalfStartedAt" | "halftimeStartedAt" | "secondHalfStartedAt">;
+
+const toMs = (iso: string | null): number | null => (iso ? Date.parse(iso) : null);
+
+/** Short labels so close markers stay readable; kick-off falls back to the scheduled time until reported. */
+export function matchChartEvents(match: MatchTimeline): ChartEvent[] {
+  return [
+    { atMs: toMs(match.firstHalfStartedAt ?? match.startTime), label: "KO" },
+    { atMs: toMs(match.halftimeStartedAt), label: "HT" },
+    { atMs: toMs(match.secondHalfStartedAt), label: "2H" },
+  ];
+}

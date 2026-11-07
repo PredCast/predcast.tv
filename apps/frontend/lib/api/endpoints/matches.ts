@@ -34,6 +34,9 @@ function transformMatch(m: MatchResponseDto): Match {
     dataStale: m.dataStale,
     homeFanToken: m.homeFanToken,
     awayFanToken: m.awayFanToken,
+    firstHalfStartedAt: m.firstHalfStartedAt,
+    halftimeStartedAt: m.halftimeStartedAt,
+    secondHalfStartedAt: m.secondHalfStartedAt,
   };
 }
 

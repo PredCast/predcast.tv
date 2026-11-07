@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { markerTimeFor, priceChange, pricePrecision } from '../chartMath';
+import { markerTimeFor, priceChange, pricePrecision, snapEventMarkers } from '../chartMath';
 
 describe('priceChange', () => {
     it('computes the change from the first to the last point', () => {
@@ -45,7 +45,36 @@ describe('markerTimeFor', () => {
 
     it('is null outside the series or for an empty series', () => {
         expect(markerTimeFor(points, -1)).toBeNull();
-        expect(markerTimeFor(points, 16)).toBeNull();
+        expect(markerTimeFor(points, 21)).toBeNull();
         expect(markerTimeFor([], 5)).toBeNull();
+    });
+
+    it('snaps an event less than one step past the last point onto it', () => {
+        expect(markerTimeFor(points, 16)).toBe(15);
+        expect(markerTimeFor(points, 20)).toBe(15);
+    });
+});
+
+describe('snapEventMarkers', () => {
+    // Span 3000 ms → events closer than 100 ms share a marker.
+    const points = Array.from({ length: 31 }, (_, i) => ({ t: i * 100, p: 1 }));
+
+    it('drops events that have not happened or fall outside the series', () => {
+        const events = [{ atMs: null, label: 'HT' }, { atMs: 5000, label: '2H' }, { atMs: 1010, label: 'KO' }];
+        expect(snapEventMarkers(points, events)).toEqual([{ t: 1100, label: 'KO' }]);
+    });
+
+    it('keeps events apart when they are far enough on screen, in time order', () => {
+        const events = [{ atMs: 2000, label: '2H' }, { atMs: 1000, label: 'KO' }];
+        expect(snapEventMarkers(points, events)).toEqual([{ t: 1000, label: 'KO' }, { t: 2000, label: '2H' }]);
+    });
+
+    it('groups events that would overlap at the first one of the group', () => {
+        const events = [{ atMs: 1000, label: 'KO' }, { atMs: 1050, label: 'HT' }, { atMs: 1300, label: '2H' }];
+        expect(snapEventMarkers(points, events)).toEqual([{ t: 1000, label: 'KO · HT' }, { t: 1300, label: '2H' }]);
+    });
+
+    it('is empty for an empty series', () => {
+        expect(snapEventMarkers([], [{ atMs: 0, label: 'KO' }])).toEqual([]);
     });
 });

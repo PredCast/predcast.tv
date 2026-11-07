@@ -52,6 +52,9 @@ export function buildTestMatch({ proxy, matchName, sportType, kickoffIso }: OnCh
     // On-chain test matches carry no API-Football team ids, hence no fan-token mapping.
     homeFanToken: null,
     awayFanToken: null,
+    firstHalfStartedAt: null,
+    halftimeStartedAt: null,
+    secondHalfStartedAt: null,
   };
   if (proxy && matchName) {
     const { home, away } = splitTeamNames(matchName);

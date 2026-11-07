@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 
-import { markerTimeFor, priceChange, pricePrecision } from "@chiliztv/domain/prices/chartMath";
+import { priceChange, pricePrecision, snapEventMarkers, type ChartEvent } from "@chiliztv/domain/prices/chartMath";
 import type { PriceHistoryRangeDto } from "@chiliztv/shared";
 
 import { ChartError } from "../components/charts/ChartError";
@@ -22,22 +22,20 @@ const SOURCE_LABELS: Record<string, string> = { coingecko: "CoinGecko" };
 
 interface FanTokenChartPanelProps {
   readonly tab: FanTokenChartTab;
-  readonly kickoffAt: string;
+  /** Match events drawn as markers (kick-off, HT, 2nd half). */
+  readonly events: ReadonlyArray<ChartEvent>;
   /** Match live or upcoming: the history keeps refreshing. */
   readonly live: boolean;
 }
 
-export function FanTokenChartPanel({ tab, kickoffAt, live }: FanTokenChartPanelProps) {
+export function FanTokenChartPanel({ tab, events, live }: FanTokenChartPanelProps) {
   const [range, setRange] = useState<PriceHistoryRangeDto>("24h");
   const data = useFanTokenChartData(tab, range, live);
   const last = data.points.at(-1)?.p ?? null;
   const precision = pricePrecision(last ?? 0);
   const unit = tab.kind === "cross" ? tab.quote : "≈ USD";
 
-  const markers = useMemo(() => {
-    const t = markerTimeFor(data.points, new Date(kickoffAt).getTime());
-    return t === null ? [] : [{ t, label: "Kick-off" }];
-  }, [data.points, kickoffAt]);
+  const markers = useMemo(() => snapEventMarkers(data.points, events), [data.points, events]);
 
   const updatedLabel = data.updatedAt
     ? new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(new Date(data.updatedAt))

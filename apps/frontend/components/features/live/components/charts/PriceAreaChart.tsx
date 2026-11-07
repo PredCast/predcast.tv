@@ -34,6 +34,7 @@ interface PriceAreaChartProps {
 }
 
 const TOOLTIP_W = 140;
+const RIGHT_PADDING_RATIO = 0.05;
 // lightweight-charts brands its timestamps; epoch seconds are what it expects.
 const toTime = (ms: number) => Math.floor(ms / 1000) as UTCTimestamp;
 
@@ -116,6 +117,8 @@ export default function PriceAreaChart({ points, markers, precision, unit, showD
     markersRef.current?.setMarkers(
       markers.map((m) => ({ time: toTime(m.t), position: "aboveBar", shape: "arrowDown", color: "#F5C518", text: m.label })),
     );
+    // Live events sit on the last points; the pane clips marker text at its edge.
+    chartRef.current?.timeScale().applyOptions({ rightOffset: Math.ceil(points.length * RIGHT_PADDING_RATIO) });
     chartRef.current?.timeScale().fitContent();
   }, [points, markers, precision]);
 
