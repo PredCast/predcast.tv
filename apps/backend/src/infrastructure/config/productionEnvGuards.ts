@@ -2,6 +2,7 @@
 export interface GuardedEnv {
   readonly NODE_ENV: 'development' | 'test' | 'production';
   readonly ADMIN_GATE_CODE_HASH?: string;
+  readonly SUPABASE_SERVICE_ROLE_KEY?: string;
 }
 
 export interface EnvGuardReport {
@@ -23,6 +24,11 @@ export function productionEnvProblems(env: GuardedEnv): EnvGuardReport {
     fatal.push('ADMIN_GATE_CODE_HASH is empty: the admin access gate would be disabled in production');
   } else if (env.ADMIN_GATE_CODE_HASH === undefined) {
     errors.push('ADMIN_GATE_CODE_HASH is not set: the admin access gate is disabled in production');
+  }
+  if (!env.SUPABASE_SERVICE_ROLE_KEY) {
+    // The matches RLS (migration 041) hides unpublished rows from the anon key: the admin list,
+    // the jobs and the dashboard metadata would silently lose them.
+    fatal.push('SUPABASE_SERVICE_ROLE_KEY is required in production: the backend cannot read RLS-hidden matches with the anon key');
   }
   return { fatal, errors };
 }

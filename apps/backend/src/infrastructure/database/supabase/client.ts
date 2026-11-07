@@ -9,7 +9,8 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const serverSupabaseKey = supabaseServiceRoleKey || supabaseAnonKey;
 
 // Matches RLS (migration 041) hides unpublished matches from anon: without the service role the
-// backend would lose them too (admin list, dashboard metadata, sync).
+// backend would lose them too (admin list, dashboard metadata, sync). Production refuses to boot
+// without it (productionEnvGuards); locally a warning is enough.
 if (!supabaseServiceRoleKey) {
   logger.warn('Supabase client falls back to the anon key', { missing: 'SUPABASE_SERVICE_ROLE_KEY', impact: 'RLS-hidden rows are invisible to the backend' });
 }
