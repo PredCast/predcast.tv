@@ -12,7 +12,8 @@ on:
 
 concurrency:
   group: deploy-workers-staging
-  cancel-in-progress: true
+  # A running deploy also runs its migrations: never cancel it mid-way, queue the next push instead.
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -58,11 +59,19 @@ jobs:
           echo "Image $TAG not found after 12 minutes"
           exit 1
 
+  # ── Apply pending migrations before the new code runs ───────────────────
+  migrate:
+    name: Migrate staging
+    uses: ./.github/workflows/db-migrate.yml
+    with:
+      target: staging
+    secrets: inherit
+
   # ── Deploy to Fly.io staging ──────────────────────────────────────────────
   deploy-staging:
     name: Deploy to staging
     runs-on: ubuntu-latest
-    needs: wait-for-image
+    needs: [wait-for-image, migrate]
     environment: staging
     steps:
       - uses: actions/checkout@v4
@@ -130,7 +139,7 @@ jobs:
   notify-failure:
     name: Notify failure
     runs-on: ubuntu-latest
-    needs: [wait-for-image, deploy-staging]
+    needs: [wait-for-image, migrate, deploy-staging]
     if: failure()
     steps:
       - name: Post Discord alert
