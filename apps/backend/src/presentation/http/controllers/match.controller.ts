@@ -4,8 +4,8 @@ import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import type { IFootballApiService } from '@chiliztv/domain/shared/ports/IFootballApiService';
 import type { Match } from '@chiliztv/domain/matches/entities/Match';
-import { resolveMatchFanTokens } from '@chiliztv/domain/fan-tokens/policies/resolveMatchFanTokens';
-import { TEAM_FAN_TOKENS } from '@chiliztv/shared';
+import type { MatchResponseDto } from '@chiliztv/shared';
+import { toMatchResponseDto } from '../helpers/toMatchResponseDto';
 import { GetAllMatchesUseCase } from '../../../application/matches/use-cases/GetAllMatchesUseCase';
 import { GetLiveMatchesUseCase } from '../../../application/matches/use-cases/GetLiveMatchesUseCase';
 import { GetUpcomingMatchesUseCase } from '../../../application/matches/use-cases/GetUpcomingMatchesUseCase';
@@ -47,10 +47,8 @@ export class MatchController {
    * the same response carries the same value — cheap, no extra round-trip.
    * Fan-token symbols come from the static team → token catalogue (null when none).
    */
-  private serialize(match: Match, stale: boolean): Record<string, unknown> {
-    const json = match.toJSON();
-    const tokens = resolveMatchFanTokens(json.homeTeam.id, json.awayTeam.id, TEAM_FAN_TOKENS);
-    return { ...json, dataStale: stale, homeFanToken: tokens.home, awayFanToken: tokens.away };
+  private serialize(match: Match, stale: boolean): MatchResponseDto {
+    return toMatchResponseDto(match, stale);
   }
 
   async getAllMatches(req: Request, res: Response, next: NextFunction): Promise<void> {

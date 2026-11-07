@@ -31,9 +31,9 @@ function transformMatch(m: MatchResponseDto): Match {
     elapsed: m.elapsed,
     htHomeScore: m.htHomeScore,
     htAwayScore: m.htAwayScore,
-    dataStale: m.dataStale ?? false,
-    homeFanToken: m.homeFanToken ?? null,
-    awayFanToken: m.awayFanToken ?? null,
+    dataStale: m.dataStale,
+    homeFanToken: m.homeFanToken,
+    awayFanToken: m.awayFanToken,
   };
 }
 
