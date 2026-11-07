@@ -1,0 +1,39 @@
+import type { PriceHistoryRangeDto } from "@chiliztv/shared";
+
+export type FanTokenChartTab =
+  | { readonly id: string; readonly kind: "token"; readonly symbol: string; readonly label: string }
+  | { readonly id: string; readonly kind: "cross"; readonly base: string; readonly quote: string; readonly label: string };
+
+export const CHART_RANGES: ReadonlyArray<PriceHistoryRangeDto> = ["1h", "24h", "7d"];
+
+/**
+ * HOME/USDC, AWAY/USDC, then HOME/AWAY when both sides have a token. Prices are USD;
+ * the tabs read USDC as the product asks, the tooltip says "≈ USD".
+ */
+export function buildChartTabs(home: string | null, away: string | null): FanTokenChartTab[] {
+  const tabs: FanTokenChartTab[] = [];
+  for (const symbol of [home, away]) {
+    if (symbol) tabs.push({ id: symbol.toLowerCase(), kind: "token", symbol, label: `${symbol}/USDC` });
+  }
+  if (home && away) {
+    tabs.push({ id: `${home}-${away}`.toLowerCase(), kind: "cross", base: home, quote: away, label: `${home}/${away}` });
+  }
+  return tabs;
+}
+
+/** Tab from the `?chart=` param when valid, otherwise the home token. */
+export function resolveActiveTab(tabs: ReadonlyArray<FanTokenChartTab>, requested: string | null): FanTokenChartTab | null {
+  return tabs.find((t) => t.id === requested?.toLowerCase()) ?? tabs[0] ?? null;
+}
+
+/** Token a Buy / Sell action would trade for this tab; none for the cross pair. */
+export function tradableSymbol(tab: FanTokenChartTab | null): string | null {
+  return tab?.kind === "token" ? tab.symbol : null;
+}
+
+/** Bucket used to align the two USD series of a cross pair (matches the series resolution). */
+export function crossBucketMs(range: PriceHistoryRangeDto): number {
+  return range === "7d" ? 60 * 60_000 : 5 * 60_000;
+}
+
+export const RANGE_LABELS: Record<PriceHistoryRangeDto, string> = { "1h": "1H", "24h": "24H", "7d": "7D" };
