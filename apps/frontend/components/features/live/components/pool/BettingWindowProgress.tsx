@@ -1,10 +1,12 @@
-import { fallbackBettingWindow, progress, remainingMs } from "@chiliztv/domain/betting/bettingWindow";
+import { bettingWindow, progress, remainingMs } from "@chiliztv/domain/betting/bettingWindow";
 import { DEFAULT_KICKOFF_BUFFER_SEC } from "@chiliztv/domain/matches/policies/BettablePolicy";
 
 import { formatCountdown } from "../../domain/countdown";
 
 interface BettingWindowProgressProps {
   readonly kickoffAt: string;
+  /** When the markets opened; null on legacy matches (the bar then starts 7 days before kickoff). */
+  readonly openedAt: string | null;
   /** `null` on the server render: the bar renders empty to stay hydration-safe. */
   readonly now: Date | null;
   /** Market no longer Open on-chain: the window is shut whatever the kickoff time says. */
@@ -12,8 +14,8 @@ interface BettingWindowProgressProps {
 }
 
 /** "Betting closes at kickoff" bar — the parimutuel analogue of a bonding-curve progress. */
-export function BettingWindowProgress({ kickoffAt, now, marketClosed = false }: BettingWindowProgressProps) {
-  const window = fallbackBettingWindow(new Date(kickoffAt), DEFAULT_KICKOFF_BUFFER_SEC);
+export function BettingWindowProgress({ kickoffAt, openedAt, now, marketClosed = false }: BettingWindowProgressProps) {
+  const window = bettingWindow(new Date(kickoffAt), openedAt ? new Date(openedAt) : null, DEFAULT_KICKOFF_BUFFER_SEC);
   const left = marketClosed ? 0 : now ? remainingMs(window.closesAt, now) : null;
   const pct = marketClosed ? 100 : now ? Math.round(progress(window.opensAt, window.closesAt, now) * 100) : 0;
   const closed = left === 0;

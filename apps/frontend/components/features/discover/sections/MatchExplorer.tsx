@@ -48,8 +48,7 @@ export function MatchExplorer({
     const { poolByContract } = useMatchesByPoolStatus(matches);
     const poolOf = useCallback(
         (m: FlatMatch): bigint => {
-            const addr = m.contractAddress?.toLowerCase();
-            return addr ? (poolByContract.get(addr) ?? BigInt(0)) : BigInt(0);
+            return poolByContract.get(m.contractAddress.toLowerCase()) ?? BigInt(0);
         },
         [poolByContract],
     );
@@ -132,8 +131,8 @@ export function MatchExplorer({
                         />
                     ) : matches.length === 0 ? (
                         <EmptyState
-                            label="No matches available"
-                            hint="Live data is unavailable. Check back at kickoff."
+                            label="No events yet"
+                            hint="New matches open for predictions soon. Check back shortly."
                         />
                     ) : (
                         <EmptyState

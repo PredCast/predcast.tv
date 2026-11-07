@@ -4,6 +4,9 @@ import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import type { IFootballApiService } from '@chiliztv/domain/shared/ports/IFootballApiService';
 import type { Match } from '@chiliztv/domain/matches/entities/Match';
+import { isVisibleInApp } from '@chiliztv/domain/matches/policies/MatchVisibilityPolicy';
+import { NotFoundError } from '@chiliztv/domain/shared/errors/NotFoundError';
+import type { IBettingChainRegistry } from '@chiliztv/domain/shared/ports/IBettingChainRegistry';
 import type { MatchResponseDto } from '@chiliztv/shared';
 import { toMatchResponseDto } from '../helpers/toMatchResponseDto';
 import { GetAllMatchesUseCase } from '../../../application/matches/use-cases/GetAllMatchesUseCase';
@@ -38,6 +41,8 @@ export class MatchController {
     private readonly clock: IClock,
     @inject(TOKENS.IFootballApiService)
     private readonly footballApi: IFootballApiService,
+    @inject(TOKENS.IBettingChainRegistry)
+    private readonly chains: IBettingChainRegistry,
   ) {}
 
   /**
@@ -48,7 +53,7 @@ export class MatchController {
    * Fan-token symbols come from the static team → token catalogue (null when none).
    */
   private serialize(match: Match, stale: boolean): MatchResponseDto {
-    return toMatchResponseDto(match, stale);
+    return toMatchResponseDto(match, stale, this.chains.defaultChain().chainId);
   }
 
   async getAllMatches(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -103,6 +108,10 @@ export class MatchController {
     try {
       const id = parseInt(req.params.id);
       const match = await this.getMatchByIdUseCase.execute(id);
+      // Undeployed or unpublished matches do not exist for app users ("Match not available").
+      if (!isVisibleInApp({ contractAddress: match.getBettingContractAddress(), publishedAt: match.getPublishedAt() })) {
+        throw new NotFoundError('Match', String(id));
+      }
       const stale = this.footballApi.isDataStale();
 
       res.json({

@@ -3,7 +3,7 @@ import { resolveMatchFanTokens } from '@chiliztv/domain/fan-tokens/policies/reso
 import { TEAM_FAN_TOKENS, type MatchResponseDto } from '@chiliztv/shared';
 
 /** Explicit mapping so the wire shape is checked against the shared schema (`Match.toJSON` is untyped). */
-export function toMatchResponseDto(match: Match, dataStale: boolean): MatchResponseDto {
+export function toMatchResponseDto(match: Match, dataStale: boolean, defaultChainId: number): MatchResponseDto {
   const p = match.toRaw();
   const tokens = resolveMatchFanTokens(p.homeTeamId, p.awayTeamId, TEAM_FAN_TOKENS);
   return {
@@ -34,6 +34,8 @@ export function toMatchResponseDto(match: Match, dataStale: boolean): MatchRespo
     halftimeStartedAt: p.halftimeStartedAt?.toISOString() ?? null,
     secondHalfStartedAt: p.secondHalfStartedAt?.toISOString() ?? null,
     bettingContractAddress: p.bettingContractAddress,
+    bettingChainId: p.bettingContractAddress ? p.bettingChainId ?? defaultChainId : null,
+    bettingOpenedAt: p.bettingOpenedAt?.toISOString() ?? null,
     dataStale,
     homeFanToken: tokens.home,
     awayFanToken: tokens.away,

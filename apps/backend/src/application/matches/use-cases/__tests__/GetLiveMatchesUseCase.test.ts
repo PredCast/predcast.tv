@@ -11,7 +11,7 @@ function fakeRepo(impl: () => Promise<Match[]>): IMatchRepository {
   return {
     findAll: vi.fn(),
     findByDateRange: vi.fn(),
-    findFromDate: vi.fn(),
+    findVisibleFromDate: vi.fn(),
     findById: vi.fn(),
     findByApiFootballId: vi.fn(),
     findByBettingContractAddress: vi.fn(),

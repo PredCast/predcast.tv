@@ -45,21 +45,6 @@ export class SupabaseMatchRepository implements IMatchRepository {
     return rows ? rows.map(row => matchFromRow(row)) : [];
   }
 
-  async findFromDate(from: Date): Promise<Match[]> {
-    const { data: rows, error } = await supabase
-      .from('matches')
-      .select('*')
-      .gte('match_date', from.toISOString())
-      .order('match_date', { ascending: true });
-
-    if (error) {
-      logger.error('Failed to find matches from date', { error: error.message });
-      throw new Error('Failed to find matches');
-    }
-
-    return rows ? rows.map(row => matchFromRow(row)) : [];
-  }
-
   async findVisibleFromDate(from: Date): Promise<Match[]> {
     const { data: rows, error } = await supabase
       .from('matches')
@@ -114,6 +99,8 @@ export class SupabaseMatchRepository implements IMatchRepository {
       .from('matches')
       .select('*')
       .eq('league->>id', leagueId)
+      .not('betting_contract_address', 'is', null)
+      .not('published_at', 'is', null)
       .gte('match_date', MatchFetchWindow.fetchFrom(now).toISOString())
       .lte('match_date', MatchFetchWindow.fetchTo(now).toISOString())
       .order('match_date', { ascending: true });
@@ -131,6 +118,8 @@ export class SupabaseMatchRepository implements IMatchRepository {
       .from('matches')
       .select('*')
       .in('status', [...LIVE_STATUSES])
+      .not('betting_contract_address', 'is', null)
+      .not('published_at', 'is', null)
       .order('match_date', { ascending: true });
 
     if (error) {
@@ -208,6 +197,8 @@ export class SupabaseMatchRepository implements IMatchRepository {
       .from('matches')
       .select('*')
       .eq('status', 'NS')
+      .not('betting_contract_address', 'is', null)
+      .not('published_at', 'is', null)
       .gt('match_date', now.toISOString())
       .lte('match_date', twentyFourHoursAhead.toISOString())
       .order('match_date', { ascending: true });

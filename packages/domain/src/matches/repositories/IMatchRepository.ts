@@ -11,15 +11,13 @@ export interface IMatchRepository {
   findAll(): Promise<Match[]>;
   findByDateRange(from: Date, to: Date): Promise<Match[]>;
   /**
-   * Matches with `matchDate >= from`, no upper bound. Used by the front-facing
-   * display path so every future match is surfaced regardless of how far out
-   * its kickoff sits; the sync job alone caps how far ahead we ingest.
+   * App-visible matches (deployed + published, filtered in SQL) with `matchDate >= from`, no upper
+   * bound: every future event is surfaced however far out its kickoff sits.
    */
-  findFromDate(from: Date): Promise<Match[]>;
-  /** Same window as {@link findFromDate}, restricted in SQL to matches visible in the app (deployed + published). */
   findVisibleFromDate(from: Date): Promise<Match[]>;
   findById(id: number): Promise<Match | null>;
   findByApiFootballId(apiId: number): Promise<Match | null>;
+  /** App endpoints: the next three return app-visible matches only (deployed + published). */
   findByLeagueId(leagueId: number): Promise<Match[]>;
   findLive(): Promise<Match[]>;
   findUpcoming(limit?: number): Promise<Match[]>;

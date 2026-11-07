@@ -62,6 +62,10 @@ export const MatchResponseDtoSchema = z.object({
   halftimeStartedAt: z.string().datetime().nullable(),
   secondHalfStartedAt: z.string().datetime().nullable(),
   bettingContractAddress: z.string().optional(),
+  /** Chain of the betting contract; legacy rows resolve to the current NETWORK chain. Null without a contract. */
+  bettingChainId: z.number().int().nullable(),
+  /** When the markets opened (ISO); null when unknown (legacy rows) or not deployed. */
+  bettingOpenedAt: z.string().datetime().nullable(),
   /** Upstream in degraded mode (circuit open or quota exhausted): scores may be stale. */
   dataStale: z.boolean(),
   /** Fan-token base symbol of each side (`PSG`, `OM`…); null when the club has none. */

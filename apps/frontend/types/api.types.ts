@@ -80,6 +80,10 @@ export interface Match {
   firstHalfStartedAt: string | null;
   halftimeStartedAt: string | null;
   secondHalfStartedAt: string | null;
+  /** Chain of the betting contract; null when not deployed. */
+  bettingChainId: number | null;
+  /** When the markets opened; null on legacy matches or when not deployed. */
+  bettingOpenedAt: string | null;
 }
 
 /**

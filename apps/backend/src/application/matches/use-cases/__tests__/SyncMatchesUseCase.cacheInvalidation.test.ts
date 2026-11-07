@@ -68,7 +68,7 @@ function fakeRepo(initial: Match | null): IMatchRepository {
     save: vi.fn(async (m: Match) => m),
     findAll: vi.fn(async () => []),
     findByDateRange: vi.fn(),
-    findFromDate: vi.fn(),
+    findVisibleFromDate: vi.fn(),
     findById: vi.fn(),
     findByBettingContractAddress: vi.fn(),
     findLive: vi.fn(),

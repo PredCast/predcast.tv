@@ -81,6 +81,7 @@ export function LivePage({ id }: LivePageProps) {
     kickoffAt: match.startTime,
     htHomeScore: match.htHomeScore,
     htAwayScore: match.htAwayScore,
+    bettingOpenedAt: match.bettingOpenedAt,
   };
   const marketProps = { contractAddress, homeTeam: match.homeTeam, awayTeam: match.awayTeam, match: bettable };
 

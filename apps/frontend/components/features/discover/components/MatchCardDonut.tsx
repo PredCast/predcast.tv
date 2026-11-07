@@ -14,7 +14,6 @@ import { fmtMatchScore } from "@chiliztv/domain/matches/format/matchScore";
 import { useMatchPoolDistribution } from "../hooks";
 import { TeamFormBadge } from "@/components/shared/TeamFormBadge";
 import { TeamLogo } from "./TeamLogo";
-import { PendingPanel } from "./PendingPanel";
 import { BeFirstBar } from "./BeFirstBar";
 import { DistributionBar } from "./DistributionBar";
 import { StakeZone } from "./StakeZone";
@@ -22,18 +21,15 @@ import { SettledFooter } from "./SettledFooter";
 
 /**
  * Match card — "Magnetic stake" layout from the claude.ai/design handoff
- * (Match Card - Balanced.html). The card has three mutually-exclusive
- * lower-block states, decided in this order:
+ * (Match Card - Balanced.html). Discover only lists deployed, published
+ * matches, so every card has a contract. Two lower-block states:
  *
- *   1. `pending`  — `contractAddress == null`. Worker is still deploying
- *                   the proxy on-chain. Shows the shimmer "Markets opening
- *                   soon" panel. No CTA.
- *   2. `befirst`  — contract deployed but every market pool is empty
+ *   1. `befirst`  — every market pool is empty
  *                   (`distribution.source === 'empty'`). Magnetic red
  *                   stake zone with "Be first / Your stake sets the
  *                   price" framing — explains the pari-mutuel mechanic
  *                   without words.
- *   3. `live`     — at least one market has volume. Distribution bar +
+ *   2. `live`     — at least one market has volume. Distribution bar +
  *                   magnetic red stake zone surfacing the growing pool $.
  *
  * The stake zone is full-bleed against the card bottom (`-mx-5 -mb-4`)
@@ -41,7 +37,7 @@ import { SettledFooter } from "./SettledFooter";
  * selling point — a real, growing pool — lives ON the red surface, so
  * value and action are a single object.
  *
- * Sub-blocks live in dedicated files: {@link PendingPanel}, {@link BeFirstBar},
+ * Sub-blocks live in dedicated files: {@link BeFirstBar},
  * {@link DistributionBar}, {@link StakeZone}. This orchestrator stays thin.
  */
 export function MatchCardDonut({
@@ -63,9 +59,8 @@ export function MatchCardDonut({
         contractAddress: match.contractAddress,
     });
 
-    const pending = match.contractAddress == null;
-    const isBeFirst = !pending && distribution.source === "empty";
-    const isStakeable = !pending && distribution.source === "pool";
+    const isBeFirst = distribution.source === "empty";
+    const isStakeable = distribution.source === "pool";
 
     // Settled WINNER market (1X2, regulation time) → winning outcome derived
     // from the 90' score so the finished card paints it green. Only the WINNER
@@ -214,8 +209,6 @@ export function MatchCardDonut({
                         onView={() => onPredict?.(match)}
                     />
                 </>
-            ) : pending ? (
-                <PendingPanel />
             ) : isBeFirst ? (
                 <>
                     <BeFirstBar marketLabel={distribution.marketLabel} />

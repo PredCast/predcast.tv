@@ -7,6 +7,8 @@ export interface MatchBettableContext {
   /** Persisted halftime score; null before HT or while the upstream lags. Drives the HT delay badge. */
   htHomeScore?: number | null;
   htAwayScore?: number | null;
+  /** When the markets opened (end of the admin deployment); null on legacy matches. */
+  bettingOpenedAt?: string | null;
 }
 
 export interface MarketSelection {

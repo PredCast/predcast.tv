@@ -12,7 +12,7 @@ function fakeRepo(impl: (id: number) => Promise<Match | null>): IMatchRepository
     findByApiFootballId: vi.fn(impl),
     findAll: vi.fn(),
     findByDateRange: vi.fn(),
-    findFromDate: vi.fn(),
+    findVisibleFromDate: vi.fn(),
     findById: vi.fn(),
     findByBettingContractAddress: vi.fn(),
     findLive: vi.fn(),

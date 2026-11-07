@@ -35,18 +35,15 @@ const STALE_TIME_MS = 30_000;
  *
  * Loading semantics: while a match's query is in flight we treat it as
  * `pooled` to avoid a flash of "be the first" before the snapshot lands.
- * Matches without a `contractAddress` go straight to `empty`.
+ * Discover only lists deployed matches, so every match has a contract.
  */
 export function useMatchesByPoolStatus(matches: FlatMatch[]): MatchesByPoolStatus {
     const queries = useQueries({
         queries: matches.map((m) => {
-            const addr = m.contractAddress?.toLowerCase() ?? null;
+            const addr = m.contractAddress.toLowerCase();
             return {
-                queryKey: addr
-                    ? queryKeys.markets.pools(addr)
-                    : (["markets", "pools", "none", m.id] as const),
-                queryFn: (): Promise<MarketPoolsDto> => marketsApi.getPools(addr as string),
-                enabled: !!addr,
+                queryKey: queryKeys.markets.pools(addr),
+                queryFn: (): Promise<MarketPoolsDto> => marketsApi.getPools(addr),
                 staleTime: STALE_TIME_MS,
                 refetchOnWindowFocus: false,
             };
@@ -60,7 +57,7 @@ export function useMatchesByPoolStatus(matches: FlatMatch[]): MatchesByPoolStatu
 
         matches.forEach((m, i) => {
             const q = queries[i];
-            if (m.contractAddress && q?.data) {
+            if (q?.data) {
                 poolByContract.set(m.contractAddress.toLowerCase(), sumAcrossMarkets(q.data));
             }
 
@@ -72,10 +69,6 @@ export function useMatchesByPoolStatus(matches: FlatMatch[]): MatchesByPoolStatu
                 return;
             }
 
-            if (!m.contractAddress) {
-                empty.push(m);
-                return;
-            }
             const totalAcrossMarkets = sumAcrossMarkets(q?.data);
             if (totalAcrossMarkets > BigInt(0)) {
                 pooled.push(m);
