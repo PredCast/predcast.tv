@@ -259,7 +259,6 @@ import { UserController } from '../presentation/http/controllers/user.controller
 import { PricesController } from '../presentation/http/controllers/prices.controller';
 
 // ─── Presentation — CLI Commands ─────────────────────────────────────────────
-import { DeployMissingContractsCommand } from '../presentation/cli/commands/DeployMissingContractsCommand';
 import { SetupMarketsCommand } from '../presentation/cli/commands/SetupMarketsCommand';
 import { TestMatchLifecycleCommand } from '../presentation/cli/commands/TestMatchLifecycleCommand';
 import { ScenarioCommand } from '../presentation/cli/commands/ScenarioCommand';
@@ -471,7 +470,6 @@ export function setupDependencyInjection(): void {
   container.registerSingleton(LeaderboardIndexer);
 
   // ─── Presentation — CLI Commands ───────────────────────────────────────────
-  container.registerSingleton(DeployMissingContractsCommand);
   container.registerSingleton(SetupMarketsCommand);
   container.registerSingleton(TestMatchLifecycleCommand);
   container.registerSingleton(ScenarioCommand);

@@ -3,6 +3,7 @@ import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { IMatchRepository } from '@chiliztv/domain/matches/repositories/IMatchRepository';
 import { IFootballApiService, RawMatch } from '@chiliztv/domain/shared/ports/IFootballApiService';
 import { Match } from '@chiliztv/domain/matches/entities/Match';
+import { liveSyncKickoffRange } from '@chiliztv/domain/matches/policies/LiveSyncWindow';
 import { nextPhaseTimes, phaseTimesEqual } from '@chiliztv/domain/matches/policies/matchPhaseTimes';
 import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import type { ICacheService } from '@chiliztv/domain/shared/ports/ICacheService';
@@ -20,6 +21,8 @@ export interface SyncLiveMatchesResult {
      * from ~3 min to <30s.
      */
     halftimeReadyMatchIds: number[];
+    /** No deployed match was in play: the paid live poll was not sent. */
+    skipped: boolean;
 }
 
 /**
@@ -48,9 +51,15 @@ export class SyncLiveMatchesUseCase {
     ) {}
 
     async execute(): Promise<SyncLiveMatchesResult> {
+        // Only deployed matches carry markets to close / resolve: skip the paid call when none plays.
+        const { from, to } = liveSyncKickoffRange(this.clock.now());
+        if (!(await this.matchRepository.hasDeployedMatchInPlay(from, to))) {
+            return { matchesFetched: 0, matchesUpdated: 0, halftimeReadyMatchIds: [], skipped: true };
+        }
+
         const live = await this.footballApiService.fetchLiveMatches();
         if (live.length === 0) {
-            return { matchesFetched: 0, matchesUpdated: 0, halftimeReadyMatchIds: [] };
+            return { matchesFetched: 0, matchesUpdated: 0, halftimeReadyMatchIds: [], skipped: false };
         }
 
         let matchesUpdated = 0;
@@ -90,7 +99,7 @@ export class SyncLiveMatchesUseCase {
         }
 
         await this.invalidateCache(changedMatchIds, changedLeagueIds);
-        return { matchesFetched: live.length, matchesUpdated, halftimeReadyMatchIds };
+        return { matchesFetched: live.length, matchesUpdated, halftimeReadyMatchIds, skipped: false };
     }
 
     /**

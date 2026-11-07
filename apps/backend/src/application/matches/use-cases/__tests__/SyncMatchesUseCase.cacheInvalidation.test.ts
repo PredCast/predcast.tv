@@ -10,7 +10,6 @@ import type {
   IFootballApiService,
   RawMatch,
 } from '@chiliztv/domain/shared/ports/IFootballApiService';
-import type { IBlockchainService } from '@chiliztv/domain/shared/ports/IBlockchainService';
 import { Match } from '@chiliztv/domain/matches/entities/Match';
 
 const MATCH_ID = 4242;
@@ -18,9 +17,9 @@ const LEAGUE_ID = 135;
 const HOUR = 60 * 60 * 1_000;
 const FIXED_NOW = new Date('2026-05-16T12:00:00.000Z');
 
-function rawMatchAt(score: { home: number; away: number } | null, status = '2H'): RawMatch {
+function rawMatchAt(score: { home: number; away: number } | null, status = '2H', apiFootballId = MATCH_ID): RawMatch {
   return {
-    apiFootballId: MATCH_ID,
+    apiFootballId,
     homeTeamId: 5,
     homeTeamName: 'Inter',
     homeTeamLogo: '',
@@ -40,6 +39,12 @@ function rawMatchAt(score: { home: number; away: number } | null, status = '2H')
     elapsed: null,
     htHomeScore: null,
     htAwayScore: null,
+    aetHomeScore: null,
+    aetAwayScore: null,
+    penHomeScore: null,
+    penAwayScore: null,
+    firstHalfStartedAt: null,
+    secondHalfStartedAt: null,
   };
 }
 
@@ -50,18 +55,6 @@ function fakeFootballApi(impl: { matches: RawMatch[]; forms?: Map<number, string
     getTeamForm: vi.fn(async (teamId: number) => impl.forms?.get(teamId) ?? null),
     isDataStale: vi.fn().mockReturnValue(false),
   };
-}
-
-function fakeBlockchain(): IBlockchainService {
-  return {
-    getAdminAddress: vi.fn().mockReturnValue('0xADMIN'),
-    deployBettingContract: vi.fn(),
-    setupMarkets: vi.fn(),
-    syncOdds: vi.fn().mockResolvedValue(undefined),
-    closeOpenMarketsForMatch: vi.fn(),
-    cancelOpenMarketsForMatch: vi.fn(),
-    readFootballMarket: vi.fn(),
-  } as unknown as IBlockchainService;
 }
 
 function fakeRepo(initial: Match | null): IMatchRepository {
@@ -107,7 +100,6 @@ describe('SyncMatchesUseCase — cache invalidation hook', () => {
     const uc = new SyncMatchesUseCase(
       repo,
       api,
-      fakeBlockchain(),
       new MockClock(FIXED_NOW),
       cache,
     );
@@ -158,7 +150,6 @@ describe('SyncMatchesUseCase — cache invalidation hook', () => {
     const uc = new SyncMatchesUseCase(
       repo,
       api,
-      fakeBlockchain(),
       new MockClock(FIXED_NOW),
       cache,
     );
@@ -182,7 +173,6 @@ describe('SyncMatchesUseCase — cache invalidation hook', () => {
     const uc = new SyncMatchesUseCase(
       repo,
       api,
-      fakeBlockchain(),
       new MockClock(FIXED_NOW),
       cache,
     );
@@ -191,5 +181,48 @@ describe('SyncMatchesUseCase — cache invalidation hook', () => {
 
     expect(cache.deletedKeys).toContain(MatchCacheKeys.listLive);
     expect(cache.deletedKeys).toContain(MatchCacheKeys.single(MATCH_ID));
+  });
+});
+
+describe('SyncMatchesUseCase — no automatic deployment', () => {
+  beforeEach(() => __resetTestMatchIdForTesting());
+
+  it('persists a newly synced match without a contract and counts it as created', async () => {
+    const repo = fakeRepo(null);
+    const api = fakeFootballApi({ matches: [rawMatchAt(null, 'NS')] });
+    const uc = new SyncMatchesUseCase(repo, api, new MockClock(FIXED_NOW), new InMemoryCache());
+
+    const result = await uc.execute();
+
+    expect(result).toMatchObject({ matchesFetched: 1, matchesStored: 1, matchesCreated: 1, formsRefreshed: 0 });
+    const saved = (repo.save as ReturnType<typeof vi.fn>).mock.calls[0]![0] as Match;
+    expect(saved.getBettingContractAddress()).toBeUndefined();
+    expect(saved.getPublishedAt()).toBeNull();
+  });
+
+  it('fetches team forms only for the teams of deployed matches', async () => {
+    const deployed = matchFixture.deployedPublished({
+      apiFootballId: MATCH_ID,
+      homeTeam: { id: 5, name: 'Inter' },
+      awayTeam: { id: 7, name: 'AC Milan' },
+    });
+    const undeployed = matchFixture.notDeployed({ apiFootballId: 5151, homeTeam: { id: 40, name: 'Liverpool' }, awayTeam: { id: 33, name: 'Man United' } });
+    const byId = new Map<number, Match>([[MATCH_ID, deployed], [5151, undeployed]]);
+    const repo = {
+      ...fakeRepo(null),
+      findByApiFootballId: vi.fn(async (id: number) => byId.get(id) ?? null),
+    } as unknown as IMatchRepository;
+    const forms = new Map<number, string | null>([[5, 'WWDLW'], [7, 'LLDWW'], [40, 'WWWWW'], [33, 'LLLLL']]);
+    const api = fakeFootballApi({
+      matches: [rawMatchAt(null, 'NS'), { ...rawMatchAt(null, 'NS', 5151), homeTeamId: 40, awayTeamId: 33 }],
+      forms,
+    });
+    const uc = new SyncMatchesUseCase(repo, api, new MockClock(FIXED_NOW), new InMemoryCache());
+
+    const result = await uc.execute();
+
+    const asked = (api.getTeamForm as ReturnType<typeof vi.fn>).mock.calls.map(([id]) => id).sort();
+    expect(asked).toEqual([5, 7]);
+    expect(result.formsRefreshed).toBe(2);
   });
 });

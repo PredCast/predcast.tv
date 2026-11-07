@@ -4,7 +4,7 @@ import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { Match } from '@chiliztv/domain/matches/entities/Match';
 import { IMatchRepository, MatchStats } from '@chiliztv/domain/matches/repositories/IMatchRepository';
 import { MatchFetchWindow } from '@chiliztv/domain/matches/value-objects/MatchFetchWindow';
-import { LIVE_STATUSES, BLOCKED_STATUSES, UPCOMING_STATUSES } from '@chiliztv/domain/matches/policies/BettablePolicy';
+import { LIVE_STATUSES, BLOCKED_STATUSES, FINISHED_STATUSES, UPCOMING_STATUSES } from '@chiliztv/domain/matches/policies/BettablePolicy';
 import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import { logger } from '../../logging/logger';
 import { ADMIN_OWNED_COLUMNS, matchFromRow, matchToRow, matchToUpdateRow } from './matchRowMapper';
@@ -174,6 +174,30 @@ export class SupabaseMatchRepository implements IMatchRepository {
     }
 
     return rows ? rows.map(row => matchFromRow(row)) : [];
+  }
+
+  async hasDeployedMatchInPlay(from: Date, to: Date): Promise<boolean> {
+    const deployed = () =>
+      supabase.from('matches').select('api_football_id', { count: 'exact', head: true })
+        .not('betting_contract_address', 'is', null);
+
+    const live = await deployed().in('status', [...LIVE_STATUSES]);
+    if (live.error) {
+      logger.error('Failed to count live deployed matches', { error: live.error.message });
+      throw new Error('Failed to count matches');
+    }
+    if ((live.count ?? 0) > 0) return true;
+
+    const done = [...FINISHED_STATUSES, ...BLOCKED_STATUSES].join(',');
+    const window = await deployed()
+      .gte('match_date', from.toISOString())
+      .lte('match_date', to.toISOString())
+      .not('status', 'in', `(${done})`);
+    if (window.error) {
+      logger.error('Failed to count deployed matches near kickoff', { error: window.error.message });
+      throw new Error('Failed to count matches');
+    }
+    return (window.count ?? 0) > 0;
   }
 
   async findUpcoming(): Promise<Match[]> {

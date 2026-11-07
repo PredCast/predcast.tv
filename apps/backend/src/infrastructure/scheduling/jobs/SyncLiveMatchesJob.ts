@@ -49,6 +49,7 @@ export class SyncLiveMatchesJob {
                 logger.debug('SyncLiveMatchesJob: idle tick', {
                     duration,
                     matchesFetched: result.matchesFetched,
+                    skipped: result.skipped,
                 });
             }
 

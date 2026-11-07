@@ -8,8 +8,8 @@ import { logger } from '../../logging/logger';
 
 /**
  * Sync Matches Job
- * Runs every 10 minutes to sync matches from API-Football
- * and resolve finished matches on-chain
+ * Runs every 10 minutes to sync matches from API-Football (never deploys:
+ * contracts are deployed from the admin) and resolve finished matches on-chain
  */
 @injectable()
 export class SyncMatchesJob {
@@ -37,7 +37,8 @@ export class SyncMatchesJob {
                 duration,
                 matchesFetched: result.matchesFetched,
                 matchesStored: result.matchesStored,
-                contractsDeployed: result.contractsDeployed
+                matchesCreated: result.matchesCreated,
+                formsRefreshed: result.formsRefreshed,
             });
 
             // Resolve on-chain markets for finished matches right after sync

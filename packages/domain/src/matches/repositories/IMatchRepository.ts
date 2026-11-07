@@ -34,6 +34,11 @@ export interface IMatchRepository {
    * @param kickoffBufferSeconds Seconds before kickoff to include upcoming matches.
    */
   findOpenContractsCandidates(now: Date, kickoffBufferSeconds: number): Promise<Match[]>;
+  /**
+   * Whether a deployed match may be in play: a live status, or a kickoff in [from, to] and not
+   * finished / cancelled. Gates the paid live poll.
+   */
+  hasDeployedMatchInPlay(from: Date, to: Date): Promise<boolean>;
   save(match: Match): Promise<Match>;
   saveMany(matches: Match[]): Promise<Match[]>;
   update(match: Match): Promise<Match>;
