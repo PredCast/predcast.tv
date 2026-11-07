@@ -10,7 +10,7 @@ import type { IAuditTrail } from '@chiliztv/domain/admin/ports/IAuditTrail';
 
 import { logger } from '../../../infrastructure/logging/logger';
 import type { AuditContext } from '../AuditContext';
-import { ADMIN_MATCHES_CACHE_KEY } from './ListAdminMatchesUseCase';
+import { invalidateMatchReadCaches } from '../deployment/invalidateMatchReadCaches';
 
 /** Closes every Open market on the match contract (idempotent batch tx). */
 @injectable()
@@ -23,14 +23,15 @@ export class CloseMatchMarketsUseCase {
     ) {}
 
     async execute(matchId: number, ctx: AuditContext): Promise<CloseMarketsResult> {
-        const match = await this.matches.findById(matchId);
+        // Admin routes address matches by API-Football id (`matches.id` is a UUID).
+        const match = await this.matches.findByApiFootballId(matchId);
         if (!match) throw new NotFoundError('Match', String(matchId));
 
         const contractAddress = match.toRaw().bettingContractAddress;
         if (!contractAddress) throw new ConflictError('Match has no deployed contract');
 
         const result = await this.blockchain.closeOpenMarketsForMatch(contractAddress);
-        await this.cache.delete(ADMIN_MATCHES_CACHE_KEY);
+        await invalidateMatchReadCaches(this.cache, { apiFootballId: matchId, leagueId: match.getLeagueId() });
 
         logger.info('Admin manual markets close', { matchId, contractAddress, ...result, actor: ctx.actorWallet });
         await this.audit.record({

@@ -2,13 +2,14 @@ import { Request, Response, NextFunction } from 'express';
 import { container, injectable } from 'tsyringe';
 
 import { AdminAggregatePageQuerySchema } from '@chiliztv/shared/dto/admin/AdminDirectoryDtos';
+import { AdminMatchListQuerySchema } from '@chiliztv/shared/dto/admin/AdminMatchDeploymentDtos';
 import type { StreamerAggregate } from '@chiliztv/domain/admin/repositories/IAdminDirectoryRepository';
 import type { BetWithMatchInfo } from '@chiliztv/domain/blockchain-indexing/entities/BetWithMatchInfo';
 
 import { ListPlayersUseCase, type PlayerDirectoryEntry } from '../../../application/admin/use-cases/ListPlayersUseCase';
 import { GetPlayerDetailUseCase } from '../../../application/admin/use-cases/GetPlayerDetailUseCase';
 import { ListStreamersUseCase } from '../../../application/admin/use-cases/ListStreamersUseCase';
-import { ListAdminMatchesUseCase } from '../../../application/admin/use-cases/ListAdminMatchesUseCase';
+import { SearchAdminMatchesUseCase } from '../../../application/admin/use-cases/SearchAdminMatchesUseCase';
 
 // Dates may be Date or ISO string after a Redis round-trip — normalize both.
 function toIso(value: Date | string | null): string | null {
@@ -101,10 +102,12 @@ export class AdminDirectoryController {
         }
     }
 
-    async matches(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    /** Paginated, filtered search of the Markets page (deploy / publish workflow). */
+    async matches(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const items = await container.resolve(ListAdminMatchesUseCase).execute();
-            res.json({ success: true, data: { items } });
+            const query = AdminMatchListQuerySchema.parse(req.query);
+            const page = await container.resolve(SearchAdminMatchesUseCase).execute(query);
+            res.json({ success: true, data: page });
         } catch (err) {
             next(err);
         }

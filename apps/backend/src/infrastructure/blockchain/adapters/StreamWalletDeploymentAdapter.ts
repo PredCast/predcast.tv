@@ -6,6 +6,8 @@ import { STREAM_WALLET_FACTORY_ABI, chainFor } from '@chiliztv/blockchain';
 import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import type { INetworkConfig } from '@chiliztv/domain/shared/ports/INetworkConfig';
 import { logger } from '../../logging/logger';
+import type { ISignerLock } from '@chiliztv/domain/shared/ports/ISignerLock';
+import { withSignerLock } from '../signer/withSignerLock';
 
 /**
  * Streamer-wallet deployment adapter.
@@ -30,6 +32,7 @@ export class StreamWalletDeploymentAdapter {
 
     constructor(
         @inject(TOKENS.INetworkConfig) network: INetworkConfig,
+        @inject(TOKENS.ISignerLock) signerLock: ISignerLock,
     ) {
         if (!network.adminPrivateKey) {
             throw new Error('ADMIN_PRIVATE_KEY env var is required');
@@ -41,15 +44,15 @@ export class StreamWalletDeploymentAdapter {
 
         const chain = chainFor(networkType);
         const account = privateKeyToAccount(network.adminPrivateKey as `0x${string}`, { nonceManager });
-        this.walletClient = createWalletClient({
-            account,
-            chain,
-            transport: http(chilizConfig.rpcUrl),
-        });
         this.publicClient = createPublicClient({
             chain,
             transport: http(chilizConfig.rpcUrl),
         });
+        this.walletClient = withSignerLock(createWalletClient({
+            account,
+            chain,
+            transport: http(chilizConfig.rpcUrl),
+        }), this.publicClient, signerLock);
 
         logger.info('StreamWalletDeploymentAdapter initialized', {
             network: networkType,

@@ -27,6 +27,8 @@ export const TOKENS = {
   // Ports — external services
   IFootballApiService:     Symbol.for('IFootballApiService'),
   IBlockchainService:      Symbol.for('IBlockchainService'),
+  IBettingDeploymentService: Symbol.for('IBettingDeploymentService'),
+  IBettingChainRegistry:   Symbol.for('IBettingChainRegistry'),
   ISchedulerService:       Symbol.for('ISchedulerService'),
   IStreamingService:       Symbol.for('IStreamingService'),
 
@@ -50,6 +52,7 @@ export const TOKENS = {
   // Ports — cache layer (Redis / Noop)
   ICacheService:           Symbol.for('ICacheService'),
   ILockService:            Symbol.for('ILockService'),
+  ISignerLock:             Symbol.for('ISignerLock'),
   IRateLimitService:       Symbol.for('IRateLimitService'),
   RedisClient:             Symbol.for('RedisClient'),
 

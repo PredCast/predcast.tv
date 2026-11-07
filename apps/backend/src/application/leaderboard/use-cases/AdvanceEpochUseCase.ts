@@ -7,6 +7,7 @@ import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import type { ILeaderboardEpochRepository } from '@chiliztv/domain/leaderboard/repositories/ILeaderboardEpochRepository';
 import type { INetworkConfig } from '@chiliztv/domain/shared/ports/INetworkConfig';
 import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
+import type { ISignerLock } from '@chiliztv/domain/shared/ports/ISignerLock';
 import { logger } from '../../../infrastructure/logging/logger';
 
 const LEADERBOARD_ABI = [
@@ -40,12 +41,23 @@ export class AdvanceEpochUseCase {
         network: INetworkConfig,
         @inject(TOKENS.IClock)
         private readonly clock: IClock,
+        @inject(TOKENS.ISignerLock)
+        private readonly signerLock: ISignerLock,
     ) {
         const chain = chainFor(networkType);
         this.publicClient = createPublicClient({ chain, transport: http(network.rpcUrl) });
         const account = privateKeyToAccount(network.adminPrivateKey as `0x${string}`, { nonceManager });
         this.walletClient = createWalletClient({ account, chain, transport: http(network.rpcUrl) });
         this.leaderboardAddress = network.leaderboardRewardsAddress as `0x${string}`;
+    }
+
+    /** Send + receipt under the shared signer lock (the workers and the API sign with the same key). */
+    private sendAndWait(send: () => Promise<`0x${string}`>): Promise<`0x${string}`> {
+        return this.signerLock.run(async () => {
+            const hash = await send();
+            await this.publicClient.waitForTransactionReceipt({ hash, timeout: 120_000 });
+            return hash;
+        });
     }
 
     async execute(): Promise<AdvanceEpochResult> {
@@ -68,8 +80,7 @@ export class AdvanceEpochUseCase {
             abi: LEADERBOARD_ABI,
             functionName: 'advanceEpoch',
         });
-        const hash = await this.walletClient.writeContract(request);
-        await this.publicClient.waitForTransactionReceipt({ hash, timeout: 120_000 });
+        const hash = await this.sendAndWait(() => this.walletClient.writeContract(request));
         logger.info('Leaderboard epoch advanced', { txHash: hash });
         return true;
     }
@@ -89,8 +100,7 @@ export class AdvanceEpochUseCase {
                     functionName: 'rolloverEpoch',
                     args: [epoch.epochId],
                 });
-                const hash = await this.walletClient.writeContract(request);
-                await this.publicClient.waitForTransactionReceipt({ hash, timeout: 120_000 });
+                const hash = await this.sendAndWait(() => this.walletClient.writeContract(request));
                 rolled++;
                 logger.info('Leaderboard epoch rolled over', { epochId: epoch.epochId.toString(), txHash: hash });
             } catch (err) {

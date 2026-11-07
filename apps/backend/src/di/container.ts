@@ -210,6 +210,12 @@ import { ScryptAccessCodeVerifier } from '../infrastructure/access/ScryptAccessC
 // ─── Infrastructure — Cache (Redis or Noop) ─────────────────────────────────
 import { ICacheService } from '@chiliztv/domain/shared/ports/ICacheService';
 import { ILockService } from '@chiliztv/domain/shared/ports/ILockService';
+import type { ISignerLock } from '@chiliztv/domain/shared/ports/ISignerLock';
+import { RedisSignerLock } from '../infrastructure/blockchain/signer/RedisSignerLock';
+import type { IBettingChainRegistry } from '@chiliztv/domain/shared/ports/IBettingChainRegistry';
+import type { IBettingDeploymentService } from '@chiliztv/domain/shared/ports/IBettingDeploymentService';
+import { NetworkBettingChainRegistry } from '../infrastructure/blockchain/NetworkBettingChainRegistry';
+import { ViemBettingDeploymentService } from '../infrastructure/blockchain/services/ViemBettingDeploymentService';
 import { IRateLimitService } from '@chiliztv/domain/shared/ports/IRateLimitService';
 import { RedisCacheService } from '../infrastructure/cache/RedisCacheService';
 import { RedisLockService } from '../infrastructure/cache/RedisLockService';
@@ -289,6 +295,10 @@ export function setupDependencyInjection(): void {
     container.registerSingleton<ILockService>(TOKENS.ILockService, NoopLockService);
     container.registerSingleton<IRateLimitService>(TOKENS.IRateLimitService, NoopRateLimitService);
   }
+  // After ILockService: falls back to sending unlocked when Redis errors.
+  container.registerSingleton<ISignerLock>(TOKENS.ISignerLock, RedisSignerLock);
+  container.registerSingleton<IBettingChainRegistry>(TOKENS.IBettingChainRegistry, NetworkBettingChainRegistry);
+  container.registerSingleton<IBettingDeploymentService>(TOKENS.IBettingDeploymentService, ViemBettingDeploymentService);
 
   // ─── Repositories ──────────────────────────────────────────────────────────
   container.registerSingleton<IPredictionRepository>(TOKENS.IPredictionRepository, SupabasePredictionRepository);
