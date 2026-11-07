@@ -77,4 +77,14 @@ describe('snapEventMarkers', () => {
     it('is empty for an empty series', () => {
         expect(snapEventMarkers([], [{ atMs: 0, label: 'KO' }])).toEqual([]);
     });
+
+    it('uses a custom snap, e.g. onto candle starts', () => {
+        const snap = (ms: number) => Math.floor(ms / 1000) * 1000;
+        expect(snapEventMarkers(points, [{ atMs: 1999, label: 'KO' }], { snap })).toEqual([{ t: 1000, label: 'KO' }]);
+    });
+
+    it('groups more events on a narrower chart', () => {
+        const events = [{ atMs: 1000, label: 'KO' }, { atMs: 1300, label: '2H' }];
+        expect(snapEventMarkers(points, events, { minGapRatio: 0.2 })).toEqual([{ t: 1000, label: 'KO · 2H' }]);
+    });
 });

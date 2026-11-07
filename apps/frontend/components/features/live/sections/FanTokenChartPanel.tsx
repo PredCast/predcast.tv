@@ -1,19 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import dynamic from "next/dynamic";
 
-import { priceChange, pricePrecision, snapEventMarkers, type ChartEvent } from "@chiliztv/domain/prices/chartMath";
+import { priceChange, pricePrecision, type ChartEvent } from "@chiliztv/domain/prices/chartMath";
 import type { PriceHistoryRangeDto } from "@chiliztv/shared";
 
 import { ChartError } from "../components/charts/ChartError";
 import { ChartSkeleton } from "../components/charts/ChartSkeleton";
 import { FanTokenChartHeader } from "../components/charts/FanTokenChartHeader";
-import type { FanTokenChartTab } from "../domain/fanTokenCharts";
+import type { ChartStyle, FanTokenChartTab } from "../domain/fanTokenCharts";
+import { useChartSeries } from "../hooks/useChartSeries";
+import { useElementWidth } from "../hooks/useElementWidth";
 import { useFanTokenChartData } from "../hooks/useFanTokenChartData";
 
 // Canvas chart: client-only, kept out of the server bundle and the first paint.
-const PriceAreaChart = dynamic(() => import("../components/charts/PriceAreaChart"), {
+const PriceChart = dynamic(() => import("../components/charts/PriceChart"), {
   ssr: false,
   loading: () => <ChartSkeleton />,
 });
@@ -30,12 +32,13 @@ interface FanTokenChartPanelProps {
 
 export function FanTokenChartPanel({ tab, events, live }: FanTokenChartPanelProps) {
   const [range, setRange] = useState<PriceHistoryRangeDto>("24h");
+  const [style, setStyle] = useState<ChartStyle>("line");
   const data = useFanTokenChartData(tab, range, live);
+  const [chartBoxRef, chartWidth] = useElementWidth<HTMLDivElement>();
+  const { series, markers, candlesAvailable } = useChartSeries(data.points, events, style, tab, range, chartWidth);
   const last = data.points.at(-1)?.p ?? null;
   const precision = pricePrecision(last ?? 0);
   const unit = tab.kind === "cross" ? tab.quote : "≈ USD";
-
-  const markers = useMemo(() => snapEventMarkers(data.points, events), [data.points, events]);
 
   const updatedLabel = data.updatedAt
     ? new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(new Date(data.updatedAt))
@@ -52,14 +55,22 @@ export function FanTokenChartPanel({ tab, events, live }: FanTokenChartPanelProp
         sourceLabel={`Market price · ${SOURCE_LABELS[data.source ?? ""] ?? data.source ?? "—"}`}
         updatedLabel={updatedLabel}
         stale={data.stale}
+        chartStyle={candlesAvailable ? { value: style, onChange: setStyle } : undefined}
       />
-      <div className="h-[220px] lg:h-[320px]">
+      <div ref={chartBoxRef} className="h-[220px] lg:h-[320px]">
         {data.isError && data.points.length === 0 ? (
           <ChartError onRetry={data.retry} />
         ) : data.isLoading ? (
           <ChartSkeleton />
         ) : (
-          <PriceAreaChart points={data.points} markers={markers} precision={precision} unit={unit} showDate={range === "7d"} />
+          <PriceChart
+            key={series.kind}
+            series={series}
+            markers={markers}
+            precision={precision}
+            unit={unit}
+            showDate={range === "7d"}
+          />
         )}
       </div>
     </div>

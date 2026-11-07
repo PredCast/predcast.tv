@@ -3,8 +3,9 @@ import type { ReactNode } from "react";
 import type { PriceChange } from "@chiliztv/domain/prices/chartMath";
 import type { PriceHistoryRangeDto } from "@chiliztv/shared";
 
-import { RANGE_LABELS } from "../../domain/fanTokenCharts";
+import { RANGE_LABELS, type ChartStyle } from "../../domain/fanTokenCharts";
 import { ChartRangeSelector } from "./ChartRangeSelector";
+import { ChartStyleToggle } from "./ChartStyleToggle";
 
 interface FanTokenChartHeaderProps {
   readonly priceLabel: string | null;
@@ -15,6 +16,8 @@ interface FanTokenChartHeaderProps {
   readonly sourceLabel: string;
   readonly updatedLabel: string | null;
   readonly stale: boolean;
+  /** Line / Candles toggle; omitted where candles do not apply (1H, cross pair). */
+  readonly chartStyle?: { readonly value: ChartStyle; readonly onChange: (style: ChartStyle) => void };
   /** Reserved for the Buy / Sell actions of the active token; empty today. */
   readonly actions?: ReactNode;
 }
@@ -28,6 +31,7 @@ export function FanTokenChartHeader({
   sourceLabel,
   updatedLabel,
   stale,
+  chartStyle,
   actions,
 }: FanTokenChartHeaderProps) {
   const up = change?.pct !== null && change?.pct !== undefined && change.pct >= 0;
@@ -54,7 +58,8 @@ export function FanTokenChartHeader({
           )}
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        {chartStyle && <ChartStyleToggle value={chartStyle.value} onChange={chartStyle.onChange} />}
         <ChartRangeSelector value={range} onChange={onRangeChange} />
         {actions}
       </div>

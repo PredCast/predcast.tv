@@ -1,4 +1,6 @@
+import type { Candle } from "@chiliztv/domain/prices/candles";
 import type { ChartEvent } from "@chiliztv/domain/prices/chartMath";
+import type { PricePoint } from "@chiliztv/domain/prices/priceHistory";
 import type { PriceHistoryRangeDto } from "@chiliztv/shared";
 
 import type { Match } from "@/types/api.types";
@@ -40,6 +42,27 @@ export function crossBucketMs(range: PriceHistoryRangeDto): number {
 }
 
 export const RANGE_LABELS: Record<PriceHistoryRangeDto, string> = { "1h": "1H", "24h": "24H", "7d": "7D" };
+
+export type ChartStyle = "line" | "candles";
+
+export type ChartSeries =
+  | { readonly kind: "area"; readonly points: ReadonlyArray<PricePoint> }
+  | { readonly kind: "candles"; readonly candles: ReadonlyArray<Candle> };
+
+/**
+ * Candle size per range, sized so each candle holds several samples (5-min on 24H, hourly on 7D).
+ * Null on 1H: one sample per candle would draw flat dashes.
+ */
+export function candleBucketMs(range: PriceHistoryRangeDto): number | null {
+  if (range === "24h") return 30 * 60_000;
+  if (range === "7d") return 4 * 60 * 60_000;
+  return null;
+}
+
+/** Candles only for a single token: the high of a ratio is not the ratio of the highs. */
+export function canShowCandles(tab: FanTokenChartTab, range: PriceHistoryRangeDto): boolean {
+  return tab.kind === "token" && candleBucketMs(range) !== null;
+}
 
 export type MatchTimeline = Pick<Match, "startTime" | "firstHalfStartedAt" | "halftimeStartedAt" | "secondHalfStartedAt">;
 

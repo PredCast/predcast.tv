@@ -3,6 +3,8 @@ export interface ChartTooltipState {
   readonly y: number;
   readonly timeLabel: string;
   readonly priceLabel: string;
+  /** Extra line, e.g. the candle's open / high / low. */
+  readonly detail?: string;
 }
 
 interface ChartTooltipProps {
@@ -24,6 +26,9 @@ export function ChartTooltip({ state, unit }: ChartTooltipProps) {
       <div className="font-mono-ctv text-[12px] font-bold tabular-nums text-white">
         {state.priceLabel} <span className="text-[10px] text-white/45">{unit}</span>
       </div>
+      {state.detail && (
+        <div className="font-mono-ctv text-[9px] tabular-nums tracking-[0.06em] text-white/55">{state.detail}</div>
+      )}
       <div className="font-mono-ctv text-[9px] uppercase tracking-[0.12em] text-white/45">{state.timeLabel}</div>
     </div>
   );

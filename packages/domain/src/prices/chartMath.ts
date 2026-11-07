@@ -53,23 +53,31 @@ export interface SnappedMarker {
     readonly label: string;
 }
 
-/** Events closer than this share of the visible span would overlap on screen, so they share a marker. */
-const MARKER_MIN_GAP_RATIO = 1 / 30;
+export interface SnapEventOptions {
+    /** Defaults to the first point at or after the event. */
+    readonly snap?: (eventMs: number) => number | null;
+    /** Share of the visible span under which two events would overlap on screen (default 1/30). */
+    readonly minGapRatio?: number;
+}
 
 /**
- * Snaps each event onto the series, dropping unknown or out-of-range ones. Events within
- * {@link MARKER_MIN_GAP_RATIO} of the span of the first one of a group share its marker.
+ * Snaps each event onto the series, dropping unknown or out-of-range ones. Events closer than
+ * `minGapRatio` of the span to the first one of a group share its marker.
  */
-export function snapEventMarkers(points: ReadonlyArray<PricePoint>, events: ReadonlyArray<ChartEvent>): SnappedMarker[] {
+export function snapEventMarkers(
+    points: ReadonlyArray<PricePoint>,
+    events: ReadonlyArray<ChartEvent>,
+    { snap = (eventMs) => markerTimeFor(points, eventMs), minGapRatio = 1 / 30 }: SnapEventOptions = {},
+): SnappedMarker[] {
     if (points.length === 0) return [];
-    const minGapMs = (points[points.length - 1].t - points[0].t) * MARKER_MIN_GAP_RATIO;
+    const minGapMs = (points[points.length - 1].t - points[0].t) * minGapRatio;
     const known = events
         .filter((e): e is { atMs: number; label: string } => e.atMs !== null && Number.isFinite(e.atMs))
         .sort((a, b) => a.atMs - b.atMs);
 
     const groups: { startMs: number; t: number; labels: string[] }[] = [];
     for (const event of known) {
-        const t = markerTimeFor(points, event.atMs);
+        const t = snap(event.atMs);
         if (t === null) continue;
         const last = groups[groups.length - 1];
         if (last && (t === last.t || event.atMs - last.startMs < minGapMs)) last.labels.push(event.label);
