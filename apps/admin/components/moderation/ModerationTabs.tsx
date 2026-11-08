@@ -22,7 +22,7 @@ export function ModerationTabs() {
             className={`font-mono -mb-px border-b-2 px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] transition-colors ${
               active
                 ? 'border-accent text-white'
-                : 'border-transparent textfg-meta hover:text-white'
+                : 'border-transparent text-fg-meta hover:text-white'
             }`}
           >
             {tab.label}

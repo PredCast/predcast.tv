@@ -9,7 +9,7 @@ export default function StreamersPage() {
         eyebrow="Directory"
         title="Streamers"
         right={
-          <span className="font-mono text-[10px] uppercase tracking-[0.14em] textfg-meta">Revenue in CHZ</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-fg-meta">Revenue in CHZ</span>
         }
       />
       <DirectoryTabs />

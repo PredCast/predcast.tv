@@ -86,7 +86,7 @@ export function ConfirmActionButton({
 
   const tone = danger
     ? 'border-accent/40 text-accent-text hover:border-accent'
-    : 'border-line textfg-body hover:border-line-hover hover:text-white';
+    : 'border-line text-fg-body hover:border-line-hover hover:text-white';
 
   return (
     <button

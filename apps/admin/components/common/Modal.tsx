@@ -74,7 +74,7 @@ export function Modal({ open, title, eyebrow, dismissible = true, onClose, child
               type="button"
               onClick={onClose}
               aria-label="Close"
-              className="rounded-md p-1 textfg-meta hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className="rounded-md p-1 text-fg-meta hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               <Icon n="x" s={14} />
             </button>
