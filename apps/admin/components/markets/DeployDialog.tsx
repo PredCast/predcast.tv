@@ -7,7 +7,7 @@ import type { AdminMatchRowDto, MatchOperationDto } from '@chiliztv/shared';
 import { useDeployMatch, useRetryMarketsSetup } from '@/hooks/api/useAdminMatches';
 import { useDeploymentConfig } from '@/hooks/api/useDeploymentConfig';
 import { weiToChz } from '@/lib/markets/chain';
-import { apiErrorMessage } from '@/lib/markets/labels';
+import { apiErrorMessage } from '@/lib/api/errors';
 import { Modal } from '@/components/common/Modal';
 import { TeamLabel } from '@/components/directory/TeamLabel';
 import { MarketLineup } from './MarketLineup';

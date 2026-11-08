@@ -31,4 +31,11 @@ export const queryKeys = {
     operation: (id: string) => ['markets', 'operation', id] as const,
   },
   overview: ['overview'] as const,
+  jobs: {
+    all: ['jobs'] as const,
+    list: ['jobs', 'list'] as const,
+    runs: (name: string) => ['jobs', 'runs', name] as const,
+    run: (runId: string) => ['jobs', 'run', runId] as const,
+    indexers: ['jobs', 'indexers'] as const,
+  },
 } as const;

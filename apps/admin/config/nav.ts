@@ -1,7 +1,7 @@
 import type { AdminRole } from '@/lib/roles';
 import type { IconName } from '@/components/common/Icon';
 
-export type NavBadgeKey = 'openReports';
+export type NavBadgeKey = 'openReports' | 'jobsAttention';
 
 export interface NavEntry {
   readonly label: string;
@@ -19,6 +19,7 @@ export const NAV_ENTRIES: ReadonlyArray<NavEntry> = [
   { label: 'Markets', href: '/markets', icon: 'chart', roles: ['admin'] },
   { label: 'Moderation', href: '/moderation', icon: 'flag', roles: ['moderator'], badge: 'openReports' },
   { label: 'Players', href: '/players', icon: 'users', roles: ['moderator'] },
+  { label: 'Jobs', href: '/jobs', icon: 'clock', roles: ['admin'], badge: 'jobsAttention' },
 ];
 
 /** Planned sections, listed for the roles that will use them. */

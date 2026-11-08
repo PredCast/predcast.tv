@@ -27,9 +27,3 @@ export function publicationOf(row: Pick<AdminMatchRowDto, 'bettingContractAddres
 export function isOperationActive(op: MatchOperationDto | null | undefined): boolean {
   return op?.status === 'pending' || op?.status === 'running';
 }
-
-/** Error message of an axios call to the backend envelope. */
-export function apiErrorMessage(err: unknown): string {
-  const data = (err as { response?: { data?: { error?: { message?: string } } } }).response?.data;
-  return data?.error?.message ?? (err instanceof Error ? err.message : 'Request failed');
-}

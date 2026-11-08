@@ -20,7 +20,7 @@ export function Badge({
 }: Readonly<{ tone?: BadgeTone; glyph?: string; className?: string; children: React.ReactNode }>) {
   return (
     <span
-      className={`inline-flex h-5 shrink-0 items-center gap-[5px] whitespace-nowrap rounded-badge border px-1.5 font-mono text-[9px] font-bold uppercase leading-none tracking-[0.12em] ${TONES[tone]} ${className}`}
+      className={`inline-flex h-5 w-fit shrink-0 items-center gap-[5px] whitespace-nowrap rounded-badge border px-1.5 font-mono text-[9px] font-bold uppercase leading-none tracking-[0.12em] ${TONES[tone]} ${className}`}
     >
       {glyph && <span aria-hidden="true">{glyph}</span>}
       {children}

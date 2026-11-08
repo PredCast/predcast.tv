@@ -2,7 +2,7 @@
 
 import { FilterChips } from '@/components/common/FilterChips';
 import type { DeployedStatus, MarketsFilters, MarketsTab, PublicationFilter } from '@/lib/markets/listParams';
-import { SearchField } from './SearchField';
+import { SearchField } from '@/components/common/SearchField';
 
 interface MarketsToolbarProps {
   readonly tab: MarketsTab;

@@ -7,7 +7,7 @@ import type { AdminMatchRowDto } from '@chiliztv/shared';
 import { useUnpublishMatch } from '@/hooks/api/useAdminMatches';
 import { useDeploymentConfig } from '@/hooks/api/useDeploymentConfig';
 import { fmtUsdcRaw } from '@/lib/format/amounts';
-import { apiErrorMessage } from '@/lib/markets/labels';
+import { apiErrorMessage } from '@/lib/api/errors';
 import { ConfirmActionButton } from '@/components/common/ConfirmActionButton';
 import { Modal } from '@/components/common/Modal';
 import { OperationProgress } from './OperationProgress';

@@ -4,7 +4,8 @@ import { toast } from 'sonner';
 import type { AdminMatchRowDto } from '@chiliztv/shared';
 
 import { useCloseMatchMarkets, usePublishMatch, useRetryMarketsSetup } from '@/hooks/api/useAdminMatches';
-import { DEPLOY_BLOCKED_LABELS, apiErrorMessage, isOperationActive, publicationOf } from '@/lib/markets/labels';
+import { DEPLOY_BLOCKED_LABELS, isOperationActive, publicationOf } from '@/lib/markets/labels';
+import { apiErrorMessage } from '@/lib/api/errors';
 import { ConfirmActionButton } from '@/components/common/ConfirmActionButton';
 import { OperationBadge } from '@/components/markets/OperationBadge';
 
