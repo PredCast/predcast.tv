@@ -21,6 +21,30 @@ export class SupabaseAdminWalletRepository implements IAdminWalletRepository {
         return role && isAdminRole(role) ? role : null;
     }
 
+    async findLabels(walletAddresses: ReadonlyArray<string>): Promise<ReadonlyMap<string, string>> {
+        const wallets = [...new Set(walletAddresses.map((w) => w.toLowerCase()))];
+        if (wallets.length === 0) return new Map();
+        const { data, error } = await supabase
+            .from('admin_wallets')
+            .select('wallet_address, note, granted_at')
+            .in('wallet_address', wallets)
+            .order('granted_at', { ascending: false });
+        if (error) {
+            logger.error('findLabels failed', { count: wallets.length, error: error.message });
+            throw new Error('Failed to read admin labels');
+        }
+        const seen = new Set<string>();
+        const labels = new Map<string, string>();
+        for (const row of (data ?? []) as Array<{ wallet_address: string; note: string | null }>) {
+            // Rows are newest first: the latest grant per wallet decides its label.
+            if (seen.has(row.wallet_address)) continue;
+            seen.add(row.wallet_address);
+            const note = row.note?.trim();
+            if (note) labels.set(row.wallet_address, note);
+        }
+        return labels;
+    }
+
     async grant(input: AdminGrant): Promise<void> {
         const { error } = await supabase.from('admin_wallets').insert({
             wallet_address: input.walletAddress.toLowerCase(),

@@ -213,6 +213,8 @@ import { ILockService } from '@chiliztv/domain/shared/ports/ILockService';
 import type { ISignerLock } from '@chiliztv/domain/shared/ports/ISignerLock';
 import { RedisSignerLock } from '../infrastructure/blockchain/signer/RedisSignerLock';
 import type { IBettingChainRegistry } from '@chiliztv/domain/shared/ports/IBettingChainRegistry';
+import type { IRuntimeEnvironment } from '@chiliztv/domain/shared/ports/IRuntimeEnvironment';
+import { EnvRuntimeEnvironment } from '../infrastructure/config/EnvRuntimeEnvironment';
 import type { IBettingDeploymentService } from '@chiliztv/domain/shared/ports/IBettingDeploymentService';
 import { NetworkBettingChainRegistry } from '../infrastructure/blockchain/NetworkBettingChainRegistry';
 import { ViemBettingDeploymentService } from '../infrastructure/blockchain/services/ViemBettingDeploymentService';
@@ -281,6 +283,7 @@ export function setupDependencyInjection(): void {
   container.registerSingleton<IBlockchainService>(TOKENS.IBlockchainService, ViemBlockchainService);
   container.registerSingleton<IIncidentReporter>(TOKENS.IIncidentReporter, LogIncidentReporter);
   container.registerSingleton<IClock>(TOKENS.IClock, SystemClock);
+  container.registerSingleton<IRuntimeEnvironment>(TOKENS.IRuntimeEnvironment, EnvRuntimeEnvironment);
   container.registerSingleton<IStreamingService>(TOKENS.IStreamingService, CloudflareStreamService);
   container.registerSingleton<IPariMatchPoolsReader>(TOKENS.IPariMatchPoolsReader, ViemPariMatchPoolsReader);
 

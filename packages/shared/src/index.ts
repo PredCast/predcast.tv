@@ -8,6 +8,7 @@ export * from './events/SocketEvents';
 export * from './dto/admin/AdminModerationDtos';
 export * from './dto/admin/AdminDirectoryDtos';
 export * from './dto/admin/AdminMatchDeploymentDtos';
+export * from './dto/admin/AdminContextDtos';
 
 // DTOs — Platform stats
 export * from './dto/stats/PlatformStatsDto';
