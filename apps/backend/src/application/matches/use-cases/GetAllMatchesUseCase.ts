@@ -24,7 +24,7 @@ export class GetAllMatchesUseCase {
       ttlSeconds: MatchCacheTtl.listSeconds,
       jitterPct: MatchCacheTtl.jitterPct,
       loader: async () => {
-        const matches = await this.matchRepository.findFromDate(
+        const matches = await this.matchRepository.findVisibleFromDate(
           MatchFetchWindow.displayFrom(this.clock.now()),
         );
         return matches.map((m) => m.toRaw());

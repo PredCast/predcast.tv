@@ -38,8 +38,12 @@ export interface BrowseMatchDto {
   awayForm: string | null;
   /** Last in-game minute persisted by the backend. Null pre-kickoff. */
   elapsed: number | null;
-  /** PariMatch proxy address (lowercased). Null when the match has no contract deployed yet. */
-  contractAddress: string | null;
+  /** PariMatch proxy address (lowercased). Browse only lists deployed, published matches. */
+  contractAddress: string;
+  /** Chain of the betting contract (legacy rows resolve to the current NETWORK chain). */
+  bettingChainId: number;
+  /** When the markets opened; null on matches deployed before it was recorded. */
+  bettingOpenedAt: string | null;
   streamsPreview: StreamPreviewDto[];
 }
 

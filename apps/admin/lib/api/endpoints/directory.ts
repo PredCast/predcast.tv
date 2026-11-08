@@ -42,21 +42,8 @@ export interface AdminPlayerBetDto {
   marketContext: { marketType: string; line: number | null } | null;
 }
 
-export interface AdminMatchSummaryDto {
-  id: number;
-  homeTeamName: string;
-  homeTeamLogo: string | null;
-  awayTeamName: string;
-  awayTeamLogo: string | null;
-  leagueName: string;
-  status: string;
-  matchDate: string;
-  elapsed: number | null;
-  score: { home: number; away: number } | null;
-  bettingContractAddress: string | null;
-  betCount: number;
-  totalStaked: string;
-}
+/** Live-match summary of the overview; the shape is shared with the backend. */
+export type { AdminMatchSummaryDto } from '@chiliztv/shared';
 
 export interface AggregatePage<T> {
   items: T[];
@@ -83,13 +70,4 @@ export const directoryApi = {
     ),
   listStreamers: (query: PageQuery) =>
     apiClient.get<{ success: boolean; data: AggregatePage<AdminStreamerDto> }>(`/admin/streamers${qs(query)}`),
-  listMatches: () =>
-    apiClient.get<{ success: boolean; data: { items: AdminMatchSummaryDto[] } }>('/admin/matches'),
-
-  deployContract: (matchId: number) =>
-    apiClient.post<{ success: boolean; data: { contractAddress: string } }>(`/admin/matches/${matchId}/deploy`),
-  closeMarkets: (matchId: number) =>
-    apiClient.post<{ success: boolean; data: { closed: number; skipped: number } }>(
-      `/admin/matches/${matchId}/close-markets`,
-    ),
 };

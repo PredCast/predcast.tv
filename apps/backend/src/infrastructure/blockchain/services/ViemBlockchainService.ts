@@ -8,6 +8,8 @@ import {
 } from 'viem';
 import { privateKeyToAccount, nonceManager } from 'viem/accounts';
 import { TOKENS } from '@chiliztv/domain/shared/tokens';
+import type { ISignerLock } from '@chiliztv/domain/shared/ports/ISignerLock';
+import { withSignerLock } from '../signer/withSignerLock';
 import { INetworkConfig } from '@chiliztv/domain/shared/ports/INetworkConfig';
 import {
     IBlockchainService,
@@ -45,12 +47,16 @@ function delay(ms = TX_DELAY_MS): Promise<void> {
 @injectable()
 export class ViemBlockchainService implements IBlockchainService {
     private readonly walletClient: any;
+    /** Unwrapped client: the deploy flow holds the signer lock itself to record the tx hash before the receipt. */
+    private readonly rawWalletClient: any;
     private readonly publicClient: any;
     private readonly account: ReturnType<typeof privateKeyToAccount>;
 
     constructor(
         @inject(TOKENS.INetworkConfig)
         private readonly config: INetworkConfig,
+        @inject(TOKENS.ISignerLock)
+        private readonly signerLock: ISignerLock,
     ) {
         if (!config.adminPrivateKey) {
             throw new Error('INetworkConfig.adminPrivateKey is required');
@@ -59,16 +65,17 @@ export class ViemBlockchainService implements IBlockchainService {
         const chain = chainFor(config.chainId === 88888 ? 'mainnet' : 'testnet');
         this.account = privateKeyToAccount(config.adminPrivateKey as `0x${string}`, { nonceManager });
 
-        this.walletClient = createWalletClient({
-            account: this.account,
-            chain,
-            transport: http(config.rpcUrl),
-        });
-
         this.publicClient = createPublicClient({
             chain,
             transport: http(config.rpcUrl),
         });
+
+        this.rawWalletClient = createWalletClient({
+            account: this.account,
+            chain,
+            transport: http(config.rpcUrl),
+        });
+        this.walletClient = withSignerLock(this.rawWalletClient, this.publicClient, signerLock);
 
         logger.info('ViemBlockchainService initialized', {
             network: config.chainId === 88888 ? 'mainnet' : 'testnet',

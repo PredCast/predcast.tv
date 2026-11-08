@@ -18,9 +18,10 @@ import { useMatchMarkets } from "../hooks/useMatchMarkets";
 interface PoolInfoProps {
   readonly contractAddress?: Address;
   readonly kickoffAt: string;
+  readonly openedAt: string | null;
 }
 
-export function PoolInfo({ contractAddress, kickoffAt }: PoolInfoProps) {
+export function PoolInfo({ contractAddress, kickoffAt, openedAt }: PoolInfoProps) {
   const chain = useBettingChain();
   const now = useClientNow(30_000);
   const { markets } = useMatchMarkets(contractAddress);
@@ -55,6 +56,7 @@ export function PoolInfo({ contractAddress, kickoffAt }: PoolInfoProps) {
       <div className="mt-3">
         <BettingWindowProgress
           kickoffAt={kickoffAt}
+          openedAt={openedAt}
           now={now}
           marketClosed={!!selected && selected.state !== MarketState.Open}
         />

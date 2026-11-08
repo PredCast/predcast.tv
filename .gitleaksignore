@@ -8,3 +8,7 @@
 971b5ceb57330bbf0f097d160ff8cc839fafe353:SETUP_LOCAL.md:generic-api-key:169
 971b5ceb57330bbf0f097d160ff8cc839fafe353:SETUP_LOCAL.md:generic-api-key:198
 971b5ceb57330bbf0f097d160ff8cc839fafe353:SETUP_LOCAL.md:generic-api-key:199
+
+# Well-known Anvil / Hardhat test account #0 private key (public, documented by Foundry),
+# used only to derive a lock key in a unit test.
+ef51a76142ef7e40d595e3fe0928245b2bae0a02:apps/backend/src/infrastructure/blockchain/signer/__tests__/RedisSignerLock.test.ts:generic-api-key:15

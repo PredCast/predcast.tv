@@ -64,6 +64,31 @@ pnpm match:reset                               # DELETE FROM matches WHERE api_f
 **Expected outcome**: 1 row, Lille (79) vs Rennes (94) `NS` (kickoff +5h). The chart block is not rendered at all (no placeholder).
 **Cleanup**: `pnpm match:reset`.
 
+### `admin-deploy-flow`
+**Intent**: manual deployment from the admin (Task 3). Real API-Football team IDs.
+**Expected outcome**: without contracts (`--no-deploy`), 4 rows, all undeployed: PSG vs OM (+1d), Lille vs Rennes (+2d), PSG vs Lens (+3d), OM vs Lille (+4d); the first two are meant to be deployed from the admin Markets page ("To deploy" tab). With contracts, PSG vs Lens is deployed + published (on Discover) and OM vs Lille deployed + hidden (admin "Deployed" tab, not on Discover, `/live/<id>` shows "Match not available").
+**Cleanup**: `pnpm match:reset`.
+
+## Match visibility (migration 041) — smoke
+
+Only deployed + published matches exist for app users. Run after `pnpm dev:supabase:migrate`.
+
+1. **RLS**: `pg_policies` on `matches` has a single SELECT policy, `matches_anon_select`, filtering on `published_at` and `betting_contract_address`:
+   `psql … -c "select policyname, cmd, qual from pg_policies where tablename='matches'"`.
+2. **Anon cannot read a hidden match** (anon key from `apps/frontend/.env`):
+   `curl "$SUPABASE_URL/rest/v1/matches?select=api_football_id&api_football_id=eq.<hidden id>" -H "apikey: $ANON" -H "Authorization: Bearer $ANON"` → `[]`; the same query on a published match returns its row.
+3. **Anon cannot touch the queue**: `GET /rest/v1/match_admin_operations` and `POST /rest/v1/rpc/claim_match_admin_operation` with the anon key → `42501 permission denied`.
+4. **App API**: `GET /matches/<hidden id>` → 404; `GET /matches/browse` lists no match without a contract.
+5. **Bets stay**: for a wallet with a bet on a hidden match, `GET /admin/players/<wallet>` (same bets query as the dashboard) still returns the bet with its match metadata.
+
+### Admin deployment checklist
+1. Admin Markets → "To deploy": search a team, open Deploy, pick Chiliz, confirm. The dialog shows queued → deploy tx → markets opening → done (8 markets, 9 on knockout).
+2. Double-click Deploy (or two tabs): one operation, the other request gets 409; the factory `getAllMatches()` grows by one.
+3. Discover shows the match right away (no TTL wait); a bet goes through from `/live/<id>`.
+4. Unpublish → "Hide only": gone from Discover, `/live/<id>` → "Match not available", the bet still visible and claimable in the dashboard.
+5. On another match, Unpublish → "Hide and cancel the markets" with a reason: every market turns Cancelled on-chain; stakers can `claimRefund`.
+6. Interrupted deploy: a contract recorded without markets (no opening date, not published) shows "Retry setup"; it seeds + opens the markets and publishes. A second retry opens 0 markets.
+
 ## Authoring a new scenario
 
 1. Create `src/testing/scenarios/<name>.scenario.ts` exporting a `MatchScenario` (see [types.ts](src/testing/scenarios/types.ts)).

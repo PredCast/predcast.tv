@@ -13,6 +13,7 @@ const FIXTURE_NAMES: ReadonlyArray<FixtureName> = [
     'extraTime', 'breakTime', 'penalty', 'suspended', 'interrupted',
     'fullTime', 'afterExtraTime', 'afterPenalties',
     'postponed', 'cancelled', 'abandoned', 'awarded', 'walkover',
+    'deployedPublished', 'deployedUnpublished', 'notDeployed',
 ];
 
 const EXPECTED_STATUS: Record<FixtureName, string> = {
@@ -22,7 +23,8 @@ const EXPECTED_STATUS: Record<FixtureName, string> = {
     suspended: 'SUSP', interrupted: 'INT',
     fullTime: 'FT', afterExtraTime: 'AET', afterPenalties: 'PEN',
     postponed: 'PST', cancelled: 'CANC', abandoned: 'ABD',
-    awarded: 'AWD', walkover: 'WO',
+    awarded: 'AWD', walkover: 'WO', upcomingKnockout: 'NS',
+    deployedPublished: 'NS', deployedUnpublished: 'NS', notDeployed: 'NS',
 };
 
 beforeEach(() => {
@@ -121,6 +123,28 @@ describe('matchFixture — phase start times', () => {
         const phases = matchFixture.secondHalf({ kickoffAt }).getPhaseTimes();
         expect(phases.halftimeStartedAt).toEqual(new Date('2026-11-07T20:47:00Z'));
         expect(phases.secondHalfStartedAt).toEqual(new Date('2026-11-07T21:02:00Z'));
+    });
+});
+
+describe('matchFixture — deployment and visibility', () => {
+    it('deployedPublished has a contract, a chain, an opening and a publication date', () => {
+        const m = matchFixture.deployedPublished();
+        expect(m.getBettingContractAddress()).toMatch(/^0x[0-9a-f]{40}$/);
+        expect(m.getBettingChainId()).toBe(88882);
+        expect(m.getBettingOpenedAt()).toBeInstanceOf(Date);
+        expect(m.getPublishedAt()).toBeInstanceOf(Date);
+    });
+
+    it('deployedUnpublished keeps the contract but has no publication date', () => {
+        const m = matchFixture.deployedUnpublished();
+        expect(m.getBettingContractAddress()).toBeDefined();
+        expect(m.getPublishedAt()).toBeNull();
+    });
+
+    it('notDeployed has neither a contract nor a publication date', () => {
+        const m = matchFixture.notDeployed();
+        expect(m.getBettingContractAddress()).toBeUndefined();
+        expect(m.getPublishedAt()).toBeNull();
     });
 });
 

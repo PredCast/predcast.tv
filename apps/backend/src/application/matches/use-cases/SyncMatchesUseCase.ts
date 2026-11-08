@@ -2,39 +2,33 @@ import { injectable, inject } from 'tsyringe';
 import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { IMatchRepository } from '@chiliztv/domain/matches/repositories/IMatchRepository';
 import { IFootballApiService, RawMatch } from '@chiliztv/domain/shared/ports/IFootballApiService';
-import { IBlockchainService } from '@chiliztv/domain/shared/ports/IBlockchainService';
 import { MatchFetchWindow } from '@chiliztv/domain/matches/value-objects/MatchFetchWindow';
 import { Match } from '@chiliztv/domain/matches/entities/Match';
 import { isKnockoutMatch } from '@chiliztv/domain/matches/policies/KnockoutMatchPolicy';
-import { NO_PHASE_TIMES, nextPhaseTimes, phaseTimesEqual } from '@chiliztv/domain/matches/policies/matchPhaseTimes';
+import { NO_PHASE_TIMES, nextPhaseTimes } from '@chiliztv/domain/matches/policies/matchPhaseTimes';
 import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import type { ICacheService } from '@chiliztv/domain/shared/ports/ICacheService';
 import { FIXED_LIST_KEYS, MatchCacheKeys } from '../MatchCacheKeys';
+import { fetchTeamForms } from '../sync/fetchTeamForms';
+import { mergeSyncedMatch } from '../sync/mergeSyncedMatch';
 import { logger } from '../../../infrastructure/logging/logger';
-
-// Cap fan-out of getTeamForm cache-misses to keep axios + the paid
-// API-Football quota under control during WC peaks (200+ unique teams/sync).
-const FORM_FETCH_CONCURRENCY = 10;
-
-// Deploy retries per sync — capped to avoid nonce storms.
-const CONTRACT_REPAIR_CAP_PER_SYNC = 5;
-const NOT_STARTED_STATUSES: ReadonlySet<string> = new Set(['NS', 'TBD']);
 
 export interface SyncMatchesResult {
     matchesFetched: number;
     matchesStored: number;
-    contractsDeployed: number;
+    matchesCreated: number;
+    /** Teams whose form was refreshed: only the teams of deployed matches. */
+    formsRefreshed: number;
 }
 
 /**
  * SyncMatchesUseCase
  * Orchestrates match synchronization:
  *  1. Fetch raw matches from IFootballApiService (domain port)
- *  2. Fetch each unique team's recent W/D/L form (via the same port)
+ *  2. Refresh the W/D/L form of the teams of deployed matches only (paid quota)
  *  3. Persist matches via IMatchRepository
- *  4. Deploy betting contracts via IBlockchainService (domain port)
  *
- * No infrastructure imports — only domain ports and entities.
+ * Never deploys a betting contract: matches are deployed by hand from the admin.
  */
 @injectable()
 export class SyncMatchesUseCase {
@@ -43,8 +37,6 @@ export class SyncMatchesUseCase {
         private readonly matchRepository: IMatchRepository,
         @inject(TOKENS.IFootballApiService)
         private readonly footballApiService: IFootballApiService,
-        @inject(TOKENS.IBlockchainService)
-        private readonly blockchainService: IBlockchainService,
         @inject(TOKENS.IClock)
         private readonly clock: IClock,
         @inject(TOKENS.ICacheService)
@@ -55,24 +47,38 @@ export class SyncMatchesUseCase {
         const rawMatches = await this.footballApiService.fetchMatches(MatchFetchWindow.FETCH_DAYS_AHEAD);
 
         if (rawMatches.length === 0) {
-            return { matchesFetched: 0, matchesStored: 0, contractsDeployed: 0 };
+            return { matchesFetched: 0, matchesStored: 0, matchesCreated: 0, formsRefreshed: 0 };
         }
 
-        const formByTeam = await this.fetchTeamForms(rawMatches);
+        const existingById = new Map<number, Match>();
+        for (const raw of rawMatches) {
+            try {
+                const existing = await this.matchRepository.findByApiFootballId(raw.apiFootballId);
+                if (existing) existingById.set(raw.apiFootballId, existing);
+            } catch {
+                // A failed lookup only skips this match below.
+            }
+        }
 
-        let matchesStored    = 0;
-        let contractsDeployed = 0;
+        const deployedRaws = rawMatches.filter((raw) => existingById.get(raw.apiFootballId)?.getBettingContractAddress());
+        const formByTeam = await fetchTeamForms(
+            this.footballApiService,
+            deployedRaws.flatMap((raw) => [raw.homeTeamId, raw.awayTeamId]),
+        );
+
+        let matchesStored  = 0;
+        let matchesCreated = 0;
         const changedMatchIds: number[] = [];
         const changedLeagueIds = new Set<number>();
 
         for (const raw of rawMatches) {
             try {
-                const homeForm = formByTeam.get(raw.homeTeamId) ?? null;
-                const awayForm = formByTeam.get(raw.awayTeamId) ?? null;
-
-                const existing = await this.matchRepository.findByApiFootballId(raw.apiFootballId);
+                const existing = existingById.get(raw.apiFootballId);
 
                 if (existing) {
+                    // Teams of undeployed matches keep their stored form (no API call for them).
+                    const homeForm = formByTeam.has(raw.homeTeamId) ? formByTeam.get(raw.homeTeamId) ?? null : existing.getHomeForm();
+                    const awayForm = formByTeam.has(raw.awayTeamId) ? formByTeam.get(raw.awayTeamId) ?? null : existing.getAwayForm();
                     const mutated = await this.updateExistingMatch(existing, raw, homeForm, awayForm);
                     matchesStored++;
                     if (mutated) {
@@ -80,9 +86,9 @@ export class SyncMatchesUseCase {
                         changedLeagueIds.add(raw.leagueId);
                     }
                 } else {
-                    const deployed = await this.createNewMatch(raw, homeForm, awayForm);
+                    await this.createNewMatch(raw);
                     matchesStored++;
-                    if (deployed) contractsDeployed++;
+                    matchesCreated++;
                     changedMatchIds.push(raw.apiFootballId);
                     changedLeagueIds.add(raw.leagueId);
                 }
@@ -91,81 +97,9 @@ export class SyncMatchesUseCase {
             }
         }
 
-        contractsDeployed += await this.repairContractlessMatches(changedMatchIds, changedLeagueIds);
-
         await this.invalidateCache(changedMatchIds, changedLeagueIds);
 
-        return { matchesFetched: rawMatches.length, matchesStored, contractsDeployed };
-    }
-
-    /** Redeploys upcoming matches left contractless by a failed deploy. */
-    private async repairContractlessMatches(
-        changedMatchIds: number[],
-        changedLeagueIds: Set<number>,
-    ): Promise<number> {
-        const all = await this.matchRepository.findAll();
-        const now = this.clock.now().getTime();
-        const candidates = all
-            .filter((m) => {
-                const raw = m.toRaw();
-                const kickoff = raw.matchDate instanceof Date ? raw.matchDate : new Date(raw.matchDate);
-                return !raw.bettingContractAddress
-                    && NOT_STARTED_STATUSES.has(raw.status)
-                    && kickoff.getTime() > now;
-            })
-            .slice(0, CONTRACT_REPAIR_CAP_PER_SYNC);
-        if (candidates.length === 0) return 0;
-
-        let repaired = 0;
-        for (const match of candidates) {
-            const raw = match.toRaw();
-            const contractAddress = await this.deployAndSeedContract(match);
-            if (contractAddress) {
-                repaired++;
-                changedMatchIds.push(raw.apiFootballId);
-                changedLeagueIds.add(raw.leagueId);
-            }
-        }
-        logger.info('Contractless match repair pass', {
-            candidates: candidates.length,
-            repaired,
-        });
-        return repaired;
-    }
-
-    /**
-     * Dedup teams across the sync batch (Premier League weekend = 20 teams
-     * across 10 matches → 20 unique calls instead of 20) and bound concurrency
-     * so cache misses don't fan out > FORM_FETCH_CONCURRENCY axios reqs at
-     * once. Cache hits return synchronously and are unaffected by the cap.
-     */
-    private async fetchTeamForms(rawMatches: ReadonlyArray<RawMatch>): Promise<Map<number, string | null>> {
-        const uniqueIds = new Set<number>();
-        for (const raw of rawMatches) {
-            uniqueIds.add(raw.homeTeamId);
-            uniqueIds.add(raw.awayTeamId);
-        }
-        const idList = Array.from(uniqueIds);
-        const result = new Map<number, string | null>();
-
-        // Manual chunking — p-limit is not a project dep.
-        for (let i = 0; i < idList.length; i += FORM_FETCH_CONCURRENCY) {
-            const chunk = idList.slice(i, i + FORM_FETCH_CONCURRENCY);
-            await Promise.all(
-                chunk.map(async (teamId) => {
-                    try {
-                        result.set(teamId, await this.footballApiService.getTeamForm(teamId));
-                    } catch (err) {
-                        logger.warn('getTeamForm failed', {
-                            teamId,
-                            error: err instanceof Error ? err.message : String(err),
-                        });
-                        result.set(teamId, null);
-                    }
-                }),
-            );
-        }
-        return result;
+        return { matchesFetched: rawMatches.length, matchesStored, matchesCreated, formsRefreshed: formByTeam.size };
     }
 
     /**
@@ -191,116 +125,31 @@ export class SyncMatchesUseCase {
         await Promise.allSettled(deletions);
     }
 
-    // ─── Private helpers ──────────────────────────────────────────────────────
-
     private async updateExistingMatch(
         existing: Match,
         raw: RawMatch,
         homeForm: string | null,
         awayForm: string | null,
     ): Promise<boolean> {
-        const existingJson = existing.toJSON();
-        const existingScore = existingJson.score
-            ? { home: existingJson.score.home, away: existingJson.score.away }
-            : null;
-        const rawScore = (raw.homeScore !== null && raw.awayScore !== null && raw.homeScore !== undefined && raw.awayScore !== undefined)
-            ? { home: raw.homeScore, away: raw.awayScore }
-            : null;
-        const scoreChanged =
-            existingScore?.home !== rawScore?.home ||
-            existingScore?.away !== rawScore?.away;
-        const statusChanged = existingJson.status !== raw.status;
-        const formChanged = existingJson.homeForm !== homeForm || existingJson.awayForm !== awayForm;
-        const currentPhases = existing.getPhaseTimes();
-        const phases = nextPhaseTimes(currentPhases, raw.status, raw, this.clock.now());
-        const mutated = scoreChanged || statusChanged || formChanged || !phaseTimesEqual(currentPhases, phases);
-
-        // Preserve last-known elapsed when the upstream returns null (HT, post-FT)
-        // so the 10-min cron doesn't erase the value that SyncLiveMatchesUseCase
-        // wrote on its 30s tick. Same null-guard for HT score.
-        const elapsedToPersist = raw.elapsed ?? existingJson.elapsed ?? null;
-        const htHomeToPersist  = raw.htHomeScore ?? existingJson.htHomeScore ?? null;
-        const htAwayToPersist  = raw.htAwayScore ?? existingJson.htAwayScore ?? null;
-
-        // Drift detection — recompute the knockout flag from the fresh API
-        // payload and log a warn if it diverged from what was frozen at create.
-        // The DB value is NEVER updated on re-sync: the on-chain proxy is
-        // already deployed with or without the FULL_TIME_WINNER market and
-        // can't be retro-fitted. Drift typically means API-Football reclassified
-        // a fixture (rare — happens on competition format changes mid-season).
-        const freshKnockout = isKnockoutMatch({
-            league: {
-                id: raw.leagueId,
-                type: raw.leagueType ?? undefined,
-                round: raw.leagueRound ?? undefined,
-            },
-        });
-        const existingIsKnockout = existingJson.isKnockout === true;
-        if (existingIsKnockout !== freshKnockout) {
+        const { updated, mutated, knockoutDrift } = mergeSyncedMatch(
+            existing, raw, { home: homeForm, away: awayForm }, this.clock.now(),
+        );
+        if (knockoutDrift) {
             logger.warn('Match knockout flag drift detected — API-Football changed league.round after match creation', {
-                matchId: existingJson.id,
                 apiFootballId: raw.apiFootballId,
                 leagueId: raw.leagueId,
                 newRound: raw.leagueRound,
                 newType: raw.leagueType,
-                oldKnockout: existingIsKnockout,
-                freshKnockout,
+                oldKnockout: knockoutDrift.stored,
+                freshKnockout: knockoutDrift.fresh,
             });
         }
-
-        // Preserve AET/PEN scores monotonically across re-sync ticks — the
-        // upstream sometimes briefly nulls these between the live and
-        // post-FT cleanups (same pattern as ht_*_score and elapsed).
-        const aetHomeToPersist = raw.aetHomeScore ?? existingJson.aetHomeScore ?? null;
-        const aetAwayToPersist = raw.aetAwayScore ?? existingJson.aetAwayScore ?? null;
-        const penHomeToPersist = raw.penHomeScore ?? existingJson.penHomeScore ?? null;
-        const penAwayToPersist = raw.penAwayScore ?? existingJson.penAwayScore ?? null;
-
-        const updated = Match.reconstitute({
-            id:                     existingJson.id,
-            apiFootballId:          raw.apiFootballId,
-            homeTeamId:             raw.homeTeamId,
-            homeTeamName:           raw.homeTeamName,
-            homeTeamLogo:           raw.homeTeamLogo,
-            awayTeamId:             raw.awayTeamId,
-            awayTeamName:           raw.awayTeamName,
-            awayTeamLogo:           raw.awayTeamLogo,
-            leagueId:               raw.leagueId,
-            leagueName:             raw.leagueName,
-            leagueLogo:             raw.leagueLogo,
-            leagueCountry:          raw.leagueCountry,
-            season:                 raw.season,
-            status:                 raw.status,
-            matchDate:              raw.matchDate,
-            venue:                  raw.venue,
-            homeScore:              raw.homeScore ?? undefined,
-            awayScore:              raw.awayScore ?? undefined,
-            homeForm,
-            awayForm,
-            elapsed:                elapsedToPersist,
-            htHomeScore:            htHomeToPersist,
-            htAwayScore:            htAwayToPersist,
-            aetHomeScore:           aetHomeToPersist,
-            aetAwayScore:           aetAwayToPersist,
-            penHomeScore:           penHomeToPersist,
-            penAwayScore:           penAwayToPersist,
-            // Frozen at create — DO NOT recompute from `raw` here.
-            isKnockout:             existingIsKnockout,
-            ...phases,
-            bettingContractAddress: existing.getBettingContractAddress(),
-            createdAt:              existingJson.createdAt,
-            updatedAt:              this.clock.now(),
-        });
-
         await this.matchRepository.update(updated);
         return mutated;
     }
 
-    private async createNewMatch(
-        raw: RawMatch,
-        homeForm: string | null,
-        awayForm: string | null,
-    ): Promise<boolean> {
+    /** Persists a newly synced match. It stays undeployed and hidden until the admin deploys it. */
+    private async createNewMatch(raw: RawMatch): Promise<void> {
         // Compute the knockout flag ONCE here, at create. The result is
         // frozen on the row (migration 035 — `is_knockout`) and never updated
         // on subsequent re-syncs to avoid entity↔contract drift (the proxy
@@ -333,8 +182,8 @@ export class SyncMatchesUseCase {
             venue:         raw.venue,
             homeScore:     raw.homeScore ?? undefined,
             awayScore:     raw.awayScore ?? undefined,
-            homeForm,
-            awayForm,
+            homeForm:      null,
+            awayForm:      null,
             elapsed:       raw.elapsed ?? null,
             htHomeScore:   raw.htHomeScore ?? null,
             htAwayScore:   raw.htAwayScore ?? null,
@@ -346,37 +195,6 @@ export class SyncMatchesUseCase {
             ...nextPhaseTimes(NO_PHASE_TIMES, raw.status, raw, this.clock.now()),
         });
 
-        const saved = await this.matchRepository.save(newMatch);
-        return (await this.deployAndSeedContract(saved)) !== null;
-    }
-
-    /** Deploys + seeds the canonical lineup, persists the address. Null on failure (logged; repair pass retries). */
-    private async deployAndSeedContract(match: Match): Promise<string | null> {
-        // toRaw() is flat and symmetric with reconstitute (toJSON nests teams/league).
-        const raw = match.toRaw();
-        try {
-            const ownerAddress = this.blockchainService.getAdminAddress();
-            const { contractAddress } = await this.blockchainService.deployBettingContract(
-                `${raw.homeTeamName} vs ${raw.awayTeamName}`,
-                ownerAddress
-            );
-            await this.blockchainService.setupDefaultMarkets(contractAddress, {
-                isKnockout: raw.isKnockout === true,
-            });
-            const matchWithContract = Match.reconstitute({
-                ...raw,
-                bettingContractAddress: contractAddress,
-                updatedAt: this.clock.now(),
-            });
-            await this.matchRepository.update(matchWithContract);
-            logger.info('Betting contract deployed', { matchId: raw.apiFootballId, contractAddress });
-            return contractAddress;
-        } catch (err) {
-            logger.error('Betting contract deployment failed', {
-                matchId: raw.apiFootballId,
-                error: err instanceof Error ? err.message : String(err),
-            });
-            return null;
-        }
+        await this.matchRepository.save(newMatch);
     }
 }

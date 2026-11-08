@@ -30,7 +30,7 @@ export function LiveSidebar({ walletAddress, contractAddress, homeTeam, awayTeam
       />
       <SidebarTabs contractAddress={contractAddress} walletAddress={wallet} match={match} {...teams} />
       <PoolStats contractAddress={contractAddress} {...teams} />
-      <PoolInfo contractAddress={contractAddress} kickoffAt={match.kickoffAt} />
+      <PoolInfo contractAddress={contractAddress} kickoffAt={match.kickoffAt} openedAt={match.bettingOpenedAt ?? null} />
     </aside>
   );
 }

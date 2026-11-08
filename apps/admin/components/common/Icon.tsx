@@ -25,6 +25,7 @@ const PATHS = {
   clock: <><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></>,
   activity: <path d="M22 12h-4l-3 9L9 3l-3 9H2" />,
   search: <><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></>,
+  x: <><path d="M18 6 6 18" /><path d="m6 6 12 12" /></>,
   rotateCcw: <><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></>,
   logOut: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /></>,
   chevronRight: <path d="m9 18 6-6-6-6" />,

@@ -30,6 +30,8 @@ export const JobLocks = {
   cloudflareReconcile:  { key: baseKey('cloudflare-reconcile'),  ttlSeconds: 300 } satisfies JobLockConfig,
   advanceEpoch:         { key: baseKey('advance-epoch'),         ttlSeconds: 300 } satisfies JobLockConfig,
   liftExpiredBans:      { key: baseKey('lift-expired-bans'),     ttlSeconds: 60  } satisfies JobLockConfig,
+  // One operation can wait several receipts (deploy + seed + open); the watchdog renews beyond.
+  matchOperations:      { key: baseKey('match-operations'),      ttlSeconds: 300 } satisfies JobLockConfig,
 } as const;
 
 /** Per-indexer lock key. Watchdog renews automatically at TTL/3. */

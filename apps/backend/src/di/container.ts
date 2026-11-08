@@ -6,7 +6,11 @@ import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { IPredictionRepository } from '@chiliztv/domain/predictions/repositories/IPredictionRepository';
 import { SupabasePredictionRepository } from '../infrastructure/persistence/repositories/SupabasePredictionRepository';
 import { IMatchRepository } from '@chiliztv/domain/matches/repositories/IMatchRepository';
+import type { IMatchDeploymentRepository } from '@chiliztv/domain/matches/repositories/IMatchDeploymentRepository';
+import type { IMatchOperationRepository } from '@chiliztv/domain/matches/repositories/IMatchOperationRepository';
 import { SupabaseMatchRepository } from '../infrastructure/persistence/repositories/SupabaseMatchRepository';
+import { SupabaseMatchDeploymentRepository } from '../infrastructure/persistence/repositories/SupabaseMatchDeploymentRepository';
+import { SupabaseMatchOperationRepository } from '../infrastructure/persistence/repositories/SupabaseMatchOperationRepository';
 import { IChatRepository } from '@chiliztv/domain/chat/repositories/IChatRepository';
 import { SupabaseChatRepository } from '../infrastructure/persistence/repositories/SupabaseChatRepository';
 import { IReportRepository } from '@chiliztv/domain/reporting/repositories/IReportRepository';
@@ -206,6 +210,12 @@ import { ScryptAccessCodeVerifier } from '../infrastructure/access/ScryptAccessC
 // ─── Infrastructure — Cache (Redis or Noop) ─────────────────────────────────
 import { ICacheService } from '@chiliztv/domain/shared/ports/ICacheService';
 import { ILockService } from '@chiliztv/domain/shared/ports/ILockService';
+import type { ISignerLock } from '@chiliztv/domain/shared/ports/ISignerLock';
+import { RedisSignerLock } from '../infrastructure/blockchain/signer/RedisSignerLock';
+import type { IBettingChainRegistry } from '@chiliztv/domain/shared/ports/IBettingChainRegistry';
+import type { IBettingDeploymentService } from '@chiliztv/domain/shared/ports/IBettingDeploymentService';
+import { NetworkBettingChainRegistry } from '../infrastructure/blockchain/NetworkBettingChainRegistry';
+import { ViemBettingDeploymentService } from '../infrastructure/blockchain/services/ViemBettingDeploymentService';
 import { IRateLimitService } from '@chiliztv/domain/shared/ports/IRateLimitService';
 import { RedisCacheService } from '../infrastructure/cache/RedisCacheService';
 import { RedisLockService } from '../infrastructure/cache/RedisLockService';
@@ -255,7 +265,6 @@ import { UserController } from '../presentation/http/controllers/user.controller
 import { PricesController } from '../presentation/http/controllers/prices.controller';
 
 // ─── Presentation — CLI Commands ─────────────────────────────────────────────
-import { DeployMissingContractsCommand } from '../presentation/cli/commands/DeployMissingContractsCommand';
 import { SetupMarketsCommand } from '../presentation/cli/commands/SetupMarketsCommand';
 import { TestMatchLifecycleCommand } from '../presentation/cli/commands/TestMatchLifecycleCommand';
 import { ScenarioCommand } from '../presentation/cli/commands/ScenarioCommand';
@@ -286,10 +295,16 @@ export function setupDependencyInjection(): void {
     container.registerSingleton<ILockService>(TOKENS.ILockService, NoopLockService);
     container.registerSingleton<IRateLimitService>(TOKENS.IRateLimitService, NoopRateLimitService);
   }
+  // After ILockService: falls back to sending unlocked when Redis errors.
+  container.registerSingleton<ISignerLock>(TOKENS.ISignerLock, RedisSignerLock);
+  container.registerSingleton<IBettingChainRegistry>(TOKENS.IBettingChainRegistry, NetworkBettingChainRegistry);
+  container.registerSingleton<IBettingDeploymentService>(TOKENS.IBettingDeploymentService, ViemBettingDeploymentService);
 
   // ─── Repositories ──────────────────────────────────────────────────────────
   container.registerSingleton<IPredictionRepository>(TOKENS.IPredictionRepository, SupabasePredictionRepository);
   container.registerSingleton<IMatchRepository>(TOKENS.IMatchRepository, SupabaseMatchRepository);
+  container.registerSingleton<IMatchDeploymentRepository>(TOKENS.IMatchDeploymentRepository, SupabaseMatchDeploymentRepository);
+  container.registerSingleton<IMatchOperationRepository>(TOKENS.IMatchOperationRepository, SupabaseMatchOperationRepository);
   container.registerSingleton<IChatRepository>(TOKENS.IChatRepository, SupabaseChatRepository);
   container.registerSingleton<IWaitlistRepository>(TOKENS.IWaitlistRepository, SupabaseWaitlistRepository);
   container.registerSingleton<IStreamRepository>(TOKENS.IStreamRepository, SupabaseStreamRepository);
@@ -465,7 +480,6 @@ export function setupDependencyInjection(): void {
   container.registerSingleton(LeaderboardIndexer);
 
   // ─── Presentation — CLI Commands ───────────────────────────────────────────
-  container.registerSingleton(DeployMissingContractsCommand);
   container.registerSingleton(SetupMarketsCommand);
   container.registerSingleton(TestMatchLifecycleCommand);
   container.registerSingleton(ScenarioCommand);

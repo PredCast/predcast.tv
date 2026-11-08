@@ -47,8 +47,14 @@ router.get('/players/:wallet', requireAdmin('moderator'), directory.player.bind(
 router.get('/streamers', requireAdmin('moderator'), directory.streamers.bind(directory));
 router.get('/matches', requireAdmin('admin'), directory.matches.bind(directory));
 
-// ── Markets — manual on-chain ops (admin+, audited) ────────────────────────
+// ── Markets — manual deployment and publication (admin+, audited) ─────────
+// `:id` is the API-Football id. On-chain work is queued and run by the workers.
+router.get('/deployment-config', requireAdmin('admin'), markets.deploymentConfig.bind(markets));
+router.get('/match-operations/:operationId', requireAdmin('admin'), markets.operation.bind(markets));
 router.post('/matches/:id/deploy', requireAdmin('admin'), markets.deploy.bind(markets));
+router.post('/matches/:id/retry-setup', requireAdmin('admin'), markets.retrySetup.bind(markets));
+router.post('/matches/:id/publish', requireAdmin('admin'), markets.publish.bind(markets));
+router.post('/matches/:id/unpublish', requireAdmin('admin'), markets.unpublish.bind(markets));
 router.post('/matches/:id/close-markets', requireAdmin('admin'), markets.closeMarkets.bind(markets));
 
 export { router as adminRoutes };

@@ -1,52 +1,83 @@
 'use client';
 
 import { toast } from 'sonner';
+import type { AdminMatchRowDto } from '@chiliztv/shared';
 
-import type { AdminMatchSummaryDto } from '@/lib/api/endpoints/directory';
-import { useCloseMatchMarkets, useDeployMatchContract } from '@/hooks/api/useAdminMatches';
+import { useCloseMatchMarkets, usePublishMatch, useRetryMarketsSetup } from '@/hooks/api/useAdminMatches';
+import { DEPLOY_BLOCKED_LABELS, apiErrorMessage, isOperationActive, publicationOf } from '@/lib/markets/labels';
 import { ConfirmActionButton } from '@/components/common/ConfirmActionButton';
+import { OperationBadge } from '@/components/markets/OperationBadge';
 
 const FINISHED = new Set(['FT', 'AET', 'PEN', 'CANC', 'ABD', 'AWD', 'WO']);
+const primary =
+  'font-mono-ctv rounded-md bg-[#E8001D] px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-white hover:bg-[#FF1737] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8001D]';
+const secondary =
+  'font-mono-ctv rounded-md border border-[#2A2A2A] px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-white/75 hover:border-[#3A3A3A] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8001D]';
 
-function apiError(err: unknown): string {
-  const data = (err as { response?: { data?: { error?: { message?: string } } } }).response?.data;
-  return data?.error?.message ?? 'Request failed';
+interface MatchRowActionsProps {
+  readonly match: AdminMatchRowDto;
+  readonly onDeploy: (match: AdminMatchRowDto) => void;
+  readonly onUnpublish: (match: AdminMatchRowDto) => void;
 }
 
-export function MatchRowActions({ match }: Readonly<{ match: AdminMatchSummaryDto }>) {
-  const deploy = useDeployMatchContract();
+export function MatchRowActions({ match, onDeploy, onUnpublish }: Readonly<MatchRowActionsProps>) {
+  const publish = usePublishMatch();
+  const retry = useRetryMarketsSetup();
   const close = useCloseMatchMarkets();
+  const id = match.apiFootballId;
+  const busy = isOperationActive(match.latestOperation);
+  const finished = FINISHED.has(match.status);
+  const publication = publicationOf(match);
+  const notify = (ok: string) => ({ onSuccess: () => toast.success(ok), onError: (err: unknown) => toast.error(apiErrorMessage(err)) });
 
-  if (FINISHED.has(match.status)) return null;
+  if (busy) return <OperationBadge operation={match.latestOperation} />;
 
-  if (!match.bettingContractAddress) {
-    return (
-      <ConfirmActionButton
-        label="Deploy"
-        confirmLabel="Confirm deploy?"
-        pending={deploy.isPending}
-        onConfirm={() =>
-          deploy.mutate(match.id, {
-            onSuccess: (res) => toast.success(`Contract deployed ${res.data.contractAddress.slice(0, 10)}…`),
-            onError: (err) => toast.error(apiError(err)),
-          })
-        }
-      />
+  if (publication === 'not_deployed') {
+    const blocked = match.deployBlockedReason;
+    return blocked ? (
+      <span className="font-mono-ctv text-[9px] uppercase tracking-[0.1em] text-white/35">{DEPLOY_BLOCKED_LABELS[blocked] ?? blocked}</span>
+    ) : (
+      <button type="button" className={primary} onClick={() => onDeploy(match)}>
+        Deploy
+      </button>
     );
   }
 
+  // A deploy interrupted before the markets opened leaves a contract never opened nor published;
+  // legacy matches (published by migration 041, no opening date) are complete.
+  const setupIncomplete =
+    match.latestOperation?.status === 'failed' || (!match.bettingOpenedAt && !match.publishedAt);
   return (
-    <ConfirmActionButton
-      label="Close markets"
-      confirmLabel="Confirm close?"
-      pending={close.isPending}
-      danger
-      onConfirm={() =>
-        close.mutate(match.id, {
-          onSuccess: (res) => toast.success(`${res.data.closed} market(s) closed, ${res.data.skipped} skipped`),
-          onError: (err) => toast.error(apiError(err)),
-        })
-      }
-    />
+    <span className="flex flex-wrap justify-end gap-1.5">
+      {setupIncomplete && !finished && (
+        <ConfirmActionButton
+          label="Retry setup"
+          confirmLabel="Confirm retry?"
+          pending={retry.isPending}
+          onConfirm={() => retry.mutate(id, notify('Markets setup queued'))}
+        />
+      )}
+      {publication === 'hidden' ? (
+        <ConfirmActionButton
+          label="Publish"
+          confirmLabel="Confirm publish?"
+          pending={publish.isPending}
+          onConfirm={() => publish.mutate(id, notify('Match published in the app'))}
+        />
+      ) : (
+        <button type="button" className={secondary} onClick={() => onUnpublish(match)}>
+          Unpublish
+        </button>
+      )}
+      {!finished && (
+        <ConfirmActionButton
+          label="Close markets"
+          confirmLabel="Confirm close?"
+          pending={close.isPending}
+          danger
+          onConfirm={() => close.mutate(id, notify('Markets closed'))}
+        />
+      )}
+    </span>
   );
 }

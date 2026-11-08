@@ -26,6 +26,9 @@ importers:
 
   apps/admin:
     dependencies:
+      '@chiliztv/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@chiliztv/ui':
         specifier: workspace:*
         version: link:../../packages/ui

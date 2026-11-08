@@ -1,5 +1,6 @@
 import type { ReportsFilter } from '@/lib/api/endpoints/moderation';
 import type { PageQuery } from '@/lib/api/endpoints/directory';
+import type { MatchListParams } from '@/lib/api/endpoints/markets';
 
 /** Hierarchical query keys — single source for cross-hook invalidations. */
 export const queryKeys = {
@@ -23,6 +24,11 @@ export const queryKeys = {
     all: ['streamers'] as const,
     list: (query: PageQuery) => ['streamers', 'list', query] as const,
   },
-  adminMatches: ['admin-matches'] as const,
+  markets: {
+    all: ['markets'] as const,
+    list: (params: MatchListParams) => ['markets', 'list', params] as const,
+    deploymentConfig: ['markets', 'deployment-config'] as const,
+    operation: (id: string) => ['markets', 'operation', id] as const,
+  },
   overview: ['overview'] as const,
 } as const;

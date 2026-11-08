@@ -1,74 +1,9 @@
 import type { MatchPhaseTimes } from '../policies/matchPhaseTimes';
+import { matchToJSON } from './matchJson';
+import type { MatchProps } from './MatchProps';
+import { finalScoreOf, penaltyWinnerOf, wentToExtraTime, wentToPenalties } from './matchScore';
 
-export interface MatchProps {
-  id: number;
-  apiFootballId: number;
-  homeTeamId: number;
-  homeTeamName: string;
-  homeTeamLogo?: string;
-  awayTeamId: number;
-  awayTeamName: string;
-  awayTeamLogo?: string;
-  leagueId: number;
-  leagueName: string;
-  leagueLogo?: string;
-  leagueCountry?: string;
-  season: number;
-  status: string;
-  matchDate: Date;
-  venue?: string;
-  homeScore?: number;
-  awayScore?: number;
-  /** Last 5 results from the home team's perspective (oldest → newest). NULL when no API data. */
-  homeForm?: string | null;
-  /** Last 5 results from the away team's perspective. */
-  awayForm?: string | null;
-  /**
-   * In-game minute persisted from the latest API-Football snapshot. NEVER
-   * overwritten with null — once a non-null value is captured we keep it
-   * across HT / post-FT so the UI minute counter doesn't reset visually.
-   */
-  elapsed?: number | null;
-  /**
-   * Score at halftime (45'). Monotone — once captured, never reset to null
-   * (HT pause briefly clears the upstream field). Required to resolve the
-   * HALFTIME market early via {@link ResolveHalftimeMarketUseCase}.
-   */
-  htHomeScore?: number | null;
-  htAwayScore?: number | null;
-  /**
-   * Aggregate score after extra time (90' + ET). NULL for FT matches that
-   * never reached AET. Used by display layer ("3 — 2 a.e.t.") and by
-   * FULL_TIME_WINNER market resolution (knockout-only).
-   */
-  aetHomeScore?: number | null;
-  aetAwayScore?: number | null;
-  /**
-   * Penalty shootout result (e.g. 5-4). NULL when the fixture didn't reach
-   * a shootout. The score reflects the shootout itself, NOT an aggregate.
-   * Used by display ("5 — 4 pen (1 — 1)") and to derive FULL_TIME_WINNER
-   * when the match went all the way to penalties.
-   */
-  penHomeScore?: number | null;
-  penAwayScore?: number | null;
-  /**
-   * `true` when the fixture can potentially go to extra time / penalties
-   * (cup competitions, knockout phases of league formats). Computed ONCE at
-   * match create via the `KnockoutMatchPolicy` and never updated on
-   * subsequent re-syncs — see migration 035 and SyncMatchesUseCase for the
-   * rationale (proxy is deployed at create time with or without the
-   * FULL_TIME_WINNER market; flipping the flag post-deploy would create
-   * entity↔contract drift).
-   */
-  isKnockout?: boolean;
-  /** Phase starts (migration 040); merged monotonically via `nextPhaseTimes`. */
-  firstHalfStartedAt?: Date | null;
-  halftimeStartedAt?: Date | null;
-  secondHalfStartedAt?: Date | null;
-  bettingContractAddress?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
+export type { MatchProps } from './MatchProps';
 
 export class Match {
   private constructor(private readonly props: MatchProps) {}
@@ -102,59 +37,22 @@ export class Match {
 
   /** `true` when the match reached extra time (AET) or penalty shootout (PEN). */
   wentToExtraTime(): boolean {
-    return this.props.status === 'AET' || this.props.status === 'PEN';
+    return wentToExtraTime(this.props.status);
   }
 
   /** `true` when the match was decided by a penalty shootout. */
   wentToPenalties(): boolean {
-    return this.props.status === 'PEN';
+    return wentToPenalties(this.props.status);
   }
 
-  /**
-   * Returns the **physical** final score after extra time.
-   *
-   * Convention: for AET/PEN matches, returns the AET aggregate (1-1 at 90' +
-   * 2-1 scored in extra time → `{home:3, away:2}`). Does NOT include the
-   * penalty shootout result in the goal count — that's exposed separately via
-   * {@link getPenaltyWinner}.
-   *
-   * Display rule: this score is what gets shown as `3 — 2 a.e.t.` in the UI.
-   *
-   * Settlement rule: the existing WINNER market still uses the 90' score
-   * ({@link getHomeScore} / {@link getAwayScore}), NOT this method, to match
-   * bookmaker convention. Use this only for display and for FULL_TIME_WINNER
-   * market resolution.
-   *
-   * Falls back to the 90' score when AET fields are absent (FT match or pre-
-   * migration row).
-   */
+  /** Physical final score after extra time; see {@link finalScoreOf} for the display / settlement rules. */
   getFinalScore(): { home: number; away: number } | null {
-    const home90 = this.props.homeScore;
-    const away90 = this.props.awayScore;
-    if (this.wentToExtraTime()) {
-      const aetHome = this.props.aetHomeScore;
-      const aetAway = this.props.aetAwayScore;
-      if (aetHome != null && aetAway != null) {
-        return { home: aetHome, away: aetAway };
-      }
-    }
-    if (home90 == null || away90 == null) return null;
-    return { home: home90, away: away90 };
+    return finalScoreOf(this.props);
   }
 
-  /**
-   * Returns `'home'` / `'away'` when the match was decided on penalties and
-   * the shootout score is known; `null` otherwise (FT, AET-resolved, or PEN
-   * with missing shootout score). Used by FULL_TIME_WINNER market resolution.
-   */
+  /** Shootout winner when decided on penalties; see {@link penaltyWinnerOf}. */
   getPenaltyWinner(): 'home' | 'away' | null {
-    if (!this.wentToPenalties()) return null;
-    const home = this.props.penHomeScore;
-    const away = this.props.penAwayScore;
-    if (home == null || away == null) return null;
-    if (home > away) return 'home';
-    if (away > home) return 'away';
-    return null; // degenerate — shootouts can't tie
+    return penaltyWinnerOf(this.props);
   }
 
   /** `true` for matches that can potentially go to AET/PEN (cups + league knockout phases). */
@@ -199,6 +97,18 @@ export class Match {
 
   getBettingContractAddress(): string | undefined {
     return this.props.bettingContractAddress;
+  }
+
+  getBettingChainId(): number | null {
+    return this.props.bettingChainId ?? null;
+  }
+
+  getBettingOpenedAt(): Date | null {
+    return this.props.bettingOpenedAt ?? null;
+  }
+
+  getPublishedAt(): Date | null {
+    return this.props.publishedAt ?? null;
   }
 
   getHomeForm(): string | null {
@@ -306,47 +216,6 @@ export class Match {
   }
 
   toJSON(): any {
-    return {
-      id: this.props.id,
-      apiFootballId: this.props.apiFootballId,
-      homeTeam: {
-        id: this.props.homeTeamId,
-        name: this.props.homeTeamName,
-        logo: this.props.homeTeamLogo,
-      },
-      awayTeam: {
-        id: this.props.awayTeamId,
-        name: this.props.awayTeamName,
-        logo: this.props.awayTeamLogo,
-      },
-      league: {
-        id: this.props.leagueId,
-        name: this.props.leagueName,
-        logo: this.props.leagueLogo,
-      },
-      season: this.props.season,
-      status: this.props.status,
-      matchDate: this.props.matchDate,
-      venue: this.props.venue,
-      score: this.props.homeScore !== undefined && this.props.awayScore !== undefined
-        ? { home: this.props.homeScore, away: this.props.awayScore }
-        : null,
-      homeForm: this.props.homeForm ?? null,
-      awayForm: this.props.awayForm ?? null,
-      elapsed: this.props.elapsed ?? null,
-      htHomeScore: this.props.htHomeScore ?? null,
-      htAwayScore: this.props.htAwayScore ?? null,
-      aetHomeScore: this.props.aetHomeScore ?? null,
-      aetAwayScore: this.props.aetAwayScore ?? null,
-      penHomeScore: this.props.penHomeScore ?? null,
-      penAwayScore: this.props.penAwayScore ?? null,
-      isKnockout: this.props.isKnockout === true,
-      finalScore: this.getFinalScore(),
-      penaltyWinner: this.getPenaltyWinner(),
-      ...this.getPhaseTimes(),
-      bettingContractAddress: this.props.bettingContractAddress,
-      createdAt: this.props.createdAt,
-      updatedAt: this.props.updatedAt,
-    };
+    return matchToJSON(this.props);
   }
 }

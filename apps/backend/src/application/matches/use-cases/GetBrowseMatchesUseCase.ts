@@ -15,6 +15,7 @@ import {
   StreamPreviewDto,
 } from '@chiliztv/shared/dto/matches/BrowseMatchesDto';
 import { MatchCacheKeys, MatchCacheTtl } from '../MatchCacheKeys';
+import type { IBettingChainRegistry } from '@chiliztv/domain/shared/ports/IBettingChainRegistry';
 
 @injectable()
 export class GetBrowseMatchesUseCase {
@@ -29,6 +30,8 @@ export class GetBrowseMatchesUseCase {
     private readonly cache: ICacheService,
     @inject(TOKENS.IFootballApiService)
     private readonly footballApi: IFootballApiService,
+    @inject(TOKENS.IBettingChainRegistry)
+    private readonly chains: IBettingChainRegistry,
   ) {}
 
   async execute(): Promise<BrowseMatchesResponseDto> {
@@ -43,7 +46,7 @@ export class GetBrowseMatchesUseCase {
 
   private async build(): Promise<BrowseMatchesResponseDto> {
     const now = this.clock.now();
-    const matches = await this.matchRepository.findFromDate(
+    const matches = await this.matchRepository.findVisibleFromDate(
       MatchFetchWindow.displayFrom(now),
     );
 
@@ -66,6 +69,8 @@ export class GetBrowseMatchesUseCase {
 
     for (const match of matches) {
       const props = match.toJSON();
+      // findVisibleFromDate only returns deployed matches; guards the non-null wire contract anyway.
+      if (!props.bettingContractAddress) continue;
       const leagueId: number = props.league.id;
 
       if (!leaguesMap.has(leagueId)) {
@@ -133,7 +138,9 @@ export class GetBrowseMatchesUseCase {
         homeForm: props.homeForm ?? null,
         awayForm: props.awayForm ?? null,
         elapsed: props.elapsed ?? null,
-        contractAddress: props.bettingContractAddress ?? null,
+        contractAddress: String(props.bettingContractAddress),
+        bettingChainId: props.bettingChainId ?? this.chains.defaultChain().chainId,
+        bettingOpenedAt: props.bettingOpenedAt instanceof Date ? props.bettingOpenedAt.toISOString() : props.bettingOpenedAt ?? null,
         streamsPreview,
       };
 

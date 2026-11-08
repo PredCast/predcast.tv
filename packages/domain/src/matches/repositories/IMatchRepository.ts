@@ -11,13 +11,13 @@ export interface IMatchRepository {
   findAll(): Promise<Match[]>;
   findByDateRange(from: Date, to: Date): Promise<Match[]>;
   /**
-   * Matches with `matchDate >= from`, no upper bound. Used by the front-facing
-   * display path so every future match is surfaced regardless of how far out
-   * its kickoff sits; the sync job alone caps how far ahead we ingest.
+   * App-visible matches (deployed + published, filtered in SQL) with `matchDate >= from`, no upper
+   * bound: every future event is surfaced however far out its kickoff sits.
    */
-  findFromDate(from: Date): Promise<Match[]>;
+  findVisibleFromDate(from: Date): Promise<Match[]>;
   findById(id: number): Promise<Match | null>;
   findByApiFootballId(apiId: number): Promise<Match | null>;
+  /** App endpoints: the next three return app-visible matches only (deployed + published). */
   findByLeagueId(leagueId: number): Promise<Match[]>;
   findLive(): Promise<Match[]>;
   findUpcoming(limit?: number): Promise<Match[]>;
@@ -32,6 +32,11 @@ export interface IMatchRepository {
    * @param kickoffBufferSeconds Seconds before kickoff to include upcoming matches.
    */
   findOpenContractsCandidates(now: Date, kickoffBufferSeconds: number): Promise<Match[]>;
+  /**
+   * Whether a deployed match may be in play: a live status, or a kickoff in [from, to] and not
+   * finished / cancelled. Gates the paid live poll.
+   */
+  hasDeployedMatchInPlay(from: Date, to: Date): Promise<boolean>;
   save(match: Match): Promise<Match>;
   saveMany(matches: Match[]): Promise<Match[]>;
   update(match: Match): Promise<Match>;

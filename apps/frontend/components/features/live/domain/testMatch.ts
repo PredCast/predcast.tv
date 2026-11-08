@@ -55,6 +55,8 @@ export function buildTestMatch({ proxy, matchName, sportType, kickoffIso }: OnCh
     firstHalfStartedAt: null,
     halftimeStartedAt: null,
     secondHalfStartedAt: null,
+    bettingChainId: null,
+    bettingOpenedAt: null,
   };
   if (proxy && matchName) {
     const { home, away } = splitTeamNames(matchName);

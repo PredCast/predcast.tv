@@ -37,6 +37,8 @@ function transformMatch(m: MatchResponseDto): Match {
     firstHalfStartedAt: m.firstHalfStartedAt,
     halftimeStartedAt: m.halftimeStartedAt,
     secondHalfStartedAt: m.secondHalfStartedAt,
+    bettingChainId: m.bettingChainId,
+    bettingOpenedAt: m.bettingOpenedAt,
   };
 }
 

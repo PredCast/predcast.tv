@@ -1,4 +1,4 @@
-import { injectable } from 'tsyringe';
+import { injectable, inject } from 'tsyringe';
 import { createWalletClient, createPublicClient, http } from 'viem';
 import { privateKeyToAccount, nonceManager } from 'viem/accounts';
 import { chilizConfig, networkType } from '../../config/chiliz.config';
@@ -10,6 +10,9 @@ import {
     FOOTBALL_PARI_MATCH_INLINE_ABI,
 } from '@chiliztv/blockchain';
 import { logger } from '../../logging/logger';
+import { TOKENS } from '@chiliztv/domain/shared/tokens';
+import type { ISignerLock } from '@chiliztv/domain/shared/ports/ISignerLock';
+import { withSignerLock } from '../signer/withSignerLock';
 
 const ADMIN_PRIVATE_KEY = process.env.ADMIN_PRIVATE_KEY as `0x${string}`;
 const TX_DELAY_MS = 4000;
@@ -60,21 +63,21 @@ export class PariMatchResolutionAdapter {
     private publicClient: ReturnType<typeof createPublicClient>;
     private chain: typeof chilizSpicy | typeof chilizMainnet;
 
-    constructor() {
+    constructor(@inject(TOKENS.ISignerLock) signerLock: ISignerLock) {
         if (!ADMIN_PRIVATE_KEY) {
             throw new Error('ADMIN_PRIVATE_KEY environment variable is required for match resolution');
         }
         this.chain = chainFor(networkType);
         const account = privateKeyToAccount(ADMIN_PRIVATE_KEY, { nonceManager });
-        this.walletClient = createWalletClient({
-            account,
-            chain: this.chain,
-            transport: http(chilizConfig.rpcUrl),
-        });
         this.publicClient = createPublicClient({
             chain: this.chain,
             transport: http(chilizConfig.rpcUrl),
         });
+        this.walletClient = withSignerLock(createWalletClient({
+            account,
+            chain: this.chain,
+            transport: http(chilizConfig.rpcUrl),
+        }), this.publicClient, signerLock);
         logger.info('PariMatchResolutionAdapter initialized', {
             network: networkType,
             chain: this.chain.name,

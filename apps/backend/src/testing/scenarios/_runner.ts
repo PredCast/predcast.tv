@@ -1,6 +1,8 @@
 import { container } from '../../infrastructure/config/di-container';
 import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import type { IMatchRepository } from '@chiliztv/domain/matches/repositories/IMatchRepository';
+import type { IMatchDeploymentRepository } from '@chiliztv/domain/matches/repositories/IMatchDeploymentRepository';
+import type { INetworkConfig } from '@chiliztv/domain/shared/ports/INetworkConfig';
 import type { IBlockchainService } from '@chiliztv/domain/shared/ports/IBlockchainService';
 import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import { logger } from '../../infrastructure/logging/logger';
@@ -18,6 +20,8 @@ export async function runScenario(
 ): Promise<MatchScenarioOutcome> {
     const ctx: ScenarioContext = {
         matchRepo: container.resolve<IMatchRepository>(TOKENS.IMatchRepository),
+        deploymentRepo: container.resolve<IMatchDeploymentRepository>(TOKENS.IMatchDeploymentRepository),
+        chainId: container.resolve<INetworkConfig>(TOKENS.INetworkConfig).chainId,
         blockchain: container.resolve<IBlockchainService>(TOKENS.IBlockchainService),
         clock: container.resolve<IClock>(TOKENS.IClock),
         deployContracts: opts.deployContracts,

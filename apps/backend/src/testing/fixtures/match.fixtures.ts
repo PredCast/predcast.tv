@@ -18,6 +18,10 @@ export interface MatchFixtureOverride {
     venue?: string;
     /** When true, the seeded proxy includes the FULL_TIME_WINNER market (9 markets instead of 8). */
     isKnockout?: boolean;
+    bettingChainId?: number | null;
+    bettingOpenedAt?: Date | null;
+    /** Null hides the match from app users. */
+    publishedAt?: Date | null;
 }
 
 const FIXTURE_ID_START = 999000;
@@ -104,8 +108,21 @@ function buildMatch(args: BuildArgs, override?: MatchFixtureOverride): Match {
         awayForm: override?.awayForm ?? null,
         ...phaseTimesFor(kickoff, args.reached),
         bettingContractAddress: override?.bettingContractAddress,
+        bettingChainId: override?.bettingChainId ?? null,
+        bettingOpenedAt: override?.bettingOpenedAt ?? null,
+        publishedAt: override?.publishedAt ?? null,
     });
 }
+
+const FIXTURE_CONTRACT = '0x00000000000000000000000000000000000f1e7e';
+const FIXTURE_CHAIN_ID = 88882;
+const DEPLOYED_AT = new Date('2026-01-01T00:00:00Z');
+const DEPLOYED: MatchFixtureOverride = {
+    bettingContractAddress: FIXTURE_CONTRACT,
+    bettingChainId: FIXTURE_CHAIN_ID,
+    bettingOpenedAt: DEPLOYED_AT,
+    publishedAt: DEPLOYED_AT,
+};
 
 const MIN  = 60_000;
 const HOUR = 60 * MIN;
@@ -139,6 +156,12 @@ export const matchFixture = {
     abandoned:       (o?: MatchFixtureOverride) => buildMatch({ status: 'ABD', kickoffOffsetMs: -30 * MIN, score: { home: 1, away: 1 }, reached: 'first' }, o),
     awarded:         (o?: MatchFixtureOverride) => buildMatch({ status: 'AWD', kickoffOffsetMs: -2 * HOUR, score: { home: 3, away: 0 } }, o),
     walkover:        (o?: MatchFixtureOverride) => buildMatch({ status: 'WO',  kickoffOffsetMs: -2 * HOUR, score: { home: 3, away: 0 } }, o),
+    /** Upcoming, deployed by the admin and published: what app users see. */
+    deployedPublished:   (o?: MatchFixtureOverride) => buildMatch({ status: 'NS', kickoffOffsetMs: 60 * MIN }, { ...DEPLOYED, ...o }),
+    /** Deployed then hidden by the admin: gone from the app, bets still claimable. */
+    deployedUnpublished: (o?: MatchFixtureOverride) => buildMatch({ status: 'NS', kickoffOffsetMs: 60 * MIN }, { ...DEPLOYED, publishedAt: null, ...o }),
+    /** Synced from API-Football, never deployed: only the admin sees it. */
+    notDeployed:         (o?: MatchFixtureOverride) => buildMatch({ status: 'NS', kickoffOffsetMs: 3 * HOUR }, o),
 } as const;
 
 export type FixtureName = keyof typeof matchFixture;

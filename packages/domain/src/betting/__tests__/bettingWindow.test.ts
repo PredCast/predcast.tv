@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_BETTING_WINDOW_DAYS, fallbackBettingWindow, progress, remainingMs } from '../bettingWindow';
+import { DEFAULT_BETTING_WINDOW_DAYS, bettingWindow, fallbackBettingWindow, progress, remainingMs } from '../bettingWindow';
 
 const at = (iso: string) => new Date(iso);
 
@@ -47,5 +47,19 @@ describe('remainingMs', () => {
 
     it('never goes negative', () => {
         expect(remainingMs(at('2026-11-08T20:00:00Z'), at('2026-11-08T21:00:00Z'))).toBe(0);
+    });
+});
+
+describe('bettingWindow', () => {
+    const kickoff = at('2026-11-10T20:00:00Z');
+
+    it('opens when the markets opened and closes at the kickoff buffer', () => {
+        const w = bettingWindow(kickoff, at('2026-11-09T12:00:00Z'), 120);
+        expect(w.opensAt.toISOString()).toBe('2026-11-09T12:00:00.000Z');
+        expect(w.closesAt.toISOString()).toBe('2026-11-10T19:58:00.000Z');
+    });
+
+    it('falls back to kickoff minus the default window without an opening time', () => {
+        expect(bettingWindow(kickoff, null, 120)).toEqual(fallbackBettingWindow(kickoff, 120));
     });
 });
