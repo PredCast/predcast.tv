@@ -7,7 +7,7 @@ import { useAdminSession } from "@/providers/AdminSessionProvider";
 import { clearAdminToken } from "@/lib/api/auth";
 import { breadcrumbFor } from "@/lib/breadcrumb";
 import { roleLabel, roleTone, shortWallet } from "@/lib/ui/operator";
-import { useOverview } from "@/hooks/api/useOverview";
+import { useDashboardKpis } from "@/hooks/api/useDashboard";
 import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
 import { CopyButton } from "@/components/common/CopyButton";
@@ -17,10 +17,10 @@ export function TopBar() {
   const { wallet, role } = useAdminSession();
   const { handleLogOut } = useDynamicContext();
   const pathname = usePathname();
-  const { data: overview } = useOverview();
+  const { data: kpis } = useDashboardKpis();
 
   const { section, page } = breadcrumbFor(pathname);
-  const live = overview?.liveCount ?? 0;
+  const live = kpis?.liveMatches ?? 0;
 
   // The guard's effect sees the wallet disappear and falls back to the
   // connect screen; the JWT is cleared so the next wallet re-signs.

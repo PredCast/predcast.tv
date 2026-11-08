@@ -1,123 +1,69 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useIsFetching, useQueryClient } from '@tanstack/react-query';
 
-import { useOverview } from '@/hooks/api/useOverview';
 import { useAdminSession } from '@/providers/AdminSessionProvider';
-import { isAllowedForNav } from '@/lib/rbac';
-import { fmtUsdcCompact } from '@/lib/format/amounts';
-import { PageHeader } from '@/components/layout/PageHeader';
-import { StatTile } from '@/components/common/StatTile';
-import { Card } from '@/components/common/Card';
-import { EmptyState } from '@/components/common/EmptyState';
-import { LiveMatchCard } from './LiveMatchCard';
-import { AttentionQueueCard } from './AttentionQueueCard';
-import { ActivityFeedCard } from './ActivityFeedCard';
+import { kpiPersona } from '@/lib/dashboard/kpiTiles';
+import { queryKeys } from '@/lib/query/keys';
 
+import { ActivityFeedCard } from './ActivityFeedCard';
+import { AlertsPanel } from './AlertsPanel';
+import { AttentionQueueCard } from './AttentionQueueCard';
+import { DashboardHeader } from './DashboardHeader';
+import { DeployWalletCard } from './DeployWalletCard';
+import { EventsCard } from './EventsCard';
+import { KpiRow } from './KpiRow';
+import { LiveNowSection } from './LiveNowSection';
+import { OperationsCard } from './OperationsCard';
+import { SuggestionsCard } from './SuggestionsCard';
+import { SystemHealthCard } from './SystemHealthCard';
+
+/** Section order per persona (design: Main / Moderator / Finance boards). */
+const ORDER = {
+  admin: ['live', 'events', 'ops', 'health', 'activity'],
+  moderator: ['health', 'live', 'events', 'activity'],
+  finance: ['events', 'live', 'activity'],
+} as const;
 
 export function DashboardView() {
   const { role } = useAdminSession();
-  const { data, isLoading } = useOverview();
-  // Hydration safety — null on first paint, real clock after mount (CLAUDE.md §7.4).
-  const [now, setNow] = useState<Date | null>(null);
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => setNow(new Date()), []);
+  const persona = kpiPersona(role);
+  const qc = useQueryClient();
+  useIsFetching({ queryKey: queryKeys.dashboard.all });
+  const updatedAt = Math.max(0, ...qc.getQueryCache().findAll({ queryKey: queryKeys.dashboard.all }).map((q) => q.state.dataUpdatedAt));
 
-  const canModeration = isAllowedForNav(role, ['moderator']);
-  const canMarkets = isAllowedForNav(role, ['admin']);
-
-  const reports = data?.openReports ?? null;
-  const bans = data?.activeBans ?? null;
-  const liveNow = data?.liveNow ?? [];
-  const nextKickoff = data?.nextKickoffAt ? new Date(data.nextKickoffAt) : null;
-
-  return (
-    <div>
-      <PageHeader
-        eyebrow="Overview"
-        title="Match day"
-        right={
-          <span className="font-mono-ctv text-[10px] uppercase tracking-[0.14em] text-white/35">
-            {now
-              ? now.toLocaleString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
-              : '—'}
-          </span>
-        }
-      />
-
-      <div className="mt-5 grid grid-cols-4 gap-3">
-        <StatTile
-          label="Open reports"
-          value={reports ? String(reports.total) : '—'}
-          caption={
-            reports
-              ? reports.highSeverity > 0
-                ? `${reports.highSeverity} high severity · S4+`
-                : 'Queue is clear'
-              : 'Moderator scope'
-          }
-        />
-        <StatTile
-          label="Active bans"
-          value={bans ? String(bans.total) : '—'}
-          caption={bans ? (bans.permanent > 0 ? `${bans.permanent} permanent` : 'No permanent ban') : 'Moderator scope'}
-        />
-        <StatTile
-          label="Live matches"
-          value={String(data?.liveCount ?? 0)}
-          live={(data?.liveCount ?? 0) > 0}
-          caption={
-            (data?.liveCount ?? 0) > 0
-              ? 'In play right now'
-              : nextKickoff
-                ? `Next kickoff ${nextKickoff.toLocaleString('en-GB', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`
-                : 'No upcoming match synced'
-          }
-        />
-        <StatTile
-          label="24h volume"
-          value={data ? fmtUsdcCompact(data.volume24h) : '—'}
-          caption="USDC · staked last 24h"
-        />
-      </div>
-
-      {liveNow.length > 0 ? (
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          {liveNow.slice(0, 4).map((match) => (
-            <LiveMatchCard key={match.id} match={match} canMarkets={canMarkets} />
-          ))}
+  const sections = {
+    live: <LiveNowSection key="live" showMarketsLink={persona === 'admin'} />,
+    events:
+      persona === 'admin' ? (
+        <div key="events" className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+          <EventsCard />
+          <SuggestionsCard />
         </div>
       ) : (
-        !isLoading && (
-          <Card className="mt-3">
-            <EmptyState
-              title="No live matches right now"
-              hint={
-                nextKickoff
-                  ? `Next kickoff at ${nextKickoff.toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}. Markets can be deployed ahead of kickoff.`
-                  : 'Synced matches appear here as soon as they go live.'
-              }
-              action={
-                canMarkets ? (
-                  <Link
-                    href="/markets"
-                    className="font-mono-ctv inline-flex items-center gap-1.5 rounded-md border border-[#2A2A2A] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white/65 transition-colors hover:border-[#3A3A3A] hover:text-white"
-                  >
-                    View markets
-                  </Link>
-                ) : undefined
-              }
-              py="py-10"
-            />
-          </Card>
-        )
-      )}
-
-      <div className="mt-3 grid grid-cols-[1.25fr_1fr] gap-3">
-        {canModeration && <AttentionQueueCard />}
-        {data?.recentActivity != null && <ActivityFeedCard activity={data.recentActivity} />}
+        <EventsCard key="events" />
+      ),
+    ops: (
+      <div key="ops" className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <OperationsCard />
+        <DeployWalletCard />
       </div>
+    ),
+    health: (
+      <div key="health" className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+        <SystemHealthCard />
+        <AttentionQueueCard />
+      </div>
+    ),
+    activity: <ActivityFeedCard key="activity" />,
+  };
+
+  return (
+    <div className="flex flex-col gap-5">
+      <DashboardHeader updatedAt={updatedAt} />
+      <AlertsPanel />
+      <KpiRow />
+      {ORDER[persona].map((s) => sections[s])}
     </div>
   );
 }

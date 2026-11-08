@@ -1,53 +1,51 @@
 'use client';
 
-import Link from 'next/link';
-
-import { useReports } from '@/hooks/api/useReports';
+import { apiErrorMessage, apiRequestId } from '@/lib/api/errors';
+import { useNow } from '@/hooks/useNow';
+import { useDashboardModeration } from '@/hooks/api/useDashboard';
 import { Card } from '@/components/common/Card';
+import { CardError } from '@/components/common/CardError';
 import { CardHead } from '@/components/common/CardHead';
-import { TRow } from '@/components/common/TRow';
-import { EmptyState } from '@/components/common/EmptyState';
+import { CardLink } from '@/components/common/CardLink';
 import { Icon } from '@/components/common/Icon';
-import { SeverityBadge } from '@/components/moderation/SeverityBadge';
+import { Skeleton } from '@/components/common/Skeleton';
 
-const COLS = '48px minmax(0,1fr) 120px 70px 16px';
+import { ActiveBanRow } from './ActiveBanRow';
+import { QueueReportRow } from './QueueReportRow';
 
-function age(createdAt: string): string {
-  const mins = Math.max(0, Math.round((Date.now() - new Date(createdAt).getTime()) / 60_000));
-  if (mins < 60) return `${mins}m`;
-  return `${Math.round(mins / 60)}h`;
-}
+const SUB_HEAD = 'px-4 pb-1.5 pt-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-fg-meta';
 
-/** Top open reports, severity first — the queue the API already sorts. */
+/** Open reports by severity and the latest active bans (admin and moderator). */
 export function AttentionQueueCard() {
-  const { data, isLoading } = useReports({ status: 'open', cursor: null });
-  const top = data?.items.slice(0, 4) ?? [];
+  const { data, isLoading, error, refetch, isFetching } = useDashboardModeration(true);
+  const now = useNow();
 
   return (
-    <Card>
-      <CardHead
-        title="Needs attention"
-        count={isLoading ? undefined : (data?.items.length ?? 0)}
-        right={
-          <Link href="/moderation" className="font-mono-ctv text-[9px] font-bold uppercase tracking-[0.14em] text-white/40 hover:text-white">
-            Open queue →
-          </Link>
-        }
-      />
-      {!isLoading && top.length === 0 && (
-        <EmptyState icon="shieldCheck" title="Nothing needs review" hint="Open reports land here, sorted by severity." py="py-10" />
+    <Card as="section" label="Moderation" className="flex flex-col">
+      <CardHead title="Moderation" icon="flag" count={data ? `${data.openTotal} open` : undefined} right={<CardLink href="/moderation">Open queue</CardLink>} />
+      {isLoading && <Skeleton className="m-4 h-56" />}
+      {error && !data && (
+        <CardError title="Couldn't load moderation" detail={apiErrorMessage(error)} requestId={apiRequestId(error)} onRetry={() => void refetch()} retrying={isFetching} />
       )}
-      {top.map((report) => (
-        <Link key={report.id} href={`/moderation/reports/${report.id}`} className="block">
-          <TRow cols={COLS} accent={report.severity >= 4 ? '#E8001D' : undefined} className="cursor-pointer">
-            <SeverityBadge severity={report.severity} />
-            <span className="min-w-0 truncate text-white/85">{report.reasonCode}</span>
-            <span className="font-mono-ctv text-[10px] uppercase tracking-[0.12em] text-white/45">{report.targetType}</span>
-            <span className="font-mono-ctv text-right text-[11px] tabular-nums text-white/45">{age(report.createdAt)}</span>
-            <Icon n="chevronRight" s={12} className="text-white/25" />
-          </TRow>
-        </Link>
-      ))}
+      {data && (
+        <>
+          <div className={SUB_HEAD}>Needs attention · by severity</div>
+          {data.reports.length === 0 ? (
+            <p className="flex items-center gap-2.5 border-b border-line-subtle px-4 py-4 text-[14px] text-fg-body">
+              <Icon n="shieldCheck" s={16} className="text-positive" />
+              Queue is clear. New reports land here, sorted by severity.
+            </p>
+          ) : (
+            data.reports.map((r) => <QueueReportRow key={r.id} report={r} now={now} />)
+          )}
+          <div className={SUB_HEAD}>Active bans · {data.activeTotal}</div>
+          {data.bans.length === 0 ? (
+            <p className="px-4 pb-4 pt-1 text-[14px] text-fg-body">No active ban.</p>
+          ) : (
+            data.bans.map((b) => <ActiveBanRow key={b.id} ban={b} />)
+          )}
+        </>
+      )}
     </Card>
   );
 }

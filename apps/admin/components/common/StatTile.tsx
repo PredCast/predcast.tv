@@ -1,4 +1,5 @@
 import { Button } from './Button';
+import { Icon } from './Icon';
 import { Sparkline } from './Sparkline';
 
 export type DeltaTone = 'good' | 'bad' | 'flat';
@@ -20,6 +21,8 @@ interface StatTileProps {
   readonly series?: ReadonlyArray<number>;
   /** Red value and sparkline (live counters above zero). */
   readonly live?: boolean;
+  /** Definition shown on hover / to screen readers (e.g. what a fee figure includes). */
+  readonly hint?: string;
   readonly onRetry?: () => void;
 }
 
@@ -35,6 +38,7 @@ export function StatTile({
   caption,
   series,
   live = false,
+  hint,
   onRetry,
 }: Readonly<StatTileProps>) {
   const errored = state === 'error';
@@ -43,7 +47,15 @@ export function StatTile({
       className={`flex min-h-32 flex-col gap-2.5 rounded-card border bg-card px-4 pb-3 pt-3.5 ${errored ? 'border-accent/40' : 'border-line-subtle'}`}
       aria-busy={state === 'loading'}
     >
-      <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-fg-body">{label}</span>
+      <span className="flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-fg-body">
+        {label}
+        {hint && (
+          <span title={hint} className="inline-flex text-fg-meta">
+            <Icon n="info" s={12} />
+            <span className="sr-only">{hint}</span>
+          </span>
+        )}
+      </span>
       {state === 'loading' ? (
         <>
           <span className="pc-skel h-8 w-16" />

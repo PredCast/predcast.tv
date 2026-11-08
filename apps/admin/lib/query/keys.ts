@@ -2,6 +2,17 @@ import type { ReportsFilter } from '@/lib/api/endpoints/moderation';
 import type { PageQuery } from '@/lib/api/endpoints/directory';
 import type { MatchListParams } from '@/lib/api/endpoints/markets';
 
+export type DashboardCard =
+  | 'kpis'
+  | 'live'
+  | 'events'
+  | 'suggestions'
+  | 'operations'
+  | 'health'
+  | 'alerts'
+  | 'moderation'
+  | 'activity';
+
 /** Hierarchical query keys — single source for cross-hook invalidations. */
 export const queryKeys = {
   reports: {
@@ -31,6 +42,10 @@ export const queryKeys = {
     operation: (id: string) => ['markets', 'operation', id] as const,
   },
   overview: ['overview'] as const,
+  dashboard: {
+    all: ['dashboard'] as const,
+    card: (card: DashboardCard) => ['dashboard', card] as const,
+  },
   jobs: {
     all: ['jobs'] as const,
     list: ['jobs', 'list'] as const,
