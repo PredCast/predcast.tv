@@ -34,6 +34,7 @@ export const PRICE_CATALOG: ReadonlyArray<PriceCatalogEntry> = [
     { symbol: 'ASM',    coingeckoId: 'as-monaco-fan-token',               displayName: 'AS Monaco' },
     { symbol: 'LUFC',   coingeckoId: 'leeds-united-fan-token',            displayName: 'Leeds United' },
     { symbol: 'AVL',    coingeckoId: 'aston-villa-fan-token',             displayName: 'Aston Villa' },
+    { symbol: 'OM',     coingeckoId: 'olympique-de-marseille-fan-token',  displayName: 'Olympique de Marseille' },
 
     // Football — Brazil
     { symbol: 'MENGO',  coingeckoId: 'flamengo-fan-token',                displayName: 'Flamengo' },

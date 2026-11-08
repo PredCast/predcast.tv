@@ -50,28 +50,8 @@ export async function persistAndMaybeDeploy(
         await ctx.blockchain.setupDefaultMarkets(contractAddress, { isKnockout: json.isKnockout === true });
 
         const withContract = Match.reconstitute({
-            id: json.id,
-            apiFootballId: json.apiFootballId,
-            homeTeamId: json.homeTeam.id,
-            homeTeamName: json.homeTeam.name,
-            homeTeamLogo: json.homeTeam.logo,
-            awayTeamId: json.awayTeam.id,
-            awayTeamName: json.awayTeam.name,
-            awayTeamLogo: json.awayTeam.logo,
-            leagueId: json.league.id,
-            leagueName: json.league.name,
-            leagueLogo: json.league.logo,
-            leagueCountry: json.league.country,
-            season: json.season,
-            status: json.status,
-            matchDate: new Date(json.matchDate),
-            venue: json.venue,
-            homeScore: json.score?.home,
-            awayScore: json.score?.away,
-            homeForm: json.homeForm ?? null,
-            awayForm: json.awayForm ?? null,
+            ...saved.toRaw(),
             bettingContractAddress: contractAddress,
-            createdAt: new Date(json.createdAt),
             updatedAt: ctx.clock.now(),
         });
         await ctx.matchRepo.update(withContract);

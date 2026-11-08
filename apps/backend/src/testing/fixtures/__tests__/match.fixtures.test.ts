@@ -6,6 +6,7 @@ import {
     skipTakenTestMatchIds,
     type FixtureName,
 } from '../match.fixtures';
+import { TEAM_FIXTURES } from '../team.fixtures';
 
 const FIXTURE_NAMES: ReadonlyArray<FixtureName> = [
     'upcoming', 'kickoffImminent', 'firstHalf', 'halftime', 'secondHalf',
@@ -90,6 +91,36 @@ describe('nextTestMatchId', () => {
         nextTestMatchId();
         __resetTestMatchIdForTesting();
         expect(nextTestMatchId()).toBe(999000);
+    });
+});
+
+describe('matchFixture — real team identities', () => {
+    it('keeps the API-Football team ids used by the fan-token mapping', () => {
+        const json = matchFixture.upcoming({ homeTeam: TEAM_FIXTURES.PSG, awayTeam: TEAM_FIXTURES.OM }).toJSON();
+        expect(json.homeTeam).toMatchObject({ id: 85, name: 'Paris Saint-Germain' });
+        expect(json.awayTeam).toMatchObject({ id: 81, name: 'Olympique de Marseille' });
+    });
+});
+
+describe('matchFixture — phase start times', () => {
+    const kickoffAt = new Date('2026-11-07T20:00:00Z');
+
+    it('has no phase times before kick-off', () => {
+        expect(matchFixture.upcoming({ kickoffAt }).getPhaseTimes()).toEqual({
+            firstHalfStartedAt: null, halftimeStartedAt: null, secondHalfStartedAt: null,
+        });
+    });
+
+    it('starts the first half at kick-off and leaves the break unknown in 1H', () => {
+        const phases = matchFixture.firstHalf({ kickoffAt }).getPhaseTimes();
+        expect(phases.firstHalfStartedAt).toEqual(kickoffAt);
+        expect(phases.halftimeStartedAt).toBeNull();
+    });
+
+    it('records the break and the second half once 2H is reached', () => {
+        const phases = matchFixture.secondHalf({ kickoffAt }).getPhaseTimes();
+        expect(phases.halftimeStartedAt).toEqual(new Date('2026-11-07T20:47:00Z'));
+        expect(phases.secondHalfStartedAt).toEqual(new Date('2026-11-07T21:02:00Z'));
     });
 });
 

@@ -3,6 +3,7 @@ import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import { IMatchRepository } from '@chiliztv/domain/matches/repositories/IMatchRepository';
 import { IFootballApiService, RawMatch } from '@chiliztv/domain/shared/ports/IFootballApiService';
 import { Match } from '@chiliztv/domain/matches/entities/Match';
+import { nextPhaseTimes, phaseTimesEqual } from '@chiliztv/domain/matches/policies/matchPhaseTimes';
 import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import type { ICacheService } from '@chiliztv/domain/shared/ports/ICacheService';
 import { FIXED_LIST_KEYS, MatchCacheKeys } from '../MatchCacheKeys';
@@ -122,7 +123,11 @@ export class SyncLiveMatchesUseCase {
         const htChanged = halftimeNewlyKnown
             || (htNowKnown && (raw.htHomeScore !== json.htHomeScore || raw.htAwayScore !== json.htAwayScore));
 
-        if (!scoreChanged && !statusChanged && !elapsedChanged && !htChanged) {
+        const currentPhases = existing.getPhaseTimes();
+        const phases = nextPhaseTimes(currentPhases, raw.status, raw, this.clock.now());
+        const phasesChanged = !phaseTimesEqual(currentPhases, phases);
+
+        if (!scoreChanged && !statusChanged && !elapsedChanged && !htChanged && !phasesChanged) {
             return { mutated: false, halftimeNewlyKnown: false };
         }
 
@@ -150,6 +155,7 @@ export class SyncLiveMatchesUseCase {
             leagueCountry: raw.leagueCountry,
             season:        raw.season,
             matchDate:     raw.matchDate,
+            ...phases,
             createdAt:     new Date(json.createdAt),
             updatedAt:     this.clock.now(),
         });

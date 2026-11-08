@@ -151,6 +151,10 @@ import { PythPriceFeed } from '../infrastructure/external/adapters/PythPriceFeed
 import { RefreshTokenPricesUseCase } from '../application/prices/use-cases/RefreshTokenPricesUseCase';
 import { GetTokenPricesUseCase } from '../application/prices/use-cases/GetTokenPricesUseCase';
 import { IPriceFeedService, PRICE_FEEDS_TOKEN } from '@chiliztv/domain/shared/ports/IPriceFeedService';
+import { IPriceHistoryFeed, PRICE_HISTORY_FEEDS_TOKEN } from '@chiliztv/domain/prices/ports/IPriceHistoryFeed';
+import { CoinGeckoPriceHistoryFeed } from '../infrastructure/external/adapters/CoinGeckoPriceHistoryFeed';
+import { CoinGeckoHttpClient } from '../infrastructure/external/coingecko/CoinGeckoHttpClient';
+import { GetTokenPriceHistoryUseCase } from '../application/prices/use-cases/GetTokenPriceHistoryUseCase';
 
 // ─── Application — FanTokens ─────────────────────────────────────────────────
 import { GetUserFanTokenBalancesUseCase } from '../application/fan-tokens/use-cases/GetUserFanTokenBalancesUseCase';
@@ -395,6 +399,8 @@ export function setupDependencyInjection(): void {
   container.registerSingleton(UpsertUserProfileUseCase);
 
   // ─── Use Cases — Prices ────────────────────────────────────────────────────
+  // One CoinGecko transport: Demo key + monthly call counter shared by spot and history feeds.
+  container.registerSingleton(CoinGeckoHttpClient);
   container.registerSingleton(CoinGeckoPriceFeed);
   container.registerSingleton(PythPriceFeed);
   container.register<ReadonlyArray<IPriceFeedService>>(PRICE_FEEDS_TOKEN, {
@@ -402,6 +408,12 @@ export function setupDependencyInjection(): void {
   });
   container.registerSingleton(RefreshTokenPricesUseCase);
   container.registerSingleton(GetTokenPricesUseCase);
+  // Ordered: the first feed that supports (symbol, chainId) serves the history.
+  container.registerSingleton(CoinGeckoPriceHistoryFeed);
+  container.register<ReadonlyArray<IPriceHistoryFeed>>(PRICE_HISTORY_FEEDS_TOKEN, {
+    useFactory: (c) => [c.resolve(CoinGeckoPriceHistoryFeed)],
+  });
+  container.registerSingleton(GetTokenPriceHistoryUseCase);
 
   // ─── Use Cases — FanTokens ─────────────────────────────────────────────────
   container.registerSingleton(GetUserFanTokenBalancesUseCase);

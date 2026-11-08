@@ -4,6 +4,8 @@ import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import type { IFootballApiService } from '@chiliztv/domain/shared/ports/IFootballApiService';
 import type { Match } from '@chiliztv/domain/matches/entities/Match';
+import type { MatchResponseDto } from '@chiliztv/shared';
+import { toMatchResponseDto } from '../helpers/toMatchResponseDto';
 import { GetAllMatchesUseCase } from '../../../application/matches/use-cases/GetAllMatchesUseCase';
 import { GetLiveMatchesUseCase } from '../../../application/matches/use-cases/GetLiveMatchesUseCase';
 import { GetUpcomingMatchesUseCase } from '../../../application/matches/use-cases/GetUpcomingMatchesUseCase';
@@ -43,9 +45,10 @@ export class MatchController {
    * frontend can render a "Stale data" badge when API-Football is unreachable
    * or quota-exhausted. The signal is global (not per-match) so every match in
    * the same response carries the same value — cheap, no extra round-trip.
+   * Fan-token symbols come from the static team → token catalogue (null when none).
    */
-  private serialize(match: Match, stale: boolean): Record<string, unknown> {
-    return { ...match.toJSON(), dataStale: stale };
+  private serialize(match: Match, stale: boolean): MatchResponseDto {
+    return toMatchResponseDto(match, stale);
   }
 
   async getAllMatches(req: Request, res: Response, next: NextFunction): Promise<void> {

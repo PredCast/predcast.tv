@@ -4,6 +4,8 @@ export interface ApiFootballMatch {
         date: string;
         status: { short: string; elapsed: number | null };
         venue: { name: string };
+        /** Unix seconds at which each half kicked off; null until it does. */
+        periods?: { first: number | null; second: number | null };
     };
     teams: {
         home: { id: number; name: string; logo?: string };

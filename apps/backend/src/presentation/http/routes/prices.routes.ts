@@ -6,6 +6,7 @@ const router = Router();
 const pricesController = container.resolve(PricesController);
 
 router.get('/', pricesController.getAll.bind(pricesController));
+router.get('/:symbol/history', pricesController.getHistory.bind(pricesController));
 router.get('/:symbol', pricesController.getBySymbol.bind(pricesController));
 
 export { router as pricesRoutes };

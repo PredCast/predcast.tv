@@ -53,7 +53,7 @@ interface WinCardProps {
 /** Crest: real team logo when available, else the derived 3-letter code. */
 function Crest({ logo, code, size }: Readonly<{ logo: string | null; code: string; size: number }>) {
   return (
-    <div className={styles.crest} style={{ width: size, height: size }}>
+    <div className={logo ? styles.crestLogo : styles.crest} style={{ width: size, height: size }}>
       {logo ? (
         // crossOrigin so html-to-image can rasterise the crest without
         // tainting the canvas (needs the CDN to send CORS headers).

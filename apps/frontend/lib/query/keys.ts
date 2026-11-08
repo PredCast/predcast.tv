@@ -58,6 +58,10 @@ export const queryKeys = {
     count: (streamerId: string) => [...queryKeys.follows.all, 'count', streamerId] as const,
     following: (followerId: string) => [...queryKeys.follows.all, 'following', followerId] as const,
   },
+  prices: {
+    all: ['prices'] as const,
+    history: (symbol: string, range: string) => [...queryKeys.prices.all, 'history', symbol.toUpperCase(), range] as const,
+  },
   markets: {
     all: ['markets'] as const,
     pools: (contractAddress: string) => [...queryKeys.markets.all, 'pools', contractAddress.toLowerCase()] as const,

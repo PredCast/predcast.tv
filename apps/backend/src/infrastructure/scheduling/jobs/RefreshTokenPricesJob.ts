@@ -5,7 +5,8 @@ import { RefreshTokenPricesUseCase } from '../../../application/prices/use-cases
 import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import { logger } from '../../logging/logger';
 
-const DEFAULT_INTERVAL_MS = 5 * 60 * 1000;
+/** 10 min keeps the job within the CoinGecko Demo monthly credits next to the chart history. */
+const DEFAULT_INTERVAL_MS = 10 * 60 * 1000;
 const MIN_INTERVAL_MS = 60_000;
 
 /** Interval job — refreshes the `token_prices` cache from external feeds. */

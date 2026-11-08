@@ -1,8 +1,9 @@
-import { injectable } from 'tsyringe';
+import { inject, injectable } from 'tsyringe';
 import axios from 'axios';
 import { IPriceFeedService, PriceQuote } from '@chiliztv/domain/shared/ports/IPriceFeedService';
 import { getCatalogEntry } from '@chiliztv/shared';
 import { logger } from '../../logging/logger';
+import { CoinGeckoHttpClient } from '../coingecko/CoinGeckoHttpClient';
 
 interface CoinGeckoPriceMap {
     [coingeckoId: string]: {
@@ -15,8 +16,7 @@ interface CoinGeckoPriceMap {
 export class CoinGeckoPriceFeed implements IPriceFeedService {
     readonly source = 'coingecko' as const;
 
-    private readonly BASE_URL = 'https://api.coingecko.com/api/v3/simple/price';
-    private readonly TIMEOUT_MS = 10_000;
+    constructor(@inject(CoinGeckoHttpClient) private readonly client: CoinGeckoHttpClient) {}
 
     supports(symbol: string): boolean {
         return getCatalogEntry(symbol) !== undefined;
@@ -34,13 +34,10 @@ export class CoinGeckoPriceFeed implements IPriceFeedService {
         if (ids.length === 0) return [];
 
         try {
-            const { data } = await axios.get<CoinGeckoPriceMap>(this.BASE_URL, {
-                params: {
-                    ids: ids.join(','),
-                    vs_currencies: 'usd',
-                    include_24hr_change: 'true',
-                },
-                timeout: this.TIMEOUT_MS,
+            const data = await this.client.get<CoinGeckoPriceMap>('/simple/price', '/simple/price', {
+                ids: ids.join(','),
+                vs_currencies: 'usd',
+                include_24hr_change: 'true',
             });
 
             const quotes: PriceQuote[] = [];

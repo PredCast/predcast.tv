@@ -31,7 +31,12 @@ function transformMatch(m: MatchResponseDto): Match {
     elapsed: m.elapsed,
     htHomeScore: m.htHomeScore,
     htAwayScore: m.htAwayScore,
-    dataStale: m.dataStale ?? false,
+    dataStale: m.dataStale,
+    homeFanToken: m.homeFanToken,
+    awayFanToken: m.awayFanToken,
+    firstHalfStartedAt: m.firstHalfStartedAt,
+    halftimeStartedAt: m.halftimeStartedAt,
+    secondHalfStartedAt: m.secondHalfStartedAt,
   };
 }
 

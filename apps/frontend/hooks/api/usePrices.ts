@@ -6,7 +6,7 @@ import { pricesApi, type PriceQuoteDto, type PricesResponseDto } from '@/lib/api
 const STALE_MS = 60_000;
 const REFETCH_MS = 60_000;
 
-/** Full token-price snapshot. The backend job refreshes every 5 min. */
+/** Full token-price snapshot. The backend job refreshes every 10 min. */
 export function usePrices() {
     return useQuery<PricesResponseDto>({
         queryKey: ['prices'],

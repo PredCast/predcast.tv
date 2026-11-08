@@ -21,6 +21,7 @@ import { useMatchMarketWatchers } from "./hooks/useMatchMarketWatchers";
 import { usePredictShortcut } from "./hooks/usePredictShortcut";
 import { useStreamerFollow } from "./hooks/useStreamerFollow";
 import { LiveMatchHeader } from "./sections/LiveMatchHeader";
+import { MatchFanTokenCharts } from "./sections/MatchFanTokenCharts";
 import { LiveMediaSection } from "./sections/LiveMediaSection";
 import { LiveMobileDock } from "./sections/LiveMobileDock";
 import { LiveSidebar } from "./sections/LiveSidebar";
@@ -135,6 +136,11 @@ export function LivePage({ id }: LivePageProps) {
               </div>
 
               <SidebarChat {...chatProps} streamId={selectedStream?.id} />
+
+              {/* Desktop: the free cell under the stream (row 2, column 1). Mobile: right under the stream. */}
+              <div className="min-w-0 lg:self-start">
+                <MatchFanTokenCharts match={match} />
+              </div>
 
               {/* Mobile: same markets table + My predictions as the sidebar; a pick opens the bet sheet. */}
               <div className="min-w-0 lg:hidden">

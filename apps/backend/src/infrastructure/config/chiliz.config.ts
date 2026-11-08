@@ -34,6 +34,8 @@ const TESTNET_TOKENS: ChilizToken[] = [
 // (apps/smart-contracts/chiliz-tv/docs/FAN_TOKENS_MAINNET.md, 2026-06-11).
 // Symbols mirror frontend `chiliz.config.ts` so balances/prices stay aligned.
 // Underlying CAP-20 (0 dp) + Kayen-wrapped W* (18 dp) + legacy 18-dp PSG.
+// Fan tokens not wired into the swap flows yet (e.g. OM) live in `FAN_TOKEN_DEPLOYMENTS`
+// (packages/shared/src/tokens/fanTokenDeployments.ts); to be consolidated with Buy / Sell.
 const MAINNET_TOKENS: ChilizToken[] = [
     { name: 'Corinthians',          symbol: 'SCCP',    address: '0x20BFeab58f8bE903753d037Ba7e307fc77c97388' },
     { name: 'Paris Saint-Germain',  symbol: 'PSG',     address: '0xc2661815C69c2B3924D3dd0c2C1358A1E38A3105' },

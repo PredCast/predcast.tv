@@ -1,3 +1,5 @@
+import type { MatchPhaseTimes } from '../policies/matchPhaseTimes';
+
 export interface MatchProps {
   id: number;
   apiFootballId: number;
@@ -59,6 +61,10 @@ export interface MatchProps {
    * entity↔contract drift).
    */
   isKnockout?: boolean;
+  /** Phase starts (migration 040); merged monotonically via `nextPhaseTimes`. */
+  firstHalfStartedAt?: Date | null;
+  halftimeStartedAt?: Date | null;
+  secondHalfStartedAt?: Date | null;
   bettingContractAddress?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -207,6 +213,14 @@ export class Match {
     return this.props.elapsed ?? null;
   }
 
+  getPhaseTimes(): MatchPhaseTimes {
+    return {
+      firstHalfStartedAt: this.props.firstHalfStartedAt ?? null,
+      halftimeStartedAt: this.props.halftimeStartedAt ?? null,
+      secondHalfStartedAt: this.props.secondHalfStartedAt ?? null,
+    };
+  }
+
   /**
    * Monotone setter: silently ignores null/undefined to preserve the last
    * known value across HT and post-FT gaps where API-Football clears the
@@ -329,6 +343,7 @@ export class Match {
       isKnockout: this.props.isKnockout === true,
       finalScore: this.getFinalScore(),
       penaltyWinner: this.getPenaltyWinner(),
+      ...this.getPhaseTimes(),
       bettingContractAddress: this.props.bettingContractAddress,
       createdAt: this.props.createdAt,
       updatedAt: this.props.updatedAt,

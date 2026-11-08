@@ -32,10 +32,15 @@ interface MatchRow {
   pen_home_score?: number | null;
   pen_away_score?: number | null;
   is_knockout?: boolean | null;
+  first_half_started_at?: string | null;
+  halftime_started_at?: string | null;
+  second_half_started_at?: string | null;
   betting_contract_address?: string | null;
   created_at: string;
   updated_at: string;
 }
+
+const toDateOrNull = (iso: string | null | undefined): Date | null => (iso ? new Date(iso) : null);
 
 @injectable()
 export class SupabaseMatchRepository implements IMatchRepository {
@@ -397,6 +402,9 @@ export class SupabaseMatchRepository implements IMatchRepository {
       penHomeScore: row.pen_home_score ?? null,
       penAwayScore: row.pen_away_score ?? null,
       isKnockout: row.is_knockout === true,
+      firstHalfStartedAt: toDateOrNull(row.first_half_started_at),
+      halftimeStartedAt: toDateOrNull(row.halftime_started_at),
+      secondHalfStartedAt: toDateOrNull(row.second_half_started_at),
       bettingContractAddress: row.betting_contract_address || undefined,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
@@ -434,6 +442,9 @@ export class SupabaseMatchRepository implements IMatchRepository {
       pen_home_score: json.penHomeScore ?? null,
       pen_away_score: json.penAwayScore ?? null,
       is_knockout: json.isKnockout === true,
+      first_half_started_at: json.firstHalfStartedAt ?? null,
+      halftime_started_at: json.halftimeStartedAt ?? null,
+      second_half_started_at: json.secondHalfStartedAt ?? null,
       // Normalize to lowercase so it joins against `bets.contract_address`
       // (which the indexer always writes lowercased). Mixed-case rows that
       // predate this fix break the join and surface as "Unknown match".

@@ -6,6 +6,7 @@ import { IBlockchainService } from '@chiliztv/domain/shared/ports/IBlockchainSer
 import { MatchFetchWindow } from '@chiliztv/domain/matches/value-objects/MatchFetchWindow';
 import { Match } from '@chiliztv/domain/matches/entities/Match';
 import { isKnockoutMatch } from '@chiliztv/domain/matches/policies/KnockoutMatchPolicy';
+import { NO_PHASE_TIMES, nextPhaseTimes, phaseTimesEqual } from '@chiliztv/domain/matches/policies/matchPhaseTimes';
 import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import type { ICacheService } from '@chiliztv/domain/shared/ports/ICacheService';
 import { FIXED_LIST_KEYS, MatchCacheKeys } from '../MatchCacheKeys';
@@ -210,7 +211,9 @@ export class SyncMatchesUseCase {
             existingScore?.away !== rawScore?.away;
         const statusChanged = existingJson.status !== raw.status;
         const formChanged = existingJson.homeForm !== homeForm || existingJson.awayForm !== awayForm;
-        const mutated = scoreChanged || statusChanged || formChanged;
+        const currentPhases = existing.getPhaseTimes();
+        const phases = nextPhaseTimes(currentPhases, raw.status, raw, this.clock.now());
+        const mutated = scoreChanged || statusChanged || formChanged || !phaseTimesEqual(currentPhases, phases);
 
         // Preserve last-known elapsed when the upstream returns null (HT, post-FT)
         // so the 10-min cron doesn't erase the value that SyncLiveMatchesUseCase
@@ -283,6 +286,7 @@ export class SyncMatchesUseCase {
             penAwayScore:           penAwayToPersist,
             // Frozen at create — DO NOT recompute from `raw` here.
             isKnockout:             existingIsKnockout,
+            ...phases,
             bettingContractAddress: existing.getBettingContractAddress(),
             createdAt:              existingJson.createdAt,
             updatedAt:              this.clock.now(),
@@ -339,6 +343,7 @@ export class SyncMatchesUseCase {
             penHomeScore:  raw.penHomeScore ?? null,
             penAwayScore:  raw.penAwayScore ?? null,
             isKnockout,
+            ...nextPhaseTimes(NO_PHASE_TIMES, raw.status, raw, this.clock.now()),
         });
 
         const saved = await this.matchRepository.save(newMatch);
