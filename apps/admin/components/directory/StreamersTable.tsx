@@ -32,7 +32,7 @@ export function StreamersTable() {
         </THead>
 
         {isLoading && (
-          <p className="font-mono-ctv px-4 py-6 text-[11px] uppercase tracking-[0.14em] text-white/35">Loading…</p>
+          <p className="font-mono px-4 py-6 text-[11px] uppercase tracking-[0.14em] text-fg-meta">Loading…</p>
         )}
         {!isLoading && (data?.items.length ?? 0) === 0 && (
           <EmptyState icon="wallet" title="No streamer revenue yet" hint="Donations and subscriptions appear here per streamer wallet." />
@@ -43,11 +43,11 @@ export function StreamersTable() {
               <WalletLabel wallet={streamer.wallet} />
               <CopyButton value={streamer.wallet} label="Copy wallet address" />
             </span>
-            <span className="text-right tabular-nums text-white/85">{streamer.donationCount}</span>
-            <span className="text-right tabular-nums text-[#2dd4a4]">{fmtChz(streamer.donationTotal)}</span>
-            <span className="text-right tabular-nums text-white/85">{streamer.subCount}</span>
-            <span className="text-right tabular-nums text-[#2dd4a4]">{fmtChz(streamer.subRevenue)}</span>
-            <span className="font-mono-ctv text-right text-[11px] tabular-nums text-white/50">
+            <span className="text-right tabular-nums text-fg-strong">{streamer.donationCount}</span>
+            <span className="text-right tabular-nums text-positive">{fmtChz(streamer.donationTotal)}</span>
+            <span className="text-right tabular-nums text-fg-strong">{streamer.subCount}</span>
+            <span className="text-right tabular-nums text-positive">{fmtChz(streamer.subRevenue)}</span>
+            <span className="font-mono text-right text-[11px] tabular-nums text-fg-meta">
               {streamer.lastActivityAt
                 ? new Date(streamer.lastActivityAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })
                 : '—'}
