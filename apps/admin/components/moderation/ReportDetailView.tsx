@@ -19,10 +19,10 @@ export function ReportDetailView({ id }: Readonly<{ id: string }>) {
   const [note, setNote] = useState('');
 
   if (isLoading) {
-    return <p className="font-mono-ctv mt-6 text-[11px] uppercase tracking-[0.14em] text-white/35">Loading…</p>;
+    return <p className="font-mono mt-6 text-[11px] uppercase tracking-[0.14em] text-fg-meta">Loading…</p>;
   }
   if (!data) {
-    return <p className="font-mono-ctv mt-6 text-[11px] uppercase tracking-[0.14em] text-[#FF1737]">Report not found.</p>;
+    return <p className="font-mono mt-6 text-[11px] uppercase tracking-[0.14em] text-accent-text">Report not found.</p>;
   }
 
   const { report, triggeredAction } = data;
@@ -43,12 +43,12 @@ export function ReportDetailView({ id }: Readonly<{ id: string }>) {
       <div className="mt-3 flex items-end justify-between">
         <div className="flex items-center gap-3">
           <h1 className="font-display text-[32px] font-extrabold uppercase leading-none tracking-[-0.01em] text-white">
-            Report <span className="text-white/40">#{report.id.slice(0, 8)}</span>
+            Report <span className="text-fg-meta">#{report.id.slice(0, 8)}</span>
           </h1>
           <SeverityBadge severity={report.severity} />
           <StatusBadge status={report.status} />
         </div>
-        <span className="font-mono-ctv text-[10px] uppercase tracking-[0.14em] text-white/35">
+        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-fg-meta">
           Created {new Date(report.createdAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
         </span>
       </div>
@@ -60,14 +60,14 @@ export function ReportDetailView({ id }: Readonly<{ id: string }>) {
             <DetailField label="Reason">{report.reasonCode}</DetailField>
             {report.reasonFreeText && (
               <DetailField label="Free text">
-                <div className="rounded-md border border-[#1E1E1E] bg-[#0d0d0d] px-3.5 py-2.5 text-[12px] font-light leading-relaxed text-white/65">
+                <div className="rounded-md border border-line-subtle bg-sidebar px-3.5 py-2.5 text-[12px] font-light leading-relaxed text-fg-body">
                   &ldquo;{report.reasonFreeText}&rdquo;
                 </div>
               </DetailField>
             )}
             <DetailField label="Target">
-              <span className="font-mono-ctv text-[11px] uppercase tracking-[0.12em] text-white/85">{report.targetType}</span>{' '}
-              <span className="font-mono-ctv text-[11px] text-white/45">{report.targetId}</span>
+              <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-fg-strong">{report.targetType}</span>{' '}
+              <span className="font-mono text-[11px] text-fg-meta">{report.targetId}</span>
             </DetailField>
             <div className="grid grid-cols-2 gap-4">
               <DetailField label="Reporter">
@@ -81,27 +81,27 @@ export function ReportDetailView({ id }: Readonly<{ id: string }>) {
                       {' '}by <WalletLabel wallet={report.reviewedByWallet} />
                     </>
                   )}
-                  {report.reviewNote && <span className="text-white/55"> — {report.reviewNote}</span>}
+                  {report.reviewNote && <span className="text-fg-body"> — {report.reviewNote}</span>}
                 </DetailField>
               )}
             </div>
           </div>
 
           {reviewable && (
-            <div className="mt-auto border-t border-[#1E1E1E] pt-4">
-              <div className="font-mono-ctv text-[10px] font-bold uppercase tracking-[0.14em] text-white/40">Verdict</div>
+            <div className="mt-auto border-t border-line-subtle pt-4">
+              <div className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-fg-meta">Verdict</div>
               <input
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Review note (optional, audited)"
-                className="font-mono-ctv mt-2 w-full rounded-md border border-[#2A2A2A] bg-[#0d0d0d] px-3 py-2 text-[12px] text-white outline-none focus-visible:ring-2 focus-visible:ring-[#E8001D]"
+                className="font-mono mt-2 w-full rounded-md border border-line bg-sidebar px-3 py-2 text-[12px] text-white outline-none focus-visible:ring-2 focus-visible:ring-accent"
               />
               <div className="mt-3 flex gap-2">
                 <button
                   type="button"
                   disabled={review.isPending}
                   onClick={() => act('dismiss')}
-                  className="font-mono-ctv rounded-md border border-[#2A2A2A] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-white/65 transition-colors hover:border-[#3A3A3A] hover:text-white disabled:opacity-50"
+                  className="font-mono rounded-md border border-line px-4 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-fg-body transition-colors hover:border-line-hover hover:text-white disabled:opacity-50"
                 >
                   Dismiss
                 </button>
@@ -109,7 +109,7 @@ export function ReportDetailView({ id }: Readonly<{ id: string }>) {
                   type="button"
                   disabled={review.isPending}
                   onClick={() => act('close')}
-                  className="font-mono-ctv rounded-md bg-[#E8001D] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-[#FF1737] disabled:opacity-50"
+                  className="font-mono rounded-md bg-accent px-4 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
                 >
                   Close as handled
                 </button>
@@ -121,16 +121,16 @@ export function ReportDetailView({ id }: Readonly<{ id: string }>) {
         <Card className="p-5">
           <Eyebrow>Triggered action</Eyebrow>
           {!triggeredAction && (
-            <p className="mt-3 text-[12px] font-light text-white/45">No automatic action fired for this report.</p>
+            <p className="mt-3 text-[12px] font-light text-fg-meta">No automatic action fired for this report.</p>
           )}
           {triggeredAction && (
             <>
               <div className="mt-4 grid gap-4">
                 <DetailField label="Kind">
-                  <span className="font-mono-ctv text-[11px] uppercase tracking-[0.12em] text-white/85">{triggeredAction.kind}</span>
+                  <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-fg-strong">{triggeredAction.kind}</span>
                 </DetailField>
                 <DetailField label="Trigger">
-                  <span className="font-mono-ctv text-[11px] uppercase tracking-[0.12em] text-white/85">
+                  <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-fg-strong">
                     {triggeredAction.quorumSnapshot.trigger}
                   </span>
                 </DetailField>
@@ -149,12 +149,12 @@ export function ReportDetailView({ id }: Readonly<{ id: string }>) {
                 )}
               </div>
               {!triggeredAction.reversedAt && (
-                <div className="mt-5 rounded-lg border border-[#E8001D]/30 bg-[#E8001D]/5 p-4">
-                  <div className="font-mono-ctv flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[#FF1737]">
+                <div className="mt-5 rounded-lg border border-accent/30 bg-accent/5 p-4">
+                  <div className="font-mono flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-accent-text">
                     <Icon n="alertTriangle" s={12} />
                     <span>Reversal</span>
                   </div>
-                  <p className="mt-2 text-[12px] font-light leading-relaxed text-white/55">
+                  <p className="mt-2 text-[12px] font-light leading-relaxed text-fg-body">
                     {triggeredAction.kind === 'soft_delete_message'
                       ? 'Restores the message in chat. The reversal is audited and visible in the activity log.'
                       : 'The reversal is audited and visible in the activity log.'}
@@ -171,7 +171,7 @@ export function ReportDetailView({ id }: Readonly<{ id: string }>) {
                         },
                       )
                     }
-                    className="font-mono-ctv mt-3 inline-flex items-center gap-1.5 rounded-md border border-[#E8001D]/40 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[#FF1737] transition-colors hover:border-[#E8001D] hover:bg-[#E8001D]/10 disabled:opacity-50"
+                    className="font-mono mt-3 inline-flex items-center gap-1.5 rounded-md border border-accent/40 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-accent-text transition-colors hover:border-accent hover:bg-accent/10 disabled:opacity-50"
                   >
                     <Icon n="rotateCcw" s={12} />
                     <span>Reverse action{triggeredAction.kind === 'soft_delete_message' ? ' — restores message' : ''}</span>
