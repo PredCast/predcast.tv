@@ -61,13 +61,13 @@ export function BansPanel() {
   return (
     <div className="mt-5">
       {/* Manual ban — danger zone styling per the visual language. */}
-      <form onSubmit={submitBan} className="rounded-xl border border-[#E8001D]/30 bg-[#E8001D]/5 p-4">
+      <form onSubmit={submitBan} className="rounded-xl border border-accent/30 bg-accent/5 p-4">
         <div className="flex items-center justify-between">
-          <div className="font-mono-ctv flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[#FF1737]">
+          <div className="font-mono flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-accent-text">
             <Icon n="alertTriangle" s={12} />
             <span>Manual ban</span>
           </div>
-          <span className="font-mono-ctv text-[9px] uppercase tracking-[0.12em] text-white/35">
+          <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-fg-meta">
             Audited · realtime notify · stream stopped
           </span>
         </div>
@@ -77,20 +77,20 @@ export function BansPanel() {
             onChange={(e) => setWallet(e.target.value)}
             placeholder="0x…"
             aria-label="Wallet to ban"
-            className="font-mono-ctv w-75 rounded-md border border-[#2A2A2A] bg-[#0d0d0d] px-3 py-2 text-[12px] text-white outline-none focus-visible:ring-2 focus-visible:ring-[#E8001D]"
+            className="font-mono w-75 rounded-md border border-line bg-sidebar px-3 py-2 text-[12px] text-white outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
           <input
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="Reason (min 10 chars, audited)"
             aria-label="Ban reason"
-            className="font-mono-ctv min-w-60 flex-1 rounded-md border border-[#2A2A2A] bg-[#0d0d0d] px-3 py-2 text-[12px] text-white outline-none focus-visible:ring-2 focus-visible:ring-[#E8001D]"
+            className="font-mono min-w-60 flex-1 rounded-md border border-line bg-sidebar px-3 py-2 text-[12px] text-white outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
           <select
             value={duration}
             onChange={(e) => setDuration(e.target.value)}
             aria-label="Ban duration"
-            className="font-mono-ctv rounded-md border border-[#2A2A2A] bg-[#0d0d0d] px-3 py-2 text-[11px] font-bold uppercase tracking-[0.1em] text-white outline-none focus-visible:ring-2 focus-visible:ring-[#E8001D]"
+            className="font-mono rounded-md border border-line bg-sidebar px-3 py-2 text-[11px] font-bold uppercase tracking-[0.1em] text-white outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             <option value="auto">Auto (escalation)</option>
             <option value="24">24h</option>
@@ -102,12 +102,12 @@ export function BansPanel() {
           <button
             type="submit"
             disabled={createBan.isPending || !/^0x[0-9a-fA-F]{40}$/.test(wallet.trim()) || reason.trim().length < 10}
-            className="font-mono-ctv rounded-md bg-[#E8001D] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-[#FF1737] disabled:cursor-not-allowed disabled:opacity-50"
+            className="font-mono rounded-md bg-accent px-4 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
           >
             Ban wallet
           </button>
         </div>
-        <p className="font-mono-ctv mt-2 text-[10px] uppercase tracking-[0.12em] text-white/35">
+        <p className="font-mono mt-2 text-[10px] uppercase tracking-[0.12em] text-fg-meta">
           Auto follows escalation (24h → 168h → permanent)
         </p>
       </form>
@@ -123,36 +123,36 @@ export function BansPanel() {
         </THead>
 
         {isLoading && (
-          <p className="font-mono-ctv px-4 py-6 text-[11px] uppercase tracking-[0.14em] text-white/35">Loading…</p>
+          <p className="font-mono px-4 py-6 text-[11px] uppercase tracking-[0.14em] text-fg-meta">Loading…</p>
         )}
         {!isLoading && (data?.items.length ?? 0) === 0 && (
           <EmptyState icon="ban" title="No bans recorded" hint="Quorum auto-bans and manual bans appear here, with their escalation strike." />
         )}
         {data?.items.map((ban) => (
-          <div key={ban.id} className="border-b border-[#1A1A1A] last:border-b-0">
+          <div key={ban.id} className="border-b border-elevated last:border-b-0">
             <TRow cols={COLS} accent={ban.status === 'active' ? '#E8001D' : undefined} className="!border-b-0">
               <WalletLabel wallet={ban.walletAddress} />
               <StatusBadge status={ban.status} />
-              <span className="font-mono-ctv text-[11px] tabular-nums text-white/50">
+              <span className="font-mono text-[11px] tabular-nums text-fg-meta">
                 {new Date(ban.startsAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
               </span>
-              <span className="font-mono-ctv text-[11px] tabular-nums text-white/50">
+              <span className="font-mono text-[11px] tabular-nums text-fg-meta">
                 {ban.expiresAt
                   ? new Date(ban.expiresAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })
                   : ban.status === 'active'
                     ? 'Permanent'
                     : '—'}
               </span>
-              <span className="font-mono-ctv text-right text-[11px] tabular-nums text-white/50">#{ban.escalationIndex}</span>
+              <span className="font-mono text-right text-[11px] tabular-nums text-fg-meta">#{ban.escalationIndex}</span>
               {ban.status === 'active' ? (
                 <span className="text-right">
                   <button
                     type="button"
                     onClick={() => setLiftingId(liftingId === ban.id ? null : ban.id)}
-                    className={`font-mono-ctv rounded-md border px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] transition-colors ${
+                    className={`font-mono rounded-md border px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] transition-colors ${
                       liftingId === ban.id
-                        ? 'border-[#3A3A3A] bg-white/5 text-white'
-                        : 'border-[#2A2A2A] text-white/65 hover:border-[#3A3A3A] hover:text-white'
+                        ? 'border-line-hover bg-white/5 text-white'
+                        : 'border-line text-fg-body hover:border-line-hover hover:text-white'
                     }`}
                   >
                     Lift…
@@ -163,19 +163,19 @@ export function BansPanel() {
               )}
             </TRow>
             {liftingId === ban.id && (
-              <div className="flex gap-2 border-t border-[#1A1A1A] bg-[#0d0d0d] px-4 py-3">
+              <div className="flex gap-2 border-t border-elevated bg-sidebar px-4 py-3">
                 <input
                   value={liftNote}
                   onChange={(e) => setLiftNote(e.target.value)}
                   placeholder="Lift note (required, audited)"
                   autoFocus
-                  className="font-mono-ctv flex-1 rounded-md border border-[#2A2A2A] bg-[#111111] px-3 py-2 text-[12px] text-white outline-none focus-visible:ring-2 focus-visible:ring-[#E8001D]"
+                  className="font-mono flex-1 rounded-md border border-line bg-card px-3 py-2 text-[12px] text-white outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 />
                 <button
                   type="button"
                   disabled={liftBan.isPending || liftNote.trim().length === 0}
                   onClick={() => submitLift(ban.id)}
-                  className="font-mono-ctv rounded-md bg-[#2dd4a4] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-black transition-opacity hover:opacity-90 disabled:opacity-50"
+                  className="font-mono rounded-md bg-positive px-4 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-black transition-opacity hover:opacity-90 disabled:opacity-50"
                 >
                   Confirm lift
                 </button>
@@ -187,11 +187,11 @@ export function BansPanel() {
 
       {data?.nextCursor && (
         <div className="mt-3 flex items-center justify-between">
-          <span className="font-mono-ctv text-[10px] uppercase tracking-[0.12em] text-white/35">Keyset · 25 per page</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-fg-meta">Keyset · 25 per page</span>
           <button
             type="button"
             onClick={() => setCursor(data.nextCursor)}
-            className="font-mono-ctv rounded-md border border-[#2A2A2A] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-white/65 transition-colors hover:text-white"
+            className="font-mono rounded-md border border-line px-4 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-fg-body transition-colors hover:text-white"
           >
             Next page →
           </button>
