@@ -62,7 +62,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
@@ -131,7 +130,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
