@@ -201,6 +201,10 @@ import { SupabaseJobStateRepository } from '../infrastructure/persistence/reposi
 import type { IJobCatalog } from '@chiliztv/domain/jobs/ports/IJobCatalog';
 import type { IChainHeadReader } from '@chiliztv/domain/blockchain-indexing/ports/IChainHeadReader';
 import { ViemChainHeadReader } from '../infrastructure/blockchain/adapters/ViemChainHeadReader';
+import type { IDashboardStatsRepository } from '@chiliztv/domain/admin/dashboard/IDashboardStatsRepository';
+import { SupabaseDashboardStatsRepository } from '../infrastructure/persistence/repositories/SupabaseDashboardStatsRepository';
+import type { IUpstreamUsageReader } from '@chiliztv/domain/shared/ports/IUpstreamUsageReader';
+import { RedisUpstreamUsageReader } from '../infrastructure/external/usage/RedisUpstreamUsageReader';
 import type { IJobRunSignal } from '@chiliztv/domain/jobs/ports/IJobRunSignal';
 import type { IJobRunRepository } from '@chiliztv/domain/jobs/repositories/IJobRunRepository';
 import type { IJobStateRepository } from '@chiliztv/domain/jobs/repositories/IJobStateRepository';
@@ -353,6 +357,8 @@ export function setupDependencyInjection(): void {
   container.registerSingleton<IJobRunRepository>(TOKENS.IJobRunRepository, SupabaseJobRunRepository);
   container.registerSingleton<IJobStateRepository>(TOKENS.IJobStateRepository, SupabaseJobStateRepository);
   container.registerSingleton<IChainHeadReader>(TOKENS.IChainHeadReader, ViemChainHeadReader);
+  container.registerSingleton<IDashboardStatsRepository>(TOKENS.IDashboardStatsRepository, SupabaseDashboardStatsRepository);
+  container.registerSingleton<IUpstreamUsageReader>(TOKENS.IUpstreamUsageReader, RedisUpstreamUsageReader);
   container.registerSingleton<IReportActionRepository>(TOKENS.IReportActionRepository, SupabaseReportActionRepository);
   container.registerSingleton<IPresenceService>(TOKENS.IPresenceService, PresenceQueryService);
   container.registerSingleton<IBetHistoryService>(TOKENS.IBetHistoryService, BetHistoryService);

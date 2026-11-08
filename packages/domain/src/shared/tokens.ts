@@ -51,6 +51,8 @@ export const TOKENS = {
   IJobRunRepository:       Symbol.for('IJobRunRepository'),
   IJobRunSignal:           Symbol.for('IJobRunSignal'),
   IChainHeadReader:        Symbol.for('IChainHeadReader'),
+  IDashboardStatsRepository: Symbol.for('IDashboardStatsRepository'),
+  IUpstreamUsageReader:    Symbol.for('IUpstreamUsageReader'),
 
   // Ports — access gate
   IAccessCodeVerifier:     Symbol.for('IAccessCodeVerifier'),

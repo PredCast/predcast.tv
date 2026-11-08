@@ -13,6 +13,7 @@ import { AdminModerationController } from '../controllers/admin-moderation.contr
 import { AdminDirectoryController } from '../controllers/admin-directory.controller';
 import { AdminMarketsController } from '../controllers/admin-markets.controller';
 import { AdminJobsController } from '../controllers/admin-jobs.controller';
+import { AdminDashboardController } from '../controllers/admin-dashboard.controller';
 import { requireAdmin } from '../middlewares/require-admin.middleware';
 import { validate } from '../middlewares/validation.middleware';
 
@@ -22,10 +23,23 @@ const moderation = container.resolve(AdminModerationController);
 const directory = container.resolve(AdminDirectoryController);
 const markets = container.resolve(AdminMarketsController);
 const jobs = container.resolve(AdminJobsController);
+const dashboard = container.resolve(AdminDashboardController);
 
 // Any active role may probe its own session.
 router.get('/me', requireAdmin(), controller.me.bind(controller));
 router.get('/overview', requireAdmin(), controller.overview.bind(controller));
+
+// ── Dashboard: one endpoint per card; fields outside the role are nulled by the use cases ──
+router.get('/dashboard/kpis', requireAdmin(), dashboard.kpis);
+router.get('/dashboard/live', requireAdmin(), dashboard.live);
+router.get('/dashboard/events', requireAdmin(), dashboard.events);
+router.get('/dashboard/alerts', requireAdmin(), dashboard.alerts);
+router.get('/dashboard/activity', requireAdmin(), dashboard.activity);
+router.get('/dashboard/health', requireAdmin('admin', 'moderator'), dashboard.health);
+router.get('/dashboard/moderation', requireAdmin('moderator'), dashboard.moderation);
+router.get('/dashboard/suggestions', requireAdmin('admin'), dashboard.suggestions);
+router.get('/dashboard/operations', requireAdmin('admin'), dashboard.operations);
+router.post('/match-operations/:operationId/cancel', requireAdmin('admin'), dashboard.cancelOperation.bind(dashboard));
 
 // ── Jobs (admin+; on-chain / quota Run now further restricted to super_admin) ──
 // Static paths before /:name so "runs" and "indexers" are never read as job names.

@@ -92,6 +92,16 @@ export class SupabaseMatchRepository implements IMatchRepository {
     return row ? matchFromRow(row) : null;
   }
 
+  async findByApiFootballIds(apiIds: ReadonlyArray<number>): Promise<Match[]> {
+    if (apiIds.length === 0) return [];
+    const { data, error } = await supabase.from('matches').select('*').in('api_football_id', [...new Set(apiIds)]);
+    if (error) {
+      logger.error('Failed to find matches by API Football IDs', { error: error.message, count: apiIds.length });
+      throw new Error('Failed to find matches');
+    }
+    return (data ?? []).map(matchFromRow);
+  }
+
   async findByLeagueId(leagueId: number): Promise<Match[]> {
     const now = this.clock.now();
 

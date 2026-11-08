@@ -17,6 +17,8 @@ export interface IMatchRepository {
   findVisibleFromDate(from: Date): Promise<Match[]>;
   findById(id: number): Promise<Match | null>;
   findByApiFootballId(apiId: number): Promise<Match | null>;
+  /** Batch lookup for labels in admin lists; unknown ids are absent. */
+  findByApiFootballIds(apiIds: ReadonlyArray<number>): Promise<Match[]>;
   /** App endpoints: the next three return app-visible matches only (deployed + published). */
   findByLeagueId(leagueId: number): Promise<Match[]>;
   findLive(): Promise<Match[]>;

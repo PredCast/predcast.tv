@@ -38,8 +38,10 @@ export type MatchOperationDto = z.infer<typeof MatchOperationDtoSchema>;
 export const AdminMatchRowDtoSchema = z.object({
     /** API-Football id: the key every admin match route takes. */
     apiFootballId: z.number().int(),
+    homeTeamId: z.number().int(),
     homeTeamName: z.string(),
     homeTeamLogo: z.string().nullable(),
+    awayTeamId: z.number().int(),
     awayTeamName: z.string(),
     awayTeamLogo: z.string().nullable(),
     leagueId: z.number().int(),

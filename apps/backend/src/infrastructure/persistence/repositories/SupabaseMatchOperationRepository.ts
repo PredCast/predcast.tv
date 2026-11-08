@@ -131,6 +131,33 @@ export class SupabaseMatchOperationRepository implements IMatchOperationReposito
     return latest;
   }
 
+  async findActiveOrSince(since: Date, limit: number): Promise<ReadonlyArray<MatchOperation>> {
+    const { data, error } = await supabase
+      .from(TABLE)
+      .select('*')
+      .or(`status.in.(pending,running),created_at.gte.${since.toISOString()}`)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) throwRepoError('list', error);
+    return ((data ?? []) as OperationRow[]).map(fromRow);
+  }
+
+  async cancelPending(id: string, cancelledBy: string, now: Date): Promise<boolean> {
+    const { data, error } = await supabase
+      .from(TABLE)
+      .update({
+        status: 'failed',
+        error: 'Cancelled before a worker picked it up',
+        progress: { cancelledBy: cancelledBy.toLowerCase() },
+        finished_at: now.toISOString(),
+      })
+      .eq('id', id)
+      .eq('status', 'pending')
+      .select('id');
+    if (error) throwRepoError('cancel', error, { id });
+    return (data ?? []).length > 0;
+  }
+
   private async finish(id: string, columns: Record<string, unknown>): Promise<void> {
     const { error } = await supabase.from(TABLE).update(columns).eq('id', id);
     if (error) throwRepoError('finish', error, { id });
