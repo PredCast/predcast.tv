@@ -1,3 +1,7 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+
+overrides:
+  # express 4 pins ~2.0.7; 2.0.8 fixes IP spoofing via IPv4-mapped IPv6 (GHSA critical).
+  proxy-addr: '>=2.0.8'

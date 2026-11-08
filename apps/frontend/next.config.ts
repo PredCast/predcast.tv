@@ -21,6 +21,8 @@ const nextConfig: NextConfig = {
   // tells Next where to stop — set to the repo root to capture everything in
   // `node_modules/.pnpm` reachable from `apps/frontend`.
   outputFileTracingRoot: path.join(here, '../../'),
+  // Explicit: Next ignores a workspace root that is also $HOME (/home/node in Docker).
+  turbopack: { root: path.join(here, '../../') },
 
   transpilePackages: ['@chiliztv/blockchain', '@chiliztv/domain', '@chiliztv/shared', '@chiliztv/ui'],
 

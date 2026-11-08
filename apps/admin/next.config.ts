@@ -12,6 +12,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const nextConfig: NextConfig = {
   // Climb to the repo root so pnpm's symlinked workspace packages get traced.
   outputFileTracingRoot: path.join(here, '../../'),
+  // Explicit: Next ignores a workspace root that is also $HOME (/home/node in Docker).
+  turbopack: { root: path.join(here, '../../') },
   transpilePackages: ['@chiliztv/ui'],
 
   async headers() {
