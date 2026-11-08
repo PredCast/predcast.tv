@@ -6,12 +6,13 @@
 
 ## 1. Le projet en 30 secondes
 
-**PredCast** (predcast.tv — le repo et les packages gardent le naming historique `chiliztv` / `@chiliztv/*`) est une plateforme Web3 qui combine **streaming football live + paris pari-mutuel on-chain** sur Chiliz Chain. **Mainnet 88888 est le réseau de prod depuis le 2026-06-09** ; Spicy testnet 88882 sert au staging et au dev local. Quatre piliers :
+**PredCast** (predcast.tv — le repo et les packages gardent le naming historique `chiliztv` / `@chiliztv/*`) est une plateforme Web3 qui combine **streaming football live + paris pari-mutuel on-chain** sur Chiliz Chain. **Mainnet 88888 est le réseau de prod depuis le 2026-06-09** ; Spicy testnet 88882 sert au staging et au dev local. Cinq piliers :
 
-1. **Discovery + streaming** — page `/browse` (Discover) liste les matchs, page `/live/[id]` permet de regarder un stream + chat live. Accès public (waitlist retirée en juin 2026).
-2. **Pari-mutuel on-chain** — chaque match déploie un contrat `FootballPariMatch` (UUPS proxy) qui hérite de `PariMatchBase`. Les utilisateurs misent en USDC dans la pool d'un outcome (Polymarket-style). Au settlement, les gagnants se partagent `totalPool × (1 − feeBps)` au prorata. Fee par défaut = 2% (`feeBps = 200` : 1% treasury + 1% leaderboard), plafond `MAX_FEE_BPS = 500`, toujours lue on-chain. Pas de bookmaker, pas d'odds fixées en avance — la foule fait l'odds implicite. **MiCA-friendly** : sortie du périmètre licence-pari EU.
-3. **Leaderboard rewards (contrat V2)** — 1% du fee sur chaque pool gagnante alimente `LeaderboardRewards` (UUPS, USDC). `recordWin` accumule le score **on-chain par epoch** ; `advanceEpoch` / `rolloverEpoch` sont permissionless ; `claim(epochId)` distribue top-N pro-rata. **Plus de merkle root en V2.** ⚠ Le backend (`CloseEpochUseCase` + CLI `leaderboard:close-epoch`) suit encore l'ancien flux merkle — hotfix obligatoire avant le 1er juillet (le `CloseMonthlyEpochJob` revertera sinon).
+1. **Discovery + streaming** — page `/browse` (Discover) liste les matchs, page `/live/[id]` permet de regarder un stream + chat live. Accès public (waitlist retirée en juin 2026). **L'app ne montre que les matchs déployés ET publiés** (`isVisibleInApp` = contrat + `published_at`, filtré en SQL et par la RLS `matches_anon_select`) ; `/matches/:id` répond 404 sinon, le chat et la création de stream refusent un match non visible.
+2. **Pari-mutuel on-chain** — chaque match déployé a un contrat `FootballPariMatch` (UUPS proxy) qui hérite de `PariMatchBase`. Les utilisateurs misent en USDC dans la pool d'un outcome (Polymarket-style). Au settlement, les gagnants se partagent `totalPool × (1 − feeBps)` au prorata. Fee par défaut = 2% (`feeBps = 200` : 1% treasury + 1% leaderboard), plafond `MAX_FEE_BPS = 500`, toujours lue on-chain. Pas de bookmaker, pas d'odds fixées en avance — la foule fait l'odds implicite. **MiCA-friendly** : sortie du périmètre licence-pari EU. **Le déploiement est manuel** depuis l'admin (cf. pilier 5) : le sync API-Football enregistre les matchs mais ne déploie plus rien.
+3. **Leaderboard rewards (contrat V2)** — 1% du fee sur chaque pool gagnante alimente `LeaderboardRewards` (UUPS, USDC). `recordWin` accumule le score **on-chain par epoch** ; `advanceEpoch` / `rolloverEpoch` sont permissionless ; `claim(epochId)` distribue top-N pro-rata, sans merkle. Backend aligné sur V2 : `AdvanceEpochJob` horaire + CLI `pnpm leaderboard:advance-epoch` ; les claimables sont lus on-chain (`pendingClaim` / `hasClaimed`).
 4. **Modération communautaire** — signalements (`reports`) avec quorum dynamique + fast-path sévérité ≥4, bans à escalade (24h → 168h → permanent) appliqués time-derived (`Ban.isActiveAt`), soft-delete des messages chat. Schéma migration 036 ; domaine `packages/domain/src/reporting/`, use-cases `application/reporting/`.
+5. **Admin (`apps/admin`)** — back-office des opérateurs : dashboard match day, Markets (déployer / publier / masquer / annuler), Moderation, Players, Jobs. Accès en trois temps : code d'accès (`ADMIN_GATE_CODE_HASH`) → wallet → signature, puis rôle lu dans `admin_wallets` (`super_admin` ⊃ `admin` ⊃ `moderator` / `finance`, cf. `AdminRolePolicy`). Toute action admin est auditée dans `audit_log` (append-only). Les déploiements passent par une **file** `match_admin_operations` traitée par le worker (`ProcessMatchOperations`), reprenable depuis le tx hash enregistré.
 
 Routeur unifié `ChilizSwapRouter` accepte USDC direct, CHZ natif, ou n'importe quel fan token ERC20 → swap via Kayen DEX → bet/donate/subscribe (placeBetWithUSDC / placeBetWithCHZ / placeBetWithToken). Les fan tokens CAP-20 (0 décimales) sont **wrappés automatiquement** par le router avant le swap `[wrapped, WCHZ, USDC]` ; les quotes passent par `quoteTokenToUSDC` (jamais de path construit à la main). Streamers ont un `StreamWallet` UUPS pour donations + subscriptions.
 
@@ -28,7 +29,8 @@ chiliztv.com/
 ├── apps/
 │   ├── frontend/             Next.js 16 (App Router), React 19, Tailwind v4, framer-motion — app.predcast.tv (Vercel)
 │   ├── landing/              Next.js 16 export statique — predcast.tv (Cloudflare Pages)
-│   ├── backend/              Express + TypeScript, tsyringe DI, Supabase JS, Pino — Fly.io (chiliztv-api + chiliztv-workers)
+│   ├── admin/                Next.js 16 (port 3003 en dev), back-office opérateurs — admin.predcast.tv (Vercel, deploy-admin.yml)
+│   ├── backend/              Express + TypeScript, tsyringe DI, Supabase JS, Pino — Fly.io (chiliztv-api + chiliztv-workers, `PROCESS_ROLE=api|worker`)
 │   └── smart-contracts/      Foundry, Solidity 0.8.24, UUPS + OpenZeppelin
 ├── packages/
 │   ├── domain/               Entités + ports DDD (zéro dépendance infrastructure)
@@ -38,7 +40,9 @@ chiliztv.com/
 └── .github/workflows/        CI/CD — push main → staging ; tag v*.*.* → prod (release.yml)
 ```
 
-Deploy : `main` → staging (Vercel preview, CF Pages, images GHCR `:main` sur Fly `*-staging`, db-migrate staging) ; tag `v*.*.*` → prod (retag image, cosign, Fly prod, build Vercel prod, db-migrate prod, GitHub Release). `compose/` (Traefik) est l'ancien mécanisme, plus utilisé.
+Deploy : `main` → staging (Vercel preview, CF Pages, images GHCR `:main` sur Fly `*-staging`, db-migrate staging) ; tag `v*.*.*` → prod (retag image, cosign, Fly prod, build Vercel prod, db-migrate prod, GitHub Release). `compose/` (Traefik) est l'ancien mécanisme, plus utilisé. ⚠ Tant que la branche `ci/db-migrate-before-deploy` n'est pas mergée, `db-migrate` tourne **en parallèle** du déploiement : lancer les nouvelles migrations à la main (`workflow_dispatch`, staging puis prod) **avant** de pousser le code qui en dépend.
+
+Dev local : `pnpm dev:local` dans `apps/backend` (API + workers, `.env.local` par-dessus `.env`), front `:3000`, admin `:3003`, Supabase local `:54322`, Redis. En local le gate admin est désactivé par `ADMIN_GATE_CODE_HASH=` vide ; en production un hash vide ou une `SUPABASE_SERVICE_ROLE_KEY` absente empêchent le démarrage (`productionEnvGuards.ts`) — ces garde-fous exigent `NODE_ENV=production` sur Fly.
 
 ### Versions clés (ne pas déprécier)
 - Node **22 LTS** Alpine 3.20
@@ -73,6 +77,15 @@ apps/backend/src/
 - **`application/use-cases`** orchestrent **uniquement via les ports** déclarés dans `domain/shared/ports/`. Aucune référence à `viem`, `supabase`, `axios`.
 - **`domain`** = pure TS. Aucun import de `wagmi`, `viem`, `@supabase`, `tsyringe`, `express`. Entités + value objects + repositories interfaces (`I*Repository`) + ports (`I*Service`).
 - **`infrastructure`** = adapters concrets. Implémentent les interfaces du domain. Seuls fichiers autorisés à importer `viem`, Supabase, axios, etc.
+
+### 3.1bis Jobs planifiés (workers)
+
+- **Registre unique** : `infrastructure/scheduling/JobRegistry.ts` déclare chaque job (nom, catégorie `safe` / `on_chain` / `quota`, planning, verrou). `JobScheduler` démarre depuis ce registre ; la page admin Jobs et le « Run now » le lisent aussi. Un nouveau job = une entrée dans le registre + un `JobLocks` dédié, rien d'autre.
+- **Un seul chemin d'exécution** : `JobExecutor` (verrou Redis distribué → un 2ᵉ worker saute le tick → mesure → `job_state` + `job_runs`). Les runs manuels passent par le même chemin (`ManualJobRunner`, réveil Redis + polling 5 s).
+- **Un job doit relancer ses erreurs** après les avoir loggées (`throw error` dans le `catch` final), sinon l'échec est enregistré comme un succès.
+- **Cron** : expressions limitées à `*`, `*/n` ou une valeur fixe sur minute / heure, jours à `*`, évaluées en **UTC** (`parseCron` lève une erreur sur tout le reste). Un job qui tourne plus vite qu'une minute n'écrit ses succès que dans `job_state`.
+- **Run now** : `safe` = admin+ ; `on_chain` / `quota` = `super_admin` + `confirm: true`. Cooldown 60 s, audit `jobs.run`. **Ne jamais lancer manuellement un job `on_chain` ou `quota` en local sans accord explicite.** Au démarrage, le scheduler exécute une fois chaque job (comportement existant) : un redémarrage local peut donc envoyer une tx (ex. `AdvanceEpoch` sur Spicy).
+- **Transactions** : tout envoi passe sous le **verrou de signer Redis** (`ISignerLock`, wrapper `withSignerLock` autour de `writeContract`) pour éviter les collisions de nonce entre API et workers ; sans Redis, envoi sans verrou avec un warn.
 
 ### 3.2 Côté front (clean architecture appliquée à React)
 
@@ -116,6 +129,14 @@ Exemple de référence : `pricesApi` ([apps/frontend/lib/api/endpoints/prices.ts
 Les hooks transverses on-chain (`useLiquidityPool`, `useChilizSwapRouter`, etc.) vivent à la racine de `apps/frontend/hooks/` car ils combinent reads viem + writes wagmi + parfois un appel API backend. Quand un de ces hooks fait du backend, il **consomme** un hook `hooks/api/use<Resource>` plutôt que de fetcher en direct (cf. `useLiquidityPool` qui consomme `usePoolState`).
 
 **Anti-pattern à proscrire** : `fetch(\`\${API_URL}/path\`)` dans un hook ou un composant. Ça bypasse les interceptors auth, ne gère pas 401/429, dupliquer l'URL et la query key, et casse les invalidations.
+
+### 3.2ter Admin (`apps/admin`)
+
+- Mêmes 4 couches : DTO Zod dans `packages/shared/src/dto/admin/` → `apps/admin/lib/api/endpoints/<resource>.ts` → `lib/query/keys.ts` → `hooks/api/use<Resource>.ts` (pas de fichiers barrel `index.ts` côté admin). Le client (`lib/api/client.ts`) ajoute le JWT admin et le jeton du gate (`X-Admin-Gate`).
+- **Le rôle est appliqué par le backend** (`requireAdmin(...)` + champs hors périmètre mis à `null` dans les use cases) ; côté admin, `isAllowedForNav` ne fait que masquer. Ne jamais compter sur le front pour restreindre une donnée.
+- Dashboard : un endpoint par carte (`/admin/dashboard/*`), cache Redis court partagé, rafraîchissement 15–30 s **uniquement** sur les cartes live, jamais en arrière-plan ; chaque carte gère ses états chargement / vide / erreur (`CardError`).
+- Primitives du design system dans `apps/admin/components/common/` (`Button` + `buttonClass`, `Badge`, `StatTile`, `CardHead`, `TRow`, `TwoStepButton`, `SearchField`…) : les réutiliser plutôt que réécrire des classes Tailwind. Logique d'affichage pure dans `apps/admin/lib/` (pas de runner de tests côté admin : ce qui mérite un test va dans `packages/domain`).
+- Hydratation : l'heure courante passe par `useNow()` (`useSyncExternalStore`, `null` au rendu serveur) ; la règle lint `react-hooks/set-state-in-effect` interdit le pattern `useEffect(() => setNow(...))`.
 
 ### 3.3 Règles de découpage (taille des fichiers)
 
@@ -292,7 +313,13 @@ WCHZ                 0x678c34581db0a7808d0ac669d7025f1408c9a3c6  (18 decimals, m
 - `FootballPariMatch` extends `PariMatchBase` — markets foot (`WINNER`, `GOALS_TOTAL`, `BOTH_SCORE`, `HALFTIME`, `FIRST_SCORER`, `GOALS_EXACT`) + `resolveByScore(FootballScoreInput)`
 - `BasketballPariMatch` extends `PariMatchBase` — markets basket (déployable, UI rend `<UnsupportedSportPanel />`)
 - `PariMatchFactory` — deploy + wiring (USDC, fee recipient, swap router, resolver, leaderboard)
-- `LeaderboardRewards` **V2** (UUPS, USDC) — `recordWin` accumule le score on-chain par epoch, `advanceEpoch` / `rolloverEpoch` permissionless, `claim(epochId)` top-N pro-rata. Plus de merkle (cf. §1.3, hotfix backend en attente)
+- `LeaderboardRewards` **V2** (UUPS, USDC) — `recordWin` accumule le score on-chain par epoch, `advanceEpoch` / `rolloverEpoch` permissionless, `claim(epochId)` top-N pro-rata. Plus de merkle (backend aligné, cf. §1.3)
+
+### Déploiement d'un match (manuel, depuis l'admin)
+1. `POST /admin/matches/:apiFootballId/deploy` met une opération `deploy` en file (`match_admin_operations`, au plus une active par match) et répond 202.
+2. Le worker la prend (claim atomique `FOR UPDATE SKIP LOCKED`), envoie `createFootballMatch`, **enregistre le tx hash avant d'attendre le reçu** (reprise sans redéploiement), seed + ouvre les markets (idempotent), puis publie le match. Le gas payé est enregistré dans `progress` (`deployGasWei`, `setupGasWei`).
+3. Autres opérations : `retry_setup`, `cancel_markets` (unpublish « masquer + annuler » → remboursements), annulation d'une opération encore `pending`.
+4. `MatchDeploymentPolicy` / `MatchVisibilityPolicy` (domain) décident de ce qui est déployable / publiable ; le coût estimé et le seuil d'alerte du signer viennent de `GET /admin/deployment-config`.
 
 ### Lifecycle d'un market (`enum MarketState`)
 ```
@@ -340,10 +367,15 @@ Contrats `BasketballMatch` déployés mais **UI non implémentée**. Tous les co
 10. **API-Football** : tarif au req. Cache 60s minimum, polling pré-match 10 min, polling live 60s. Pas d'appel direct depuis le front.
 11. **Env example files en miroir** : `apps/backend/.env.example` (template staging/prod) et `apps/backend/.env.local.example` (template local) doivent être bumpés **ensemble** quand une var change (adresses contracts, nouvelle clé requise, default modifié). Une seule des deux à jour = dérive silencieuse, un dev qui suit le mauvais fichier obtient une config cassée.
 12. **BigInt literals interdits côté front** : `apps/frontend/tsconfig.json` target `ES2017` — `0n` ou `10_000n` ne compilent pas (`TS2737`). Écrire `BigInt(0)` / `BigInt(10_000)`. Côté backend (`ES2022`) les literals fonctionnent.
-13. **Leaderboard ghost epochs** : `leaderboard_epochs.tx_hash` est PK (pas `epoch_id`). Le CLI `pnpm leaderboard:close-epoch` INSERT en `status='pending'` AVANT que la tx confirme. L'indexer flip à `confirmed` sur `EpochClosed` et remplit `epoch_id`. Si la tx revert, le row reste `pending` indéfiniment — invisible côté UI car `useMyClaimableEpochs` filtre `status='confirmed' AND claim_expiry > now`. **Ne jamais utiliser `epoch_id` comme clé d'idempotence côté CLI** — il est inconnu jusqu'à confirmation.
+13. **Leaderboard epochs** : `leaderboard_epochs.tx_hash` est PK (pas `epoch_id`). Les lignes sont écrites par le `LeaderboardIndexer` (`EpochAdvanced` → `confirmed`, `EpochRolledOver` → `rolled_over`), pas par le CLI. Les claimables se lisent **on-chain** (`pendingClaim` / `hasClaimed`) ; la DB ne fait que réduire la liste des candidats.
 14. **Pari-mutuel : payout dépend de la pool finale.** Le `parimutuelPayoutPreview` côté UI ne montre que l'estimé au moment du clic — la valeur réelle bouge à chaque nouveau bet. Ne pas afficher le payout comme un "lock" comme on le faisait avec les odds bookmaker.
 15. **`indexer_checkpoints` est keyé par `indexer_name` seul** — un switch de réseau laisse des numéros de blocs de l'ancienne chain. Si le checkpoint dépasse le head (Spicy > mainnet), `fromBlock > safeHead` → les indexers ne scannent **rien, silencieusement** (incident du 2026-06-11). Après un switch : rembobiner via `UPDATE indexer_checkpoints SET last_block = <bloc deploy>` — le rattrapage chunké est idempotent (`(tx_hash, log_index)`), relu à chaque tick, aucun restart requis.
 16. **Quotes de swap : uniquement via `ChilizSwapRouter.quoteTokenToUSDC`** (et `swapRouteFor` pour la route). Un path `[token, USDC]` construit à la main revert pour tous les fan tokens (liquidité Kayen hubée sur WCHZ + wrap CAP-20). Pools peu profondes : afficher le price impact et warner au-delà de ~3%.
+17. **Visibilité des matchs** : toute nouvelle requête de l'app sur `matches` doit filtrer `betting_contract_address IS NOT NULL AND published_at IS NOT NULL` (les repos le font via `findVisible*`). Les colonnes gérées par l'admin (`betting_chain_id`, `betting_opened_at`, `published_at`, contrat) sont exclues des updates « ligne entière » du sync (`ADMIN_OWNED_COLUMNS` dans `matchRowMapper.ts`) : ne pas les réintroduire. Les vues SQL `active_matches`, `match_stats`, `pending_settlement_predictions` contournent la RLS (inutilisées, fermées à l'anonyme).
+18. **Caches après une action admin** : un deploy / publish / unpublish / close doit appeler `invalidateMatchReadCaches` (listes de l'app, match, ligue, overview **et** cartes du dashboard). Sans ça, le changement n'apparaît qu'à l'expiration des TTL.
+19. **Verrou de signer** : il ne coordonne que les processus qui partagent le même Redis. Deux environnements qui utiliseraient la même clé de signer ne sont pas protégés l'un de l'autre.
+20. **Rate limit HTTP désactivé** : `RATE_LIMIT_DISABLED = true` est codé en dur dans `rate-limit.middleware.ts` (kill switch, y compris en prod). Les limites métier qui comptent passent par `IRateLimitService` dans les use cases (ex. Run now), indépendamment de ce switch.
+21. **Fees affichées** : `MarketResolved.fee` est la fee **brute** (part company + 1% leaderboard). Ne pas la présenter comme un revenu treasury (admin : « Fees settled · 24h (gross) »).
 
 ---
 
@@ -374,10 +406,8 @@ Contrats `BasketballMatch` déployés mais **UI non implémentée**. Tous les co
 ## 10. Convention d'usage de ce fichier
 
 - Ce fichier est la **source de vérité projet**. Si tu remarques une incohérence (ex. règle violée massivement dans le code existant), **signale-la** plutôt que de la perpétuer.
-- Sub-dossiers peuvent avoir leur propre `CLAUDE.md` qui **étend** (jamais ne contredit) celui-ci :
-  - `apps/frontend/CLAUDE.md` — règles UI/UX, langage visuel détaillé, conventions React/Next.
-  - `apps/backend/CLAUDE.md` — règles DDD + tsyringe + Supabase.
-  - `apps/smart-contracts/CLAUDE.md` — règles Solidity + Foundry.
+- Un sous-dossier peut avoir son propre `CLAUDE.md` qui **étend** (jamais ne contredit) celui-ci. Aucun n'existe aujourd'hui : en créer un (`apps/<app>/CLAUDE.md`) se valide comme une modification de ce fichier.
+- Ce fichier est versionné : toute modification passe par un commit relu comme le reste du code.
 - Quand tu commences une session, **lis ce fichier en entier** et confirme implicitement la prise en compte en suivant les règles. Pas besoin de répondre "j'ai lu" — applique.
 
-Dernière mise à jour : 2026-06-11 — audit complet post-passage mainnet : adresses mainnet/testnet, ChilizSwapRouter fan-token (0x72befd…), leaderboard V2, modération, deploy Fly/Vercel/CF Pages, pièges RPC/decimals/checkpoints.
+Dernière mise à jour : 2026-11-08 — app admin (gate, rôles, dashboard, Jobs), déploiement manuel des matchs et visibilité dans l'app, registre des jobs et Run now, leaderboard V2 aligné côté backend, ordre db-migrate / déploiement, pièges visibilité / caches / signer / fees.
