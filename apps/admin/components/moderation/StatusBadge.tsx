@@ -13,7 +13,7 @@ export function StatusBadge({ status }: Readonly<{ status: string }>) {
   const m = MAP[status] ?? { color: 'rgba(255,255,255,0.45)', label: status };
   return (
     <span
-      className="font-mono-ctv inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em]"
+      className="font-mono inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em]"
       style={{ color: m.color, background: `${m.color}14`, border: `1px solid ${m.color}40` }}
     >
       <span className="h-[5px] w-[5px] rounded-full" style={{ background: m.color }} />

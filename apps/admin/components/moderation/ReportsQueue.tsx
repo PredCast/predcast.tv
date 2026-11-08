@@ -11,7 +11,7 @@ import { THead } from '@/components/common/THead';
 import { TRow } from '@/components/common/TRow';
 import { EmptyState } from '@/components/common/EmptyState';
 import { FilterChips } from '@/components/common/FilterChips';
-import { SeverityBadge } from './SeverityBadge';
+import { SeverityBadge } from '@/components/common/SeverityBadge';
 import { StatusBadge } from './StatusBadge';
 import { WalletLabel } from './WalletLabel';
 

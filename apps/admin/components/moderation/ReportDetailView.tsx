@@ -8,7 +8,7 @@ import { Card } from '@/components/common/Card';
 import { DetailField } from '@/components/common/DetailField';
 import { Eyebrow } from '@/components/common/Eyebrow';
 import { Icon } from '@/components/common/Icon';
-import { SeverityBadge } from './SeverityBadge';
+import { SeverityBadge } from '@/components/common/SeverityBadge';
 import { StatusBadge } from './StatusBadge';
 import { WalletLabel } from './WalletLabel';
 

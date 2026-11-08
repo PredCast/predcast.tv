@@ -12,11 +12,11 @@ export function OffsetPager({ offset, limit, total, onOffsetChange }: Readonly<O
   const from = offset + 1;
   const to = Math.min(offset + limit, total);
   const btn =
-    'font-mono-ctv rounded-md border border-[#2A2A2A] px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white/65 transition-colors hover:text-white disabled:cursor-default disabled:opacity-35 disabled:hover:text-white/65';
+    'font-mono rounded-md border border-line px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] textfg-body transition-colors hover:text-white disabled:cursor-default disabled:opacity-35 disabled:hover:textfg-body';
 
   return (
     <div className="mt-3 flex items-center justify-between">
-      <span className="font-mono-ctv text-[10px] uppercase tracking-[0.12em] text-white/35">
+      <span className="font-mono text-[10px] uppercase tracking-[0.12em] textfg-meta">
         {from}–{to} of {total}
       </span>
       <div className="flex gap-1.5">
