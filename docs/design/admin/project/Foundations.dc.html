@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PredCast Admin — Foundations</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/9264fd1e8f5f0b12e5fc071b5c590272">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;family=Lexend:wght@300;400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="min-height: 100%; background: #0A0A0A; color: #FFFFFF; font-family: 'Lexend', system-ui, sans-serif; font-size: 14px; line-height: 20px;">
+<div style="max-width: 1360px; margin: 0 auto; padding: 48px 40px 64px; display: flex; flex-direction: column; gap: 40px;">
+
+  <header style="display: flex; flex-direction: column; gap: 8px;">
+    <div style="display: flex; align-items: center; gap: 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.2em; color: #FF4757;"><span aria-hidden="true" style="width: 18px; height: 2px; background: #E8001D;"></span>ADMIN DESIGN SYSTEM · v1</div>
+    <h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 56px; line-height: 52px; text-transform: uppercase;">Foundations</h1>
+    <p style="margin: 0; max-width: 760px; color: rgba(255,255,255,0.65);">Dark only. One accent (Chiliz red) plus two status colours. Every value below maps 1:1 to a Tailwind v4 <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #FFFFFF;">@theme</span> token — see the snippet at the bottom.</p>
+  </header>
+
+  <!-- COLOURS -->
+  <section style="display: flex; flex-direction: column; gap: 16px;">
+    <h2 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 28px; line-height: 30px; text-transform: uppercase;">Colour tokens</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;">
+      <sc-for list="{{ colors }}" as="c" hint-placeholder-count="16">
+      <div style="background: #111111; border: 1px solid #1E1E1E; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column;">
+        <div style="height: 64px; background: {{ c.hex }}; border-bottom: 1px solid #1E1E1E; display: flex; align-items: flex-end; padding: 8px 10px; box-sizing: border-box;"><span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: {{ c.on }};">{{ c.sample }}</span></div>
+        <div style="padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 3px;">
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.06em;">{{ c.token }}</span>
+          <span class="pc-num" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: rgba(255,255,255,0.65);">{{ c.value }}</span>
+          <span style="font-size: 12px; line-height: 16px; color: rgba(255,255,255,0.5);">{{ c.use }}</span>
+        </div>
+      </div>
+      </sc-for>
+    </div>
+    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+      <div style="flex: 1 1 380px; border: 1px solid rgba(245,197,24,0.4); border-radius: 12px; padding: 14px 16px; display: flex; gap: 12px; align-items: flex-start;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; margin-top: 2px;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+        <div style="font-size: 13px; color: rgba(255,255,255,0.75);"><strong style="color: #FFFFFF; font-weight: 600;">AA contrast fixes.</strong> #E8001D on #111 is 4.0:1 — fails AA for small text. Use it for fills, borders and large numbers only; small red text uses <span style="font-family: 'JetBrains Mono', monospace; color: #FF4757;">accent-text #FF4757</span> (5.6:1). Meta text goes from 0.45 to <span style="font-family: 'JetBrains Mono', monospace; color: #FFFFFF;">0.50</span> white (5.3:1 on #111; 0.45 sat at 4.5:1 exactly).</div>
+      </div>
+      <div style="flex: 1 1 380px; border: 1px solid #1E1E1E; border-radius: 12px; padding: 14px 16px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 16px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: rgba(255,255,255,0.65);">
+        <span>#FFF on #111 · <span style="color: #2dd4a4;">18.1:1</span></span><span>#FFF on #E8001D · <span style="color: #2dd4a4;">4.7:1</span></span>
+        <span>0.65 white on #111 · <span style="color: #2dd4a4;">8.3:1</span></span><span>#FF4757 on #111 · <span style="color: #2dd4a4;">5.6:1</span></span>
+        <span>0.50 white on #111 · <span style="color: #2dd4a4;">5.3:1</span></span><span>#2DD4A4 on #111 · <span style="color: #2dd4a4;">9.9:1</span></span>
+        <span>#E8001D on #111 · <span style="color: #FF4757;">4.0:1 ✕ text</span></span><span>#F5C518 on #111 · <span style="color: #2dd4a4;">11.6:1</span></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- TYPE -->
+  <section style="display: flex; flex-direction: column; gap: 16px;">
+    <h2 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 28px; line-height: 30px; text-transform: uppercase;">Type scale</h2>
+    <div style="background: #111111; border: 1px solid #1E1E1E; border-radius: 12px; overflow: hidden;">
+      <div style="display: grid; grid-template-columns: 150px minmax(0, 1fr) 380px; gap: 16px; padding: 0 20px; height: 32px; align-items: center; border-bottom: 1px solid #1E1E1E; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: rgba(255,255,255,0.5);"><span>TOKEN</span><span>SAMPLE</span><span>SPEC · USAGE</span></div>
+      <sc-for list="{{ type }}" as="t" hint-placeholder-count="14">
+      <div style="display: grid; grid-template-columns: 150px minmax(0, 1fr) 380px; gap: 16px; padding: 12px 20px; align-items: center; border-bottom: 1px solid #1E1E1E;">
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; color: #FF4757;">{{ t.token }}</span>
+        <span style="font-family: {{ t.ff }}; font-weight: {{ t.fw }}; font-size: {{ t.fs }}; line-height: {{ t.lh }}; letter-spacing: {{ t.ls }}; text-transform: {{ t.tt }}; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ t.sample }}</span>
+        <span style="display: flex; flex-direction: column; gap: 2px;"><span class="pc-num" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: rgba(255,255,255,0.85);">{{ t.spec }}</span><span style="font-size: 12px; color: rgba(255,255,255,0.5);">{{ t.use }}</span></span>
+      </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- SPACING / RADII / ELEVATION -->
+  <section style="display: flex; gap: 12px; flex-wrap: wrap; align-items: stretch;">
+    <div style="flex: 1 1 400px; background: #111111; border: 1px solid #1E1E1E; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+      <h2 style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.18em;">SPACING · 4PX BASE</h2>
+      <sc-for list="{{ spacing }}" as="s" hint-placeholder-count="10">
+      <div style="display: grid; grid-template-columns: 44px 120px minmax(0, 1fr); gap: 12px; align-items: center;">
+        <span class="pc-num" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #FFFFFF;">{{ s.v }}</span>
+        <span style="display: block; height: 10px; width: {{ s.w }}; background: #E8001D; border-radius: 2px;"></span>
+        <span style="font-size: 12px; color: rgba(255,255,255,0.5);">{{ s.use }}</span>
+      </div>
+      </sc-for>
+    </div>
+    <div style="flex: 1 1 400px; background: #111111; border: 1px solid #1E1E1E; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+      <h2 style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.18em;">RADII · CONTROL HEIGHTS</h2>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;">
+        <sc-for list="{{ radii }}" as="r" hint-placeholder-count="6">
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="height: 52px; border: 1px solid #3A3A3A; background: #1A1A1A; border-radius: {{ r.v }};"></div>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px;">{{ r.label }}</span>
+          <span style="font-size: 12px; line-height: 16px; color: rgba(255,255,255,0.5);">{{ r.use }}</span>
+        </div>
+        </sc-for>
+      </div>
+      <div style="border-top: 1px solid #1E1E1E; padding-top: 14px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 16px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: rgba(255,255,255,0.65);">
+        <span>CONTROL XS · 24px</span><span>CONTROL SM · 28px (row actions)</span>
+        <span>CONTROL MD · 32px (page actions)</span><span>CONTROL LG · 40px (modal footer)</span>
+        <span>ROW COMPACT · 36px</span><span>ROW DEFAULT · 48px</span>
+        <span>ROW RICH · 52–60px</span><span>CARD HEADER · 44px</span>
+        <span>TOP BAR · 56px</span><span>SIDEBAR · 224px · NAV ITEM 36px</span>
+      </div>
+    </div>
+    <div style="flex: 1 1 400px; background: #111111; border: 1px solid #1E1E1E; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+      <h2 style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.18em;">ELEVATION · FOCUS</h2>
+      <sc-for list="{{ elevation }}" as="e" hint-placeholder-count="5">
+      <div style="display: flex; gap: 14px; align-items: center;">
+        <div style="width: 72px; height: 44px; flex: none; border-radius: 8px; background: {{ e.bg }}; border: 1px solid {{ e.border }}; box-shadow: {{ e.shadow }};"></div>
+        <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600;">{{ e.name }}</span>
+          <span class="pc-num" style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: rgba(255,255,255,0.5);">{{ e.spec }}</span>
+        </div>
+      </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- MOTION + A11Y -->
+  <section style="display: flex; gap: 12px; flex-wrap: wrap;">
+    <div style="flex: 1 1 560px; background: #111111; border: 1px solid #1E1E1E; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <h2 style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.18em;">MOTION</h2>
+      <div style="display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 10px 16px; align-items: center; font-size: 13px; color: rgba(255,255,255,0.75);">
+        <span style="display: inline-flex; align-items: center; gap: 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #FFFFFF;"><span class="pc-live"></span>LIVE DOT</span><span>8px dot #E8001D + halo: scale 1 → 2.6, opacity .7 → 0, 1.6s ease-out infinite.</span>
+        <span style="display: inline-flex; align-items: center; gap: 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #FFFFFF;"><span class="pc-skel" style="width: 40px; height: 10px;"></span>SKELETON</span><span>Gradient #161616 → #222 → #161616, 200% size, 1.4s linear infinite.</span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #FFFFFF;">HOVER</span><span>background / border / colour, 120ms ease. No transforms, no scale.</span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #FFFFFF;">REDUCED</span><span>prefers-reduced-motion: halo removed (solid dot stays, “LIVE” text carries meaning), shimmer → flat #161616, spinner static.</span>
+      </div>
+    </div>
+    <div style="flex: 1 1 560px; background: #111111; border: 1px solid #1E1E1E; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+      <h2 style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.18em;">ACCESSIBILITY RULES</h2>
+      <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: rgba(255,255,255,0.75);">
+        <span>Focus: <span style="font-family: 'JetBrains Mono', monospace; color: #FFFFFF;">outline 2px #E8001D, offset 2px</span> on :focus-visible — every button, link, input, nav item.</span>
+        <span>Status never by colour alone: glyph + word (✓ OK, ✕ FAIL, ▲ LOW, S1–S5 label, CRITICAL / WARNING).</span>
+        <span>Numbers: <span style="font-family: 'JetBrains Mono', monospace; color: #FFFFFF;">font-variant-numeric: tabular-nums</span> everywhere a value can change.</span>
+        <span>Icon-only buttons carry aria-label; decorative SVG aria-hidden; live regions: health pill role=status, alerts role=alert.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAILWIND -->
+  <section style="background: #111111; border: 1px solid #1E1E1E; border-radius: 12px; overflow: hidden;">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 20px; height: 44px; border-bottom: 1px solid #1E1E1E;"><h2 style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.18em;">TAILWIND V4 · app/globals.css</h2></div>
+    <pre style="margin: 0; padding: 20px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 19px; color: rgba(255,255,255,0.85); white-space: pre-wrap; overflow-x: auto;">@import "tailwindcss";
+
+@theme {
+  --color-page: #0A0A0A;          --color-card: #111111;         --color-card-2: #141414;
+  --color-elevated: #1A1A1A;      --color-line-subtle: #1E1E1E;  --color-line: #2A2A2A;
+  --color-line-hover: #3A3A3A;
+  --color-accent: #E8001D;        --color-accent-hover: #FF1737; --color-accent-dark: #B0001A;
+  --color-accent-text: #FF4757;   /* small red text only */
+  --color-positive: #2DD4A4;      --color-warning: #F5C518;
+  --color-fg: #FFFFFF;            --color-fg-body: rgb(255 255 255 / 0.65);
+  --color-fg-meta: rgb(255 255 255 / 0.5);
+
+  --font-display: "Barlow Condensed", sans-serif;   /* 700–800, uppercase */
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-sans: "Lexend", system-ui, sans-serif;
+
+  --radius-badge: 4px;  --radius-control: 6px;  --radius-nav: 8px;  --radius-card: 12px;
+  --shadow-popover: 0 8px 24px rgb(0 0 0 / 0.5);
+  --shadow-modal: 0 24px 64px rgb(0 0 0 / 0.7);
+  --animate-live: pc-pulse 1.6s ease-out infinite;
+  --animate-shimmer: pc-shimmer 1.4s linear infinite;
+}
+
+@layer base {
+  body { @apply bg-page text-fg font-sans text-sm; font-variant-numeric: tabular-nums; }
+  :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+}
+@media (prefers-reduced-motion: reduce) { .animate-live, .animate-shimmer { animation: none; } }</pre>
+  </section>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2600}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const W = '#FFFFFF', K = '#0A0A0A';
+    const colors = [
+      { token: 'page', value: '#0A0A0A', use: 'App background', hex: '#0A0A0A', on: W, sample: 'BG-PAGE' },
+      { token: 'card', value: '#111111', use: 'Cards, tiles, sidebar panels', hex: '#111111', on: W, sample: 'BG-CARD' },
+      { token: 'card-2', value: '#141414', use: 'Nested tiles, modal surface', hex: '#141414', on: W, sample: 'BG-CARD-2' },
+      { token: 'elevated', value: '#1A1A1A', use: 'Hover fill, crests, tracks', hex: '#1A1A1A', on: W, sample: 'BG-ELEVATED' },
+      { token: 'line-subtle', value: '#1E1E1E', use: 'Card borders, row dividers', hex: '#1E1E1E', on: W, sample: 'BORDER SUBTLE' },
+      { token: 'line', value: '#2A2A2A', use: 'Controls, chips, ghost buttons', hex: '#2A2A2A', on: W, sample: 'BORDER' },
+      { token: 'line-hover', value: '#3A3A3A', use: 'Hovered borders', hex: '#3A3A3A', on: W, sample: 'BORDER HOVER' },
+      { token: 'accent', value: '#E8001D', use: 'Primary CTA, live, critical fills', hex: '#E8001D', on: W, sample: 'CTA · LIVE' },
+      { token: 'accent-hover', value: '#FF1737', use: 'Primary hover', hex: '#FF1737', on: W, sample: 'HOVER' },
+      { token: 'accent-dark', value: '#B0001A', use: 'Primary pressed', hex: '#B0001A', on: W, sample: 'PRESSED' },
+      { token: 'accent-text', value: '#FF4757 · new', use: 'Red text < 18px (AA)', hex: '#FF4757', on: K, sample: 'TEXT RED' },
+      { token: 'positive', value: '#2DD4A4', use: 'Success, OK, published, PnL +', hex: '#2DD4A4', on: K, sample: 'OK' },
+      { token: 'warning', value: '#F5C518', use: 'Attention, fee, pause, closed', hex: '#F5C518', on: K, sample: 'WARN' },
+      { token: 'fg', value: '#FFFFFF', use: 'Titles, values', hex: '#FFFFFF', on: K, sample: 'TEXT' },
+      { token: 'fg-body', value: 'white / 0.65', use: 'Body copy, secondary values', hex: 'rgba(255,255,255,0.65)', on: K, sample: 'BODY' },
+      { token: 'fg-meta', value: 'white / 0.50', use: 'Labels, timestamps, meta', hex: 'rgba(255,255,255,0.5)', on: K, sample: 'META' }
+    ];
+    const BC = "'Barlow Condensed', sans-serif", JM = "'JetBrains Mono', monospace", LX = "'Lexend', sans-serif";
+    const t = (token, ff, fw, fs, lh, ls, tt, sample, spec, use) => ({ token, ff, fw, fs, lh, ls, tt, sample, spec, use });
+    const type = [
+      t('display-xl', BC, 800, '44px', '44px', '0.01em', 'uppercase', 'Match day', 'Barlow Cond. 800 · 44/44 · +0.01em · UPPER', 'Page title (h1)'),
+      t('display-num', BC, 800, '48px', '44px', '0', 'none', '212.40', 'Barlow Cond. 800 · 48/44 · tabular', 'Hero number (wallet balance)'),
+      t('kpi', BC, 800, '38px', '36px', '0', 'none', '48.2k', 'Barlow Cond. 800 · 38/36 · tabular', 'Stat tile value'),
+      t('score', BC, 800, '30px', '30px', '0', 'none', '2  1', 'Barlow Cond. 800 · 30/30 · tabular', 'Live score'),
+      t('section', BC, 800, '26px', '28px', '0', 'uppercase', 'Live now', 'Barlow Cond. 800 · 26/28 · UPPER', 'Section title (h2) outside cards'),
+      t('num-s', BC, 700, '22px', '24px', '0', 'none', '22.6', 'Barlow Cond. 700 · 22/24', 'Secondary figures in cards'),
+      t('card-title', JM, 600, '11px', '16px', '0.18em', 'uppercase', 'Upcoming events', 'JetBrains 600 · 11/16 · +0.18em · UPPER', 'Card header title (h2)'),
+      t('eyebrow', JM, 600, '11px', '16px', '0.2em', 'uppercase', '— Overview', 'JetBrains 600 · 11/16 · +0.20em · accent-text', 'Eyebrow, preceded by 18×2 bar'),
+      t('nav', JM, 600, '12px', '16px', '0.14em', 'uppercase', 'Dashboard', 'JetBrains 600 · 12/16 · +0.14em · UPPER', 'Sidebar items'),
+      t('label', JM, 600, '10px', '14px', '0.16em', 'uppercase', 'Volume 24h', 'JetBrains 600 · 10/14 · +0.16em · UPPER', 'Tile labels, table headers'),
+      t('button', JM, 700, '10px', '16px', '0.14em', 'uppercase', 'Close markets', 'JetBrains 700 · 10–11/16 · +0.14em', 'Buttons (sm 10px, md 11px)'),
+      t('badge', JM, 700, '9px', '12px', '0.12em', 'uppercase', 'Published', 'JetBrains 700 · 9/12 · +0.12em · UPPER', 'Badges, pills, chips'),
+      t('data', JM, 400, '12px', '16px', '0', 'none', '0x1a2b…9f0c · 14:15:02', 'JetBrains 400 · 11–12/16 · tabular', 'Addresses, timestamps, job names'),
+      t('body-strong', LX, 500, '14px', '20px', '0', 'none', 'Paris Saint-Germain vs Inter', 'Lexend 500 · 14/20', 'Row titles, team names (15px)'),
+      t('body', LX, 400, '14px', '20px', '0', 'none', 'Deploy a match to create the next event.', 'Lexend 400 · 14/20 · fg-body', 'Body copy'),
+      t('small', LX, 400, '12px', '16px', '0', 'none', 'setupMarkets reverted — out of gas', 'Lexend 400 · 12–13/16–18', 'Alert detail, helper text')
+    ];
+    const spacing = [
+      { v: '4', w: '4px', use: 'Icon ↔ glyph, dot gaps' },
+      { v: '6', w: '6px', use: 'Chip gaps, badge internal' },
+      { v: '8', w: '8px', use: 'Button groups, inline clusters' },
+      { v: '10', w: '10px', use: 'Card-header gap, nav icon gap' },
+      { v: '12', w: '12px', use: 'Grid gap between cards, row gap' },
+      { v: '16', w: '16px', use: 'Card padding (x), row padding (x)' },
+      { v: '20', w: '20px', use: 'Section gap (vertical rhythm)' },
+      { v: '24', w: '24px', use: 'Page padding top' },
+      { v: '28', w: '28px', use: 'Page padding (x), top bar padding' },
+      { v: '48', w: '48px', use: 'Page padding bottom' }
+    ];
+    const radii = [
+      { v: '4px', label: '4 · badge', use: 'Badges, chips, counters' },
+      { v: '6px', label: '6 · control', use: 'Buttons, inputs, pills' },
+      { v: '8px', label: '8 · nav', use: 'Nav items, inner tiles' },
+      { v: '10px', label: '10 · panel', use: 'Env block, icon wells' },
+      { v: '12px', label: '12 · card', use: 'Cards, modal, toasts' },
+      { v: '999px', label: 'full', use: 'Dots, progress, avatars' }
+    ];
+    const elevation = [
+      { name: 'L0 · PAGE', bg: '#0A0A0A', border: '#1E1E1E', shadow: 'none', spec: 'bg #0A0A0A · no border' },
+      { name: 'L1 · CARD', bg: '#111111', border: '#1E1E1E', shadow: 'none', spec: 'bg #111 · 1px #1E1E1E · no shadow' },
+      { name: 'L2 · POPOVER / TOAST', bg: '#1A1A1A', border: '#2A2A2A', shadow: '0 8px 24px rgba(0,0,0,0.5)', spec: 'bg #1A1A1A · 1px #2A2A2A · 0 8 24 /.5' },
+      { name: 'L3 · MODAL', bg: '#141414', border: '#2A2A2A', shadow: '0 24px 64px rgba(0,0,0,0.7)', spec: 'bg #141414 · 0 24 64 /.7 · scrim #000/.72' },
+      { name: 'FOCUS RING', bg: '#111111', border: '#2A2A2A', shadow: '0 0 0 2px #0A0A0A, 0 0 0 4px #E8001D', spec: 'outline 2px #E8001D · offset 2px' }
+    ];
+    return { colors, type, spacing, radii, elevation };
+  }
+}
+</script>
+</body>
+</html>

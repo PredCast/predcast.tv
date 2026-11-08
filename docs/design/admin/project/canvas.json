@@ -1,0 +1,27 @@
+{
+  "v": 3,
+  "createdOnFiles": {"v": 1, "at": "2026-11-07T13:20:00Z"},
+  "title": "PredCast Admin — Match Day Dashboard",
+  "launch": {"view": "canvas"},
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {"x": 0, "y": 0, "w": 1440, "h": 2950, "title": "Dashboard · Admin · 1440 · alerts active", "expand": "fill"},
+    "Wide.dc.html": {"x": 1520, "y": 0, "w": 1920, "h": 2750, "title": "Dashboard · Admin · 1920", "expand": "fill"},
+    "Compact.dc.html": {"x": 3520, "y": 0, "w": 1280, "h": 3150, "title": "Dashboard · Admin · 1280 check", "expand": "fill"},
+    "Moderator.dc.html": {"x": 0, "y": 3500, "w": 1440, "h": 2500, "title": "Variant · Moderator", "expand": "fill"},
+    "Finance.dc.html": {"x": 1520, "y": 3500, "w": 1440, "h": 2400, "title": "Variant · Finance", "expand": "fill"},
+    "Loading.dc.html": {"x": 0, "y": 6500, "w": 1440, "h": 2300, "title": "State · Loading (skeletons)", "expand": "fill"},
+    "Empty.dc.html": {"x": 1520, "y": 6500, "w": 1440, "h": 2700, "title": "State · Empty (no live, no events)", "expand": "fill"},
+    "Error.dc.html": {"x": 3040, "y": 6500, "w": 1440, "h": 2950, "title": "State · Card error", "expand": "fill"},
+    "Foundations.dc.html": {"x": 0, "y": 9900, "w": 1440, "h": 2600, "title": "Design system · Foundations", "expand": "fill"},
+    "Components.dc.html": {"x": 1520, "y": 9900, "w": 1440, "h": 5200, "title": "Design system · Components & specs", "expand": "fill"}
+  },
+  "order": ["Main.dc.html", "Wide.dc.html", "Compact.dc.html", "Moderator.dc.html", "Finance.dc.html", "Loading.dc.html", "Empty.dc.html", "Error.dc.html", "Foundations.dc.html", "Components.dc.html"],
+  "notes": {
+    "t1": {"x": 0, "y": -300, "text": "Match Day dashboard — Admin (1440 · 1920 · 1280)", "kind": "title1", "maxW": 4800},
+    "t2": {"x": 0, "y": 3200, "text": "Role variants — Moderator · Finance", "kind": "title1", "maxW": 2960},
+    "t3": {"x": 0, "y": 6200, "text": "States — Loading · Empty · Error", "kind": "title1", "maxW": 4480},
+    "t4": {"x": 0, "y": 9600, "text": "Admin design system — tokens, components, specs", "kind": "title1", "maxW": 2960}
+  },
+  "designSystems": []
+}
