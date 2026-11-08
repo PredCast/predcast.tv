@@ -9,7 +9,7 @@ export default function BansPage() {
         eyebrow="Moderation"
         title="Bans"
         right={
-          <span className="font-mono-ctv text-[10px] uppercase tracking-[0.14em] text-white/35">
+          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-fg-meta">
             Escalation 24h → 168h → permanent
           </span>
         }

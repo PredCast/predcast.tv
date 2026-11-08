@@ -14,7 +14,7 @@ const barlowCondensed = Barlow_Condensed({
 });
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
-  weight: ["400", "500", "700"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-jetbrains-mono",
   display: "swap",
 });
@@ -30,7 +30,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${lexend.className} ${barlowCondensed.variable} ${jetbrainsMono.variable} antialiased`}>
+      <body className={`${lexend.variable} ${barlowCondensed.variable} ${jetbrainsMono.variable} antialiased`}>
         <Providers>
           <AdminGuard>
             <AdminShell>{children}</AdminShell>

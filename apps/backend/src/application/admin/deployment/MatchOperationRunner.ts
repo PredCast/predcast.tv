@@ -53,6 +53,7 @@ export class MatchOperationRunner {
     /** Deploy step: reuses the stored address, then the stored tx hash, and only then sends a new tx. */
     private async ensureContract(op: MatchOperation, match: Match): Promise<string> {
         let address = op.progress.contractAddress ?? match.getBettingContractAddress() ?? null;
+        let deployGasWei = op.progress.deployGasWei;
 
         if (!address && op.progress.deployTxHash) {
             const found = await this.deployer.findDeployedContract(op.progress.deployTxHash);
@@ -62,6 +63,7 @@ export class MatchOperationRunner {
                 );
             }
             address = found.contractAddress;
+            deployGasWei = found.gasCostWei;
         }
 
         if (!address) {
@@ -71,9 +73,10 @@ export class MatchOperationRunner {
                 (txHash) => this.operations.recordProgress(op.id, { deployTxHash: txHash }, this.clock.now()),
             );
             address = deployed.contractAddress;
+            deployGasWei = deployed.gasCostWei;
         }
 
-        await this.operations.recordProgress(op.id, { contractAddress: address }, this.clock.now());
+        await this.operations.recordProgress(op.id, { contractAddress: address, deployGasWei }, this.clock.now());
         if (!match.getBettingContractAddress()) {
             await this.deployments.recordContractDeployed(op.matchId, address, op.chainId);
         }
@@ -82,9 +85,11 @@ export class MatchOperationRunner {
 
     /** Seeds / opens the markets; the first successful opening also publishes the match. */
     private async openMarketsAndPublish(op: MatchOperation, match: Match, contractAddress: string): Promise<void> {
-        const { opened } = await this.deployer.ensureDefaultMarketsOpen(contractAddress, { isKnockout: match.isKnockout() });
+        const { opened, gasCostWei } = await this.deployer.ensureDefaultMarketsOpen(contractAddress, { isKnockout: match.isKnockout() });
         const now = this.clock.now();
-        await this.operations.recordProgress(op.id, { marketsOpened: opened }, now);
+        // A resumed operation adds to what its first attempt already paid.
+        const setupGasWei = (BigInt(op.progress.setupGasWei ?? '0') + BigInt(gasCostWei)).toString();
+        await this.operations.recordProgress(op.id, { marketsOpened: opened, setupGasWei }, now);
 
         // Retries after an admin unpublish keep the match hidden: only the first opening publishes.
         if (!match.getBettingOpenedAt()) {

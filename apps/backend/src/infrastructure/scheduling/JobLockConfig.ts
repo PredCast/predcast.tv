@@ -32,6 +32,7 @@ export const JobLocks = {
   liftExpiredBans:      { key: baseKey('lift-expired-bans'),     ttlSeconds: 60  } satisfies JobLockConfig,
   // One operation can wait several receipts (deploy + seed + open); the watchdog renews beyond.
   matchOperations:      { key: baseKey('match-operations'),      ttlSeconds: 300 } satisfies JobLockConfig,
+  purgeJobRuns:         { key: baseKey('purge-job-runs'),        ttlSeconds: 120 } satisfies JobLockConfig,
 } as const;
 
 /** Per-indexer lock key. Watchdog renews automatically at TTL/3. */

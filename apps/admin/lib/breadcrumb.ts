@@ -9,5 +9,6 @@ export function breadcrumbFor(pathname: string): { section: string; page: string
   if (pathname.startsWith('/players/')) return { section: 'Directory', page: 'Player detail' };
   if (pathname.startsWith('/players')) return { section: 'Directory', page: 'Players' };
   if (pathname.startsWith('/markets')) return { section: 'Operations', page: 'Markets' };
+  if (pathname.startsWith('/jobs')) return { section: 'Operations', page: 'Jobs' };
   return { section: 'Operations', page: 'Admin' };
 }

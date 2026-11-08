@@ -1,29 +1,94 @@
 @import "tailwindcss";
 @source "../../../packages/ui/src";
 
-body {
-  background: #0a0a0a;
-  color: #ffffff;
+/* Admin design system v1 — docs/design/admin (Foundations board). */
+@theme {
+  --color-page: #0a0a0a;
+  --color-sidebar: #0d0d0d;
+  --color-card: #111111;
+  --color-card-2: #141414;
+  --color-row-hover: #161616;
+  --color-elevated: #1a1a1a;
+  --color-line-subtle: #1e1e1e;
+  --color-line: #2a2a2a;
+  --color-line-hover: #3a3a3a;
+  --color-accent: #e8001d;
+  --color-accent-hover: #ff1737;
+  --color-accent-dark: #b0001a;
+  --color-accent-text: #ff4757;
+  --color-positive: #2dd4a4;
+  --color-warning: #f5c518;
+  --color-fg: #ffffff;
+  --color-fg-strong: rgb(255 255 255 / 0.85);
+  --color-fg-body: rgb(255 255 255 / 0.65);
+  --color-fg-meta: rgb(255 255 255 / 0.5);
+
+  --radius-badge: 4px;
+  --radius-control: 6px;
+  --radius-nav: 8px;
+  --radius-panel: 10px;
+  --radius-card: 12px;
+
+  --shadow-popover: 0 8px 24px rgb(0 0 0 / 0.5);
+  --shadow-modal: 0 24px 64px rgb(0 0 0 / 0.7);
+
+  --animate-live: pc-pulse 1.6s ease-out infinite;
+  --animate-shimmer: pc-shimmer 1.4s linear infinite;
 }
 
+/* Inline: the next/font variables live on <body>, so the stacks must resolve per element. */
+@theme inline {
+  --font-display: var(--font-barlow-condensed), "Barlow Condensed", sans-serif;
+  --font-mono: var(--font-jetbrains-mono), "JetBrains Mono", ui-monospace, monospace;
+  --font-sans: var(--font-lexend), "Lexend", system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    background: var(--color-page);
+    color: var(--color-fg);
+    font-family: var(--font-lexend), "Lexend", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 20px;
+    font-variant-numeric: tabular-nums;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+/* Legacy helpers still used by pages not yet migrated to the tokens. */
 .font-display {
-  font-family: var(--font-barlow-condensed), 'Barlow Condensed', sans-serif;
+  font-family: var(--font-barlow-condensed), "Barlow Condensed", sans-serif;
 }
 .font-mono-ctv {
-  font-family: var(--font-jetbrains-mono), 'JetBrains Mono', monospace;
+  font-family: var(--font-jetbrains-mono), "JetBrains Mono", monospace;
 }
 
-input::placeholder {
-  color: rgba(255, 255, 255, 0.25);
+input::placeholder,
+textarea::placeholder {
+  color: rgb(255 255 255 / 0.4);
 }
 
-@keyframes pcPulse {
-  0% { box-shadow: 0 0 0 0 rgba(232, 0, 29, 0.5); }
-  70% { box-shadow: 0 0 0 5px rgba(232, 0, 29, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(232, 0, 29, 0); }
+@keyframes pc-pulse {
+  0% { box-shadow: 0 0 0 0 rgb(232 0 29 / 0.55); }
+  70% { box-shadow: 0 0 0 6px rgb(232 0 29 / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(232 0 29 / 0); }
 }
 .live-dot {
-  animation: pcPulse 1.8s infinite;
+  animation: var(--animate-live);
+}
+
+@keyframes pc-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+.pc-skel {
+  border-radius: var(--radius-control);
+  background: linear-gradient(90deg, #161616 0%, #222222 50%, #161616 100%);
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
 }
 
 @keyframes pcPing {
@@ -34,9 +99,21 @@ input::placeholder {
   animation: pcPing 2s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
+@keyframes pc-spin {
+  to { transform: rotate(360deg); }
+}
+.pc-spin {
+  animation: pc-spin 1s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .live-dot,
-  .pc-ping {
+  .pc-ping,
+  .pc-spin {
     animation: none;
+  }
+  .pc-skel {
+    animation: none;
+    background: #161616;
   }
 }

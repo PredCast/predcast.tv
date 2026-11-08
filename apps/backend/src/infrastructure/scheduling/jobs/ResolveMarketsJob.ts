@@ -31,6 +31,7 @@ export class ResolveMarketsJob {
             logger.error('Market resolution job failed', {
                 error: error instanceof Error ? error.message : 'Unknown error'
             });
+            throw error;
         }
     }
 }

@@ -9,6 +9,7 @@ import type { ILockService } from '@chiliztv/domain/shared/ports/ILockService';
 import { ApiFootballMatch } from '../types/ApiFootball.types';
 import { logger } from '../../logging/logger';
 import { env } from '../../config/environment';
+import { API_FOOTBALL_LIMIT_KEY } from '../usage/usageKeys';
 
 const FORM_CACHE_TTL_SECONDS = 3600;       // 1h — form moves max once per 3-7 days
 const FORM_NEGATIVE_TTL_SECONDS = 600;     // 10 min — team has no completed fixtures
@@ -123,6 +124,8 @@ export class FootballApiAdapterImpl implements IFootballApiService {
                 const remaining = Number(response.headers['x-ratelimit-requests-remaining'] ?? -1);
                 const limit = Number(response.headers['x-ratelimit-requests-limit'] ?? -1);
                 if (remaining >= 0 && limit > 0) {
+                    // Kept for the admin health card; observability only.
+                    void this.cache.set(API_FOOTBALL_LIMIT_KEY, limit, QUOTA_COUNTER_TTL_SECONDS).catch(() => undefined);
                     const usedPct = ((limit - remaining) / limit) * 100;
                     if (remaining === 0) {
                         logger.error('API-Football quota exhausted — switching to cache-only until UTC midnight', { limit });

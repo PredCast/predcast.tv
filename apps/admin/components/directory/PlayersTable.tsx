@@ -34,7 +34,7 @@ export function PlayersTable() {
         </THead>
 
         {isLoading && (
-          <p className="font-mono-ctv px-4 py-6 text-[11px] uppercase tracking-[0.14em] text-white/35">Loading…</p>
+          <p className="font-mono px-4 py-6 text-[11px] uppercase tracking-[0.14em] text-fg-meta">Loading…</p>
         )}
         {!isLoading && (data?.items.length ?? 0) === 0 && (
           <EmptyState icon="users" title="No players yet" hint="Wallets appear here after their first indexed bet." />
@@ -42,24 +42,24 @@ export function PlayersTable() {
         {data?.items.map((player) => (
           <Link key={player.wallet} href={`/players/${player.wallet}`} className="block">
             <TRow cols={COLS} className="cursor-pointer">
-              <span className="min-w-0 truncate text-white/85">
-                {player.username ?? <span className="text-white/30">—</span>}
+              <span className="min-w-0 truncate text-fg-strong">
+                {player.username ?? <span className="text-fg-meta">—</span>}
               </span>
               <span className="flex items-center gap-1">
                 <WalletLabel wallet={player.wallet} />
                 <CopyButton value={player.wallet} label="Copy wallet address" />
               </span>
-              <span className="text-right tabular-nums text-white/85">{player.betCount}</span>
-              <span className="text-right tabular-nums text-white/85">{fmtUsdcRaw(player.totalStaked)}</span>
-              <span className="text-right tabular-nums text-[#2dd4a4]">{fmtUsdcRaw(player.totalPayout)}</span>
+              <span className="text-right tabular-nums text-fg-strong">{player.betCount}</span>
+              <span className="text-right tabular-nums text-fg-strong">{fmtUsdcRaw(player.totalStaked)}</span>
+              <span className="text-right tabular-nums text-positive">{fmtUsdcRaw(player.totalPayout)}</span>
               <span className="text-right tabular-nums">
-                <span className="text-[#2dd4a4]">{player.wonCount}</span>
-                <span className="text-white/30"> · </span>
-                <span className="text-white/55">{player.lostCount}</span>
-                <span className="text-white/30"> · </span>
-                <span className="text-[#F5C518]">{player.pendingCount}</span>
+                <span className="text-positive">{player.wonCount}</span>
+                <span className="text-fg-meta"> · </span>
+                <span className="text-fg-body">{player.lostCount}</span>
+                <span className="text-fg-meta"> · </span>
+                <span className="text-warning">{player.pendingCount}</span>
               </span>
-              <span className="font-mono-ctv text-right text-[11px] tabular-nums text-white/50">
+              <span className="font-mono text-right text-[11px] tabular-nums text-fg-meta">
                 {player.lastBetAt
                   ? new Date(player.lastBetAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })
                   : '—'}

@@ -1,0 +1,846 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PredCast Admin — Match day dashboard</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/9264fd1e8f5f0b12e5fc071b5c590272">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;family=Lexend:wght@300;400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 100%; background: #0A0A0A; color: #FFFFFF; font-family: 'Lexend', system-ui, sans-serif; font-size: 14px; line-height: 20px;">
+
+<!-- ============ SIDEBAR ============ -->
+<nav aria-label="Admin" style="flex: 0 0 224px; box-sizing: border-box; background: #0D0D0D; border-right: 1px solid #1E1E1E; display: flex; flex-direction: column; padding: 16px 12px 16px 12px; gap: 4px;">
+  <div style="display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 8px; margin-bottom: 12px;">
+    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="6" fill="none" stroke="#E8001D" stroke-width="1.5"></circle><circle cx="7" cy="7" r="3" fill="#E8001D"></circle></svg>
+    <span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 22px; letter-spacing: 0.02em; line-height: 1;">PRED<span style="color: #E8001D;">CAST</span></span>
+    <span style="font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 600; letter-spacing: 0.16em; color: #FF4757; border: 1px solid rgba(232,0,29,0.5); border-radius: 4px; padding: 2px 5px; line-height: 12px;">ADMIN</span>
+  </div>
+
+  <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.2em; color: rgba(255,255,255,0.5); padding: 8px 10px 6px;">OPERATIONS</div>
+
+  <a href="#" class="pc-nav" aria-current="page" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 8px; text-decoration: none; color: #FFFFFF; background: rgba(232,0,29,0.10); box-shadow: inset 2px 0 0 #E8001D; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.14em;">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF4757" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="9" x="3" y="3" rx="1"></rect><rect width="7" height="5" x="14" y="3" rx="1"></rect><rect width="7" height="9" x="14" y="12" rx="1"></rect><rect width="7" height="5" x="3" y="16" rx="1"></rect></svg>
+    DASHBOARD
+  </a>
+  <sc-if value="{{ nav.markets }}" hint-placeholder-val="{{ true }}">
+  <a href="#" class="pc-nav" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 8px; text-decoration: none; color: rgba(255,255,255,0.65); font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.14em;">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></svg>
+    MARKETS
+  </a>
+  </sc-if>
+  <sc-if value="{{ nav.moderation }}" hint-placeholder-val="{{ true }}">
+  <a href="#" class="pc-nav" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 8px; text-decoration: none; color: rgba(255,255,255,0.65); font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.14em;">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" x2="4" y1="22" y2="15"></line></svg>
+    MODERATION
+    <sc-if value="{{ nav.reportsBadge }}" hint-placeholder-val="{{ true }}">
+    <span aria-label="{{ nav.reports }} open reports" style="margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 4px; background: #E8001D; color: #FFFFFF; font-size: 10px; font-weight: 700; letter-spacing: 0; display: inline-flex; align-items: center; justify-content: center;">{{ nav.reports }}</span>
+    </sc-if>
+  </a>
+  </sc-if>
+  <sc-if value="{{ nav.players }}" hint-placeholder-val="{{ true }}">
+  <a href="#" class="pc-nav" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 8px; text-decoration: none; color: rgba(255,255,255,0.65); font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.14em;">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+    PLAYERS
+  </a>
+  </sc-if>
+  <sc-if value="{{ nav.jobs }}" hint-placeholder-val="{{ true }}">
+  <a href="#" class="pc-nav" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 8px; text-decoration: none; color: rgba(255,255,255,0.65); font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.14em;">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+    JOBS
+    <sc-if value="{{ nav.jobsBadge }}" hint-placeholder-val="{{ true }}">
+    <span aria-label="3 failing jobs" style="margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 4px; background: #F5C518; color: #0A0A0A; font-size: 10px; font-weight: 700; letter-spacing: 0; display: inline-flex; align-items: center; justify-content: center;">3</span>
+    </sc-if>
+  </a>
+  </sc-if>
+
+  <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.2em; color: rgba(255,255,255,0.5); padding: 20px 10px 6px;">COMING SOON</div>
+  <sc-for list="{{ soonItems }}" as="s" hint-placeholder-count="3">
+  <div aria-disabled="true" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; color: rgba(255,255,255,0.5); font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.14em;">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M3 9h18"></path></svg>
+    {{ s.label }}
+    <span style="margin-left: auto; font-size: 9px; letter-spacing: 0.14em; border: 1px solid #2A2A2A; border-radius: 4px; padding: 1px 5px; line-height: 14px;">SOON</span>
+  </div>
+  </sc-for>
+
+  <div style="margin-top: auto; padding-top: 24px; display: flex; flex-direction: column; gap: 8px;">
+    <div style="border: 1px solid #1E1E1E; border-radius: 10px; padding: 10px 12px; background: #111111; display: flex; flex-direction: column; gap: 4px;">
+      <div style="display: flex; align-items: center; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.16em; color: #FF4757;"><span style="width: 6px; height: 6px; border-radius: 999px; background: #E8001D;"></span>PROD</div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: rgba(255,255,255,0.65);">CHILIZ CHAIN · MAINNET</div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: rgba(255,255,255,0.5);">CHAIN ID 88888</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px; padding: 6px 4px;">
+      <span style="width: 28px; height: 28px; border-radius: 999px; background: #1A1A1A; border: 1px solid #2A2A2A; display: inline-flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700;">{{ me.initials }}</span>
+      <div style="display: flex; flex-direction: column; min-width: 0;">
+        <span style="font-size: 13px; line-height: 16px;">{{ me.name }}</span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.1em; color: rgba(255,255,255,0.5);">{{ me.role }}</span>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- ============ CONTENT ============ -->
+<div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column;">
+
+  <!-- Top bar -->
+  <header style="height: 56px; box-sizing: border-box; border-bottom: 1px solid #1E1E1E; padding: 0 28px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.18em; color: rgba(255,255,255,0.5);">OPERATIONS <span aria-hidden="true" style="padding: 0 6px;">›</span> <span style="color: #FFFFFF;">DASHBOARD</span></div>
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 10px;">
+      <span style="display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 10px; border: 1px solid rgba(232,0,29,0.5); background: rgba(232,0,29,0.08); border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; color: #FF4757;"><span class="pc-live"></span>{{ liveCount }} LIVE</span>
+      <span style="display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border: 1px solid {{ me.badgeBorder }}; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; color: {{ me.badgeColor }};">{{ me.badge }}</span>
+      <span class="pc-num" style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: rgba(255,255,255,0.65);">{{ me.wallet }}</span>
+      <button class="pc-btn pc-btn-ghost" aria-label="Copy wallet address" style="width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #2A2A2A; background: transparent; color: rgba(255,255,255,0.65); border-radius: 6px; padding: 0;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></button>
+      <span aria-hidden="true" style="width: 1px; height: 20px; background: #2A2A2A;"></span>
+      <button class="pc-btn pc-btn-ghost" style="height: 32px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid #2A2A2A; background: transparent; color: rgba(255,255,255,0.85); border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.14em;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" x2="9" y1="12" y2="12"></line></svg>DISCONNECT</button>
+    </div>
+  </header>
+
+  <main aria-busy="{{ busy }}" style="padding: 24px 28px 48px; display: flex; flex-direction: column; gap: 20px; min-width: 0;">
+
+    <!-- Page header -->
+    <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <div style="display: flex; align-items: center; gap: 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.2em; color: #FF4757;"><span aria-hidden="true" style="width: 18px; height: 2px; background: #E8001D;"></span>OVERVIEW</div>
+        <h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 44px; line-height: 44px; letter-spacing: 0.01em; text-transform: uppercase;">Match day</h1>
+        <div class="pc-num" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.16em; color: rgba(255,255,255,0.5);">SAT 07 NOV 2026 · 14:15 CET · AUTO-REFRESH 15S · UPDATED 14:15:04</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+        <span style="display: inline-flex; align-items: center; height: 32px; padding: 0 10px; border-radius: 6px; background: #E8001D; color: #FFFFFF; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.16em;">PROD</span>
+        <span style="display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border-radius: 6px; border: 1px solid #2A2A2A; color: rgba(255,255,255,0.85); font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.14em;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>CHILIZ MAINNET</span>
+        <sc-if value="{{ ready }}" hint-placeholder-val="{{ true }}">
+        <div role="status" style="display: inline-flex; align-items: center; gap: 10px; height: 32px; padding: 0 12px; border-radius: 6px; border: 1px solid {{ health.border }}; background: {{ health.bg }};">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{{ health.color }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.16em; color: {{ health.color }};">{{ health.label }}</span>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: rgba(255,255,255,0.65);">{{ health.detail }}</span>
+        </div>
+        </sc-if>
+        <sc-if value="{{ loading }}" hint-placeholder-val="{{ false }}">
+        <div class="pc-skel" style="width: 220px; height: 32px;"></div>
+        </sc-if>
+        <button class="pc-btn pc-btn-ghost" aria-label="Refresh now" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #2A2A2A; background: transparent; color: rgba(255,255,255,0.85); border-radius: 6px; padding: 0;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg></button>
+      </div>
+    </div>
+
+<sc-if value="{{ ready }}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-direction: column; gap: 20px;">
+
+    <!-- ===== ALERTS ===== -->
+    <sc-if value="{{ hasAlerts }}" hint-placeholder-val="{{ true }}">
+    <section aria-label="Active alerts" style="order: {{ ord.alerts }}; background: #111111; border: 1px solid #1E1E1E; border-radius: 12px; overflow: hidden;">
+      <div style="display: flex; align-items: center; gap: 10px; padding: 0 16px; height: 44px; border-bottom: 1px solid #1E1E1E;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FF4757" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+        <h2 style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.18em; color: #FFFFFF; line-height: 16px;">NEEDS ACTION NOW</h2>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; border: 1px solid #2A2A2A; border-radius: 4px; padding: 1px 6px; color: rgba(255,255,255,0.65);">{{ alertSummary }}</span>
+        <div style="margin-left: auto; display: flex; gap: 8px; align-items: center;">
+          <button class="pc-btn pc-btn-ghost" style="height: 28px; padding: 0 10px; border: 1px solid #2A2A2A; background: transparent; color: rgba(255,255,255,0.65); border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.14em;">MUTE WARNINGS 1H</button>
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));">
+        <sc-for list="{{ alertList }}" as="a" hint-placeholder-count="6">
+        <div class="pc-row" style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; min-height: 60px; box-sizing: border-box; border-bottom: 1px solid #1E1E1E; border-right: 1px solid #1E1E1E; background: {{ a.bg }}; box-shadow: inset 2px 0 0 {{ a.color }};">
+          <sc-if value="{{ a.crit }}" hint-placeholder-val="{{ true }}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF4757" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none;"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon><line x1="12" x2="12" y1="8" y2="12"></line><line x1="12" x2="12.01" y1="16" y2="16"></line></svg>
+          </sc-if>
+          <sc-if value="{{ a.warn }}" hint-placeholder-val="{{ false }}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+          </sc-if>
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+            <div style="display: flex; align-items: baseline; gap: 8px;">
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.16em; color: {{ a.text }};">{{ a.level }}</span>
+              <span style="font-size: 14px; font-weight: 500; color: #FFFFFF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ a.title }}</span>
+            </div>
+            <div style="font-size: 12px; line-height: 16px; color: rgba(255,255,255,0.65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ a.detail }}</div>
+          </div>
+          <span class="pc-num" style="font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.08em; color: rgba(255,255,255,0.5); white-space: nowrap;">{{ a.meta }}</span>
+          <sc-if value="{{ a.crit }}" hint-placeholder-val="{{ true }}">
+          <button class="pc-btn pc-btn-primary" style="flex: none; height: 28px; padding: 0 10px; border: 1px solid #E8001D; background: #E8001D; color: #FFFFFF; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.14em; white-space: nowrap;">{{ a.action }}</button>
+          </sc-if>
+          <sc-if value="{{ a.warn }}" hint-placeholder-val="{{ false }}">
+          <button class="pc-btn pc-btn-ghost" style="flex: none; height: 28px; padding: 0 10px; border: 1px solid #2A2A2A; background: transparent; color: rgba(255,255,255,0.85); border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.14em; white-space: nowrap;">{{ a.action }}</button>
+          </sc-if>
+        </div>
+        </sc-for>
+      </div>
+    </section>
+    </sc-if>
+
+    <!-- ===== KPIs ===== -->
+    <section aria-label="Key metrics" style="order: {{ ord.kpis }}; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;">
+      <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="6">
+      <div style="background: #111111; border: 1px solid #1E1E1E; border-radius: 12px; padding: 14px 16px 12px; min-height: 128px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 8px; min-height: 16px;">
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,255,255,0.65);">{{ k.label }}</span>
+          <sc-if value="{{ k.live }}" hint-placeholder-val="{{ false }}"><span class="pc-live" style="margin-left: auto;"></span></sc-if>
+        </div>
+        <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 8px;">
+          <div style="display: flex; align-items: baseline; gap: 6px; min-width: 0;">
+            <span class="pc-num" style="font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 38px; line-height: 36px; color: {{ k.valueColor }};">{{ k.value }}</span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: rgba(255,255,255,0.5); white-space: nowrap;">{{ k.unit }}</span>
+          </div>
+          <svg width="72" height="28" viewBox="0 0 72 28" aria-hidden="true" style="flex: none;"><path d="{{ k.area }}" fill="{{ k.fill }}"></path><path d="{{ k.path }}" fill="none" stroke="{{ k.stroke }}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"></path><circle cx="{{ k.cx }}" cy="{{ k.cy }}" r="2.25" fill="{{ k.stroke }}"></circle></svg>
+        </div>
+        <div class="pc-num" style="display: flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.04em;">
+          <span style="color: {{ k.deltaColor }}; font-weight: 600;">{{ k.arrow }} {{ k.delta }}</span>
+          <span style="color: rgba(255,255,255,0.5);">{{ k.vs }}</span>
+        </div>
+      </div>
+      </sc-for>
+    </section>
+
+    <!-- ===== LIVE NOW ===== -->
+    <section aria-label="Live now" style="order: {{ ord.live }}; display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <span class="pc-live"></span>
+        <h2 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 26px; line-height: 28px; text-transform: uppercase;">Live now</h2>
+        <span class="pc-num" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.14em; color: rgba(255,255,255,0.5);">{{ liveCount }} MATCHES · {{ liveStreams }}</span>
+        <sc-if value="{{ incident }}" hint-placeholder-val="{{ true }}">
+        <span style="display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border: 1px solid rgba(245,197,24,0.45); border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.12em; color: #F5C518;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>SCORES STALE · LAST SYNC 14:02</span>
+        </sc-if>
+        <a href="#" class="pc-link" style="margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: rgba(255,255,255,0.65); text-decoration: none;">ALL MARKETS →</a>
+      </div>
+
+      <sc-if value="{{ hasLive }}" hint-placeholder-val="{{ true }}">
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 12px;">
+        <sc-for list="{{ live }}" as="m" hint-placeholder-count="4">
+        <article class="pc-card-hover" aria-label="{{ m.home }} versus {{ m.away }}" style="background: #111111; border: 1px solid #1E1E1E; border-radius: 12px; display: flex; flex-direction: column; min-width: 0;">
+          <div style="display: flex; align-items: center; gap: 8px; padding: 12px 16px 8px;">
+            <span class="pc-live"></span>
+            <span class="pc-num" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; color: #FF4757;">{{ m.status }}</span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.14em; color: rgba(255,255,255,0.5); text-transform: uppercase;">· {{ m.league }}</span>
+            <span class="pc-num" style="margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: rgba(255,255,255,0.65);"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"></path><rect x="2" y="6" width="14" height="12" rx="2"></rect></svg>{{ m.streams }} · {{ m.viewers }}</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px; padding: 4px 16px 12px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="width: 28px; height: 28px; flex: none; border-radius: 999px; background: #1A1A1A; border: 1px solid #2A2A2A; display: inline-flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.85);">{{ m.hc }}</span>
+              <span style="flex: 1; min-width: 0; font-size: 15px; font-weight: 500; color: {{ m.hColor }}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ m.home }}</span>
+              <span class="pc-num" style="font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 30px; line-height: 30px; color: {{ m.hColor }};">{{ m.hs }}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="width: 28px; height: 28px; flex: none; border-radius: 999px; background: #1A1A1A; border: 1px solid #2A2A2A; display: inline-flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.85);">{{ m.ac }}</span>
+              <span style="flex: 1; min-width: 0; font-size: 15px; font-weight: 500; color: {{ m.aColor }}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ m.away }}</span>
+              <span class="pc-num" style="font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 30px; line-height: 30px; color: {{ m.aColor }};">{{ m.as }}</span>
+            </div>
+          </div>
+          <div class="pc-num" style="display: flex; align-items: center; gap: 16px; padding: 10px 16px; border-top: 1px solid #1E1E1E; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: rgba(255,255,255,0.5); flex-wrap: wrap;">
+            <sc-if value="{{ showMoney }}" hint-placeholder-val="{{ true }}">
+            <span>POOL <span style="color: #FFFFFF; font-size: 13px; font-weight: 600; letter-spacing: 0;">{{ m.pool }}</span> USDC</span>
+            </sc-if>
+            <span>BETS <span style="color: #FFFFFF; font-size: 13px; font-weight: 600; letter-spacing: 0;">{{ m.bets }}</span></span>
+            <div style="display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap;">
+              <sc-for list="{{ m.markets }}" as="mk" hint-placeholder-count="3">
+              <span style="display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 6px; border: 1px solid {{ mk.border }}; border-radius: 4px; font-size: 9px; font-weight: 600; letter-spacing: 0.1em; color: {{ mk.color }};"><span aria-hidden="true" style="width: 5px; height: 5px; border-radius: 999px; background: {{ mk.color }};"></span>{{ mk.label }} · {{ mk.state }}</span>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-top: 1px solid #1E1E1E; flex-wrap: wrap;">
+            <sc-if value="{{ m.canClose }}" hint-placeholder-val="{{ true }}">
+            <button class="pc-btn pc-btn-danger" style="height: 28px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid rgba(232,0,29,0.5); background: transparent; color: #FF4757; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.14em;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>CLOSE MARKETS</button>
+            </sc-if>
+            <a href="#" class="pc-btn pc-btn-ghost" style="height: 28px; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid #2A2A2A; color: rgba(255,255,255,0.85); border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-decoration: none;">LIVE PAGE<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg></a>
+            <sc-if value="{{ showModActions }}" hint-placeholder-val="{{ true }}">
+            <a href="#" class="pc-btn pc-btn-ghost" style="height: 28px; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid #2A2A2A; color: rgba(255,255,255,0.85); border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-decoration: none;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" x2="4" y1="22" y2="15"></line></svg>CHAT</a>
+            </sc-if>
+            <span class="pc-num" style="margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.08em; color: {{ m.updColor }};">{{ m.upd }}</span>
+          </div>
+        </article>
+        </sc-for>
+      </div>
+      </sc-if>
+      <sc-if value="{{ noLive }}" hint-placeholder-val="{{ false }}">
+      <div style="border: 1px dashed #2A2A2A; border-radius: 12px; padding: 36px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;">
+        <span style="width: 44px; height: 44px; border: 1px solid #2A2A2A; border-radius: 10px; background: #111111; display: inline-flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.65);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"></path><rect x="2" y="6" width="14" height="12" rx="2"></rect></svg></span>
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.18em;">NO MATCH IN PLAY</div>
+        <div style="font-size: 13px; color: rgba(255,255,255,0.65); max-width: 420px;">Deployed matches appear here at kickoff. Nothing is scheduled to go live in the next 7 days.</div>
+        <sc-if value="{{ showSuggest }}" hint-placeholder-val="{{ true }}">
+        <a href="#suggested" class="pc-btn pc-btn-ghost" style="margin-top: 4px; height: 32px; box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid #2A2A2A; color: rgba(255,255,255,0.85); border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-decoration: none;">BROWSE SUGGESTIONS →</a>
+        </sc-if>
+      </div>
+      </sc-if>
+    </section>
+
+    <!-- ===== EVENTS + SUGGESTED ===== -->
+    <section aria-label="Events" style="order: {{ ord.events }}; display: flex; flex-wrap: wrap; gap: 12px; align-items: stretch;">
+      <div style="flex: 3 1 560px; min-width: 0; background: #111111; border: 1px solid #1E1E1E; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden;">
+        <div style="display: flex; align-items: center; gap: 10px; padding: 0 16px; height: 44px; border-bottom: 1px solid #1E1E1E; flex: none;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.65)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg>
+          <h2 style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.18em; color: #FFFFFF; line-height: 16px;">UPCOMING EVENTS</h2>
+          <span class="pc-num" style="font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; border: 1px solid #2A2A2A; border-radius: 4px; padding: 1px 6px; color: rgba(255,255,255,0.65);">{{ eventsCount }}</span>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: rgba(255,255,255,0.5);">DEPLOYED · NEXT 7 DAYS</span>
+          <a href="#" class="pc-link" style="margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: rgba(255,255,255,0.65); text-decoration: none;">ALL EVENTS →</a>
+        </div>
+        <sc-if value="{{ hasEvents }}" hint-placeholder-val="{{ true }}">
+        <div style="overflow-x: auto;">
+          <div style="min-width: 600px;">
+            <div style="display: grid; grid-template-columns: {{ evCols }}; gap: 12px; align-items: center; padding: 0 16px; height: 32px; border-bottom: 1px solid #1E1E1E; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: rgba(255,255,255,0.5);">
+              <span>KICKOFF</span><span>MATCH</span><span>STATUS</span>
+              <sc-if value="{{ showMoney }}" hint-placeholder-val="{{ true }}"><span style="text-align: right;">POOL</span></sc-if>
+              <span style="text-align: right;">BETS</span>
+              <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ true }}"><span style="text-align: right;">ACTION</span></sc-if>
+            </div>
+            <sc-for list="{{ events }}" as="e" hint-placeholder-count="7">
+            <div class="pc-row" style="display: grid; grid-template-columns: {{ evCols }}; gap: 12px; align-items: center; padding: 0 16px; min-height: 52px; border-bottom: 1px solid #1E1E1E; background: {{ e.rowBg }}; box-shadow: inset 2px 0 0 {{ e.accent }};">
+              <div class="pc-num" style="display: flex; flex-direction: column; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: rgba(255,255,255,0.5); line-height: 14px;"><span>{{ e.d }}</span><span style="font-size: 13px; color: #FFFFFF; letter-spacing: 0.02em; line-height: 18px;">{{ e.t }}</span></div>
+              <div style="display: flex; flex-direction: column; min-width: 0;">
+                <span style="font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ e.match }}</span>
+                <span class="pc-num" style="font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.1em; color: rgba(255,255,255,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ e.league }} · {{ e.contract }}</span>
+              </div>
+              <span style="justify-self: start; display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 6px; border: 1px solid {{ e.vBorder }}; background: {{ e.vBg }}; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.12em; color: {{ e.vColor }}; white-space: nowrap;">{{ e.vGlyph }} {{ e.vLabel }}</span>
+              <sc-if value="{{ showMoney }}" hint-placeholder-val="{{ true }}"><span class="pc-num" style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: rgba(255,255,255,0.85);">{{ e.pool }}</span></sc-if>
+              <span class="pc-num" style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: rgba(255,255,255,0.85);">{{ e.bets }}</span>
+              <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ true }}">
+              <div style="display: flex; justify-content: flex-end;">
+                <sc-if value="{{ e.btnDanger }}" hint-placeholder-val="{{ false }}"><button class="pc-btn pc-btn-primary" style="height: 26px; padding: 0 10px; border: 1px solid #E8001D; background: #E8001D; color: #FFFFFF; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.14em;">{{ e.btn }}</button></sc-if>
+                <sc-if value="{{ e.btnGhost }}" hint-placeholder-val="{{ true }}"><button class="pc-btn pc-btn-ghost" style="height: 26px; padding: 0 10px; border: 1px solid #2A2A2A; background: transparent; color: rgba(255,255,255,0.85); border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.14em;">{{ e.btn }}</button></sc-if>
+                <sc-if value="{{ e.btnNone }}" hint-placeholder-val="{{ false }}"><span class="pc-num" style="font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: rgba(255,255,255,0.5);">{{ e.btn }}</span></sc-if>
+              </div>
+              </sc-if>
+            </div>
+            </sc-for>
+          </div>
+        </div>
+        <div class="pc-num" style="padding: 10px 16px; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: rgba(255,255,255,0.5);">SHOWING 7 OF 18 · SORTED BY KICKOFF</div>
+        </sc-if>
+        <sc-if value="{{ noEvents }}" hint-placeholder-val="{{ false }}">
+        <div style="flex: 1; padding: 40px 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center;">
+          <span style="width: 44px; height: 44px; border: 1px solid #2A2A2A; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.65);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg></span>
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.18em;">NO EVENT IN THE NEXT 7 DAYS</div>
+          <div style="font-size: 13px; color: rgba(255,255,255,0.65); max-width: 380px;">Deploy a match from the suggestions to create the next event. Players only see published events.</div>
+        </div>
+        </sc-if>
+      </div>
+
+      <sc-if value="{{ showSuggest }}" hint-placeholder-val="{{ true }}">
+      <div id="suggested" style="flex: 2 1 400px; min-width: 0; background: #111111; border: 1px solid #1E1E1E; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden;">
+        <div style="display: flex; align-items: center; gap: 10px; padding: 0 16px; height: 44px; border-bottom: 1px solid #1E1E1E; flex: none;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FF4757" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"></path><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"></path><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"></path><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"></path></svg>
+          <h2 style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.18em; color: #FFFFFF; line-height: 16px;">SUGGESTED TO DEPLOY</h2>
+          <sc-if value="{{ suggestOk }}" hint-placeholder-val="{{ true }}"><span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; border: 1px solid #2A2A2A; border-radius: 4px; padding: 1px 6px; color: rgba(255,255,255,0.65);">5</span></sc-if>
+          <span style="margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: rgba(255,255,255,0.5);">FAN-TOKEN TEAMS</span>
+        </div>
+        <sc-if value="{{ suggestOk }}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; flex-direction: column;">
+          <sc-for list="{{ suggested }}" as="s" hint-placeholder-count="5">
+          <div class="pc-row" style="display: flex; align-items: center; gap: 12px; padding: 0 16px; min-height: 60px; border-bottom: 1px solid #1E1E1E;">
+            <div class="pc-num" style="width: 52px; flex: none; display: flex; flex-direction: column; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: rgba(255,255,255,0.5); line-height: 14px;"><span>{{ s.d }}</span><span style="font-size: 13px; color: #FFFFFF; letter-spacing: 0.02em; line-height: 18px;">{{ s.t }}</span></div>
+            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;">
+              <span style="font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ s.match }}</span>
+              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.1em; color: rgba(255,255,255,0.5);">{{ s.league }}</span>
+                <sc-for list="{{ s.tokens }}" as="tk" hint-placeholder-count="2">
+                <span style="height: 16px; display: inline-flex; align-items: center; padding: 0 5px; border-radius: 4px; background: rgba(232,0,29,0.12); color: #FF4757; font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.08em;">{{ tk }}</span>
+                </sc-for>
+              </div>
+            </div>
+            <button class="pc-btn pc-btn-primary" style="flex: none; height: 28px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid #E8001D; background: #E8001D; color: #FFFFFF; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.14em;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"></path><path d="m19 12-7 7-7-7"></path></svg>DEPLOY</button>
+          </div>
+          </sc-for>
+        </div>
+        <div class="pc-num" style="margin-top: auto; padding: 10px 16px; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: rgba(255,255,255,0.5);">≈ 22.6 CHZ PER DEPLOY · {{ walletCover }}</div>
+        </sc-if>
+        <sc-if value="{{ suggestError }}" hint-placeholder-val="{{ false }}">
+        <div role="alert" style="flex: 1; padding: 32px 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; background: repeating-linear-gradient(135deg, transparent 0 10px, rgba(232,0,29,0.03) 10px 20px);">
+          <span style="width: 44px; height: 44px; border: 1px solid rgba(232,0,29,0.5); border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; color: #FF4757;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="m15 9-6 6"></path><path d="m9 9 6 6"></path></svg></span>
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.18em; color: #FF4757;">COULDN'T LOAD SUGGESTIONS</div>
+          <div style="font-size: 13px; color: rgba(255,255,255,0.65); max-width: 340px;">API-Football fixtures request failed (HTTP 503). Other cards are unaffected.</div>
+          <div class="pc-num" style="font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: rgba(255,255,255,0.5);">LAST GOOD DATA 14:02 · REQ ID 7f3a9c</div>
+          <div style="display: flex; gap: 8px; margin-top: 4px;">
+            <button class="pc-btn pc-btn-ghost" style="height: 32px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid #2A2A2A; background: transparent; color: #FFFFFF; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.14em;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>RETRY</button>
+            <button class="pc-btn pc-btn-ghost" style="height: 32px; padding: 0 12px; border: 1px solid #2A2A2A; background: transparent; color: rgba(255,255,255,0.65); border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.14em;">SHOW CACHED</button>
+          </div>
+        </div>
+        </sc-if>
+      </div>
+      </sc-if>
+    </section>
+
+    <!-- ===== OPERATIONS + WALLET ===== -->
+    <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ true }}">
+    <section aria-label="Operations" style="order: {{ ord.ops }}; display: flex; flex-wrap: wrap; gap: 12px; align-items: stretch;">
+      <div style="flex: 3 1 560px; min-width: 0; background: #111111; border: 1px solid #1E1E1E; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden;">
+        <div style="display: flex; align-items: center; gap: 10px; padding: 0 16px; height: 44px; border-bottom: 1px solid #1E1E1E;">
+          <h2 style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.18em; color: #FFFFFF; line-height: 16px;">OPERATIONS</h2>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; border: 1px solid #2A2A2A; border-radius: 4px; padding: 1px 6px; color: rgba(255,255,255,0.65);">{{ opsSummary }}</span>
+          <a href="#" class="pc-link" style="margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: rgba(255,255,255,0.65); text-decoration: none;">HISTORY →</a>
+        </div>
+        <sc-if value="{{ hasOps }}" hint-placeholder-val="{{ true }}">
+        <sc-for list="{{ ops }}" as="o" hint-placeholder-count="4">
+        <div class="pc-row" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #1E1E1E; background: {{ o.rowBg }}; box-shadow: inset 2px 0 0 {{ o.accent }};">
+          <span style="width: 28px; height: 28px; flex: none; border-radius: 8px; border: 1px solid {{ o.iconBorder }}; display: inline-flex; align-items: center; justify-content: center; color: {{ o.color }};">
+            <sc-if value="{{ o.running }}" hint-placeholder-val="{{ true }}"><svg class="pc-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg></sc-if>
+            <sc-if value="{{ o.queued }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></sc-if>
+            <sc-if value="{{ o.failed }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="m15 9-6 6"></path><path d="m9 9 6 6"></path></svg></sc-if>
+            <sc-if value="{{ o.done }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg></sc-if>
+          </span>
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+            <div style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;">
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.14em; color: {{ o.color }};">{{ o.st }}</span>
+              <span style="font-size: 14px; font-weight: 500;">{{ o.kind }}</span>
+              <span style="font-size: 13px; color: rgba(255,255,255,0.65);">{{ o.match }}</span>
+            </div>
+            <div class="pc-num" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: {{ o.stepColor }};">{{ o.step }}</div>
+            <sc-if value="{{ o.running }}" hint-placeholder-val="{{ true }}">
+            <div role="progressbar" aria-valuenow="66" aria-valuemin="0" aria-valuemax="100" aria-label="Deploy progress" style="height: 4px; border-radius: 999px; background: #1A1A1A; overflow: hidden; max-width: 360px; margin-top: 2px;"><div style="height: 100%; width: {{ o.pct }}; background: #E8001D;"></div></div>
+            </sc-if>
+          </div>
+          <div class="pc-num" style="display: flex; flex-direction: column; align-items: flex-end; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.08em; color: rgba(255,255,255,0.5); white-space: nowrap;"><span>{{ o.id }}</span><span>{{ o.time }} · {{ o.by }}</span></div>
+          <sc-if value="{{ o.failed }}" hint-placeholder-val="{{ false }}"><button class="pc-btn pc-btn-primary" style="flex: none; height: 28px; padding: 0 10px; border: 1px solid #E8001D; background: #E8001D; color: #FFFFFF; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.14em;">{{ o.action }}</button></sc-if>
+          <sc-if value="{{ o.notFailed }}" hint-placeholder-val="{{ true }}"><button class="pc-btn pc-btn-ghost" style="flex: none; height: 28px; padding: 0 10px; border: 1px solid #2A2A2A; background: transparent; color: rgba(255,255,255,0.85); border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.14em;">{{ o.action }}</button></sc-if>
+        </div>
+        </sc-for>
+        </sc-if>
+        <sc-if value="{{ noOps }}" hint-placeholder-val="{{ false }}">
+        <div style="padding: 28px 16px; display: flex; align-items: center; gap: 12px; color: rgba(255,255,255,0.65); font-size: 13px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2dd4a4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="m9 12 2 2 4-4"></path></svg>No operation running or failed. Deploys you start appear here with live progress.</div>
+        </sc-if>
+      </div>
+
+      <div style="flex: 2 1 360px; min-width: 0; background: #111111; border: 1px solid {{ wallet.cardBorder }}; border-radius: 12px; display: flex; flex-direction: column;">
+        <div style="display: flex; align-items: center; gap: 10px; padding: 0 16px; height: 44px; border-bottom: 1px solid #1E1E1E;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.65)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"></path><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"></path></svg>
+          <h2 style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.18em; color: #FFFFFF; line-height: 16px;">DEPLOY WALLET</h2>
+          <span style="margin-left: auto; display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 6px; border: 1px solid {{ wallet.badgeBorder }}; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.12em; color: {{ wallet.color }};">{{ wallet.badge }}</span>
+        </div>
+        <div style="padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="pc-num" style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: rgba(255,255,255,0.85);">0x1a2b…9f0c</span>
+            <button class="pc-btn pc-btn-ghost" aria-label="Copy deploy wallet address" style="width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #2A2A2A; background: transparent; color: rgba(255,255,255,0.65); border-radius: 6px; padding: 0;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></button>
+            <a href="#" class="pc-link" style="margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.14em; color: rgba(255,255,255,0.65); text-decoration: none;">EXPLORER ↗</a>
+          </div>
+          <div style="display: flex; align-items: baseline; gap: 8px;">
+            <span class="pc-num" style="font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 48px; line-height: 44px; color: {{ wallet.valueColor }};">{{ wallet.balance }}</span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.14em; color: rgba(255,255,255,0.5);">CHZ</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <div style="position: relative; height: 6px; border-radius: 999px; background: #1A1A1A;">
+              <div style="position: absolute; left: 0; top: 0; bottom: 0; width: {{ wallet.pct }}; border-radius: 999px; background: {{ wallet.color }};"></div>
+              <div aria-hidden="true" style="position: absolute; left: 50%; top: -3px; width: 1px; height: 12px; background: rgba(255,255,255,0.5);"></div>
+            </div>
+            <div class="pc-num" style="display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.1em; color: rgba(255,255,255,0.5);"><span>0</span><span>ALERT AT 250</span><span>TARGET 500</span></div>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; border-top: 1px solid #1E1E1E; padding-top: 12px;">
+            <div style="display: flex; flex-direction: column; gap: 2px;"><span class="pc-num" style="font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 22px; line-height: 24px; color: {{ wallet.valueColor }};">≈ {{ wallet.left }}</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.14em; color: rgba(255,255,255,0.5);">DEPLOYS LEFT</span></div>
+            <div style="display: flex; flex-direction: column; gap: 2px;"><span class="pc-num" style="font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 22px; line-height: 24px;">22.6</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.14em; color: rgba(255,255,255,0.5);">CHZ / DEPLOY</span></div>
+            <div style="display: flex; flex-direction: column; gap: 2px;"><span class="pc-num" style="font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 22px; line-height: 24px;">158.2</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.14em; color: rgba(255,255,255,0.5);">SPENT · 7D</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+    </sc-if>
+
+    <!-- ===== SYSTEM HEALTH + MODERATION ===== -->
+    <sc-if value="{{ showHealthRow }}" hint-placeholder-val="{{ true }}">
+    <section aria-label="System health and moderation" style="order: {{ ord.health }}; display: flex; flex-wrap: wrap; gap: 12px; align-items: stretch;">
+      <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ true }}">
+      <div style="flex: 2 1 420px; min-width: 0; background: #111111; border: 1px solid #1E1E1E; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden;">
+        <div style="display: flex; align-items: center; gap: 10px; padding: 0 16px; height: 44px; border-bottom: 1px solid #1E1E1E;">
+          <h2 style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.18em; color: #FFFFFF; line-height: 16px;">SYSTEM HEALTH</h2>
+          <span style="display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 6px; border: 1px solid {{ jobsHealth.border }}; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.12em; color: {{ jobsHealth.color }};">{{ jobsHealth.label }}</span>
+          <a href="#" class="pc-link" style="margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: rgba(255,255,255,0.65); text-decoration: none;">ALL JOBS →</a>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 12px 16px; border-bottom: 1px solid #1E1E1E;">
+          <sc-for list="{{ upstreams }}" as="u" hint-placeholder-count="2">
+          <div style="border: 1px solid #1E1E1E; background: #141414; border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.14em; color: rgba(255,255,255,0.65);">{{ u.name }}</span>
+              <span style="margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.12em; color: {{ u.color }};">{{ u.glyph }} {{ u.state }}</span>
+            </div>
+            <div style="height: 4px; border-radius: 999px; background: #1E1E1E; overflow: hidden;"><div style="height: 100%; width: {{ u.pct }}; background: {{ u.color }};"></div></div>
+            <span class="pc-num" style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: rgba(255,255,255,0.5);">{{ u.detail }}</span>
+          </div>
+          </sc-for>
+        </div>
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) 54px 118px 52px; gap: 10px; padding: 0 16px; height: 30px; align-items: center; border-bottom: 1px solid #1E1E1E; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: rgba(255,255,255,0.5);"><span>JOB</span><span>EVERY</span><span>LAST RUN</span><span style="text-align: right;">NEXT</span></div>
+        <sc-for list="{{ jobs }}" as="j" hint-placeholder-count="8">
+        <div class="pc-row" style="display: grid; grid-template-columns: minmax(0, 1fr) 54px 118px 52px; gap: 10px; padding: 0 16px; min-height: 36px; align-items: center; border-bottom: 1px solid #1E1E1E; background: {{ j.rowBg }}; box-shadow: inset 2px 0 0 {{ j.accent }};">
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #FFFFFF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ j.name }}</span>
+          <span class="pc-num" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: rgba(255,255,255,0.5);">{{ j.every }}</span>
+          <span class="pc-num" style="display: inline-flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: rgba(255,255,255,0.65); white-space: nowrap;"><span style="font-weight: 700; color: {{ j.color }};">{{ j.glyph }} {{ j.st }}</span>{{ j.last }} · {{ j.dur }}</span>
+          <span class="pc-num" style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: rgba(255,255,255,0.5);">{{ j.next }}</span>
+        </div>
+        </sc-for>
+      </div>
+      </sc-if>
+
+      <div style="flex: 3 1 520px; min-width: 0; background: #111111; border: 1px solid #1E1E1E; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden;">
+        <div style="display: flex; align-items: center; gap: 10px; padding: 0 16px; height: 44px; border-bottom: 1px solid #1E1E1E;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.65)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" x2="4" y1="22" y2="15"></line></svg>
+          <h2 style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.18em; color: #FFFFFF; line-height: 16px;">MODERATION</h2>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; border: 1px solid #2A2A2A; border-radius: 4px; padding: 1px 6px; color: rgba(255,255,255,0.65);">{{ reportsOpen }} OPEN</span>
+          <a href="#" class="pc-link" style="margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: rgba(255,255,255,0.65); text-decoration: none;">OPEN QUEUE →</a>
+        </div>
+        <div style="padding: 10px 16px 6px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.18em; color: rgba(255,255,255,0.5);">NEEDS ATTENTION · BY SEVERITY</div>
+        <sc-if value="{{ hasReports }}" hint-placeholder-val="{{ true }}">
+        <sc-for list="{{ reports }}" as="r" hint-placeholder-count="5">
+        <div class="pc-row" style="display: flex; align-items: center; gap: 12px; padding: 0 16px; min-height: 48px; border-bottom: 1px solid #1E1E1E; background: {{ r.rowBg }}; box-shadow: inset 2px 0 0 {{ r.accent }};">
+          <span aria-label="Severity {{ r.n }} of 5" style="flex: none; width: 30px; height: 22px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; border: 1px solid {{ r.border }}; background: {{ r.bg }}; color: {{ r.color }}; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;">{{ r.sev }}</span>
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
+            <span style="font-size: 14px; font-weight: 500;">{{ r.reason }}</span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.08em; color: rgba(255,255,255,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ r.type }} · {{ r.target }}</span>
+          </div>
+          <span class="pc-num" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: rgba(255,255,255,0.65);">{{ r.age }}</span>
+          <button class="pc-btn pc-btn-ghost" style="flex: none; height: 26px; padding: 0 10px; border: 1px solid #2A2A2A; background: transparent; color: rgba(255,255,255,0.85); border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.14em;">REVIEW</button>
+        </div>
+        </sc-for>
+        </sc-if>
+        <sc-if value="{{ noReports }}" hint-placeholder-val="{{ false }}">
+        <div style="padding: 24px 16px; display: flex; align-items: center; gap: 12px; color: rgba(255,255,255,0.65); font-size: 13px; border-bottom: 1px solid #1E1E1E;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2dd4a4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path></svg>Queue is clear. New reports land here, sorted by severity.</div>
+        </sc-if>
+        <div style="padding: 14px 16px 6px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.18em; color: rgba(255,255,255,0.5);">ACTIVE BANS · {{ bansCount }}</div>
+        <sc-for list="{{ bans }}" as="b" hint-placeholder-count="3">
+        <div class="pc-row" style="display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) 64px; gap: 12px; align-items: center; padding: 0 16px; min-height: 40px; border-bottom: 1px solid #1E1E1E;">
+          <span style="display: inline-flex; align-items: center; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #FFFFFF; min-width: 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FF4757" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none;"><circle cx="12" cy="12" r="10"></circle><path d="m4.9 4.9 14.2 14.2"></path></svg>{{ b.who }}</span>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: rgba(255,255,255,0.65);">{{ b.scope }}</span>
+          <span class="pc-num" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: rgba(255,255,255,0.5);">{{ b.exp }} · by {{ b.by }}</span>
+          <button class="pc-btn pc-btn-ghost" style="justify-self: end; height: 24px; padding: 0 8px; border: 1px solid #2A2A2A; background: transparent; color: rgba(255,255,255,0.65); border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.14em;">LIFT</button>
+        </div>
+        </sc-for>
+        <sc-if value="{{ noBans }}" hint-placeholder-val="{{ false }}">
+        <div style="padding: 12px 16px 16px; font-size: 13px; color: rgba(255,255,255,0.5);">No active ban.</div>
+        </sc-if>
+      </div>
+    </section>
+    </sc-if>
+
+    <!-- ===== ACTIVITY ===== -->
+    <section aria-label="Activity" style="order: {{ ord.activity }}; background: #111111; border: 1px solid #1E1E1E; border-radius: 12px; overflow: hidden;">
+      <div style="display: flex; align-items: center; gap: 10px; padding: 0 16px; height: 44px; border-bottom: 1px solid #1E1E1E;">
+        <h2 style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.18em; color: #FFFFFF; line-height: 16px;">ACTIVITY</h2>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: rgba(255,255,255,0.5);">AUDIT LOG · {{ activityScope }}</span>
+        <a href="#" class="pc-link" style="margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: rgba(255,255,255,0.65); text-decoration: none;">FULL LOG →</a>
+      </div>
+      <div style="overflow-x: auto;">
+        <div style="min-width: 720px;">
+          <div style="display: grid; grid-template-columns: 64px 200px 180px minmax(0, 1fr) 96px; gap: 12px; padding: 0 16px; height: 30px; align-items: center; border-bottom: 1px solid #1E1E1E; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: rgba(255,255,255,0.5);"><span>TIME</span><span>WHO</span><span>ACTION</span><span>TARGET</span><span style="text-align: right;">REF</span></div>
+          <sc-for list="{{ activity }}" as="x" hint-placeholder-count="8">
+          <div class="pc-row" style="display: grid; grid-template-columns: 64px 200px 180px minmax(0, 1fr) 96px; gap: 12px; padding: 0 16px; min-height: 40px; align-items: center; border-bottom: 1px solid #1E1E1E;">
+            <span class="pc-num" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: rgba(255,255,255,0.5);">{{ x.t }}</span>
+            <span style="display: inline-flex; align-items: center; gap: 8px; min-width: 0;"><span style="font-size: 13px;">{{ x.actor }}</span><span style="height: 18px; display: inline-flex; align-items: center; padding: 0 5px; border: 1px solid {{ x.rb }}; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.1em; color: {{ x.rc }};">{{ x.role }}</span></span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{ x.ac }};">{{ x.action }}</span>
+            <span style="font-size: 13px; color: rgba(255,255,255,0.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ x.target }}</span>
+            <span class="pc-num" style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: rgba(255,255,255,0.5);">{{ x.ref }}</span>
+          </div>
+          </sc-for>
+        </div>
+      </div>
+    </section>
+
+</div>
+</sc-if>
+
+<!-- ============ LOADING SKELETON ============ -->
+<sc-if value="{{ loading }}" hint-placeholder-val="{{ false }}">
+<div aria-label="Loading dashboard" style="display: flex; flex-direction: column; gap: 20px;">
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;">
+    <sc-for list="{{ sk6 }}" as="i" hint-placeholder-count="6">
+    <div style="background: #111111; border: 1px solid #1E1E1E; border-radius: 12px; padding: 14px 16px 12px; min-height: 128px; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px;">
+      <div class="pc-skel" style="width: 60%; height: 10px;"></div>
+      <div style="display: flex; justify-content: space-between; align-items: flex-end;"><div class="pc-skel" style="width: 64px; height: 32px;"></div><div class="pc-skel" style="width: 72px; height: 24px;"></div></div>
+      <div class="pc-skel" style="width: 80%; height: 10px;"></div>
+    </div>
+    </sc-for>
+  </div>
+  <div style="display: flex; align-items: center; gap: 12px;"><div class="pc-skel" style="width: 140px; height: 24px;"></div><div class="pc-skel" style="width: 120px; height: 12px;"></div></div>
+  <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 12px;">
+    <sc-for list="{{ sk4 }}" as="i" hint-placeholder-count="4">
+    <div style="background: #111111; border: 1px solid #1E1E1E; border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 14px; min-height: 212px; box-sizing: border-box;">
+      <div class="pc-skel" style="width: 45%; height: 10px;"></div>
+      <div style="display: flex; align-items: center; gap: 10px;"><div class="pc-skel" style="width: 28px; height: 28px; border-radius: 999px;"></div><div class="pc-skel" style="flex: 1; height: 14px;"></div><div class="pc-skel" style="width: 18px; height: 26px;"></div></div>
+      <div style="display: flex; align-items: center; gap: 10px;"><div class="pc-skel" style="width: 28px; height: 28px; border-radius: 999px;"></div><div class="pc-skel" style="flex: 1; height: 14px;"></div><div class="pc-skel" style="width: 18px; height: 26px;"></div></div>
+      <div class="pc-skel" style="width: 70%; height: 10px;"></div>
+      <div style="display: flex; gap: 8px;"><div class="pc-skel" style="width: 110px; height: 28px;"></div><div class="pc-skel" style="width: 90px; height: 28px;"></div></div>
+    </div>
+    </sc-for>
+  </div>
+  <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+    <div style="flex: 3 1 560px; min-width: 0; background: #111111; border: 1px solid #1E1E1E; border-radius: 12px; overflow: hidden;">
+      <div style="height: 44px; border-bottom: 1px solid #1E1E1E; display: flex; align-items: center; padding: 0 16px;"><div class="pc-skel" style="width: 160px; height: 10px;"></div></div>
+      <sc-for list="{{ sk6 }}" as="i" hint-placeholder-count="6">
+      <div style="display: flex; align-items: center; gap: 16px; padding: 0 16px; height: 52px; border-bottom: 1px solid #1E1E1E;"><div class="pc-skel" style="width: 48px; height: 22px;"></div><div class="pc-skel" style="flex: 1; height: 12px;"></div><div class="pc-skel" style="width: 76px; height: 18px;"></div><div class="pc-skel" style="width: 56px; height: 12px;"></div></div>
+      </sc-for>
+    </div>
+    <div style="flex: 2 1 400px; min-width: 0; background: #111111; border: 1px solid #1E1E1E; border-radius: 12px; overflow: hidden;">
+      <div style="height: 44px; border-bottom: 1px solid #1E1E1E; display: flex; align-items: center; padding: 0 16px;"><div class="pc-skel" style="width: 180px; height: 10px;"></div></div>
+      <sc-for list="{{ sk5 }}" as="i" hint-placeholder-count="5">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 0 16px; height: 60px; border-bottom: 1px solid #1E1E1E;"><div class="pc-skel" style="width: 44px; height: 26px;"></div><div class="pc-skel" style="flex: 1; height: 12px;"></div><div class="pc-skel" style="width: 80px; height: 28px;"></div></div>
+      </sc-for>
+    </div>
+  </div>
+  <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+    <div style="flex: 2 1 420px; min-width: 0; background: #111111; border: 1px solid #1E1E1E; border-radius: 12px; overflow: hidden;">
+      <div style="height: 44px; border-bottom: 1px solid #1E1E1E; display: flex; align-items: center; padding: 0 16px;"><div class="pc-skel" style="width: 130px; height: 10px;"></div></div>
+      <sc-for list="{{ sk6 }}" as="i" hint-placeholder-count="6">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 0 16px; height: 36px; border-bottom: 1px solid #1E1E1E;"><div class="pc-skel" style="flex: 1; height: 10px;"></div><div class="pc-skel" style="width: 90px; height: 10px;"></div></div>
+      </sc-for>
+    </div>
+    <div style="flex: 3 1 520px; min-width: 0; background: #111111; border: 1px solid #1E1E1E; border-radius: 12px; overflow: hidden;">
+      <div style="height: 44px; border-bottom: 1px solid #1E1E1E; display: flex; align-items: center; padding: 0 16px;"><div class="pc-skel" style="width: 120px; height: 10px;"></div></div>
+      <sc-for list="{{ sk5 }}" as="i" hint-placeholder-count="5">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 0 16px; height: 48px; border-bottom: 1px solid #1E1E1E;"><div class="pc-skel" style="width: 30px; height: 22px;"></div><div class="pc-skel" style="flex: 1; height: 12px;"></div><div class="pc-skel" style="width: 70px; height: 26px;"></div></div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+  </main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"persona":{"editor":"enum","options":["admin","moderator","finance"],"default":"admin","section":"Variant"},"screen":{"editor":"enum","options":["live","loading","empty","error"],"default":"live","section":"Variant"},"alerts":{"editor":"boolean","default":true,"section":"Variant"},"$preview":{"width":1440,"height":2950}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const persona = this.props.persona ?? 'admin';
+    const screen = this.props.screen ?? 'live';
+    const alertsOn = this.props.alerts ?? true;
+    const isAdmin = persona === 'admin';
+    const isMod = persona === 'moderator';
+    const isFin = persona === 'finance';
+    const loading = screen === 'loading';
+    const empty = screen === 'empty';
+    const errored = screen === 'error';
+    const incident = alertsOn && !empty && !loading;
+
+    const RED = '#E8001D', REDT = '#FF4757', GREEN = '#2dd4a4', YEL = '#F5C518';
+    const MUTE = 'rgba(255,255,255,0.5)', DIM = 'rgba(255,255,255,0.65)';
+
+    const spark = (arr) => {
+      const w = 72, h = 28, p = 3;
+      const mn = Math.min(...arr), mx = Math.max(...arr), r = (mx - mn) || 1;
+      const pts = arr.map((v, i) => [+(2 + i * (w - 6) / (arr.length - 1)).toFixed(1), +(h - p - (v - mn) / r * (h - 2 * p)).toFixed(1)]);
+      const d = 'M' + pts.map(q => q.join(' ')).join(' L');
+      const last = pts[pts.length - 1];
+      return { path: d, area: d + ' L' + last[0] + ' ' + h + ' L2 ' + h + ' Z', cx: last[0], cy: last[1] };
+    };
+    const kpi = (o) => {
+      const s = spark(o.data);
+      const tone = o.tone || 'flat';
+      return Object.assign({}, o, s, {
+        arrow: o.dir === 'up' ? '▲' : o.dir === 'down' ? '▼' : '–',
+        deltaColor: tone === 'good' ? GREEN : tone === 'bad' ? REDT : MUTE,
+        stroke: o.live ? RED : 'rgba(255,255,255,0.6)',
+        fill: o.live ? 'rgba(232,0,29,0.12)' : 'rgba(255,255,255,0.05)',
+        valueColor: o.live && o.value !== '0' ? REDT : '#FFFFFF',
+        live: !!o.live
+      });
+    };
+
+    const K = {
+      live: kpi({ label: 'Live matches', value: empty ? '0' : '4', unit: '', delta: empty ? '0' : '+1', dir: empty ? 'flat' : 'up', tone: 'flat', vs: 'vs 1h ago', data: empty ? [0,0,0,0,0,0,0,0] : [1,1,2,2,3,3,4,4], live: true }),
+      events: kpi({ label: 'Events · 7d', value: empty ? '0' : '18', unit: 'DEPLOYED', delta: empty ? '18' : '5', dir: empty ? 'down' : 'up', tone: empty ? 'bad' : 'good', vs: 'vs prev 7d', data: empty ? [6,5,4,3,2,1,0,0] : [9,11,10,13,12,14,16,18] }),
+      vol: kpi({ label: 'Volume 24h', value: empty ? '1.2k' : '48.2k', unit: 'USDC', delta: empty ? '97.1%' : '18.4%', dir: empty ? 'down' : 'up', tone: empty ? 'bad' : 'good', vs: 'vs prev 24h', data: empty ? [9,7,5,3,2,1,1,1] : [12,14,13,19,22,28,36,48] }),
+      fees: kpi({ label: 'Fees 24h', value: empty ? '24' : '964', unit: 'USDC', delta: empty ? '97.1%' : '18.4%', dir: empty ? 'down' : 'up', tone: empty ? 'bad' : 'good', vs: '2% of volume', data: empty ? [9,7,5,3,2,1,1,1] : [12,14,13,19,22,28,36,48] }),
+      bettors: kpi({ label: 'Active bettors 24h', value: empty ? '38' : '1,284', unit: '', delta: empty ? '96.8%' : '6.1%', dir: empty ? 'down' : 'up', tone: empty ? 'bad' : 'good', vs: 'vs prev 24h', data: empty ? [8,6,5,3,2,2,1,1] : [980,1010,1050,1120,1150,1190,1230,1284] }),
+      reports: kpi({ label: 'Open reports', value: empty ? '0' : (incident ? '7' : '5'), unit: '', delta: empty ? '7' : '3', dir: empty ? 'down' : 'up', tone: empty ? 'good' : 'bad', vs: 'vs 24h ago', data: empty ? [7,6,4,3,2,1,0,0] : [4,3,4,5,4,5,6,7] }),
+      bans: kpi({ label: 'Active bans', value: empty ? '0' : '3', unit: '', delta: '1', dir: 'down', tone: 'good', vs: 'vs 24h ago', data: [5,5,4,4,4,3,3,3] }),
+      streams: kpi({ label: 'Live streams', value: empty ? '0' : '8', unit: empty ? '' : '12.5K VIEWERS', delta: empty ? '0' : '2', dir: empty ? 'flat' : 'up', tone: 'flat', vs: 'vs 1h ago', data: empty ? [0,0,0,0,0,0,0,0] : [2,3,3,5,6,6,7,8] }),
+      avgpool: kpi({ label: 'Avg pool / event', value: empty ? '—' : '2,410', unit: 'USDC', delta: empty ? '—' : '9.2%', dir: empty ? 'flat' : 'up', tone: empty ? 'flat' : 'good', vs: 'last 30d', data: [1800,1900,2050,1990,2150,2240,2310,2410] })
+    };
+    const kpis = isMod ? [K.live, K.streams, K.reports, K.bans]
+      : isFin ? [K.live, K.events, K.vol, K.fees, K.bettors, K.avgpool]
+      : [K.live, K.events, K.vol, K.fees, K.bettors, K.reports];
+
+    // ---- Alerts
+    const allAlerts = [
+      { crit: true, title: 'API-Football sync down', detail: 'SyncLiveMatches timing out since 14:02 — live scores are 13 min stale', meta: '3 FAILED RUNS', action: 'RETRY SYNC', who: ['admin', 'moderator'] },
+      { crit: true, title: 'Match deploy failed', detail: 'Bayern München vs Dortmund — setupMarkets reverted (out of gas)', meta: '#999023 · 14:08', action: 'RETRY DEPLOY', who: ['admin'] },
+      { crit: true, title: 'S5 report open', detail: 'Hate speech in PSG vs OM live chat — @ultra_93', meta: '2 MIN AGO', action: 'REVIEW', who: ['admin', 'moderator'] },
+      { crit: false, title: 'Deploy wallet low', detail: '212.40 CHZ left — about 9 deployments at 22.6 CHZ each', meta: 'ALERT < 250', action: 'TOP UP', who: ['admin'] },
+      { crit: false, title: 'Job failing', detail: 'RefreshTokenPrices failed 3× in a row — HTTP 429 from CoinGecko', meta: 'LAST 14:10', action: 'VIEW LOGS', who: ['admin'] },
+      { crit: false, title: 'CoinGecko budget at 86%', detail: '8,612 / 10,000 calls this month — resets 01 Dec', meta: '+412 TODAY', action: 'DETAILS', who: ['admin', 'finance'] }
+    ];
+    const alertList = (incident ? allAlerts.filter(a => a.who.indexOf(persona) >= 0) : []).map(a => Object.assign({}, a, {
+      warn: !a.crit,
+      level: a.crit ? 'CRITICAL' : 'WARNING',
+      color: a.crit ? RED : YEL,
+      text: a.crit ? REDT : YEL,
+      bg: a.crit ? 'rgba(232,0,29,0.06)' : 'transparent'
+    }));
+    const nCrit = alertList.filter(a => a.crit).length;
+    const nWarn = alertList.length - nCrit;
+    const parts = [];
+    if (nCrit) parts.push(nCrit + ' CRITICAL');
+    if (nWarn) parts.push(nWarn + (nWarn > 1 ? ' WARNINGS' : ' WARNING'));
+    const health = nCrit ? { label: 'INCIDENT', detail: parts.join(' · '), color: REDT, border: 'rgba(232,0,29,0.55)', bg: 'rgba(232,0,29,0.08)' }
+      : nWarn ? { label: 'DEGRADED', detail: parts.join(' · '), color: YEL, border: 'rgba(245,197,24,0.45)', bg: 'rgba(245,197,24,0.06)' }
+      : { label: 'ALL SYSTEMS NORMAL', detail: '8/8 JOBS OK', color: GREEN, border: 'rgba(45,212,164,0.4)', bg: 'rgba(45,212,164,0.06)' };
+
+    // ---- Live
+    const mk = (label, st) => ({ label, state: st.toUpperCase(),
+      color: st === 'open' ? GREEN : st === 'closed' ? YEL : DIM,
+      border: st === 'open' ? 'rgba(45,212,164,0.35)' : st === 'closed' ? 'rgba(245,197,24,0.4)' : '#2A2A2A' });
+    const mt = (o) => {
+      const h = +o.hs, a = +o.as;
+      const anyOpen = o.markets.some(x => x.state === 'OPEN');
+      return Object.assign({}, o, {
+        hColor: h >= a ? '#FFFFFF' : DIM, aColor: a >= h ? '#FFFFFF' : DIM,
+        canClose: isAdmin && anyOpen,
+        upd: incident ? 'FEED STALE · 13 MIN' : 'UPD 14:15:02',
+        updColor: incident ? YEL : MUTE
+      });
+    };
+    const live = (empty || loading) ? [] : [
+      mt({ home: 'Paris Saint-Germain', hc: 'PSG', away: 'Olympique de Marseille', ac: 'OM', hs: '2', as: '1', status: 'LIVE · 67′', league: 'Ligue 1', pool: '21,480', bets: '1,204', streams: '3', viewers: '6.8K', markets: [mk('1X2', 'open'), mk('O/U 2.5', 'open'), mk('BTTS', 'open')] }),
+      mt({ home: 'FC Barcelona', hc: 'BAR', away: 'Atlético de Madrid', ac: 'ATM', hs: '1', as: '1', status: 'HALF-TIME', league: 'LaLiga', pool: '12,960', bets: '688', streams: '2', viewers: '3.1K', markets: [mk('1X2', 'open'), mk('O/U 2.5', 'open'), mk('BTTS', 'resolved')] }),
+      mt({ home: 'Manchester City', hc: 'MCI', away: 'Arsenal', ac: 'ARS', hs: '0', as: '0', status: 'LIVE · 23′', league: 'Premier League', pool: '8,310', bets: '412', streams: '2', viewers: '2.2K', markets: [mk('1X2', 'open'), mk('O/U 2.5', 'open'), mk('BTTS', 'open')] }),
+      mt({ home: 'Inter', hc: 'INT', away: 'AC Milan', ac: 'ACM', hs: '1', as: '0', status: 'LIVE · 88′', league: 'Serie A', pool: '1,240', bets: '96', streams: '1', viewers: '410', markets: [mk('1X2', 'closed'), mk('O/U 2.5', 'closed'), mk('BTTS', 'closed')] })
+    ];
+
+    // ---- Events
+    const vis = {
+      published: { vLabel: 'PUBLISHED', vGlyph: '✓', vColor: GREEN, vBorder: 'rgba(45,212,164,0.35)', vBg: 'transparent', btn: 'HIDE', kind: 'ghost' },
+      hidden: { vLabel: 'HIDDEN', vGlyph: '◌', vColor: YEL, vBorder: 'rgba(245,197,24,0.4)', vBg: 'transparent', btn: 'PUBLISH', kind: 'ghost' },
+      deploying: { vLabel: 'DEPLOYING 2/3', vGlyph: '↻', vColor: DIM, vBorder: '#2A2A2A', vBg: '#141414', btn: 'IN PROGRESS', kind: 'none' },
+      failed: { vLabel: 'SETUP FAILED', vGlyph: '✕', vColor: '#FFFFFF', vBorder: RED, vBg: RED, btn: 'RETRY', kind: 'danger' }
+    };
+    const ev = (o) => { const v = vis[o.v]; return Object.assign({}, o, v, {
+      btnGhost: v.kind === 'ghost', btnDanger: v.kind === 'danger', btnNone: v.kind === 'none',
+      accent: o.v === 'failed' ? RED : 'transparent', rowBg: o.v === 'failed' ? 'rgba(232,0,29,0.05)' : 'transparent' }); };
+    const events = (empty || loading) ? [] : [
+      ev({ d: 'SAT 07', t: '21:00', match: 'Juventus vs Napoli', league: 'SERIE A', contract: '0x7c1d…a65c', v: 'published', pool: '3,420', bets: '214' }),
+      ev({ d: 'SUN 08', t: '15:30', match: 'Bayern München vs Dortmund', league: 'BUNDESLIGA', contract: '0x49c2…eb2f', v: incident ? 'failed' : 'published', pool: incident ? '—' : '860', bets: incident ? '—' : '57' }),
+      ev({ d: 'SUN 08', t: '17:30', match: 'Liverpool vs Chelsea', league: 'PREMIER LEAGUE', contract: '0x3012…4113', v: 'published', pool: '1,980', bets: '122' }),
+      ev({ d: 'SUN 08', t: '20:45', match: 'Lyon vs Monaco', league: 'LIGUE 1', contract: '0x2273…795a', v: 'hidden', pool: '—', bets: '—' }),
+      ev({ d: 'TUE 10', t: '21:00', match: 'Real Madrid vs Bayern München', league: 'CHAMPIONS LEAGUE', contract: '0xa753…bee4', v: 'published', pool: '6,140', bets: '389' }),
+      ev({ d: 'WED 11', t: '21:00', match: 'Paris Saint-Germain vs Inter', league: 'CHAMPIONS LEAGUE', contract: 'PENDING', v: 'deploying', pool: '—', bets: '—' }),
+      ev({ d: 'SAT 14', t: '18:30', match: 'Atlético de Madrid vs Valencia', league: 'LALIGA', contract: '0x6c49…817e', v: 'published', pool: '420', bets: '31' })
+    ];
+    const showMoney = !isMod;
+    const evCols = ['64px', 'minmax(0, 1fr)', '128px'].concat(showMoney ? ['72px'] : []).concat(['48px']).concat(isAdmin ? ['96px'] : []).join(' ');
+
+    const suggested = [
+      { d: 'MON 09', t: '20:45', match: 'AS Roma vs Lazio', league: 'SERIE A', tokens: ['$ASR', '$LAZIO'] },
+      { d: 'TUE 10', t: '21:00', match: 'Galatasaray vs FC Porto', league: 'CHAMPIONS LEAGUE', tokens: ['$GAL', '$POR'] },
+      { d: 'WED 11', t: '21:00', match: 'Manchester City vs Napoli', league: 'CHAMPIONS LEAGUE', tokens: ['$CITY', '$NAP'] },
+      { d: 'SAT 14', t: '18:00', match: 'Juventus vs AS Roma', league: 'SERIE A', tokens: ['$JUV', '$ASR'] },
+      { d: 'SUN 15', t: '21:00', match: 'FC Barcelona vs Real Betis', league: 'LALIGA', tokens: ['$BAR'] }
+    ];
+
+    // ---- Operations
+    const op = (o) => {
+      const c = o.s === 'running' ? REDT : o.s === 'failed' ? REDT : o.s === 'done' ? GREEN : DIM;
+      return Object.assign({}, o, {
+        running: o.s === 'running', queued: o.s === 'queued', failed: o.s === 'failed', done: o.s === 'done', notFailed: o.s !== 'failed',
+        color: c, iconBorder: o.s === 'failed' ? 'rgba(232,0,29,0.55)' : '#2A2A2A',
+        stepColor: o.s === 'failed' ? REDT : MUTE,
+        accent: o.s === 'failed' ? RED : 'transparent', rowBg: o.s === 'failed' ? 'rgba(232,0,29,0.05)' : 'transparent'
+      });
+    };
+    const ops = empty ? [] : [
+      op({ s: 'running', st: 'RUNNING', kind: 'Deploy match', match: 'PSG vs Inter · UCL', step: 'Step 2/3 · setting up 3 markets · tx 0x9e41…07ab', pct: '66%', id: '#999024', time: '14:12', by: 'antony', action: 'DETAILS' }),
+      op({ s: 'queued', st: 'QUEUED', kind: 'Deploy match', match: 'Arsenal vs Tottenham · PL', step: 'Waiting for #999024 (same signer nonce)', id: '#999025', time: '14:13', by: 'antony', action: 'CANCEL' }),
+      incident ? op({ s: 'failed', st: 'FAILED', kind: 'Deploy match', match: 'Bayern vs Dortmund · BUN', step: 'setupMarkets reverted — out of gas (2,998,412 / 3,000,000)', id: '#999023', time: '14:08', by: 'antony', action: 'RETRY' }) : null,
+      op({ s: 'done', st: 'DONE', kind: 'Cancel markets', match: 'Lyon vs Monaco · L1', step: '3 markets cancelled · 0 bets to refund', id: '#999021', time: '14:04', by: 'antony', action: 'TX ↗' })
+    ].filter(Boolean);
+    const nRun = ops.filter(o => o.running || o.queued).length, nFail = ops.filter(o => o.failed).length;
+    const opsSummary = nRun + ' ACTIVE' + (nFail ? ' · ' + nFail + ' FAILED' : '');
+
+    const wallet = incident
+      ? { balance: '212.40', left: '9', pct: '42%', color: YEL, valueColor: YEL, badge: '▲ LOW', badgeBorder: 'rgba(245,197,24,0.45)', cardBorder: 'rgba(245,197,24,0.35)' }
+      : { balance: '612.40', left: '27', pct: '100%', color: GREEN, valueColor: '#FFFFFF', badge: '✓ HEALTHY', badgeBorder: 'rgba(45,212,164,0.35)', cardBorder: '#1E1E1E' };
+
+    // ---- Jobs
+    const jb = (name, every, ok, last, dur, next) => ({ name, every, last, dur, next, st: ok ? 'OK' : 'FAIL', glyph: ok ? '✓' : '✕',
+      color: ok ? GREEN : REDT, accent: ok ? 'transparent' : RED, rowBg: ok ? 'transparent' : 'rgba(232,0,29,0.05)' });
+    const jobs = [
+      jb('SyncLiveMatches', '30s', !incident, '14:14:48', incident ? '30.0s' : '1.8s', 'in 18s'),
+      jb('SyncMatches', '10m', !incident, '14:10:00', incident ? '12.1s' : '6.4s', '14:20'),
+      jb('RefreshTokenPrices', '10m', !incident, '14:10:00', incident ? '0.9s' : '2.2s', '14:20'),
+      jb('ProcessMatchOperations', '5s', true, '14:15:02', '0.4s', 'in 3s'),
+      jb('CloseLiveMarkets', '1m', true, '14:15:00', '0.3s', '14:16'),
+      jb('ResolveMarkets', '1m', true, '14:15:00', '2.8s', '14:16'),
+      jb('ViewerReconcile', '1m', true, '14:15:00', '1.2s', '14:16'),
+      jb('AdvanceEpoch', '1h', true, '14:00:00', '4.1s', '15:00')
+    ];
+    const jobsHealth = incident ? { label: '5/8 HEALTHY', color: YEL, border: 'rgba(245,197,24,0.45)' } : { label: '8/8 HEALTHY', color: GREEN, border: 'rgba(45,212,164,0.35)' };
+    const upstreams = incident
+      ? [{ name: 'API-FOOTBALL', state: 'DOWN', glyph: '✕', color: REDT, pct: '100%', detail: 'Timeouts since 14:02 · 0/12 ok' },
+         { name: 'COINGECKO', state: '86% BUDGET', glyph: '▲', color: YEL, pct: '86%', detail: '8,612 / 10,000 calls · Nov' }]
+      : [{ name: 'API-FOOTBALL', state: 'OK', glyph: '✓', color: GREEN, pct: '100%', detail: 'p95 240 ms · 12/12 ok' },
+         { name: 'COINGECKO', state: '61% BUDGET', glyph: '✓', color: GREEN, pct: '61%', detail: '6,104 / 10,000 calls · Nov' }];
+
+    // ---- Moderation
+    const sevStyle = (n) => n === 5 ? { border: RED, bg: RED, color: '#FFFFFF' }
+      : n === 4 ? { border: RED, bg: 'transparent', color: REDT }
+      : n === 3 ? { border: 'rgba(245,197,24,0.5)', bg: 'transparent', color: YEL }
+      : { border: '#2A2A2A', bg: 'transparent', color: DIM };
+    const rp = (n, reason, type, target, age) => Object.assign({ n, sev: 'S' + n, reason, type, target, age,
+      accent: n >= 4 ? RED : 'transparent', rowBg: n >= 4 ? 'rgba(232,0,29,0.05)' : 'transparent' }, sevStyle(n));
+    const allReports = [
+      rp(5, 'Hate speech', 'CHAT MESSAGE', '@ultra_93 · PSG vs OM', '2m'),
+      rp(4, 'Match-fixing claim', 'STREAM', 'OM_Tribune · PSG vs OM', '9m'),
+      rp(3, 'Scam link', 'CHAT MESSAGE', '@chz_airdrop_x · Man City vs Arsenal', '14m'),
+      rp(3, 'Impersonation', 'STREAMER', 'PSG_Official_Live · PSG vs OM', '22m'),
+      rp(2, 'Harassment', 'PLAYER PROFILE', '@nico.b', '41m'),
+      rp(1, 'Off-topic spam', 'CHAT MESSAGE', '@goal_bot77 · Barcelona vs Atlético', '1h')
+    ];
+    const reports = empty ? [] : (incident ? allReports.filter(r => r.n !== 3 || r.reason === 'Scam link') : allReports.filter(r => r.n < 4)).slice(0, 5);
+    const bans = empty ? [] : [
+      { who: '@scamlink_bot', scope: 'PERMANENT · ALL', exp: 'NEVER', by: 'sarah' },
+      { who: '@tifo_rage', scope: '24H · CHAT', exp: 'SUN 14:09', by: 'sarah' },
+      { who: '0x7c3e…b21a', scope: '7D · BETTING', exp: 'FRI 13', by: 'antony' }
+    ];
+
+    // ---- Activity
+    const roleStyle = {
+      super_admin: { rb: 'rgba(245,197,24,0.5)', rc: YEL },
+      moderator: { rb: '#3A3A3A', rc: '#FFFFFF' },
+      finance: { rb: 'rgba(45,212,164,0.4)', rc: GREEN },
+      job: { rb: '#2A2A2A', rc: MUTE }
+    };
+    const ac = (t, actor, role, action, target, ref, tag, bad) => Object.assign({ t, actor, role: role.toUpperCase().replace('_', ' '), action, target, ref, tag, ac: bad ? REDT : 'rgba(255,255,255,0.85)' }, roleStyle[role]);
+    const allAct = [
+      ac('14:14', 'antony', 'super_admin', 'contract.deploy', 'Paris Saint-Germain vs Inter', '#999024', 'admin'),
+      ac('14:13', 'antony', 'super_admin', 'contract.deploy', 'Arsenal vs Tottenham', '#999025', 'admin'),
+      ac('14:11', 'system', 'job', 'markets.close', 'Inter vs AC Milan · auto at 85′', '#999022', 'all'),
+      ac('14:09', 'sarah', 'moderator', 'ban.create', '@tifo_rage · 24h chat', 'B-2231', 'mod'),
+      incident ? ac('14:08', 'system', 'job', 'operation.failed', 'Bayern München vs Dortmund', '#999023', 'admin', true) : null,
+      ac('14:04', 'antony', 'super_admin', 'markets.cancel', 'Lyon vs Monaco', '#999021', 'admin'),
+      ac('14:01', 'sarah', 'moderator', 'report.resolve', '@kop_chant · S2 · dismissed', 'R-8812', 'mod'),
+      ac('13:58', 'lucas', 'finance', 'export.csv', 'Fees · October 2026', '—', 'fin'),
+      ac('13:52', 'antony', 'super_admin', 'match.publish', 'Juventus vs Napoli', '#999019', 'admin'),
+      ac('13:40', 'sarah', 'moderator', 'stream.hide', 'OM_Tribune · PSG vs OM', 'S-0412', 'mod')
+    ].filter(Boolean);
+    const activity = (isMod ? allAct.filter(a => a.tag === 'mod' || a.tag === 'all')
+      : isFin ? allAct.filter(a => a.tag !== 'mod')
+      : allAct).slice(0, 8);
+
+    const ord = isMod ? { alerts: 1, kpis: 2, health: 3, live: 4, events: 5, ops: 9, activity: 6 }
+      : isFin ? { alerts: 1, kpis: 2, events: 3, live: 4, ops: 9, health: 9, activity: 5 }
+      : { alerts: 1, kpis: 2, live: 3, events: 4, ops: 5, health: 6, activity: 7 };
+
+    const me = isMod ? { name: 'sarah', initials: 'SM', role: 'moderator', badge: 'MODERATOR', badgeColor: '#FFFFFF', badgeBorder: '#3A3A3A', wallet: '0x8d02…41ee' }
+      : isFin ? { name: 'lucas', initials: 'LR', role: 'finance', badge: 'FINANCE', badgeColor: GREEN, badgeBorder: 'rgba(45,212,164,0.45)', wallet: '0x3b7a…d915' }
+      : { name: 'antony', initials: 'AL', role: 'super_admin', badge: 'SUPER ADMIN', badgeColor: YEL, badgeBorder: 'rgba(245,197,24,0.5)', wallet: '0x4f1e…c07d' };
+
+    const reportsOpen = empty ? 0 : (incident ? 7 : 5);
+    const soon = isMod ? ['ANALYTICS'] : isFin ? ['FINANCE', 'ANALYTICS'] : ['FINANCE', 'ANALYTICS', 'AUDIT'];
+
+    return {
+      persona, isAdmin, isMod, isFin, incident, loading, ready: !loading, busy: loading ? 'true' : 'false',
+      me, ord, kpis, health,
+      hasAlerts: alertList.length > 0, alertList, alertSummary: parts.join(' · '),
+      live, hasLive: live.length > 0, noLive: live.length === 0,
+      liveCount: live.length, liveStreams: live.length ? '8 STREAMS · 12.5K VIEWERS' : 'NO STREAM',
+      showMoney, showModActions: !isFin,
+      events, hasEvents: events.length > 0, noEvents: events.length === 0, eventsCount: empty ? '0' : '18', evCols,
+      showSuggest: isAdmin, suggested, suggestOk: !errored, suggestError: errored, walletCover: 'WALLET COVERS ≈ ' + wallet.left,
+      ops, hasOps: ops.length > 0, noOps: ops.length === 0, opsSummary, wallet,
+      showHealthRow: !isFin, jobs, jobsHealth, upstreams,
+      reports, hasReports: reports.length > 0, noReports: reports.length === 0, reportsOpen,
+      bans, bansCount: bans.length, noBans: bans.length === 0,
+      activity, activityScope: isMod ? 'MODERATION' : isFin ? 'FINANCE & EVENTS' : 'ALL ACTORS',
+      nav: { markets: !isMod, moderation: !isFin, players: !isFin, jobs: isAdmin, reports: reportsOpen, reportsBadge: reportsOpen > 0, jobsBadge: incident },
+      soonItems: soon.map(label => ({ label })),
+      sk4: [1, 2, 3, 4], sk5: [1, 2, 3, 4, 5], sk6: [1, 2, 3, 4, 5, 6]
+    };
+  }
+}
+</script>
+</body>
+</html>

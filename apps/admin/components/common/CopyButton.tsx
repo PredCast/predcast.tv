@@ -2,8 +2,16 @@
 
 import { useRef, useState } from 'react';
 
+import { Icon } from './Icon';
+
+const SIZES = { sm: { box: 'h-[18px] w-[18px]', icon: 10 }, md: { box: 'h-7 w-7', icon: 13 } } as const;
+
 /** Copies `value` to the clipboard with a brief ✓ feedback. */
-export function CopyButton({ value, label }: Readonly<{ value: string; label: string }>) {
+export function CopyButton({
+  value,
+  label,
+  size = 'sm',
+}: Readonly<{ value: string; label: string; size?: keyof typeof SIZES }>) {
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -27,9 +35,9 @@ export function CopyButton({ value, label }: Readonly<{ value: string; label: st
       onClick={copy}
       aria-label={label}
       title={label}
-      className="font-mono-ctv rounded border border-transparent px-1.5 py-0.5 text-[10px] text-white/45 transition-colors hover:border-[#2A2A2A] hover:text-white focus-visible:ring-2 focus-visible:ring-[#E8001D]"
+      className={`inline-flex shrink-0 items-center justify-center rounded-control border border-line text-fg-body transition-colors duration-[120ms] hover:border-line-hover hover:bg-elevated hover:text-white ${SIZES[size].box}`}
     >
-      {copied ? <span className="text-[#2dd4a4]">✓</span> : '⧉'}
+      <Icon n={copied ? 'check' : 'copy'} s={SIZES[size].icon} className={copied ? 'text-positive' : ''} />
     </button>
   );
 }

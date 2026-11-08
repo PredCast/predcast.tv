@@ -5,3 +5,4 @@ export { UnauthorizedError } from './UnauthorizedError';
 export { ForbiddenError } from './ForbiddenError';
 export { ConflictError } from './ConflictError';
 export { BusinessRuleError } from './BusinessRuleError';
+export { TooManyRequestsError } from './TooManyRequestsError';

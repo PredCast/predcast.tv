@@ -4,15 +4,15 @@ import { toast } from 'sonner';
 import type { AdminMatchRowDto } from '@chiliztv/shared';
 
 import { useCloseMatchMarkets, usePublishMatch, useRetryMarketsSetup } from '@/hooks/api/useAdminMatches';
-import { DEPLOY_BLOCKED_LABELS, apiErrorMessage, isOperationActive, publicationOf } from '@/lib/markets/labels';
+import { DEPLOY_BLOCKED_LABELS, isOperationActive, publicationOf } from '@/lib/markets/labels';
+import { apiErrorMessage } from '@/lib/api/errors';
+import { buttonClass } from '@/lib/ui/buttonClass';
 import { ConfirmActionButton } from '@/components/common/ConfirmActionButton';
 import { OperationBadge } from '@/components/markets/OperationBadge';
 
 const FINISHED = new Set(['FT', 'AET', 'PEN', 'CANC', 'ABD', 'AWD', 'WO']);
-const primary =
-  'font-mono-ctv rounded-md bg-[#E8001D] px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-white hover:bg-[#FF1737] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8001D]';
-const secondary =
-  'font-mono-ctv rounded-md border border-[#2A2A2A] px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-white/75 hover:border-[#3A3A3A] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8001D]';
+const primary = buttonClass('primary', 'xs');
+const secondary = buttonClass('ghost', 'xs');
 
 interface MatchRowActionsProps {
   readonly match: AdminMatchRowDto;
@@ -35,7 +35,7 @@ export function MatchRowActions({ match, onDeploy, onUnpublish }: Readonly<Match
   if (publication === 'not_deployed') {
     const blocked = match.deployBlockedReason;
     return blocked ? (
-      <span className="font-mono-ctv text-[9px] uppercase tracking-[0.1em] text-white/35">{DEPLOY_BLOCKED_LABELS[blocked] ?? blocked}</span>
+      <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-fg-meta">{DEPLOY_BLOCKED_LABELS[blocked] ?? blocked}</span>
     ) : (
       <button type="button" className={primary} onClick={() => onDeploy(match)}>
         Deploy

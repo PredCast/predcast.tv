@@ -38,6 +38,7 @@ export class OldEndedStreamsCleanupJob {
       logger.error('Old ENDED streams cleanup job failed', {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
+      throw error;
     }
   }
 }

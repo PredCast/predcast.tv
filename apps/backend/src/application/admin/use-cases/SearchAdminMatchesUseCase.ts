@@ -65,8 +65,10 @@ export class SearchAdminMatchesUseCase {
         );
         return {
             apiFootballId: raw.apiFootballId,
+            homeTeamId: raw.homeTeamId,
             homeTeamName: raw.homeTeamName,
             homeTeamLogo: raw.homeTeamLogo || null,
+            awayTeamId: raw.awayTeamId,
             awayTeamName: raw.awayTeamName,
             awayTeamLogo: raw.awayTeamLogo || null,
             leagueId: raw.leagueId,

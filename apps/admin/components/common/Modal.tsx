@@ -58,12 +58,12 @@ export function Modal({ open, title, eyebrow, dismissible = true, onClose, child
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="w-full max-w-[560px] rounded-xl border border-[#2A2A2A] bg-[#111111] shadow-[0_24px_80px_rgba(0,0,0,0.6)]"
+        className="w-full max-w-[560px] rounded-xl border border-line bg-card shadow-[0_24px_80px_rgba(0,0,0,0.6)]"
       >
-        <div className="flex items-start justify-between gap-4 border-b border-[#1E1E1E] px-5 py-4">
+        <div className="flex items-start justify-between gap-4 border-b border-line-subtle px-5 py-4">
           <div>
             {eyebrow && (
-              <div className="font-mono-ctv text-[9px] font-bold uppercase tracking-[0.16em] text-[#E8001D]">{eyebrow}</div>
+              <div className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-accent-text">{eyebrow}</div>
             )}
             <h2 id={titleId} className="font-display mt-1 text-[22px] font-extrabold uppercase leading-none text-white">
               {title}
@@ -74,7 +74,7 @@ export function Modal({ open, title, eyebrow, dismissible = true, onClose, child
               type="button"
               onClick={onClose}
               aria-label="Close"
-              className="rounded-md p-1 text-white/45 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8001D]"
+              className="rounded-md p-1 text-fg-meta hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               <Icon n="x" s={14} />
             </button>

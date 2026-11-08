@@ -1,40 +1,106 @@
-import { Card } from './Card';
-import { Icon, type IconName } from './Icon';
-import { LiveDot } from './LiveDot';
+import { Button } from './Button';
+import { Icon } from './Icon';
+import { Sparkline } from './Sparkline';
+
+export type DeltaTone = 'good' | 'bad' | 'flat';
+
+export interface StatDelta {
+  readonly dir: 'up' | 'down' | 'flat';
+  readonly text: string;
+  readonly tone: DeltaTone;
+}
 
 interface StatTileProps {
   readonly label: string;
-  readonly value: string;
-  readonly icon?: IconName;
-  readonly tone?: string;
-  readonly sub?: string;
-  readonly subTone?: string;
+  readonly state?: 'ready' | 'loading' | 'error';
+  readonly value?: string;
+  readonly unit?: string;
+  readonly delta?: StatDelta;
+  /** Text after the delta ("vs prev 24h"), or alone when there is no delta. */
+  readonly caption?: string;
+  readonly series?: ReadonlyArray<number>;
+  /** Red value and sparkline (live counters above zero). */
   readonly live?: boolean;
+  /** Definition shown on hover / to screen readers (e.g. what a fee figure includes). */
+  readonly hint?: string;
+  readonly onRetry?: () => void;
 }
+
+const ARROWS = { up: '▲', down: '▼', flat: '–' } as const;
+const DELTA_COLORS: Record<DeltaTone, string> = { good: 'text-positive', bad: 'text-accent-text', flat: 'text-fg-meta' };
 
 export function StatTile({
   label,
-  value,
-  icon = 'chart',
-  tone = '#fff',
-  sub,
-  subTone = 'rgba(255,255,255,0.3)',
+  state = 'ready',
+  value = '—',
+  unit,
+  delta,
+  caption,
+  series,
   live = false,
+  hint,
+  onRetry,
 }: Readonly<StatTileProps>) {
+  const errored = state === 'error';
   return (
-    <Card className="p-4">
-      <div className="flex items-start justify-between">
-        <span className="font-mono-ctv text-[9px] font-bold uppercase tracking-[0.16em] text-white/40">{label}</span>
-        {live ? <LiveDot /> : <Icon n={icon} s={14} className="text-white/20" />}
-      </div>
-      <div className="font-display mt-2.5 text-[36px] font-extrabold leading-none tabular-nums tracking-[-0.01em]" style={{ color: tone }}>
-        {value}
-      </div>
-      {sub && (
-        <div className="font-mono-ctv mt-2.5 text-[9px] font-bold uppercase tracking-[0.12em]" style={{ color: subTone }}>
-          {sub}
-        </div>
+    <div
+      className={`flex min-h-32 flex-col gap-2.5 rounded-card border bg-card px-4 pb-3 pt-3.5 ${errored ? 'border-accent/40' : 'border-line-subtle'}`}
+      aria-busy={state === 'loading'}
+    >
+      <span className="flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-fg-body">
+        {label}
+        {hint && (
+          <span title={hint} className="inline-flex text-fg-meta">
+            <Icon n="info" s={12} />
+            <span className="sr-only">{hint}</span>
+          </span>
+        )}
+      </span>
+      {state === 'loading' ? (
+        <>
+          <span className="pc-skel h-8 w-16" />
+          <span className="pc-skel mt-auto h-2.5 w-4/5" />
+        </>
+      ) : (
+        <>
+          <div className="flex items-end justify-between gap-2">
+            <div className="flex min-w-0 items-baseline gap-1.5">
+              <span
+                className={`font-display text-[38px] font-extrabold leading-9 ${
+                  errored ? 'text-fg-meta' : live && value !== '0' ? 'text-accent-text' : 'text-white'
+                }`}
+              >
+                {errored ? '—' : value}
+              </span>
+              {unit && !errored && (
+                <span className="truncate font-mono text-[10px] uppercase tracking-[0.12em] text-fg-meta">{unit}</span>
+              )}
+            </div>
+            {series && !errored && <Sparkline values={series} live={live} />}
+          </div>
+          {errored ? (
+            <div className="mt-auto flex items-center justify-between gap-2">
+              <span className="font-mono text-[11px] font-semibold text-accent-text">✕ Couldn&apos;t load</span>
+              {onRetry && (
+                <Button size="xs" onClick={onRetry}>
+                  Retry
+                </Button>
+              )}
+            </div>
+          ) : (
+            (delta || caption) && (
+              <div className="mt-auto font-mono text-[11px]">
+                {delta && (
+                  <span className={`font-semibold ${DELTA_COLORS[delta.tone]}`}>
+                    {ARROWS[delta.dir]} {delta.text}{' '}
+                  </span>
+                )}
+                {caption && <span className="text-fg-meta">{caption}</span>}
+              </div>
+            )
+          )}
+        </>
       )}
-    </Card>
+    </div>
   );
 }

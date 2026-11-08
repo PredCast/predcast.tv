@@ -1,30 +1,14 @@
-import { inject, injectable } from 'tsyringe';
+import { injectable } from 'tsyringe';
 import cron from 'node-cron';
-import { SyncMatchesJob } from './jobs/SyncMatchesJob';
-import { SyncLiveMatchesJob } from './jobs/SyncLiveMatchesJob';
-import { ResolveMarketsJob } from './jobs/ResolveMarketsJob';
-import { ResolveHalftimeMarketsJob } from './jobs/ResolveHalftimeMarketsJob';
-import { CloseLiveMarketsJob } from './jobs/CloseLiveMarketsJob';
-import { CleanupStreamsJob } from './jobs/CleanupStreamsJob';
-import { StaleStreamCleanupJob } from './jobs/StaleStreamCleanupJob';
-import { OldEndedStreamsCleanupJob } from './jobs/OldEndedStreamsCleanupJob';
-import { SettlePredictionsJob } from './jobs/SettlePredictionsJob';
-import { ViewerReconcileJob } from './jobs/ViewerReconcileJob';
-import { CloudflareReconcileJob } from './jobs/CloudflareReconcileJob';
-import { RefreshTokenPricesJob } from './jobs/RefreshTokenPricesJob';
-import { AdvanceEpochJob } from './jobs/AdvanceEpochJob';
-import { LiftExpiredBansJob } from './jobs/LiftExpiredBansJob';
-import { ProcessMatchOperationsJob } from './jobs/ProcessMatchOperationsJob';
-import { TOKENS } from '@chiliztv/domain/shared/tokens';
-import type { ILockService } from '@chiliztv/domain/shared/ports/ILockService';
-import { JobLocks, type JobLockConfig } from './JobLockConfig';
+
 import { logger } from '../logging/logger';
+import { JobExecutor } from './JobExecutor';
+import { JobRegistry, type RegisteredJob } from './JobRegistry';
+import { ManualJobRunner } from './ManualJobRunner';
 
 /**
- * Job Scheduler
- * Manages all scheduled jobs in the application. Each handler is wrapped in
- * a distributed lock so the second Fly worker instance silently skips when
- * the first is already running the job — required as soon as worker scale > 1.
+ * Starts every job of the registry on its schedule, plus the manual-run consumer. Each tick goes
+ * through JobExecutor (distributed lock, so a second worker instance silently skips).
  */
 @injectable()
 export class JobScheduler {
@@ -35,65 +19,34 @@ export class JobScheduler {
     private stopped = false;
 
     constructor(
-        private readonly syncMatchesJob: SyncMatchesJob,
-        private readonly syncLiveMatchesJob: SyncLiveMatchesJob,
-        private readonly resolveMarketsJob: ResolveMarketsJob,
-        private readonly resolveHalftimeMarketsJob: ResolveHalftimeMarketsJob,
-        private readonly closeLiveMarketsJob: CloseLiveMarketsJob,
-        private readonly cleanupStreamsJob: CleanupStreamsJob,
-        private readonly staleStreamCleanupJob: StaleStreamCleanupJob,
-        private readonly oldEndedStreamsCleanupJob: OldEndedStreamsCleanupJob,
-        private readonly settlePredictionsJob: SettlePredictionsJob,
-        private readonly viewerReconcileJob: ViewerReconcileJob,
-        private readonly cloudflareReconcileJob: CloudflareReconcileJob,
-        private readonly refreshTokenPricesJob: RefreshTokenPricesJob,
-        private readonly advanceEpochJob: AdvanceEpochJob,
-        private readonly liftExpiredBansJob: LiftExpiredBansJob,
-        private readonly processMatchOperationsJob: ProcessMatchOperationsJob,
-        @inject(TOKENS.ILockService) private readonly locks: ILockService,
+        private readonly registry: JobRegistry,
+        private readonly executor: JobExecutor,
+        private readonly manualRunner: ManualJobRunner,
     ) {}
 
     start(): void {
         logger.info('Starting job scheduler');
-
-        this.startCronJob('SyncMatches', this.syncMatchesJob.getSchedule(), JobLocks.syncMatches,
-            () => this.syncMatchesJob.execute());
-        this.startCronJob('CleanupStreams', this.cleanupStreamsJob.getSchedule(), JobLocks.cleanupStreams,
-            () => this.cleanupStreamsJob.execute());
-        this.startCronJob('StaleStreamCleanup', this.staleStreamCleanupJob.getSchedule(), JobLocks.staleStreamCleanup,
-            () => this.staleStreamCleanupJob.execute());
-        this.startCronJob('OldEndedStreamsCleanup', this.oldEndedStreamsCleanupJob.getSchedule(), JobLocks.oldEndedStreams,
-            () => this.oldEndedStreamsCleanupJob.execute());
-        this.startCronJob('ViewerReconcile', this.viewerReconcileJob.getSchedule(), JobLocks.viewerReconcile,
-            () => this.viewerReconcileJob.execute());
-        this.startCronJob('CloudflareReconcile', this.cloudflareReconcileJob.getSchedule(), JobLocks.cloudflareReconcile,
-            () => this.cloudflareReconcileJob.execute());
-        this.startCronJob('AdvanceEpoch', this.advanceEpochJob.getSchedule(), JobLocks.advanceEpoch,
-            () => this.advanceEpochJob.execute());
-
-        this.startIntervalJob('ResolveMarkets', this.resolveMarketsJob.getIntervalMs(), JobLocks.resolveMarkets,
-            () => this.resolveMarketsJob.execute());
-        this.startIntervalJob('CloseLiveMarkets', this.closeLiveMarketsJob.getIntervalMs(), JobLocks.closeLiveMarkets,
-            () => this.closeLiveMarketsJob.execute());
-        this.startSelfRescheduledJob('SyncLiveMatches', this.syncLiveMatchesJob.getIntervalMs(), JobLocks.syncLiveMatches,
-            () => this.syncLiveMatchesJob.execute());
-        this.startSelfRescheduledJob('ResolveHalftimeMarkets', this.resolveHalftimeMarketsJob.getIntervalMs(), JobLocks.resolveHalftimeMarkets,
-            () => this.resolveHalftimeMarketsJob.execute());
-        this.startIntervalJob('RefreshTokenPrices', this.refreshTokenPricesJob.getIntervalMs(), JobLocks.refreshTokenPrices,
-            () => this.refreshTokenPricesJob.execute());
-        this.startIntervalJob('SettlePredictions', this.settlePredictionsJob.getIntervalMs(), JobLocks.settlePredictions,
-            () => this.settlePredictionsJob.execute());
-        this.startIntervalJob('LiftExpiredBans', this.liftExpiredBansJob.getIntervalMs(), JobLocks.liftExpiredBans,
-            () => this.liftExpiredBansJob.execute());
-        this.startSelfRescheduledJob('ProcessMatchOperations', this.processMatchOperationsJob.getIntervalMs(), JobLocks.matchOperations,
-            () => this.processMatchOperationsJob.execute());
-
-        logger.info('Job scheduler started successfully');
+        for (const job of this.registry.registered()) {
+            switch (job.schedule.kind) {
+                case 'cron':
+                    this.startCronJob(job, job.schedule.expression);
+                    break;
+                case 'interval':
+                    this.startIntervalJob(job, job.schedule.everyMs);
+                    break;
+                case 'self_rescheduled':
+                    this.startSelfRescheduledJob(job, job.schedule.everyMs);
+                    break;
+            }
+        }
+        this.manualRunner.start();
+        logger.info('Job scheduler started successfully', { jobs: this.registry.registered().length });
     }
 
     stop(): void {
         logger.info('Stopping job scheduler');
         this.stopped = true;
+        this.manualRunner.stop();
         this.cronTasks.forEach(task => task.stop());
         this.cronTasks = [];
         this.intervals.forEach(interval => clearInterval(interval));
@@ -103,101 +56,41 @@ export class JobScheduler {
         logger.info('Job scheduler stopped');
     }
 
-    /**
-     * Runs `handler` under a distributed lock. Acquired-and-run is logged at
-     * info level; contention is logged at debug since under normal multi-
-     * instance operation, every job sees N-1 skipped attempts per tick.
-     */
-    private async runLocked(name: string, lock: JobLockConfig, handler: () => Promise<void>): Promise<void> {
-        const result = await this.locks.withLock({
-            key: lock.key,
-            ttlSeconds: lock.ttlSeconds,
-            onAcquired: handler,
-            onContention: 'skip',
-        });
-        if (!result.ran) {
-            logger.debug(`Job ${name}: lock taken by another instance, skipping this tick`);
-        }
+    /** The executor never throws (failures are recorded); this only guards the timer callbacks. */
+    private tick(job: RegisteredJob): Promise<void> {
+        return this.executor.execute(job, 'schedule').then(
+            () => undefined,
+            (error: unknown) => {
+                logger.error(`Job ${job.name} tick crashed`, { error: error instanceof Error ? error.message : 'Unknown error' });
+            },
+        );
     }
 
-    private startCronJob(name: string, schedule: string, lock: JobLockConfig, handler: () => Promise<void>): void {
-        logger.info(`Starting cron job: ${name}`, { schedule, lockKey: lock.key });
-
-        const task = cron.schedule(schedule, async () => {
-            try {
-                await this.runLocked(name, lock, handler);
-            } catch (error) {
-                logger.error(`Cron job ${name} failed`, {
-                    error: error instanceof Error ? error.message : 'Unknown error',
-                });
-            }
-        }, {
-            scheduled: true,
-            timezone: 'UTC',
-        });
-
+    private startCronJob(job: RegisteredJob, expression: string): void {
+        logger.info(`Starting cron job: ${job.name}`, { schedule: expression, lockKey: job.lock.key });
+        const task = cron.schedule(expression, () => this.tick(job), { scheduled: true, timezone: 'UTC' });
         this.cronTasks.push(task);
-
-        logger.info(`Executing initial run for: ${name}`);
-        this.runLocked(name, lock, handler).catch(error => {
-            logger.error(`Initial run of ${name} failed`, {
-                error: error instanceof Error ? error.message : 'Unknown error',
-            });
-        });
+        logger.info(`Executing initial run for: ${job.name}`);
+        void this.tick(job);
     }
 
     /**
-     * Self-rescheduling alternative to `startIntervalJob`. The next tick is
-     * scheduled ONLY after the current one finishes (success or failure), so
-     * a slow tick (Supabase lag, slow upstream) can never overlap with itself
-     * — eliminating the lock-contention storm that `setInterval` would cause
-     * when ticks drift past their cadence.
-     *
-     * Trade-off vs `setInterval`: the effective period becomes
-     * `tick_duration + intervalMs`, not strict `intervalMs`. For a 30s cadence
-     * with sub-second ticks this is invisible; if you needed strict periodicity
-     * (e.g. a heartbeat), use `setInterval` instead.
+     * The next tick is armed ONLY after the current one finishes, so a slow tick can never overlap
+     * with itself. Effective period = tick duration + intervalMs.
      */
-    private startSelfRescheduledJob(name: string, intervalMs: number, lock: JobLockConfig, handler: () => Promise<void>): void {
-        logger.info(`Starting self-rescheduled job: ${name}`, { intervalMs, lockKey: lock.key });
-
-        logger.info(`Executing initial run for: ${name}`);
-        const tick = async (): Promise<void> => {
-            try {
-                await this.runLocked(name, lock, handler);
-            } catch (error) {
-                logger.error(`Self-rescheduled job ${name} failed`, {
-                    error: error instanceof Error ? error.message : 'Unknown error',
-                });
-            } finally {
-                if (this.stopped) return;
-                const timeout = setTimeout(() => { void tick(); }, intervalMs);
-                this.timeouts.push(timeout);
-            }
+    private startSelfRescheduledJob(job: RegisteredJob, intervalMs: number): void {
+        logger.info(`Starting self-rescheduled job: ${job.name}`, { intervalMs, lockKey: job.lock.key });
+        const loop = async (): Promise<void> => {
+            await this.tick(job);
+            if (this.stopped) return;
+            this.timeouts.push(setTimeout(() => { void loop(); }, intervalMs));
         };
-        void tick();
+        void loop();
     }
 
-    private startIntervalJob(name: string, intervalMs: number, lock: JobLockConfig, handler: () => Promise<void>): void {
-        logger.info(`Starting interval job: ${name}`, { intervalMinutes: intervalMs / 1000 / 60, lockKey: lock.key });
-
-        logger.info(`Executing initial run for: ${name}`);
-        this.runLocked(name, lock, handler).catch(error => {
-            logger.error(`Initial run of ${name} failed`, {
-                error: error instanceof Error ? error.message : 'Unknown error',
-            });
-        });
-
-        const interval = setInterval(async () => {
-            try {
-                await this.runLocked(name, lock, handler);
-            } catch (error) {
-                logger.error(`Interval job ${name} failed`, {
-                    error: error instanceof Error ? error.message : 'Unknown error',
-                });
-            }
-        }, intervalMs);
-
-        this.intervals.push(interval);
+    private startIntervalJob(job: RegisteredJob, intervalMs: number): void {
+        logger.info(`Starting interval job: ${job.name}`, { intervalMinutes: intervalMs / 1000 / 60, lockKey: job.lock.key });
+        void this.tick(job);
+        this.intervals.push(setInterval(() => { void this.tick(job); }, intervalMs));
     }
 }

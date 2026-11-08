@@ -28,6 +28,7 @@ export class SettlePredictionsJob {
             logger.error('Prediction settlement job failed', {
                 error: error instanceof Error ? error.message : 'Unknown error'
             });
+            throw error;
         }
     }
 }

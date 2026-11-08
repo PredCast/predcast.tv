@@ -7,7 +7,7 @@ export default {
     'scope-enum': [
       2,
       'always',
-      ['backend', 'frontend', 'landing', 'contracts', 'infra', 'docs'],
+      ['backend', 'frontend', 'admin', 'landing', 'contracts', 'infra', 'docs'],
     ],
   },
 };

@@ -1,18 +1,32 @@
-/** Dense table row — 40px, no zebra; `accent` paints a 2px left edge (S4+/live). */
+export type RowDensity = 'compact' | 'default' | 'rich';
+
+const DENSITY: Record<RowDensity, string> = { compact: 'min-h-9', default: 'min-h-12', rich: 'min-h-[52px]' };
+
+/** Grid table row; `accent` paints a 2px left edge, `critical` adds the red wash. */
 export function TRow({
   cols,
   accent,
+  critical = false,
+  density = 'default',
   className = '',
   children,
-}: Readonly<{ cols: string; accent?: string; className?: string; children: React.ReactNode }>) {
+}: Readonly<{
+  cols: string;
+  accent?: string;
+  critical?: boolean;
+  density?: RowDensity;
+  className?: string;
+  children: React.ReactNode;
+}>) {
+  const edge = critical ? '#E8001D' : accent;
   return (
     <div
-      className={`relative grid min-h-10 items-center gap-3 border-b border-[#1A1A1A] px-4 py-1.5 text-[13px] transition-colors last:border-b-0 hover:bg-white/[0.02] ${className}`}
+      className={`relative grid items-center gap-3 border-b border-line-subtle px-4 py-1.5 text-[13px] transition-colors duration-[120ms] last:border-b-0 ${DENSITY[density]} ${
+        critical ? 'bg-accent/5' : 'hover:bg-row-hover'
+      } ${className}`}
       style={{ gridTemplateColumns: cols }}
     >
-      {accent && (
-        <span aria-hidden="true" className="absolute bottom-0 left-0 top-0 w-[2px]" style={{ background: accent }} />
-      )}
+      {edge && <span aria-hidden="true" className="absolute bottom-0 left-0 top-0 w-[2px]" style={{ background: edge }} />}
       {children}
     </div>
   );

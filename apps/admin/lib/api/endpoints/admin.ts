@@ -1,10 +1,9 @@
-import { apiClient } from '../client';
-import type { AdminRole } from '@/lib/roles';
+import type { AdminContextDto } from '@chiliztv/shared';
 
-export interface AdminSession {
-  wallet: string;
-  role: AdminRole;
-}
+import { apiClient } from '../client';
+
+/** Signed-in operator: wallet, role, grant label and the backend environment. */
+export type AdminSession = AdminContextDto;
 
 export const adminApi = {
   gate: (code: string) =>

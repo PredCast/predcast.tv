@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { container, injectable } from 'tsyringe';
 import { issueGateToken, verifyGateCode } from '../middlewares/admin-gate';
 import { GetAdminOverviewUseCase } from '../../../application/admin/use-cases/GetAdminOverviewUseCase';
+import { GetAdminContextUseCase } from '../../../application/admin/use-cases/GetAdminContextUseCase';
 
 @injectable()
 export class AdminController {
@@ -24,10 +25,12 @@ export class AdminController {
         }
     }
 
-    /** Session probe for the admin app's guard — requireAdmin filled req.admin. */
+    /** Session probe for the admin app's guard, with the operator label and runtime environment. */
     async me(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            res.json({ success: true, data: req.admin });
+            const { wallet, role } = req.admin!;
+            const data = await container.resolve(GetAdminContextUseCase).execute(wallet, role);
+            res.json({ success: true, data });
         } catch (error) {
             next(error);
         }

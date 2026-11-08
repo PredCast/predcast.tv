@@ -39,10 +39,10 @@ function setup(match: Match) {
     const deployer = {
         deployMatchContract: vi.fn(async (_name: string, onSent: (h: string) => Promise<void>) => {
             await onSent('0xhash');
-            return { contractAddress: CONTRACT };
+            return { contractAddress: CONTRACT, gasCostWei: '3000' };
         }),
-        findDeployedContract: vi.fn(async () => ({ contractAddress: CONTRACT })),
-        ensureDefaultMarketsOpen: vi.fn(async () => ({ added: true, opened: 8 })),
+        findDeployedContract: vi.fn(async () => ({ contractAddress: CONTRACT, gasCostWei: '2500' })),
+        ensureDefaultMarketsOpen: vi.fn(async () => ({ added: true, opened: 8, gasCostWei: '700' })),
     } as unknown as IBettingDeploymentService;
     const blockchain = { cancelOpenMarketsForMatch: vi.fn(async () => ({ cancelled: 3, skipped: 5 })) } as unknown as IBlockchainService;
     const football = { getTeamForm: vi.fn(async () => 'WWDLW') } as unknown as IFootballApiService;
@@ -62,6 +62,22 @@ describe('MatchOperationRunner', () => {
         expect(t.deployer.ensureDefaultMarketsOpen).toHaveBeenCalledWith(CONTRACT, { isKnockout: false });
         expect(t.deployments.setBettingOpenedAt).toHaveBeenCalledWith(999100, NOW);
         expect(t.deployments.setPublishedAt).toHaveBeenCalledWith(999100, NOW);
+    });
+
+    it('records the gas paid by the deploy and by the setup', async () => {
+        const t = setup(matchFixture.notDeployed({ apiFootballId: 999100 }));
+        await t.runner.run(operation());
+
+        expect(t.operations.recordProgress).toHaveBeenCalledWith('op-1', { contractAddress: CONTRACT, deployGasWei: '3000' }, NOW);
+        expect(t.operations.recordProgress).toHaveBeenCalledWith('op-1', { marketsOpened: 8, setupGasWei: '700' }, NOW);
+    });
+
+    it('adds a resumed setup to the gas its first attempt already paid', async () => {
+        const t = setup(matchFixture.notDeployed({ apiFootballId: 999100 }));
+        await t.runner.run(operation({ progress: { deployTxHash: '0xstored', setupGasWei: '300' } }));
+
+        expect(t.operations.recordProgress).toHaveBeenCalledWith('op-1', { contractAddress: CONTRACT, deployGasWei: '2500' }, NOW);
+        expect(t.operations.recordProgress).toHaveBeenCalledWith('op-1', { marketsOpened: 8, setupGasWei: '1000' }, NOW);
     });
 
     it('resumes from a stored tx hash without sending a new deploy', async () => {

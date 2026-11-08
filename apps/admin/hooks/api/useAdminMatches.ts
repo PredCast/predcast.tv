@@ -17,12 +17,13 @@ export function useAdminMatches(params: MatchListParams) {
   });
 }
 
-/** Every mutation here changes the list, the overview and possibly the signer balance. */
+/** Every mutation here changes the list, the overview, the dashboard and possibly the signer balance. */
 function useInvalidateMarkets() {
   const qc = useQueryClient();
   return () => {
     void qc.invalidateQueries({ queryKey: queryKeys.markets.all });
     void qc.invalidateQueries({ queryKey: queryKeys.overview });
+    void qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
   };
 }
 

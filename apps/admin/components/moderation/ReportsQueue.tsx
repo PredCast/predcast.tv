@@ -11,7 +11,7 @@ import { THead } from '@/components/common/THead';
 import { TRow } from '@/components/common/TRow';
 import { EmptyState } from '@/components/common/EmptyState';
 import { FilterChips } from '@/components/common/FilterChips';
-import { SeverityBadge } from './SeverityBadge';
+import { SeverityBadge } from '@/components/common/SeverityBadge';
 import { StatusBadge } from './StatusBadge';
 import { WalletLabel } from './WalletLabel';
 
@@ -42,7 +42,7 @@ export function ReportsQueue() {
             setCursor(null);
           }}
         />
-        <span className="font-mono-ctv text-[9px] uppercase tracking-[0.12em] text-white/30">Severity first · newest</span>
+        <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-fg-meta">Severity first · newest</span>
       </div>
 
       <Card className="mt-4 overflow-hidden">
@@ -56,7 +56,7 @@ export function ReportsQueue() {
         </THead>
 
         {isLoading && (
-          <p className="font-mono-ctv px-4 py-6 text-[11px] uppercase tracking-[0.14em] text-white/35">Loading…</p>
+          <p className="font-mono px-4 py-6 text-[11px] uppercase tracking-[0.14em] text-fg-meta">Loading…</p>
         )}
         {!isLoading && (data?.items.length ?? 0) === 0 && (
           <EmptyState icon="shieldCheck" title="No reports for this filter" hint="Reports filed during lives land here, sorted by severity." />
@@ -65,10 +65,10 @@ export function ReportsQueue() {
           <Link key={report.id} href={`/moderation/reports/${report.id}`} className="block">
             <TRow cols={COLS} accent={report.severity >= 4 ? '#E8001D' : undefined} className="cursor-pointer">
               <SeverityBadge severity={report.severity} />
-              <span className="min-w-0 truncate text-white/85">{report.reasonCode}</span>
-              <span className="font-mono-ctv text-[10px] uppercase tracking-[0.12em] text-white/50">{report.targetType}</span>
+              <span className="min-w-0 truncate text-fg-strong">{report.reasonCode}</span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-fg-meta">{report.targetType}</span>
               <WalletLabel wallet={report.reporterWallet} />
-              <span className="font-mono-ctv text-right text-[11px] tabular-nums text-white/50">
+              <span className="font-mono text-right text-[11px] tabular-nums text-fg-meta">
                 {new Date(report.createdAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
               </span>
               <StatusBadge status={report.status} />
@@ -79,11 +79,11 @@ export function ReportsQueue() {
 
       {data?.nextCursor && (
         <div className="mt-3 flex items-center justify-between">
-          <span className="font-mono-ctv text-[10px] uppercase tracking-[0.12em] text-white/35">Keyset · 25 per page</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-fg-meta">Keyset · 25 per page</span>
           <button
             type="button"
             onClick={() => setCursor(data.nextCursor)}
-            className="font-mono-ctv rounded-md border border-[#2A2A2A] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-white/65 transition-colors hover:text-white"
+            className="font-mono rounded-md border border-line px-4 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-fg-body transition-colors hover:text-white"
           >
             Next page →
           </button>

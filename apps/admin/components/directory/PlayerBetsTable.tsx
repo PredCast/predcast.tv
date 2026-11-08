@@ -21,7 +21,7 @@ export function PlayerBetsTable({ bets }: Readonly<{ bets: AdminPlayerBetDto[] }
       <CardHead
         title="Recent bets"
         count={bets.length}
-        right={<span className="font-mono-ctv text-[9px] uppercase tracking-[0.12em] text-white/30">Last 25 · newest first</span>}
+        right={<span className="font-mono text-[9px] uppercase tracking-[0.12em] text-fg-meta">Last 25 · newest first</span>}
       />
       <THead cols={COLS}>
         <span>Match</span>
@@ -37,18 +37,18 @@ export function PlayerBetsTable({ bets }: Readonly<{ bets: AdminPlayerBetDto[] }
       )}
       {bets.map((bet) => (
         <TRow key={`${bet.contractAddress}-${bet.marketId}-${bet.placedAt}-${bet.outcome}`} cols={COLS}>
-          <span className="min-w-0 truncate text-white/85">
+          <span className="min-w-0 truncate text-fg-strong">
             {bet.match ? `${bet.match.homeTeamName} vs ${bet.match.awayTeamName}` : bet.contractAddress}
           </span>
-          <span className="font-mono-ctv min-w-0 truncate text-[11px] uppercase tracking-[0.08em] text-white/50">
+          <span className="font-mono min-w-0 truncate text-[11px] uppercase tracking-[0.08em] text-fg-meta">
             {fmtMarket(bet)}
           </span>
-          <span className="text-right tabular-nums text-white/85">{fmtUsdcRaw(bet.stakeAmount)}</span>
-          <span className="text-right tabular-nums text-[#2dd4a4]">
+          <span className="text-right tabular-nums text-fg-strong">{fmtUsdcRaw(bet.stakeAmount)}</span>
+          <span className="text-right tabular-nums text-positive">
             {bet.payoutAmount ? fmtUsdcRaw(bet.payoutAmount) : '—'}
           </span>
           <BetStatusBadge status={bet.status} />
-          <span className="font-mono-ctv text-right text-[11px] tabular-nums text-white/50">
+          <span className="font-mono text-right text-[11px] tabular-nums text-fg-meta">
             {new Date(bet.placedAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
           </span>
         </TRow>

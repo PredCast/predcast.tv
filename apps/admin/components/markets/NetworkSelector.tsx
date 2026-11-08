@@ -23,18 +23,18 @@ export function NetworkSelector({ chains, value, onChange }: Readonly<NetworkSel
             role="radio"
             aria-checked={on}
             onClick={() => onChange(chain.chainId)}
-            className={`${option} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8001D] ${
-              on ? 'border-[#E8001D] bg-[#E8001D]/10' : 'border-[#2A2A2A] hover:border-[#3A3A3A]'
+            className={`${option} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+              on ? 'border-accent bg-accent/10' : 'border-line hover:border-line-hover'
             }`}
           >
             <span className="text-[13px] font-bold text-white">{chain.name}</span>
-            <span className="font-mono-ctv text-[9px] uppercase tracking-[0.12em] text-white/45">{chain.chainId}</span>
+            <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-fg-meta">{chain.chainId}</span>
           </button>
         );
       })}
-      <button type="button" role="radio" aria-checked={false} disabled className={`${option} cursor-not-allowed border-[#1E1E1E] opacity-50`}>
+      <button type="button" role="radio" aria-checked={false} disabled className={`${option} cursor-not-allowed border-line-subtle opacity-50`}>
         <span className="text-[13px] font-bold text-white">Base</span>
-        <span className="font-mono-ctv rounded border border-[#2A2A2A] px-1.5 py-px text-[8px] font-bold uppercase tracking-[0.12em] text-white/55">
+        <span className="font-mono rounded border border-line px-1.5 py-px text-[8px] font-bold uppercase tracking-[0.12em] text-fg-body">
           Soon
         </span>
       </button>

@@ -12,7 +12,7 @@ const DEFAULT_INTERVAL_MS = 30_000;
  * High-frequency live-score sync (default cadence: 30s).
  *
  * The scheduler runs this with a self-rescheduling setTimeout (see
- * JobScheduler.startSelfRescheduledJob) — NOT setInterval — so a slow tick
+ * a self-rescheduled entry of the JobRegistry) — NOT setInterval — so a slow tick
  * (Supabase lag, API-Football latency) never causes the next tick to start
  * before the previous one finishes. setInterval would let two ticks overlap
  * and double-hit the distributed lock + the upstream API.
@@ -79,6 +79,7 @@ export class SyncLiveMatchesJob {
             logger.error('SyncLiveMatchesJob failed', {
                 error: error instanceof Error ? error.message : 'Unknown error',
             });
+            throw error;
         }
     }
 }

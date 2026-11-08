@@ -190,6 +190,24 @@ import { LeaderboardController } from '../presentation/http/controllers/leaderbo
 
 // ─── Infrastructure — Scheduling ─────────────────────────────────────────────
 import { JobScheduler } from '../infrastructure/scheduling/JobScheduler';
+import { JobRegistry } from '../infrastructure/scheduling/JobRegistry';
+import { JobExecutor } from '../infrastructure/scheduling/JobExecutor';
+import { ManualJobRunner } from '../infrastructure/scheduling/ManualJobRunner';
+import { PurgeJobRunsJob } from '../infrastructure/scheduling/jobs/PurgeJobRunsJob';
+import { RedisJobRunSignal } from '../infrastructure/scheduling/runs/RedisJobRunSignal';
+import { NoopJobRunSignal } from '../infrastructure/scheduling/runs/NoopJobRunSignal';
+import { SupabaseJobRunRepository } from '../infrastructure/persistence/repositories/SupabaseJobRunRepository';
+import { SupabaseJobStateRepository } from '../infrastructure/persistence/repositories/SupabaseJobStateRepository';
+import type { IJobCatalog } from '@chiliztv/domain/jobs/ports/IJobCatalog';
+import type { IChainHeadReader } from '@chiliztv/domain/blockchain-indexing/ports/IChainHeadReader';
+import { ViemChainHeadReader } from '../infrastructure/blockchain/adapters/ViemChainHeadReader';
+import type { IDashboardStatsRepository } from '@chiliztv/domain/admin/dashboard/IDashboardStatsRepository';
+import { SupabaseDashboardStatsRepository } from '../infrastructure/persistence/repositories/SupabaseDashboardStatsRepository';
+import type { IUpstreamUsageReader } from '@chiliztv/domain/shared/ports/IUpstreamUsageReader';
+import { RedisUpstreamUsageReader } from '../infrastructure/external/usage/RedisUpstreamUsageReader';
+import type { IJobRunSignal } from '@chiliztv/domain/jobs/ports/IJobRunSignal';
+import type { IJobRunRepository } from '@chiliztv/domain/jobs/repositories/IJobRunRepository';
+import type { IJobStateRepository } from '@chiliztv/domain/jobs/repositories/IJobStateRepository';
 import { SyncMatchesJob } from '../infrastructure/scheduling/jobs/SyncMatchesJob';
 import { SyncLiveMatchesJob } from '../infrastructure/scheduling/jobs/SyncLiveMatchesJob';
 import { ResolveMarketsJob } from '../infrastructure/scheduling/jobs/ResolveMarketsJob';
@@ -213,6 +231,8 @@ import { ILockService } from '@chiliztv/domain/shared/ports/ILockService';
 import type { ISignerLock } from '@chiliztv/domain/shared/ports/ISignerLock';
 import { RedisSignerLock } from '../infrastructure/blockchain/signer/RedisSignerLock';
 import type { IBettingChainRegistry } from '@chiliztv/domain/shared/ports/IBettingChainRegistry';
+import type { IRuntimeEnvironment } from '@chiliztv/domain/shared/ports/IRuntimeEnvironment';
+import { EnvRuntimeEnvironment } from '../infrastructure/config/EnvRuntimeEnvironment';
 import type { IBettingDeploymentService } from '@chiliztv/domain/shared/ports/IBettingDeploymentService';
 import { NetworkBettingChainRegistry } from '../infrastructure/blockchain/NetworkBettingChainRegistry';
 import { ViemBettingDeploymentService } from '../infrastructure/blockchain/services/ViemBettingDeploymentService';
@@ -281,6 +301,7 @@ export function setupDependencyInjection(): void {
   container.registerSingleton<IBlockchainService>(TOKENS.IBlockchainService, ViemBlockchainService);
   container.registerSingleton<IIncidentReporter>(TOKENS.IIncidentReporter, LogIncidentReporter);
   container.registerSingleton<IClock>(TOKENS.IClock, SystemClock);
+  container.registerSingleton<IRuntimeEnvironment>(TOKENS.IRuntimeEnvironment, EnvRuntimeEnvironment);
   container.registerSingleton<IStreamingService>(TOKENS.IStreamingService, CloudflareStreamService);
   container.registerSingleton<IPariMatchPoolsReader>(TOKENS.IPariMatchPoolsReader, ViemPariMatchPoolsReader);
 
@@ -290,10 +311,12 @@ export function setupDependencyInjection(): void {
     container.registerSingleton<ICacheService>(TOKENS.ICacheService, RedisCacheService);
     container.registerSingleton<ILockService>(TOKENS.ILockService, RedisLockService);
     container.registerSingleton<IRateLimitService>(TOKENS.IRateLimitService, RedisRateLimitService);
+    container.registerSingleton<IJobRunSignal>(TOKENS.IJobRunSignal, RedisJobRunSignal);
   } else {
     container.registerSingleton<ICacheService>(TOKENS.ICacheService, NoopCacheService);
     container.registerSingleton<ILockService>(TOKENS.ILockService, NoopLockService);
     container.registerSingleton<IRateLimitService>(TOKENS.IRateLimitService, NoopRateLimitService);
+    container.registerSingleton<IJobRunSignal>(TOKENS.IJobRunSignal, NoopJobRunSignal);
   }
   // After ILockService: falls back to sending unlocked when Redis errors.
   container.registerSingleton<ISignerLock>(TOKENS.ISignerLock, RedisSignerLock);
@@ -331,6 +354,11 @@ export function setupDependencyInjection(): void {
   container.registerSingleton<IAuditTrail>(TOKENS.IAuditTrail, SupabaseAuditTrail);
   container.registerSingleton<IAdminDirectoryRepository>(TOKENS.IAdminDirectoryRepository, SupabaseAdminDirectoryRepository);
   container.registerSingleton<IAuditLogReader>(TOKENS.IAuditLogReader, SupabaseAuditLogReader);
+  container.registerSingleton<IJobRunRepository>(TOKENS.IJobRunRepository, SupabaseJobRunRepository);
+  container.registerSingleton<IJobStateRepository>(TOKENS.IJobStateRepository, SupabaseJobStateRepository);
+  container.registerSingleton<IChainHeadReader>(TOKENS.IChainHeadReader, ViemChainHeadReader);
+  container.registerSingleton<IDashboardStatsRepository>(TOKENS.IDashboardStatsRepository, SupabaseDashboardStatsRepository);
+  container.registerSingleton<IUpstreamUsageReader>(TOKENS.IUpstreamUsageReader, RedisUpstreamUsageReader);
   container.registerSingleton<IReportActionRepository>(TOKENS.IReportActionRepository, SupabaseReportActionRepository);
   container.registerSingleton<IPresenceService>(TOKENS.IPresenceService, PresenceQueryService);
   container.registerSingleton<IBetHistoryService>(TOKENS.IBetHistoryService, BetHistoryService);
@@ -464,6 +492,11 @@ export function setupDependencyInjection(): void {
   container.registerSingleton(SettlePredictionsJob);
   container.registerSingleton(ViewerReconcileJob);
   container.registerSingleton(CloudflareReconcileJob);
+  container.registerSingleton(PurgeJobRunsJob);
+  container.registerSingleton(JobRegistry);
+  container.register<IJobCatalog>(TOKENS.IJobCatalog, { useToken: JobRegistry });
+  container.registerSingleton(JobExecutor);
+  container.registerSingleton(ManualJobRunner);
   container.registerSingleton(JobScheduler);
   container.registerSingleton(RedisWarmupService);
 

@@ -15,7 +15,7 @@ const DEFAULT_INTERVAL_MS = 60_000;
  * dispatch, lock contention, etc. — and also owns the 15-min void path
  * via `executeAll` walking every live match.
  *
- * Scheduled via `JobScheduler.startSelfRescheduledJob` (setTimeout
+ * Scheduled via `a self-rescheduled entry of the JobRegistry` (setTimeout
  * recursive, NOT setInterval) so a slow tick never overlaps with itself.
  */
 @injectable()
@@ -56,6 +56,7 @@ export class ResolveHalftimeMarketsJob {
             logger.error('ResolveHalftimeMarketsJob failed', {
                 error: error instanceof Error ? error.message : 'Unknown error',
             });
+            throw error;
         }
     }
 }

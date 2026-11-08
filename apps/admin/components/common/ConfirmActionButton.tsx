@@ -63,7 +63,7 @@ export function ConfirmActionButton({
       <button
         type="button"
         onClick={click}
-        className="font-mono-ctv inline-flex items-center gap-1.5 rounded-md border border-[#E8001D] bg-[#E8001D]/15 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-white"
+        className="font-mono inline-flex items-center gap-1.5 rounded-md border border-accent bg-accent/15 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-white"
       >
         <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true">
           <circle cx="6" cy="6" r="4.5" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="2" />
@@ -85,15 +85,15 @@ export function ConfirmActionButton({
   }
 
   const tone = danger
-    ? 'border-[#E8001D]/40 text-[#FF1737] hover:border-[#E8001D]'
-    : 'border-[#2A2A2A] text-white/65 hover:border-[#3A3A3A] hover:text-white';
+    ? 'border-accent/40 text-accent-text hover:border-accent'
+    : 'border-line text-fg-body hover:border-line-hover hover:text-white';
 
   return (
     <button
       type="button"
       onClick={click}
       disabled={pending}
-      className={`font-mono-ctv rounded-md border px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] transition-colors disabled:opacity-40 ${tone}`}
+      className={`font-mono rounded-md border px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] transition-colors disabled:opacity-40 ${tone}`}
     >
       {pending ? '…' : label}
     </button>

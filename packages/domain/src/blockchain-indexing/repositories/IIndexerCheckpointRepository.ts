@@ -7,7 +7,15 @@
  * from genesis is the default behaviour — callers decide how far back to
  * actually scan via `INDEXER_DEFAULT_LOOKBACK` etc.
  */
+export interface IndexerCheckpoint {
+    readonly indexerName: string;
+    readonly contractAddress: string | null;
+    readonly lastBlock: bigint;
+    readonly updatedAt: Date;
+}
+
 export interface IIndexerCheckpointRepository {
+    listAll(): Promise<ReadonlyArray<IndexerCheckpoint>>;
     getLastBlock(indexerName: string): Promise<bigint>;
     setLastBlock(indexerName: string, lastBlock: bigint, contractAddress?: string): Promise<void>;
 }

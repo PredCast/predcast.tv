@@ -93,7 +93,7 @@ async function waitForAnvil(rpcUrl: string): Promise<void> {
     throw new Error(`Anvil at ${rpcUrl} did not respond within ${ANVIL_BOOT_TIMEOUT_MS}ms`);
 }
 
-function resolveSupabaseDbUrl(): string {
+export function resolveSupabaseDbUrl(): string {
     const explicit = process.env.SUPABASE_DB_URL ?? process.env.DATABASE_URL;
     if (explicit) return explicit;
     // Try `supabase status -o env` and pluck DB_URL.

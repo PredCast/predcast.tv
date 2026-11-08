@@ -38,7 +38,7 @@ export class CloudflareReconcileJob {
       logger.error('CloudflareReconcileJob: failed to fetch live CF streams', {
         err: err instanceof Error ? err.message : 'Unknown error',
       });
-      return;
+      throw err;
     }
 
     for (const stream of streams) {

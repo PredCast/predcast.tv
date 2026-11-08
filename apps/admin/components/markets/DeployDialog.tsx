@@ -7,7 +7,8 @@ import type { AdminMatchRowDto, MatchOperationDto } from '@chiliztv/shared';
 import { useDeployMatch, useRetryMarketsSetup } from '@/hooks/api/useAdminMatches';
 import { useDeploymentConfig } from '@/hooks/api/useDeploymentConfig';
 import { weiToChz } from '@/lib/markets/chain';
-import { apiErrorMessage } from '@/lib/markets/labels';
+import { apiErrorMessage } from '@/lib/api/errors';
+import { buttonClass } from '@/lib/ui/buttonClass';
 import { Modal } from '@/components/common/Modal';
 import { TeamLabel } from '@/components/directory/TeamLabel';
 import { MarketLineup } from './MarketLineup';
@@ -19,7 +20,7 @@ interface DeployDialogProps {
   readonly onClose: () => void;
 }
 
-const label = 'font-mono-ctv text-[9px] font-bold uppercase tracking-[0.14em] text-white/45';
+const label = 'font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-fg-meta';
 
 /** Recap → network → markets → confirm, then follows the queued operation until it ends. */
 export function DeployDialog({ match, onClose }: Readonly<DeployDialogProps>) {
@@ -54,13 +55,13 @@ export function DeployDialog({ match, onClose }: Readonly<DeployDialogProps>) {
   return (
     <Modal open eyebrow="Deploy betting contract" title="Deploy match" dismissible={!deploy.isPending} onClose={close}>
       <div className="flex flex-col gap-4">
-        <div className="rounded-md border border-[#1E1E1E] bg-[#0A0A0A] px-3 py-2.5">
+        <div className="rounded-md border border-line-subtle bg-page px-3 py-2.5">
           <div className="flex items-center gap-2 text-[14px] font-bold text-white">
             <TeamLabel name={match.homeTeamName} logo={match.homeTeamLogo} />
-            <span className="text-white/30">vs</span>
+            <span className="text-fg-meta">vs</span>
             <TeamLabel name={match.awayTeamName} logo={match.awayTeamLogo} />
           </div>
-          <div className="font-mono-ctv mt-1 text-[10px] uppercase tracking-[0.1em] text-white/45">
+          <div className="font-mono mt-1 text-[10px] uppercase tracking-[0.1em] text-fg-meta">
             {match.leagueName} · {new Date(match.matchDate).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
             {match.isKnockout ? ' · knockout' : ''}
           </div>
@@ -78,20 +79,20 @@ export function DeployDialog({ match, onClose }: Readonly<DeployDialogProps>) {
             </div>
             {config && <MarketLineup lineup={config.marketLineup} isKnockout={match.isKnockout} />}
             {config && (
-              <p className="text-[12px] text-white/55">
+              <p className="text-[12px] text-fg-body">
                 Estimated cost ~{weiToChz(config.signer.estimatedDeployCostWei)} {chain?.nativeSymbol ?? 'CHZ'} (deploy + seed + open), paid
                 by the signer ({weiToChz(config.signer.balanceWei)} available). The match is published in the app once the markets are open.
               </p>
             )}
             <div className="flex justify-end gap-2">
-              <button type="button" onClick={close} className="font-mono-ctv rounded-md border border-[#2A2A2A] px-4 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-white/65 hover:text-white">
+              <button type="button" onClick={close} className={buttonClass('ghost', 'lg')}>
                 Cancel
               </button>
               <button
                 type="button"
                 disabled={!selectedChainId || deploy.isPending}
                 onClick={() => selectedChainId && start(selectedChainId)}
-                className="font-mono-ctv rounded-md bg-[#E8001D] px-4 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-white hover:bg-[#FF1737] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8001D] disabled:opacity-50"
+                className={buttonClass('primary', 'lg')}
               >
                 {deploy.isPending ? 'Queueing…' : `Deploy on ${chain?.name ?? '…'}`}
               </button>

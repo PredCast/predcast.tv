@@ -14,18 +14,18 @@ export function SignerBalance() {
   return (
     <div
       className={`flex items-center gap-3 rounded-lg border px-3.5 py-2 ${
-        signer.lowBalance ? 'border-[#F5C518]/50 bg-[#F5C518]/10' : 'border-[#1E1E1E] bg-[#111111]'
+        signer.lowBalance ? 'border-warning/50 bg-warning/10' : 'border-line-subtle bg-card'
       }`}
       role={signer.lowBalance ? 'alert' : undefined}
     >
       <div className="text-right">
-        <div className="font-mono-ctv text-[9px] uppercase tracking-[0.14em] text-white/40">Deploy signer · {short}</div>
-        <div className="font-mono-ctv text-[14px] font-bold tabular-nums text-white">
-          {weiToChz(signer.balanceWei)} <span className="text-[10px] text-white/45">CHZ</span>
+        <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-fg-meta">Deploy signer · {short}</div>
+        <div className="font-mono text-[14px] font-bold tabular-nums text-white">
+          {weiToChz(signer.balanceWei)} <span className="text-[10px] text-fg-meta">CHZ</span>
         </div>
       </div>
       {signer.lowBalance && (
-        <div className="font-mono-ctv flex max-w-[180px] items-start gap-1.5 text-[9px] font-bold uppercase leading-snug tracking-[0.1em] text-[#F5C518]">
+        <div className="font-mono flex max-w-[180px] items-start gap-1.5 text-[9px] font-bold uppercase leading-snug tracking-[0.1em] text-warning">
           <Icon n="alertTriangle" s={12} />
           <span>Low balance: under {weiToChz(signer.lowBalanceThresholdWei)} CHZ (~10 deploys). Top it up.</span>
         </div>

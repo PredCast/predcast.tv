@@ -60,6 +60,7 @@ export class StaleStreamCleanupJob {
       logger.error('Stale stream cleanup job failed', {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
+      throw error;
     }
   }
 }
