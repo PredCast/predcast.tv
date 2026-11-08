@@ -27,6 +27,7 @@ export class ProcessMatchOperationsJob {
             logger.error('ProcessMatchOperationsJob failed', {
                 error: error instanceof Error ? error.message : String(error),
             });
+            throw error;
         }
     }
 }

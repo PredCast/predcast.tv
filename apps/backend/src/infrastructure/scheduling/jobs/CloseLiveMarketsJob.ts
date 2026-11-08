@@ -38,6 +38,7 @@ export class CloseLiveMarketsJob {
                 error: error instanceof Error ? error.message : 'Unknown error',
                 ms: this.clock.now().getTime() - t0,
             });
+            throw error;
         }
     }
 }

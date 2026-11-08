@@ -38,6 +38,7 @@ export class LiftExpiredBansJob {
             logger.error('LiftExpiredBansJob failed', {
                 error: error instanceof Error ? error.message : String(error),
             });
+            throw error;
         }
     }
 }

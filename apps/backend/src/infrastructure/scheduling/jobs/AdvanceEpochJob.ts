@@ -26,6 +26,7 @@ export class AdvanceEpochJob {
             logger.error('AdvanceEpochJob failed', {
                 error: error instanceof Error ? error.message : 'Unknown error',
             });
+            throw error;
         }
     }
 }

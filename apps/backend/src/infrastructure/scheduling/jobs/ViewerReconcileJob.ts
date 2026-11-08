@@ -17,6 +17,7 @@ export class ViewerReconcileJob {
       await viewerSessionService.reconcileAllLiveStreams();
     } catch (error) {
       logger.error('ViewerReconcileJob failed', { error: (error as Error).message });
+      throw error;
     }
   }
 }

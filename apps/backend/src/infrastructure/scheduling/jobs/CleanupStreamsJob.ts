@@ -43,6 +43,7 @@ export class CleanupStreamsJob {
             logger.error('Stream cleanup job failed', {
                 error: error instanceof Error ? error.message : 'Unknown error'
             });
+            throw error;
         }
     }
 }
