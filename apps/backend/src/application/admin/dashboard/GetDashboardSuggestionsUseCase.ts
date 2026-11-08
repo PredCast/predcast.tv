@@ -52,6 +52,7 @@ export class GetDashboardSuggestionsUseCase {
                 away: row.awayTeamName,
                 league: row.leagueName,
                 tokens,
+                row,
             }));
         return { suggestions, generatedAt: now.toISOString() };
     }

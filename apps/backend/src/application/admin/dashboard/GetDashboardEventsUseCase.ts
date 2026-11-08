@@ -5,6 +5,7 @@ import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import type { AdminRole } from '@chiliztv/domain/admin/types';
 import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import type { ICacheService } from '@chiliztv/domain/shared/ports/ICacheService';
+import { isAllowed } from '@chiliztv/domain/admin/policies/AdminRolePolicy';
 
 import { SearchAdminMatchesUseCase } from '../use-cases/SearchAdminMatchesUseCase';
 import { cached, canSeeMoney } from './dashboardScope';
@@ -31,8 +32,12 @@ export class GetDashboardEventsUseCase {
 
     async execute(role: AdminRole): Promise<DashboardEventsDto> {
         const full = await cached(this.cache, 'admin:dashboard:events', TTL_SECONDS, () => this.load());
-        if (canSeeMoney(role)) return full;
-        return { ...full, events: full.events.map((e) => ({ ...e, pool: null })) };
+        const money = canSeeMoney(role);
+        const actions = isAllowed(role, ['admin']);
+        return {
+            ...full,
+            events: full.events.map((e) => ({ ...e, pool: money ? e.pool : null, row: actions ? e.row : null })),
+        };
     }
 
     private async load(): Promise<DashboardEventsDto> {
@@ -55,6 +60,7 @@ export class GetDashboardEventsUseCase {
                 contractAddress: row.bettingContractAddress,
                 visibility: visibilityOf(row),
                 pool: { totalStaked: row.totalStaked, betCount: row.betCount },
+                row,
             })),
             total: page.total,
             generatedAt: now.toISOString(),

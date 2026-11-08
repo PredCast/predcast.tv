@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { JobCategoryDtoSchema, JobHealthDtoSchema } from './AdminJobsDtos';
+import { AdminMatchRowDtoSchema } from './AdminMatchDeploymentDtos';
 
 /** Raw USDC amounts (6 dp) and wei amounts travel as decimal strings. */
 const Amount = z.string();
@@ -80,6 +81,8 @@ export const DashboardEventDtoSchema = z.object({
     contractAddress: z.string().nullable(),
     visibility: EventVisibilityDtoSchema,
     pool: z.object({ totalStaked: Amount, betCount: z.number().int() }).nullable(),
+    /** Full admin row for the publish / hide / retry actions; admins only. */
+    row: AdminMatchRowDtoSchema.nullable(),
 });
 export type DashboardEventDto = z.infer<typeof DashboardEventDtoSchema>;
 
@@ -98,6 +101,8 @@ export const DashboardSuggestionDtoSchema = z.object({
     league: z.string(),
     /** Fan-token symbols of the teams that have one. */
     tokens: z.array(z.string()),
+    /** Full admin row for the deploy dialog. */
+    row: AdminMatchRowDtoSchema,
 });
 export type DashboardSuggestionDto = z.infer<typeof DashboardSuggestionDtoSchema>;
 
