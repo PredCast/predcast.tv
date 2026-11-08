@@ -140,6 +140,17 @@ export class SupabaseJobRunRepository implements IJobRunRepository {
     return data ? new Date((data as { requested_at: string }).requested_at) : null;
   }
 
+  async findManualActiveOrSince(since: Date): Promise<ReadonlyArray<JobRun>> {
+    const { data, error } = await supabase
+      .from(TABLE)
+      .select('*')
+      .eq('trigger', 'manual')
+      .or(`status.in.(pending,running),requested_at.gte.${since.toISOString()}`)
+      .order('requested_at', { ascending: false });
+    if (error) fail('list', error);
+    return ((data ?? []) as JobRunRow[]).map(fromRow);
+  }
+
   async purgeBefore(cutoff: Date): Promise<number> {
     const { data, error } = await supabase
       .from(TABLE)

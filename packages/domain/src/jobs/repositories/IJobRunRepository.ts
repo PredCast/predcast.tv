@@ -34,6 +34,8 @@ export interface IJobRunRepository {
     /** Newest first. */
     listRecent(filter: { readonly jobName?: string; readonly limit: number }): Promise<ReadonlyArray<JobRun>>;
     lastManualRequestAt(jobName: string): Promise<Date | null>;
+    /** Manual runs still pending / running, or requested since `since` (cooldown window). */
+    findManualActiveOrSince(since: Date): Promise<ReadonlyArray<JobRun>>;
     /** Returns the number of deleted rows. */
     purgeBefore(cutoff: Date): Promise<number>;
 }

@@ -12,6 +12,7 @@ import { AdminController } from '../controllers/admin.controller';
 import { AdminModerationController } from '../controllers/admin-moderation.controller';
 import { AdminDirectoryController } from '../controllers/admin-directory.controller';
 import { AdminMarketsController } from '../controllers/admin-markets.controller';
+import { AdminJobsController } from '../controllers/admin-jobs.controller';
 import { requireAdmin } from '../middlewares/require-admin.middleware';
 import { validate } from '../middlewares/validation.middleware';
 
@@ -20,10 +21,19 @@ const controller = container.resolve(AdminController);
 const moderation = container.resolve(AdminModerationController);
 const directory = container.resolve(AdminDirectoryController);
 const markets = container.resolve(AdminMarketsController);
+const jobs = container.resolve(AdminJobsController);
 
 // Any active role may probe its own session.
 router.get('/me', requireAdmin(), controller.me.bind(controller));
 router.get('/overview', requireAdmin(), controller.overview.bind(controller));
+
+// ── Jobs (admin+; on-chain / quota Run now further restricted to super_admin) ──
+// Static paths before /:name so "runs" and "indexers" are never read as job names.
+router.get('/jobs', requireAdmin('admin'), jobs.list.bind(jobs));
+router.get('/jobs/indexers', requireAdmin('admin'), jobs.indexers.bind(jobs));
+router.get('/jobs/runs/:runId', requireAdmin('admin'), jobs.run.bind(jobs));
+router.get('/jobs/:name/runs', requireAdmin('admin'), jobs.runs.bind(jobs));
+router.post('/jobs/:name/run', requireAdmin('admin'), jobs.runNow.bind(jobs));
 
 // ── Moderation (moderator+) ────────────────────────────────────────────────
 router.get('/reports', requireAdmin('moderator'), moderation.reports.bind(moderation));

@@ -199,6 +199,8 @@ import { NoopJobRunSignal } from '../infrastructure/scheduling/runs/NoopJobRunSi
 import { SupabaseJobRunRepository } from '../infrastructure/persistence/repositories/SupabaseJobRunRepository';
 import { SupabaseJobStateRepository } from '../infrastructure/persistence/repositories/SupabaseJobStateRepository';
 import type { IJobCatalog } from '@chiliztv/domain/jobs/ports/IJobCatalog';
+import type { IChainHeadReader } from '@chiliztv/domain/blockchain-indexing/ports/IChainHeadReader';
+import { ViemChainHeadReader } from '../infrastructure/blockchain/adapters/ViemChainHeadReader';
 import type { IJobRunSignal } from '@chiliztv/domain/jobs/ports/IJobRunSignal';
 import type { IJobRunRepository } from '@chiliztv/domain/jobs/repositories/IJobRunRepository';
 import type { IJobStateRepository } from '@chiliztv/domain/jobs/repositories/IJobStateRepository';
@@ -350,6 +352,7 @@ export function setupDependencyInjection(): void {
   container.registerSingleton<IAuditLogReader>(TOKENS.IAuditLogReader, SupabaseAuditLogReader);
   container.registerSingleton<IJobRunRepository>(TOKENS.IJobRunRepository, SupabaseJobRunRepository);
   container.registerSingleton<IJobStateRepository>(TOKENS.IJobStateRepository, SupabaseJobStateRepository);
+  container.registerSingleton<IChainHeadReader>(TOKENS.IChainHeadReader, ViemChainHeadReader);
   container.registerSingleton<IReportActionRepository>(TOKENS.IReportActionRepository, SupabaseReportActionRepository);
   container.registerSingleton<IPresenceService>(TOKENS.IPresenceService, PresenceQueryService);
   container.registerSingleton<IBetHistoryService>(TOKENS.IBetHistoryService, BetHistoryService);

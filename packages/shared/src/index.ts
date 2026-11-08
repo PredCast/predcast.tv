@@ -9,6 +9,7 @@ export * from './dto/admin/AdminModerationDtos';
 export * from './dto/admin/AdminDirectoryDtos';
 export * from './dto/admin/AdminMatchDeploymentDtos';
 export * from './dto/admin/AdminContextDtos';
+export * from './dto/admin/AdminJobsDtos';
 
 // DTOs — Platform stats
 export * from './dto/stats/PlatformStatsDto';
