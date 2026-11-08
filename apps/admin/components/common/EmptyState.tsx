@@ -1,19 +1,25 @@
 import { Icon, type IconName } from './Icon';
 
+/** Empty card body; `framed` draws the dashed box used when a whole section is empty. */
 export function EmptyState({
   icon = 'shieldCheck',
   title,
   hint,
   action,
   py = 'py-12',
-}: Readonly<{ icon?: IconName; title: string; hint?: string; action?: React.ReactNode; py?: string }>) {
+  framed = false,
+}: Readonly<{ icon?: IconName; title: string; hint?: string; action?: React.ReactNode; py?: string; framed?: boolean }>) {
   return (
-    <div className={`flex flex-col items-center justify-center px-6 text-center ${py}`}>
-      <div className="grid h-10 w-10 place-items-center rounded-lg border border-[#2A2A2A] text-white/30">
+    <div
+      className={`flex flex-col items-center justify-center px-6 text-center ${py} ${
+        framed ? 'rounded-card border border-dashed border-line' : ''
+      }`}
+    >
+      <div className="grid h-11 w-11 place-items-center rounded-panel border border-line bg-card-2 text-fg-body">
         <Icon n={icon} s={18} />
       </div>
-      <p className="font-mono-ctv mt-3 text-[11px] font-bold uppercase tracking-[0.14em] text-white/55">{title}</p>
-      {hint && <p className="mt-1.5 max-w-[340px] text-[12px] font-light leading-relaxed text-white/35">{hint}</p>}
+      <p className="mt-3.5 font-mono text-[12px] font-semibold uppercase tracking-[0.18em] text-white">{title}</p>
+      {hint && <p className="mt-2 max-w-[380px] text-[13px] leading-5 text-fg-body">{hint}</p>}
       {action && <div className="mt-4">{action}</div>}
     </div>
   );

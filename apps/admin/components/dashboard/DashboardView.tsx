@@ -15,7 +15,6 @@ import { LiveMatchCard } from './LiveMatchCard';
 import { AttentionQueueCard } from './AttentionQueueCard';
 import { ActivityFeedCard } from './ActivityFeedCard';
 
-const DIM = 'rgba(255,255,255,0.35)';
 
 export function DashboardView() {
   const { role } = useAdminSession();
@@ -51,31 +50,24 @@ export function DashboardView() {
         <StatTile
           label="Open reports"
           value={reports ? String(reports.total) : '—'}
-          icon="flag"
-          tone={reports && reports.total > 0 ? '#F5C518' : DIM}
-          sub={
+          caption={
             reports
               ? reports.highSeverity > 0
                 ? `${reports.highSeverity} high severity · S4+`
                 : 'Queue is clear'
               : 'Moderator scope'
           }
-          subTone={reports && reports.highSeverity > 0 ? '#F5C518' : DIM}
         />
         <StatTile
           label="Active bans"
           value={bans ? String(bans.total) : '—'}
-          icon="ban"
-          tone={bans && bans.total > 0 ? '#fff' : DIM}
-          sub={bans ? (bans.permanent > 0 ? `${bans.permanent} permanent` : 'No permanent ban') : 'Moderator scope'}
+          caption={bans ? (bans.permanent > 0 ? `${bans.permanent} permanent` : 'No permanent ban') : 'Moderator scope'}
         />
         <StatTile
           label="Live matches"
           value={String(data?.liveCount ?? 0)}
           live={(data?.liveCount ?? 0) > 0}
-          icon="activity"
-          tone={(data?.liveCount ?? 0) > 0 ? '#FF1737' : DIM}
-          sub={
+          caption={
             (data?.liveCount ?? 0) > 0
               ? 'In play right now'
               : nextKickoff
@@ -86,9 +78,7 @@ export function DashboardView() {
         <StatTile
           label="24h volume"
           value={data ? fmtUsdcCompact(data.volume24h) : '—'}
-          icon="chart"
-          tone={data && Number(data.volume24h) > 0 ? '#fff' : DIM}
-          sub="USDC · staked last 24h"
+          caption="USDC · staked last 24h"
         />
       </div>
 
@@ -102,7 +92,6 @@ export function DashboardView() {
         !isLoading && (
           <Card className="mt-3">
             <EmptyState
-              icon="activity"
               title="No live matches right now"
               hint={
                 nextKickoff
