@@ -218,8 +218,8 @@ export const BASKETBALL_MARKETS: Readonly<Record<string, MarketSpec>> = {
 
 /**
  * Returns the spec for a known football OR basketball market. Falls back to
- * `null` for hidden markets (CORRECT_SCORE) or genuinely unknown types — the
- * caller is expected to render `GenericOutcomePicks` in the latter case.
+ * `null` for hidden markets (CORRECT_SCORE) or genuinely unknown types; callers
+ * skip those markets.
  */
 export function getMarketSpec(marketTypeHash: string | undefined): MarketSpec | null {
     if (!marketTypeHash) return null;

@@ -19,6 +19,15 @@ const STALE_TIME_MS = 30_000;
  * harness).
  */
 export function useMarketPools(contractAddress: string | undefined): UseQueryResult<MarketPoolsDto> {
+    useMarketPoolsRealtime(contractAddress);
+    return useMarketPoolsQuery(contractAddress);
+}
+
+/**
+ * Supabase Realtime invalidation for one PariMatch — opens a channel per mount,
+ * so pages with several pool consumers mount it once and read via `useMarketPoolsQuery`.
+ */
+export function useMarketPoolsRealtime(contractAddress: string | undefined): void {
     const qc = useQueryClient();
     const addr = contractAddress?.toLowerCase();
 
@@ -45,7 +54,11 @@ export function useMarketPools(contractAddress: string | undefined): UseQueryRes
             supabase.removeChannel(channel);
         };
     }, [addr, qc]);
+}
 
+/** Pool snapshot query without side effects — shares the cache entry with `useMarketPools`. */
+export function useMarketPoolsQuery(contractAddress: string | undefined): UseQueryResult<MarketPoolsDto> {
+    const addr = contractAddress?.toLowerCase();
     return useQuery<MarketPoolsDto, Error>({
         queryKey: addr ? queryKeys.markets.pools(addr) : ['markets', 'pools', 'none'],
         queryFn: () => marketsApi.getPools(addr as string),

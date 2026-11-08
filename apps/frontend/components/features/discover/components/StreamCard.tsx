@@ -37,7 +37,7 @@ export function StreamCard({ stream }: { stream: StreamerCard }) {
   const initials = stream.streamerName.slice(0, 2).toUpperCase();
 
   // Navigates to the match page with this stream pre-selected via the
-  // `streamId` query param — LiveDetailsPage reads it from `useSearchParams`
+  // `streamId` query param — LivePage reads it from `useSearchParams`
   // and passes it through `BrowseLivesCollapsible` → `StreamSelector` for
   // auto-selection.
   const goToStream = () =>

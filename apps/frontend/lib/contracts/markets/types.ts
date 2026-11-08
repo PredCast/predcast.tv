@@ -15,7 +15,7 @@ export type MarketKey =
     | 'spread'
     | 'pointsexact';
 
-/** A single picker option rendered by `BetSelectionStep`. */
+/** A single outcome option rendered by the bet ticket and the markets table. */
 export interface MarketOutcome {
     readonly selection: number;
     readonly label: string;

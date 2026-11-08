@@ -104,7 +104,7 @@ function TeamSide({
 }) {
   return (
     <div
-      className={`flex items-center gap-3 ${
+      className={`flex min-w-0 flex-1 items-center gap-3 sm:flex-none ${
         side === "away" ? "flex-row-reverse text-right" : ""
       }`}
     >
@@ -117,7 +117,10 @@ function TeamSide({
           <span className="font-mono-ctv text-[9px] uppercase tracking-[0.18em] text-white/35">
             {shortName(name)}
           </span>
-          <TeamFormBadge form={form} size="md" />
+          {/* Form strip is ~100px wide: hidden on phones so both sides fit next to the score. */}
+          <span className="hidden sm:inline-flex">
+            <TeamFormBadge form={form} size="md" />
+          </span>
         </div>
       </div>
     </div>
@@ -184,7 +187,7 @@ export function LiveHero({
             )}
           </Eyebrow>
 
-          <div className="mt-4 flex items-center gap-5 sm:gap-7">
+          <div className="mt-4 flex items-center gap-3 sm:gap-7">
             {onBack && (
               <button
                 type="button"
@@ -199,7 +202,7 @@ export function LiveHero({
 
             <TeamSide name={homeTeam} logo={homeLogo} side="home" form={homeForm} />
 
-            <div className="flex flex-col items-center gap-1">
+            <div className="flex shrink-0 flex-col items-center gap-1">
               {isUpcoming ? (
                 <div
                   className="font-display flex items-baseline gap-3 leading-[0.85] tracking-[-0.02em] text-white/55"

@@ -45,7 +45,7 @@ export {
 export { useJoinWaitlist } from './useWaitlist';
 export { useAccessStatus, useRedeemAccessCode } from './useAccessCode';
 export { usePrices, usePrice } from './usePrices';
-export { useMarketPools } from './useMarketPools';
+export { useMarketPools, useMarketPoolsQuery, useMarketPoolsRealtime } from './useMarketPools';
 export { useLeaderboardTop } from './useLeaderboardTop';
 export { useMyLeaderboardPosition } from './useMyLeaderboardPosition';
 export { useMyClaimableEpochs } from './useMyClaimableEpochs';

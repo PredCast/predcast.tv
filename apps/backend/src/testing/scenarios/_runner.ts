@@ -4,6 +4,7 @@ import type { IMatchRepository } from '@chiliztv/domain/matches/repositories/IMa
 import type { IBlockchainService } from '@chiliztv/domain/shared/ports/IBlockchainService';
 import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import { logger } from '../../infrastructure/logging/logger';
+import { skipTakenTestMatchIds } from '../fixtures/match.fixtures';
 import type { MatchScenario, MatchScenarioOutcome, ScenarioContext } from './types';
 
 export interface RunScenarioOptions {
@@ -22,6 +23,7 @@ export async function runScenario(
         deployContracts: opts.deployContracts,
     };
 
+    await skipTakenTestMatchIds(async (id) => (await ctx.matchRepo.findByApiFootballId(id)) !== null);
     logger.info('Running scenario', { name: scenario.name, deployContracts: opts.deployContracts });
     const outcome = await scenario.apply(ctx);
     logger.info('Scenario completed', {

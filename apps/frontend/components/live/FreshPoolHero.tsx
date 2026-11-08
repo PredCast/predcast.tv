@@ -3,6 +3,8 @@
 interface FreshPoolHeroProps {
   /** Number of markets currently open for staking. */
   marketsOpen: number;
+  /** Keeps the column layout at every breakpoint (narrow sidebar). */
+  stacked?: boolean;
 }
 
 /**
@@ -10,7 +12,7 @@ interface FreshPoolHeroProps {
  * Frames the empty pools as an edge ("set the opening line") rather than a
  * void. Purely presentational.
  */
-export function FreshPoolHero({ marketsOpen }: FreshPoolHeroProps) {
+export function FreshPoolHero({ marketsOpen, stacked = false }: FreshPoolHeroProps) {
   const stats = [
     { n: String(marketsOpen), l: "Markets open", red: false },
     { n: "0", l: "USDC staked", red: true },
@@ -19,7 +21,9 @@ export function FreshPoolHero({ marketsOpen }: FreshPoolHeroProps) {
 
   return (
     <div
-      className="relative mb-3 flex flex-col gap-4 overflow-hidden rounded-xl border border-[#1E1E1E] px-5 py-6 sm:flex-row sm:items-center sm:justify-between sm:gap-9"
+      className={`relative mb-3 flex flex-col gap-4 overflow-hidden rounded-xl border border-[#1E1E1E] ${
+        stacked ? "px-4 py-5" : "px-5 py-6 sm:flex-row sm:items-center sm:justify-between sm:gap-9"
+      }`}
       style={{
         background: "radial-gradient(140% 160% at 0% 0%, rgba(232,0,29,0.10), transparent 52%)",
       }}
@@ -29,7 +33,11 @@ export function FreshPoolHero({ marketsOpen }: FreshPoolHeroProps) {
           <span aria-hidden className="block h-0.5 w-4 bg-[#F5C518]" />
           Pools just opened
         </div>
-        <h3 className="font-display mt-3 text-[clamp(26px,3.6vw,36px)] font-extrabold uppercase leading-[0.92] tracking-tight text-white">
+        <h3
+          className={`font-display mt-3 font-extrabold uppercase leading-[0.92] tracking-tight text-white ${
+            stacked ? "text-[24px]" : "text-[clamp(26px,3.6vw,36px)]"
+          }`}
+        >
           Nobody&apos;s called it yet. <span className="text-[#E8001D]">Set the line.</span>
         </h3>
         <p className="mt-3 max-w-[56ch] text-[14px] leading-relaxed text-white/65">
@@ -42,7 +50,9 @@ export function FreshPoolHero({ marketsOpen }: FreshPoolHeroProps) {
         {stats.map((s) => (
           <div
             key={s.l}
-            className="flex min-w-[86px] flex-1 flex-col gap-1.5 rounded-xl border border-[#1E1E1E] bg-[#141414] px-4 py-3.5 sm:flex-none"
+            className={`flex min-w-0 flex-1 flex-col gap-1.5 rounded-xl border border-[#1E1E1E] bg-[#141414] px-4 py-3.5 ${
+              stacked ? "" : "min-w-[86px] sm:flex-none"
+            }`}
           >
             <span
               className={`font-display text-[28px] font-extrabold leading-none tracking-tight ${

@@ -3,6 +3,7 @@ import {
     __resetTestMatchIdForTesting,
     matchFixture,
     nextTestMatchId,
+    skipTakenTestMatchIds,
     type FixtureName,
 } from '../match.fixtures';
 
@@ -88,6 +89,19 @@ describe('nextTestMatchId', () => {
         nextTestMatchId();
         nextTestMatchId();
         __resetTestMatchIdForTesting();
+        expect(nextTestMatchId()).toBe(999000);
+    });
+});
+
+describe('skipTakenTestMatchIds', () => {
+    it('skips IDs already persisted by a previous run', async () => {
+        const taken = new Set([999000, 999001, 999002]);
+        await skipTakenTestMatchIds(async (id) => taken.has(id));
+        expect(nextTestMatchId()).toBe(999003);
+    });
+
+    it('leaves the counter untouched when nothing is persisted', async () => {
+        await skipTakenTestMatchIds(async () => false);
         expect(nextTestMatchId()).toBe(999000);
     });
 });

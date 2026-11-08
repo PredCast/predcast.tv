@@ -45,6 +45,8 @@
 }
 
 :root {
+  /* Sticky <Header /> height; sticky side panels offset themselves by it. */
+  --app-header-h: 73px;
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);

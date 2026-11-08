@@ -22,7 +22,7 @@ function fmtTx(hash: `0x${string}`): string {
     return `${hash.slice(0, 10)}…${hash.slice(-8)}`;
 }
 
-/** Success body shared by donation + subscription modals — mirrors `BetSuccessStep`. */
+/** Success body shared by donation + subscription modals. */
 export function StreamerSuccessStep({
     title,
     lead,
