@@ -15,6 +15,12 @@ export interface MatchOperationProgress {
     readonly contractAddress?: string;
     readonly marketsOpened?: number;
     readonly marketsCancelled?: number;
+    /** Gas paid by the deploy tx, in wei. */
+    readonly deployGasWei?: string;
+    /** Gas paid by the seeding / opening txs of this operation, in wei. */
+    readonly setupGasWei?: string;
+    /** Set when an admin cancelled the operation before a worker picked it up. */
+    readonly cancelledBy?: string;
 }
 
 export interface MatchOperation {

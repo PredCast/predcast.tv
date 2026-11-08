@@ -61,7 +61,7 @@ export class ViemBettingDeploymentService implements IBettingDeploymentService {
         return this.account.address;
     }
 
-    async deployMatchContract(matchName: string, onSent: (txHash: string) => Promise<void>): Promise<{ contractAddress: string }> {
+    async deployMatchContract(matchName: string, onSent: (txHash: string) => Promise<void>): Promise<{ contractAddress: string; gasCostWei: string }> {
         const owner = this.account.address;
         const oracle = (process.env.RESOLVER_ADDRESS ?? owner) as Hex;
         return this.signerLock.run(async () => {
@@ -77,7 +77,7 @@ export class ViemBettingDeploymentService implements IBettingDeploymentService {
         });
     }
 
-    async findDeployedContract(txHash: string): Promise<{ contractAddress: string } | null> {
+    async findDeployedContract(txHash: string): Promise<{ contractAddress: string; gasCostWei: string } | null> {
         try {
             return await this.readDeployReceipt(txHash as Hex);
         } catch (err) {
@@ -88,12 +88,13 @@ export class ViemBettingDeploymentService implements IBettingDeploymentService {
         }
     }
 
-    async ensureDefaultMarketsOpen(contractAddress: string, opts: { isKnockout: boolean }): Promise<{ added: boolean; opened: number }> {
+    async ensureDefaultMarketsOpen(contractAddress: string, opts: { isKnockout: boolean }): Promise<{ added: boolean; opened: number; gasCostWei: string }> {
         const address = contractAddress as Hex;
         let added = false;
+        let gas = BigInt(0);
         if ((await this.marketCount(address)) === 0) {
             const { hashes, lines } = getFootballSeedingPayload(opts);
-            await this.sendAndConfirm(() => this.walletClient.writeContract({
+            gas += await this.sendAndConfirm(() => this.walletClient.writeContract({
                 address,
                 abi: PARI_MATCH_BASE_INLINE_ABI,
                 functionName: 'addMarketsBatch',
@@ -106,7 +107,7 @@ export class ViemBettingDeploymentService implements IBettingDeploymentService {
 
         const inactive = await this.inactiveMarketIds(address);
         if (inactive.length > 0) {
-            await this.sendAndConfirm(() => this.walletClient.writeContract({
+            gas += await this.sendAndConfirm(() => this.walletClient.writeContract({
                 address,
                 abi: PARI_MATCH_BASE_INLINE_ABI,
                 functionName: 'openMarketsBatch',
@@ -115,7 +116,7 @@ export class ViemBettingDeploymentService implements IBettingDeploymentService {
             }));
         }
         logger.info('Markets seeded and opened', { contractAddress, added, opened: inactive.length });
-        return { added, opened: inactive.length };
+        return { added, opened: inactive.length, gasCostWei: gas.toString() };
     }
 
     signerBalanceWei(): Promise<bigint> {
@@ -126,19 +127,21 @@ export class ViemBettingDeploymentService implements IBettingDeploymentService {
         return DEPLOYMENT_GAS * (await this.publicClient.getGasPrice());
     }
 
-    private async readDeployReceipt(hash: Hex): Promise<{ contractAddress: string }> {
+    private async readDeployReceipt(hash: Hex): Promise<{ contractAddress: string; gasCostWei: string }> {
         const receipt = await this.publicClient.waitForTransactionReceipt({ hash, timeout: DEPLOY_RECEIPT_TIMEOUT_MS });
         if (receipt.status === 'reverted') throw new Error(`Deploy transaction reverted (${hash})`);
         const created = receipt.logs.find((log) => log.topics[0] === MATCH_CREATED_TOPIC);
         if (!created?.topics[1]) throw new Error(`MatchCreated event missing from deploy receipt (${hash})`);
-        return { contractAddress: `0x${created.topics[1].slice(26)}` };
+        return { contractAddress: `0x${created.topics[1].slice(26)}`, gasCostWei: (receipt.gasUsed * receipt.effectiveGasPrice).toString() };
     }
 
-    private async sendAndConfirm(send: () => Promise<Hex>): Promise<void> {
+    /** Returns the gas paid, in wei. */
+    private async sendAndConfirm(send: () => Promise<Hex>): Promise<bigint> {
         const hash = await send();
         const receipt = await this.publicClient.waitForTransactionReceipt({ hash, timeout: SETUP_RECEIPT_TIMEOUT_MS });
         if (receipt.status === 'reverted') throw new Error(`Transaction reverted on-chain (${hash})`);
         await sleep(TX_SPACING_MS);
+        return receipt.gasUsed * receipt.effectiveGasPrice;
     }
 
     private async marketCount(address: Hex): Promise<number> {
