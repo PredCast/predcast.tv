@@ -12,14 +12,14 @@ export function OperationBadge({ operation }: Readonly<{ operation: MatchOperati
     return (
       <span
         title={operation.error ?? undefined}
-        className="font-mono-ctv inline-flex w-fit rounded border border-[#E8001D]/50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-[#FF1737]"
+        className="font-mono inline-flex w-fit rounded border border-accent/50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-accent-text"
       >
         {label} failed
       </span>
     );
   }
   return (
-    <span className="font-mono-ctv inline-flex w-fit items-center gap-1.5 rounded border border-[#F5C518]/40 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-[#F5C518]">
+    <span className="font-mono inline-flex w-fit items-center gap-1.5 rounded border border-warning/40 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-warning">
       <LiveDot s={4} />
       {label} {operation.status === 'pending' ? 'queued' : 'running'}
     </span>

@@ -52,11 +52,11 @@ export function UnpublishDialog({ match, onClose }: Readonly<UnpublishDialogProp
     );
 
   const choice = (value: Mode, title: string, hint: string) => (
-    <label className={`flex cursor-pointer gap-3 rounded-md border px-3 py-2.5 ${mode === value ? 'border-[#E8001D] bg-[#E8001D]/10' : 'border-[#2A2A2A]'}`}>
-      <input type="radio" name="unpublish-mode" checked={mode === value} onChange={() => setMode(value)} className="mt-0.5 accent-[#E8001D]" />
+    <label className={`flex cursor-pointer gap-3 rounded-md border px-3 py-2.5 ${mode === value ? 'border-accent bg-accent/10' : 'border-line'}`}>
+      <input type="radio" name="unpublish-mode" checked={mode === value} onChange={() => setMode(value)} className="mt-0.5 accent-accent" />
       <span>
         <span className="block text-[13px] font-bold text-white">{title}</span>
-        <span className="block text-[12px] text-white/55">{hint}</span>
+        <span className="block text-[12px] text-fg-body">{hint}</span>
       </span>
     </label>
   );
@@ -67,7 +67,7 @@ export function UnpublishDialog({ match, onClose }: Readonly<UnpublishDialogProp
         <OperationProgress operationId={cancelOperationId} chain={chain} onRetry={() => undefined} retrying />
       ) : (
         <div className="flex flex-col gap-3">
-          <p className="text-[12px] text-white/65">
+          <p className="text-[12px] text-fg-body">
             Pool: <span className="font-bold text-white">{hasStakes ? fmtUsdcRaw(match.totalStaked) : '0'} USDC</span> across{' '}
             <span className="font-bold text-white">{match.betCount}</span> bet{match.betCount === 1 ? '' : 's'}. The match leaves
             Discover and its live page; bets stay visible and claimable in the dashboard.
@@ -82,7 +82,7 @@ export function UnpublishDialog({ match, onClose }: Readonly<UnpublishDialogProp
               aria-label="Cancellation reason"
               maxLength={200}
               rows={2}
-              className="rounded-md border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-[12px] text-white placeholder:text-white/30 focus:border-[#E8001D] focus:outline-none"
+              className="rounded-md border border-line bg-page px-3 py-2 text-[12px] text-white placeholder:text-fg-meta focus:border-accent focus:outline-none"
             />
           )}
           <div className="flex justify-end">
@@ -92,7 +92,7 @@ export function UnpublishDialog({ match, onClose }: Readonly<UnpublishDialogProp
               <button
                 type="button"
                 disabled
-                className="font-mono-ctv rounded-md border border-[#2A2A2A] px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-white/35"
+                className="font-mono rounded-md border border-line px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-fg-meta"
               >
                 Add a reason to cancel
               </button>

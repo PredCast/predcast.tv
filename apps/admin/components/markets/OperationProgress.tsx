@@ -15,7 +15,7 @@ interface OperationProgressProps {
   readonly retrying: boolean;
 }
 
-const link = 'font-mono-ctv inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#FF1737] hover:underline';
+const link = 'font-mono inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.12em] text-accent-text hover:underline';
 
 function step(op: MatchOperationDto): string {
   if (op.status === 'pending') return 'Queued, the worker picks it up within seconds…';
@@ -28,29 +28,29 @@ function step(op: MatchOperationDto): string {
 /** Live state of a queued operation: progress, then the explorer / app links, or the error and Retry. */
 export function OperationProgress({ operationId, chain, onRetry, retrying }: Readonly<OperationProgressProps>) {
   const { data: op } = useMatchOperation(operationId);
-  if (!op) return <p className="text-[12px] text-white/55">Loading the operation…</p>;
+  if (!op) return <p className="text-[12px] text-fg-body">Loading the operation…</p>;
 
   if (op.status === 'pending' || op.status === 'running') {
     return (
-      <div role="status" className="flex items-center gap-2.5 rounded-md border border-[#F5C518]/30 bg-[#F5C518]/5 px-3 py-2.5">
+      <div role="status" className="flex items-center gap-2.5 rounded-md border border-warning/30 bg-warning/5 px-3 py-2.5">
         <LiveDot s={5} />
-        <span className="text-[12px] text-white/80">{step(op)}</span>
+        <span className="text-[12px] text-fg-strong">{step(op)}</span>
       </div>
     );
   }
 
   if (op.status === 'failed') {
     return (
-      <div role="alert" className="rounded-md border border-[#E8001D]/40 bg-[#E8001D]/10 px-3 py-2.5">
-        <div className="font-mono-ctv flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[#FF1737]">
+      <div role="alert" className="rounded-md border border-accent/40 bg-accent/10 px-3 py-2.5">
+        <div className="font-mono flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-accent-text">
           <Icon n="alertCircle" s={12} /> {OPERATION_LABELS[op.kind]} failed
         </div>
-        <p className="mt-1.5 break-words text-[12px] text-white/75">{op.error ?? 'Unknown error'}</p>
+        <p className="mt-1.5 break-words text-[12px] text-fg-body">{op.error ?? 'Unknown error'}</p>
         <button
           type="button"
           disabled={retrying}
           onClick={() => onRetry(op)}
-          className="font-mono-ctv mt-2.5 rounded-md border border-[#E8001D] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white hover:bg-[#E8001D]/15 disabled:opacity-50"
+          className="font-mono mt-2.5 rounded-md border border-accent px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white hover:bg-accent/15 disabled:opacity-50"
         >
           {op.contractAddress ? 'Retry markets setup' : 'Retry'}
         </button>
@@ -60,8 +60,8 @@ export function OperationProgress({ operationId, chain, onRetry, retrying }: Rea
 
   const live = appLiveUrl(op.matchId);
   return (
-    <div role="status" className="rounded-md border border-[#2dd4a4]/40 bg-[#2dd4a4]/10 px-3 py-2.5">
-      <div className="font-mono-ctv flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[#2dd4a4]">
+    <div role="status" className="rounded-md border border-positive/40 bg-positive/10 px-3 py-2.5">
+      <div className="font-mono flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-positive">
         <Icon n="check" s={12} /> {OPERATION_LABELS[op.kind]} done
         {op.marketsOpened !== null && ` · ${op.marketsOpened} markets opened`}
         {op.marketsCancelled !== null && ` · ${op.marketsCancelled} markets cancelled`}

@@ -42,7 +42,7 @@ export function MatchesTable({ rows, isLoading, tab, onDeploy, onUnpublish }: Re
       </THead>
 
       {isLoading && rows.length === 0 && (
-        <p className="font-mono-ctv px-4 py-6 text-[11px] uppercase tracking-[0.14em] text-white/35">Loading…</p>
+        <p className="font-mono px-4 py-6 text-[11px] uppercase tracking-[0.14em] text-fg-meta">Loading…</p>
       )}
       {!isLoading && rows.length === 0 && (
         <EmptyState
@@ -55,11 +55,11 @@ export function MatchesTable({ rows, isLoading, tab, onDeploy, onUnpublish }: Re
         <TRow key={match.apiFootballId} cols={COLS} accent={LIVE.has(match.status) ? '#E8001D' : undefined}>
           <span className="flex min-w-0 items-center gap-1.5">
             <TeamLabel name={match.homeTeamName} logo={match.homeTeamLogo} />
-            <span className="shrink-0 text-white/30">vs</span>
+            <span className="shrink-0 text-fg-meta">vs</span>
             <TeamLabel name={match.awayTeamName} logo={match.awayTeamLogo} />
           </span>
-          <span className="font-mono-ctv min-w-0 truncate text-[10px] uppercase tracking-[0.08em] text-white/45">{match.leagueName}</span>
-          <span className="font-mono-ctv text-[11px] tabular-nums text-white/60">
+          <span className="font-mono min-w-0 truncate text-[10px] uppercase tracking-[0.08em] text-fg-meta">{match.leagueName}</span>
+          <span className="font-mono text-[11px] tabular-nums text-fg-body">
             {new Date(match.matchDate).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
           </span>
           <MatchStatusBadge status={match.status} />
@@ -72,8 +72,8 @@ export function MatchesTable({ rows, isLoading, tab, onDeploy, onUnpublish }: Re
               </span>
             )}
           </span>
-          <span className="text-right tabular-nums text-white/85">{match.betCount || '—'}</span>
-          <span className="text-right tabular-nums text-white/85">{match.totalStaked === '0' ? '—' : fmtUsdcRaw(match.totalStaked)}</span>
+          <span className="text-right tabular-nums text-fg-strong">{match.betCount || '—'}</span>
+          <span className="text-right tabular-nums text-fg-strong">{match.totalStaked === '0' ? '—' : fmtUsdcRaw(match.totalStaked)}</span>
           <span className="flex justify-end">
             <MatchRowActions match={match} onDeploy={onDeploy} onUnpublish={onUnpublish} />
           </span>
