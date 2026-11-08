@@ -46,6 +46,10 @@ export const TOKENS = {
   // Ports — time
   IClock:                  Symbol.for('IClock'),
   IRuntimeEnvironment:     Symbol.for('IRuntimeEnvironment'),
+  IJobCatalog:             Symbol.for('IJobCatalog'),
+  IJobStateRepository:     Symbol.for('IJobStateRepository'),
+  IJobRunRepository:       Symbol.for('IJobRunRepository'),
+  IJobRunSignal:           Symbol.for('IJobRunSignal'),
 
   // Ports — access gate
   IAccessCodeVerifier:     Symbol.for('IAccessCodeVerifier'),
