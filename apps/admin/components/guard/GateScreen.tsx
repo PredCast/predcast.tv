@@ -49,18 +49,18 @@ export function GateScreen({ onPassed }: Readonly<{ onPassed: () => void }>) {
       <GuardCard>
         <Eyebrow>Restricted area</Eyebrow>
         <Image src="/predcast-logo-on-dark.svg" alt="PredCast" width={143} height={22} priority className="mt-5 h-[22px] w-auto" />
-        <p className="mt-3 text-[12px] font-light leading-relaxed text-white/55">
+        <p className="mt-3 text-[12px] font-light leading-relaxed text-fg-body">
           Operator access code, before anything wallet-related is exposed.
         </p>
         <form onSubmit={submit}>
-          <label htmlFor="gate-code" className="font-mono-ctv mt-6 block text-[9px] font-bold uppercase tracking-[0.16em] text-white/40">
+          <label htmlFor="gate-code" className="font-mono mt-6 block text-[9px] font-bold uppercase tracking-[0.16em] text-fg-meta">
             Access code
           </label>
           <div
-            className="mt-1.5 flex items-center gap-2.5 rounded-md border bg-[#0d0d0d] px-4 py-3 focus-within:ring-2 focus-within:ring-[#E8001D]"
+            className="mt-1.5 flex items-center gap-2.5 rounded-md border bg-sidebar px-4 py-3 focus-within:ring-2 focus-within:ring-accent"
             style={{ borderColor: error ? `${error.color}55` : "#2A2A2A" }}
           >
-            <Icon n="key" s={14} className="shrink-0 text-white/30" />
+            <Icon n="key" s={14} className="shrink-0 text-fg-meta" />
             <input
               id="gate-code"
               type="password"
@@ -68,29 +68,29 @@ export function GateScreen({ onPassed }: Readonly<{ onPassed: () => void }>) {
               onChange={(e) => setCode(e.target.value)}
               autoFocus
               autoComplete="off"
-              className="font-mono-ctv w-full bg-transparent text-[13px] tracking-[0.3em] text-white outline-none"
+              className="font-mono w-full bg-transparent text-[13px] tracking-[0.3em] text-white outline-none"
             />
           </div>
           {error && (
             <div className="mt-2.5 flex items-start gap-2">
               <Icon n={error.icon} s={13} className="mt-px shrink-0" style={{ color: error.color }} />
               <div className="min-w-0">
-                <p className="font-mono-ctv text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: error.color }}>
+                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: error.color }}>
                   {error.msg}
                 </p>
-                <p className="font-mono-ctv mt-1 text-[9px] uppercase tracking-[0.12em] text-white/30">{error.sub}</p>
+                <p className="font-mono mt-1 text-[9px] uppercase tracking-[0.12em] text-fg-meta">{error.sub}</p>
               </div>
             </div>
           )}
           <button
             type="submit"
             disabled={pending || code.length === 0}
-            className="font-mono-ctv mt-5 w-full rounded-md bg-[#E8001D] px-6 py-3 text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-[#FF1737] disabled:cursor-not-allowed disabled:opacity-50"
+            className="font-mono mt-5 w-full rounded-md bg-accent px-6 py-3 text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? "Checking…" : "Unlock"}
           </button>
         </form>
-        <p className="font-mono-ctv mt-4 text-[9px] uppercase tracking-[0.14em] text-white/30">
+        <p className="font-mono mt-4 text-[9px] uppercase tracking-[0.14em] text-fg-meta">
           Lost the code? Ask a super admin.
         </p>
       </GuardCard>

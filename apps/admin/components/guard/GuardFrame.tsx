@@ -9,7 +9,7 @@ export function GuardFrame({
   children,
 }: Readonly<{ step?: number; children: React.ReactNode }>) {
   return (
-    <main className="relative flex min-h-svh flex-col items-center justify-center overflow-hidden bg-[#0A0A0A] text-white">
+    <main className="relative flex min-h-svh flex-col items-center justify-center overflow-hidden bg-page text-white">
       <div
         aria-hidden="true"
         className="absolute inset-0"
@@ -29,7 +29,7 @@ export function GuardFrame({
         )}
         {children}
       </div>
-      <div className="font-mono-ctv absolute bottom-7 z-10 text-[9px] uppercase tracking-[0.22em] text-white/25">
+      <div className="font-mono absolute bottom-7 z-10 text-[9px] uppercase tracking-[0.22em] text-fg-meta">
         PredCast operations · access is logged
       </div>
     </main>
