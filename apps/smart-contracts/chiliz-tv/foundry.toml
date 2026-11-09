@@ -19,6 +19,10 @@ via_ir = true
 [etherscan]
 chiliz_spicy = { key = "${ETHERSCAN_API_KEY}", chain = 88882, url = "https://api.routescan.io/v2/network/testnet/evm/88882/etherscan" }
 chiliz_mainnet = { key = "${ETHERSCAN_API_KEY}", chain = 88888, url = "https://api.routescan.io/v2/network/mainnet/evm/88888/etherscan" }
+# Base: Etherscan API v2 — `--verify` there needs an Etherscan API key in
+# ETHERSCAN_API_KEY.
+base_sepolia   = { key = "${ETHERSCAN_API_KEY}", chain = 84532, url = "https://api.etherscan.io/v2/api?chainid=84532" }
+base           = { key = "${ETHERSCAN_API_KEY}", chain = 8453,  url = "https://api.etherscan.io/v2/api?chainid=8453" }
 
 # Custom chain registration so forge's NamedChain lookup doesn't reject
 # Chiliz Spicy / Mainnet IDs with "Chain X not supported". Required because
@@ -28,5 +32,7 @@ chiliz_mainnet = { key = "${ETHERSCAN_API_KEY}", chain = 88888, url = "https://a
 [rpc_endpoints]
 chiliz_spicy   = "https://spicy-rpc.chiliz.com"
 chiliz_mainnet = "https://rpc.chiliz.com"
+base_sepolia   = "https://sepolia.base.org"
+base           = "https://mainnet.base.org"
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

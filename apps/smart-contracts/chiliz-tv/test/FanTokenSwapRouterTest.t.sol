@@ -10,7 +10,9 @@ import {FootballPariMatch}   from "../src/pari/FootballPariMatch.sol";
 import {StreamWalletFactory} from "../src/streamer/StreamWalletFactory.sol";
 import {MockUSDC}            from "./mocks/MockUSDC.sol";
 import {MockKayenRouter}     from "./mocks/MockKayenRouter.sol";
+import {IKayenRouter}        from "../src/interfaces/IKayenRouter.sol";
 import {MockChilizWrapperFactory, MockWrappedFanToken} from "./mocks/MockChilizWrapperFactory.sol";
+import {PariFactoryDeployer} from "./helpers/PariFactoryDeployer.sol";
 
 /// @dev CAP-20-style fan token: 0 decimals, like PSG/BAR on Chiliz.
 contract MockFanToken0Dec is ERC20 {
@@ -71,7 +73,7 @@ contract FanTokenSwapRouterTest is Test {
         swapRouter.setWrapperFactory(address(wrapperFactory));
 
         // Betting wiring: factory-created match so isMatch() passes.
-        pariFactory = new PariMatchFactory();
+        pariFactory = PariFactoryDeployer.deploy();
         pariFactory.setWiring(address(usdc), treasury, address(swapRouter));
         match_ = FootballPariMatch(payable(
             pariFactory.createFootballMatch("PSG vs OM", owner, oracle)
@@ -113,6 +115,49 @@ contract FanTokenSwapRouterTest is Test {
         assertEq(path[0], wrapped);
         assertEq(path[1], WCHZ);
         assertEq(path[2], address(usdc));
+    }
+
+    /// L-09: a wrapper without liquidity (anyone can create one) must not
+    /// hijack the route; the raw path is kept.
+    function test_L09_WrapperWithoutLiquidityKeepsRawPath() public {
+        address wrapped = wrapperFactory.underlyingToWrapped(address(fanToken));
+        address[] memory probe = new address[](3);
+        probe[0] = wrapped;
+        probe[1] = WCHZ;
+        probe[2] = address(usdc);
+        vm.mockCallRevert(
+            address(mockRouter),
+            abi.encodeWithSelector(IKayenRouter.getAmountsOut.selector, uint256(1e18), probe),
+            "no pair"
+        );
+
+        (address swapToken, uint256 perUnit, address[] memory path) =
+            swapRouter.swapRouteFor(address(fanToken));
+        assertEq(swapToken, address(fanToken), "raw token, not the poolless wrapper");
+        assertEq(perUnit, 1);
+        assertEq(path[0], address(fanToken));
+    }
+
+    /// L-09 residual (review finding 4): a dust-seeded wrapper pool must not
+    /// win against a better raw pool; the route follows the better quote.
+    function test_L09_BetterRawPoolBeatsDustWrapper() public {
+        address wrapped = wrapperFactory.underlyingToWrapped(address(fanToken));
+        uint256 amount = 100;                    // 100 units of the 0-decimals token
+        address[] memory raw = new address[](3);
+        raw[0] = address(fanToken); raw[1] = WCHZ; raw[2] = address(usdc);
+        address[] memory wp = new address[](3);
+        wp[0] = wrapped; wp[1] = WCHZ; wp[2] = address(usdc);
+        uint256[] memory rawOut = new uint256[](3); rawOut[2] = 50e6;
+        uint256[] memory dustOut = new uint256[](3); dustOut[2] = 1;
+        vm.mockCall(address(mockRouter), abi.encodeWithSelector(IKayenRouter.getAmountsOut.selector, amount, raw), abi.encode(rawOut));
+        vm.mockCall(address(mockRouter), abi.encodeWithSelector(IKayenRouter.getAmountsOut.selector, amount * 1e18, wp), abi.encode(dustOut));
+
+        (address swapToken, uint256 perUnit, address[] memory path, uint256 out) = swapRouter.routeFor(address(fanToken), amount);
+        assertEq(swapToken, address(fanToken), "raw pool is better");
+        assertEq(perUnit, 1);
+        assertEq(path[0], address(fanToken));
+        assertEq(out, 50e6);
+        assertEq(swapRouter.quoteTokenToUSDC(address(fanToken), amount), 50e6);
     }
 
     function test_SwapRouteFor_RegularToken_NoWrap() public view {

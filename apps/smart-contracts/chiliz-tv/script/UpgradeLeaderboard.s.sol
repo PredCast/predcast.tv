@@ -17,6 +17,10 @@ interface IUUPSProxy {
  * @notice Upgrade the deployed `LeaderboardRewards` ERC1967 proxy to the V2
  *         implementation in `src/leaderboard/LeaderboardRewards.sol`.
  *
+ *         Works for V1 -> V3 and V2 -> V3 proxies (see step 2). V3 = audit
+ *         2026-10 lot 3 (profit-based scores, per-epoch fee attribution,
+ *         scoring grace, claim window from the actual close).
+ *
  *         V2 swaps the off-chain merkle distribution for fully on-chain
  *         pro-rata per-epoch payouts with admin-settable epoch duration and
  *         lazy auto-advance. Storage layout is preserved; the legacy V1
@@ -34,6 +38,9 @@ interface IUUPSProxy {
  *   PRIVATE_KEY        — Deployer private key. Must hold DEFAULT_ADMIN_ROLE
  *                        on the proxy (UUPS `_authorizeUpgrade` is admin-only).
  *   LEADERBOARD_PROXY  — Deployed ERC1967 proxy address (NOT the impl).
+ *   MATCH_FACTORY      — Optional: new beacon-based PariMatchFactory to trust
+ *                        (setMatchFactory, needs ADMIN_ROLE). Strongly
+ *                        recommended in the same run as the V3 upgrade.
  */
 contract UpgradeLeaderboard is Script {
 
@@ -56,15 +63,30 @@ contract UpgradeLeaderboard is Script {
         newImpl = address(new LeaderboardRewards());
         console.log("New LeaderboardRewards impl:", newImpl);
 
-        // 2. Drive the upgrade through the proxy. `initializeV2()` is
-        //    `reinitializer(2)`, so re-running this script (e.g. for a future
-        //    V2.1) won't replay it — only the first call past the marker
-        //    sets `epochStartTime` / `epochDuration`.
-        bytes memory initData = abi.encodeWithSelector(
-            LeaderboardRewards.initializeV2.selector
-        );
+        // 2. Drive the upgrade through the proxy. A V1 proxy (epoch clock not
+        //    started) also runs `initializeV2()` in the same call; a V2 proxy
+        //    (e.g. mainnet / Spicy, upgraded to V3) must NOT: `reinitializer(2)`
+        //    would revert and take the whole upgrade with it. V3 needs no
+        //    initializer (its two new storage variables start at zero).
+        bool needsV2 = LeaderboardRewards(proxyAddr).epochDuration() == 0;
+        bytes memory initData = needsV2
+            ? abi.encodeWithSelector(LeaderboardRewards.initializeV2.selector)
+            : bytes("");
+        console.log("Runs initializeV2:", needsV2);
         IUUPSProxy(proxyAddr).upgradeToAndCall(newImpl, initData);
         console.log("Proxy upgraded:", proxyAddr, "->", newImpl);
+
+        // 3. Trust only the beacon-based PariMatchFactory (audit H-01). Until
+        //    this runs, the old factory's UUPS matches (still upgradable by
+        //    their admin) can call recordProfit / notifyFee, and new beacon
+        //    matches are rejected. Do it in the same run when possible.
+        try vm.envAddress("MATCH_FACTORY") returns (address f) {
+            LeaderboardRewards(proxyAddr).setMatchFactory(f);
+            console.log("matchFactory repointed ->", f);
+        } catch {
+            console.log("WARNING: MATCH_FACTORY not set; matchFactory unchanged:",
+                address(LeaderboardRewards(proxyAddr).matchFactory()));
+        }
 
         vm.stopBroadcast();
 

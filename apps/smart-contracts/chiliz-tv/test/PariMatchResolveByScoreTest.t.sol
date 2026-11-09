@@ -745,4 +745,84 @@ contract PariMatchResolveByScoreTest is Test {
         assertTrue(ok);
         assertEq(outcome, 1, "home win covers 1X via view");
     }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // BASKETBALL — OVERTIME (audit M-06)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// Regulation 100-100, overtime 12-8 (final 112-108).
+    function _otMarkets() internal returns (uint256[6] memory ids) {
+        ids[0] = _addAndOpenBball(B_WINNER,       0);
+        ids[1] = _addAndOpenBball(B_TOTAL_POINTS, 2005);   // 200.5
+        ids[2] = _addAndOpenBball(B_SPREAD,       55);     // home -5.5
+        vm.prank(owner);
+        ids[3] = bball.addPointsExactMarket(10, 30);       // buckets of 30 points, cap 10
+        vm.prank(owner); bball.openMarket(ids[3]);
+        ids[4] = _addQuarterBballMarket(B_QUARTER_WINNER, 4);
+        ids[5] = _addAndOpenBball(B_HIGHEST_QUARTER, 0);
+
+        _stakeBball(alice, ids[0], 0, 10e6); _stakeBball(bob, ids[0], 1, 10e6);
+        _stakeBball(alice, ids[1], 1, 10e6); _stakeBball(bob, ids[1], 0, 10e6);
+        _stakeBball(alice, ids[2], 0, 10e6); _stakeBball(bob, ids[2], 1, 10e6);
+        _stakeBball(alice, ids[3], 7, 10e6); _stakeBball(bob, ids[3], 6, 10e6);
+        _stakeBball(alice, ids[4], 0, 10e6); _stakeBball(bob, ids[4], 1, 10e6);
+        _stakeBball(alice, ids[5], 1, 10e6); _stakeBball(bob, ids[5], 0, 10e6);
+
+        vm.startPrank(owner);
+        for (uint256 i; i < 6; ++i) bball.closeMarket(ids[i]);
+        vm.stopPrank();
+    }
+
+    function _otRegulation() internal pure returns (BasketballPariMatch.BasketballScore memory) {
+        // home 25+25+25+25 = 100, away 20+30+28+22 = 100
+        return BasketballPariMatch.BasketballScore({
+            homeQ1: 25, awayQ1: 20,
+            homeQ2: 25, awayQ2: 30,
+            homeQ3: 25, awayQ3: 28,
+            homeQ4: 25, awayQ4: 22,
+            firstToScore: 0
+        });
+    }
+
+    function test_Basketball_M06_LegacyScoreLeavesOvertimeMarketsClosed() public {
+        uint256[6] memory ids = _otMarkets();
+
+        vm.prank(oracle);
+        uint256 resolved = bball.resolveByScore(_otRegulation());
+        assertEq(resolved, 2, "only the regulation-only markets settle");
+
+        for (uint256 i; i < 4; ++i) {
+            assertEq(uint8(_bballMarketState(ids[i])), uint8(PariMatchBase.MarketState.Closed), "OT-sensitive stays Closed");
+        }
+        assertEq(_bballMarketResult(ids[4]), 0, "Q4 home 25-22, OT excluded");
+        assertEq(_bballMarketResult(ids[5]), 1, "Q2 (55) highest, OT excluded");
+    }
+
+    function test_Basketball_M06_FinalScoreIncludesOvertime() public {
+        uint256[6] memory ids = _otMarkets();
+        BasketballPariMatch.BasketballScore memory r = _otRegulation();
+        BasketballPariMatch.BasketballFinalScore memory f = BasketballPariMatch.BasketballFinalScore({
+            homeQ1: r.homeQ1, awayQ1: r.awayQ1,
+            homeQ2: r.homeQ2, awayQ2: r.awayQ2,
+            homeQ3: r.homeQ3, awayQ3: r.awayQ3,
+            homeQ4: r.homeQ4, awayQ4: r.awayQ4,
+            homeOT: 12, awayOT: 8,
+            firstToScore: 0
+        });
+
+        (uint64 o, bool ok) = bball.computeOutcomeFinal(ids[1], f);
+        assertTrue(ok);
+        assertEq(o, 1, "view: 220 > 200.5");
+
+        vm.prank(oracle);
+        uint256 resolved = bball.resolveByFinalScore(f);
+        assertEq(resolved, 6);
+
+        assertEq(_bballMarketResult(ids[0]), 0, "home wins 112-108 after OT");
+        assertEq(_bballMarketResult(ids[1]), 1, "total 220 incl. OT is Over 200.5");
+        assertEq(_bballMarketResult(ids[2]), 1, "home +4 does not cover -5.5");
+        assertEq(_bballMarketResult(ids[3]), 7, "220 / 30 = bucket 7");
+        assertEq(_bballMarketResult(ids[4]), 0, "Q4 still regulation only");
+        assertEq(_bballMarketResult(ids[5]), 1, "highest quarter still regulation only");
+    }
 }

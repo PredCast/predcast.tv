@@ -2,9 +2,7 @@
 pragma solidity 0.8.24;
 
 import {Initializable}              from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {OwnableUpgradeable}         from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {AccessControlUpgradeable}   from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {UUPSUpgradeable}            from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {PausableUpgradeable}        from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {IERC20}                     from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -54,7 +52,10 @@ import {ILeaderboardRewards}        from "../interfaces/ILeaderboardRewards.sol"
  *     FootballPariMatch / BasketballPariMatch.
  *
  * Roles:
- *   DEFAULT_ADMIN_ROLE — upgrades, role management.
+ *   DEFAULT_ADMIN_ROLE — role management. NOT upgrades: since audit H-01 a
+ *                        match has no upgrade entrypoint; matches are
+ *                        BeaconProxies and only the sport beacon's owner
+ *                        (governance Safe / timelock) can change their code.
  *   ADMIN_ROLE         — market lifecycle (create/open/close/cancel).
  *   RESOLVER_ROLE      — set the winning outcome (oracle / off-chain backend).
  *   PAUSER_ROLE        — emergency pause.
@@ -68,9 +69,7 @@ import {ILeaderboardRewards}        from "../interfaces/ILeaderboardRewards.sol"
  */
 abstract contract PariMatchBase is
     Initializable,
-    OwnableUpgradeable,
     AccessControlUpgradeable,
-    UUPSUpgradeable,
     ReentrancyGuardUpgradeable,
     PausableUpgradeable
 {
@@ -97,6 +96,23 @@ abstract contract PariMatchBase is
     ///         expropriation of user funds.
     uint16 public constant MAX_FEE_BPS = 500;
 
+    /// @notice Total fee set by the initializer (2%).
+    uint16 public constant DEFAULT_FEE_BPS = 200;
+
+    /// @notice Once a market's betting window is over (`closesAt`), the
+    ///         oracle has this long to resolve it. Past that, anyone can
+    ///         cancel it so every staker gets refunded (audit M-02).
+    uint256 public constant RESOLUTION_TIMEOUT = 7 days;
+
+    /// @notice Betting window assumed for markets without `closesAt`
+    ///         (created before the cutoff existed), counted from creation,
+    ///         when computing the stale-cancel deadline.
+    uint256 public constant LEGACY_MARKET_TTL = 90 days;
+
+    /// @notice A pause freezes claims for at most this long; after that,
+    ///         winners can claim even if the match is still paused (M-02).
+    uint256 public constant MAX_CLAIM_PAUSE = 7 days;
+
     // ═══════════════════════════════════════════════════════════════════════
     // ENUMS
     // ═══════════════════════════════════════════════════════════════════════
@@ -116,9 +132,9 @@ abstract contract PariMatchBase is
     // STRUCTS
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// @notice Core market data. Two slots.
-    ///         Slot A: state(1) + result(8) + createdAt(5) + resolvedAt(5) = 19 bytes → 1 slot
-    ///         Slot B: resolvedNetPool (32 bytes) → 1 slot
+    /// @notice Core market data as returned by `getMarketCore` (ABI kept
+    ///         stable for the backend and frontend). Storage uses the
+    ///         superset `MarketCoreData` below.
     struct MarketCore {
         MarketState state;       // 1 byte
         uint64      result;      // 8 bytes — winning outcome index; valid only in Resolved
@@ -127,18 +143,46 @@ abstract contract PariMatchBase is
         uint256     resolvedNetPool;
     }
 
+    /// @notice Core market data in storage. Four slots.
+    ///         Slot A: state(1) + result(8) + createdAt(5) + resolvedAt(5)
+    ///                 + feeBps(2) + leaderboardFeeBps(2) + feesFrozen(1) = 24 bytes
+    ///         Slot B: resolvedNetPool
+    ///         Slot C: paidOut          — USDC paid to winners so far
+    ///         Slot D: claimedWinStake  — winning stake already claimed
+    /// @dev    Upgrade-safe extension of the original two-slot struct: the
+    ///         new slot-A fields sit in bytes that were always zero, slots C
+    ///         and D are appended. Markets opened before this version have
+    ///         `feesFrozen == false` and settle at the match-level fees.
+    struct MarketCoreData {
+        MarketState state;
+        uint64      result;
+        uint40      createdAt;
+        uint40      resolvedAt;
+        uint16      feeBps;             // total fee frozen when the market opened (M-01)
+        uint16      leaderboardFeeBps;  // leaderboard share frozen when the market opened (M-01)
+        bool        feesFrozen;
+        uint256     resolvedNetPool;
+        uint256     paidOut;            // L-02 dust accounting
+        uint256     claimedWinStake;    // L-02 dust accounting
+    }
+
     /// @notice Generic per-market metadata. Two slots.
     ///         Slot A: marketType (32 bytes)
-    ///         Slot B: line(2) + maxOutcome(1) + extra(1) + groupId(2) = 6 bytes → 1 slot
+    ///         Slot B: line(2) + maxOutcome(1) + extra(1) + groupId(2) + closesAt(5) = 11 bytes → 1 slot
     /// @dev    `extra` and `groupId` are sport-defined free fields:
     ///           * extra   — e.g. basketball quarter (1..4) or 0 for full-game
     ///           * groupId — UI grouping for related markets (0 = ungrouped)
+    ///         `closesAt` (audit H-02) is the on-chain betting cutoff: no
+    ///         stake is accepted from that timestamp on. 0 = no cutoff (the
+    ///         admin closes the market by hand, as before). It was appended
+    ///         into free bytes of slot B, so existing markets read 0.
     struct MarketSpec {
         bytes32 marketType;
         int16   line;
         uint8   maxOutcome;
         uint8   extra;
         uint16  groupId;
+        uint40  closesAt;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -155,7 +199,7 @@ abstract contract PariMatchBase is
     uint256 public marketCount;                                       // slot 2
 
     /// @notice Core data per market.
-    mapping(uint256 marketId => MarketCore) internal _marketCores;   // slot 3
+    mapping(uint256 marketId => MarketCoreData) internal _marketCores; // slot 3
 
     /// @notice Gross USDC pool for each market.
     mapping(uint256 marketId => uint256) internal _totalPool;         // slot 4
@@ -202,8 +246,20 @@ abstract contract PariMatchBase is
     ///         `leaderboardFeeBps <= feeBps`.
     uint16 public leaderboardFeeBps;                                  // slot 12 (packed with leaderboardRecipient)
 
-    // Slots 0-12 = 13 named slots. Gap to 50 total.
-    uint256[37] private __gap;
+    /// @notice Timestamp of the last `emergencyPause` (0 = never). Claims
+    ///         reopen MAX_CLAIM_PAUSE after it even if still paused (M-02).
+    uint40 public pausedAt;                                           // slot 12 (packed, bytes 22-26)
+
+    /// @dev USDC this contract owes (stakes in, minus fees, payouts,
+    ///      refunds and swept dust out). `placeBetUSDCFor` requires the
+    ///      balance to cover it plus the new stake (audit L-07). Starts at 0
+    ///      on proxies upgraded from an older implementation, so there it only
+    ///      tracks stakes taken after the upgrade; decrements saturate at 0
+    ///      so withdrawals can never revert on it.
+    uint256 internal _accountedUsdc;                                  // slot 13
+
+    // Slots 0-13 = 14 named slots. Gap to 50 total.
+    uint256[36] private __gap;
 
     // ═══════════════════════════════════════════════════════════════════════
     // EVENTS
@@ -249,7 +305,12 @@ abstract contract PariMatchBase is
     event LeaderboardRecipientSet(address indexed oldRecipient, address indexed newRecipient);
     event LeaderboardFeeBpsSet(uint16 oldBps, uint16 newBps);
     event LeaderboardRecordFailed(address indexed leaderboard, address indexed user, uint256 payout);
+    event LeaderboardNotifyFailed(address indexed leaderboard, uint256 amount);
     event USDCTokenSet(address indexed token);
+    event MarketCloseTimeSet(uint256 indexed marketId, uint40 closesAt);
+    event MarketFeesFrozen(uint256 indexed marketId, uint16 feeBps, uint16 leaderboardFeeBps);
+    event StaleMarketCancelled(uint256 indexed marketId, address indexed caller);
+    event DustSwept(uint256 indexed marketId, address indexed to, uint256 amount);
 
     // ═══════════════════════════════════════════════════════════════════════
     // ERRORS
@@ -272,6 +333,14 @@ abstract contract PariMatchBase is
     error LeaderboardFeeExceedsTotal(uint16 leaderboardBps, uint16 totalBps);
     error LeaderboardRecipientNotConfigured();
     error ArrayLengthMismatch();
+    error BettingClosed(uint256 marketId, uint40 closesAt);
+    error InvalidCloseTime(uint256 marketId, uint40 closesAt);
+    error MarketNotStale(uint256 marketId, uint256 staleAt);
+    error MarketNotExpired(uint256 marketId);
+    error USDCAlreadyConfigured();
+    error UnbackedStake(uint256 required, uint256 balance);
+    error DustNotSweepable(uint256 marketId);
+    error ClaimsPaused(uint256 reopensAt);
 
     // ═══════════════════════════════════════════════════════════════════════
     // MODIFIERS
@@ -298,9 +367,7 @@ abstract contract PariMatchBase is
         string memory _sportType,
         address _owner
     ) internal onlyInitializing {
-        __Ownable_init(_owner);
         __AccessControl_init();
-        __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
         __Pausable_init();
 
@@ -314,7 +381,7 @@ abstract contract PariMatchBase is
 
         matchName = _matchName;
         sportType = _sportType;
-        feeBps    = 200; // 2% default
+        feeBps    = DEFAULT_FEE_BPS; // 2%
 
         emit MatchInitialized(_matchName, _sportType, _owner);
     }
@@ -322,21 +389,33 @@ abstract contract PariMatchBase is
     // ═══════════════════════════════════════════════════════════════════════
     // ADMIN SETTERS
     // ═══════════════════════════════════════════════════════════════════════
+    //
+    // Economic parameters (token, fee recipients, fee rates) are
+    // DEFAULT_ADMIN_ROLE, i.e. governance on factory-created matches, not the
+    // ops hot key: the ops key could otherwise open zero-fee markets to farm
+    // the leaderboard, or redirect the fees (independent review of the
+    // audit fixes, finding 2).
 
-    function setUSDCToken(address _usdc) external onlyRole(ADMIN_ROLE) {
+    /// @notice Set the settlement token. Only before any market exists
+    ///         (audit M-01): switching tokens with stakes in escrow would pay
+    ///         claims and refunds in a token nobody deposited.
+    function setUSDCToken(address _usdc) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (_usdc == address(0)) revert USDCNotConfigured();
+        if (address(usdcToken) != address(0) && marketCount != 0) revert USDCAlreadyConfigured();
         usdcToken = IERC20(_usdc);
         emit USDCTokenSet(_usdc);
     }
 
-    function setFeeRecipient(address _recipient) external onlyRole(ADMIN_ROLE) {
+    function setFeeRecipient(address _recipient) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (_recipient == address(0)) revert FeeRecipientNotConfigured();
         address old = feeRecipient;
         feeRecipient = _recipient;
         emit FeeRecipientSet(old, _recipient);
     }
 
-    function setFeeBps(uint16 _feeBps) external onlyRole(ADMIN_ROLE) {
+    /// @notice Total fee for markets opened from now on. Markets already open
+    ///         keep the fee frozen when they opened (audit M-01).
+    function setFeeBps(uint16 _feeBps) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (_feeBps > MAX_FEE_BPS) revert FeeBpsExceedsMax(_feeBps, MAX_FEE_BPS);
         // Lower the total below an already-set leaderboard share would yield
         // a negative company portion. Enforce the invariant up-front.
@@ -350,9 +429,13 @@ abstract contract PariMatchBase is
 
     /// @notice Configure the leaderboard portion of the total fee. Must be
     ///         <= `feeBps`. Zero means "no leaderboard split — full fee to
-    ///         company" (backward-compatible default).
-    function setLeaderboardFeeBps(uint16 _bps) external onlyRole(ADMIN_ROLE) {
+    ///         company" (backward-compatible default). A non-zero share needs
+    ///         a leaderboard recipient first (audit L-04).
+    ///         Applies to markets opened afterwards; open markets keep the
+    ///         share frozen when they opened (audit M-01).
+    function setLeaderboardFeeBps(uint16 _bps) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (_bps > feeBps) revert LeaderboardFeeExceedsTotal(_bps, feeBps);
+        if (_bps != 0 && leaderboardRecipient == address(0)) revert LeaderboardRecipientNotConfigured();
         uint16 old = leaderboardFeeBps;
         leaderboardFeeBps = _bps;
         emit LeaderboardFeeBpsSet(old, _bps);
@@ -360,10 +443,12 @@ abstract contract PariMatchBase is
 
     /// @notice Set the address that receives the leaderboard share of the
     ///         fee. Zero clears the recipient (no leaderboard payouts; the
-    ///         `recordWin` notify in `_processClaim` becomes a no-op).
+    ///         `recordWin` notify in `_processClaim` becomes a no-op) and is
+    ///         only allowed once `leaderboardFeeBps` is 0 (audit L-04).
     ///         When non-zero, must be the address of a `LeaderboardRewards`
     ///         proxy (or compatible `ILeaderboardRewards` sink).
-    function setLeaderboardRecipient(address _recipient) external onlyRole(ADMIN_ROLE) {
+    function setLeaderboardRecipient(address _recipient) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_recipient == address(0) && leaderboardFeeBps != 0) revert LeaderboardFeeExceedsTotal(leaderboardFeeBps, 0);
         address old = leaderboardRecipient;
         leaderboardRecipient = _recipient;
         emit LeaderboardRecipientSet(old, _recipient);
@@ -447,10 +532,89 @@ abstract contract PariMatchBase is
             line:       line,
             maxOutcome: maxOutcome,
             extra:      extra,
-            groupId:    groupId
+            groupId:    groupId,
+            closesAt:   0
         });
 
         emit MarketCreated(marketId, marketType, line, maxOutcome, groupId);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // BETTING CUTOFF  (audit H-02)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// @notice Set the on-chain betting cutoff of a market (typically the
+    ///         kickoff for pre-match markets). From `closesAt` on, every
+    ///         stake reverts and anyone may close the market.
+    /// @dev    Allowed until the market settles, as long as the current
+    ///         cutoff has not passed (a passed cutoff cannot be reopened).
+    ///         `closesAt` must be in the future: to stop betting now, call
+    ///         `closeMarket` / `suspendMarket`.
+    function setMarketCloseTime(uint256 marketId, uint40 closesAt)
+        external validMarket(marketId) onlyRole(ADMIN_ROLE)
+    {
+        _setCloseTime(marketId, closesAt);
+    }
+
+    /// @notice Batch form of `setMarketCloseTime` with one cutoff for all.
+    function setMarketsCloseTime(uint256[] calldata marketIds, uint40 closesAt)
+        external onlyRole(ADMIN_ROLE)
+    {
+        uint256 n = marketIds.length;
+        for (uint256 i; i < n; ++i) {
+            if (marketIds[i] >= marketCount) revert InvalidMarketId(marketIds[i]);
+            _setCloseTime(marketIds[i], closesAt);
+        }
+    }
+
+    function _setCloseTime(uint256 marketId, uint40 closesAt) internal {
+        MarketState s = _marketCores[marketId].state;
+        if (s == MarketState.Closed || s == MarketState.Resolved || s == MarketState.Cancelled)
+            revert InvalidMarketState(marketId, s, MarketState.Open);
+        uint40 current = _marketSpec[marketId].closesAt;
+        if (current != 0 && block.timestamp >= current) revert BettingClosed(marketId, current);
+        if (closesAt <= block.timestamp) revert InvalidCloseTime(marketId, closesAt);
+        _marketSpec[marketId].closesAt = closesAt;
+        emit MarketCloseTimeSet(marketId, closesAt);
+    }
+
+    /// @notice Close a market whose cutoff has passed. Permissionless, so
+    ///         resolution never waits on the admin.
+    function closeExpiredMarket(uint256 marketId) external validMarket(marketId) {
+        uint40 closesAt = _marketSpec[marketId].closesAt;
+        if (closesAt == 0 || block.timestamp < closesAt) revert MarketNotExpired(marketId);
+        _transitionMarketState(marketId, MarketState.Closed);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // STALE MARKETS  (audit M-02)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// @notice Timestamp from which an unresolved market can be cancelled by
+    ///         anyone: cutoff + RESOLUTION_TIMEOUT, or for markets without a
+    ///         cutoff, creation + LEGACY_MARKET_TTL + RESOLUTION_TIMEOUT.
+    function staleAt(uint256 marketId) public view validMarket(marketId) returns (uint256) {
+        uint40 closesAt = _marketSpec[marketId].closesAt;
+        uint256 base = closesAt != 0
+            ? uint256(closesAt)
+            : uint256(_marketCores[marketId].createdAt) + LEGACY_MARKET_TTL;
+        return base + RESOLUTION_TIMEOUT;
+    }
+
+    /// @notice Cancel a market the oracle never resolved, so every staker
+    ///         can claim a full refund. Permissionless once `staleAt` passed.
+    function cancelStaleMarket(uint256 marketId) external validMarket(marketId) {
+        MarketCoreData storage core = _marketCores[marketId];
+        MarketState s = core.state;
+        if (s != MarketState.Open && s != MarketState.Suspended && s != MarketState.Closed)
+            revert InvalidMarketState(marketId, s, MarketState.Closed);
+        uint256 deadline = staleAt(marketId);
+        if (block.timestamp < deadline) revert MarketNotStale(marketId, deadline);
+
+        core.state = MarketState.Cancelled;
+        emit MarketStateChanged(marketId, s, MarketState.Cancelled);
+        emit MarketCancelled(marketId, "stale: not resolved in time");
+        emit StaleMarketCancelled(marketId, msg.sender);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -496,12 +660,21 @@ abstract contract PariMatchBase is
     }
 
     function _transitionMarketState(uint256 marketId, MarketState newState) internal {
-        MarketCore storage core = _marketCores[marketId];
+        MarketCoreData storage core = _marketCores[marketId];
         MarketState oldState = core.state;
 
         if (newState == MarketState.Open) {
             if (oldState != MarketState.Inactive && oldState != MarketState.Suspended)
                 revert InvalidMarketState(marketId, oldState, newState);
+            // M-01: the fee a bettor sees when the market opens is the fee
+            // they settle at. Later setFeeBps / setLeaderboardFeeBps calls
+            // only reach markets opened afterwards.
+            if (!core.feesFrozen) {
+                core.feeBps            = feeBps;
+                core.leaderboardFeeBps = leaderboardFeeBps;
+                core.feesFrozen        = true;
+                emit MarketFeesFrozen(marketId, feeBps, leaderboardFeeBps);
+            }
         } else if (newState == MarketState.Suspended) {
             if (oldState != MarketState.Open)
                 revert InvalidMarketState(marketId, oldState, newState);
@@ -540,6 +713,7 @@ abstract contract PariMatchBase is
         if (amount < MIN_STAKE) revert StakeBelowMinimum(amount, MIN_STAKE);
 
         _validateOutcome(marketId, outcome);
+        _requireBettingWindow(marketId);
 
         usdcToken.safeTransferFrom(msg.sender, address(this), amount);
         _recordStake(msg.sender, marketId, outcome, amount);
@@ -547,6 +721,9 @@ abstract contract PariMatchBase is
 
     /// @notice Place a stake on behalf of a user after the router has already
     ///         transferred `amount` USDC to this contract.
+    /// @dev    L-07: reverts unless the USDC balance covers every stake
+    ///         already accounted for plus `amount`, so a SWAP_ROUTER_ROLE
+    ///         holder cannot record a stake it did not fund.
     function placeBetUSDCFor(
         address user,
         uint256 marketId,
@@ -563,7 +740,20 @@ abstract contract PariMatchBase is
         if (amount == 0) revert ZeroStake();
         if (amount < MIN_STAKE) revert StakeBelowMinimum(amount, MIN_STAKE);
         _validateOutcome(marketId, outcome);
+        _requireBettingWindow(marketId);
+        if (address(usdcToken) == address(0)) revert USDCNotConfigured();
+
+        uint256 required = _accountedUsdc + amount;
+        uint256 balance  = usdcToken.balanceOf(address(this));
+        if (balance < required) revert UnbackedStake(required, balance);
+
         _recordStake(user, marketId, outcome, amount);
+    }
+
+    /// @dev H-02: no stake from the market's cutoff on.
+    function _requireBettingWindow(uint256 marketId) internal view {
+        uint40 closesAt = _marketSpec[marketId].closesAt;
+        if (closesAt != 0 && block.timestamp >= closesAt) revert BettingClosed(marketId, closesAt);
     }
 
     function _recordStake(
@@ -572,6 +762,7 @@ abstract contract PariMatchBase is
         uint64  outcome,
         uint256 amount
     ) internal {
+        _accountedUsdc                         += amount;
         _userStake[marketId][user][outcome]    += amount;
         _userTotalStake[marketId][user]        += amount;
         _outcomePool[marketId][outcome]        += amount;
@@ -609,7 +800,7 @@ abstract contract PariMatchBase is
     }
 
     function _resolveMarketInternal(uint256 marketId, uint64 result) internal {
-        MarketCore storage core = _marketCores[marketId];
+        MarketCoreData storage core = _marketCores[marketId];
         if (core.state != MarketState.Closed)
             revert InvalidMarketState(marketId, core.state, MarketState.Closed);
 
@@ -626,31 +817,68 @@ abstract contract PariMatchBase is
             return;
         }
 
-        // Split-fee math. `feeBps` is the TOTAL (company + leaderboard).
-        // Each share is computed independently to avoid floor-division
-        // drift between the two recipients — totalFee is the sum.
-        uint256 leaderboardFee = (total * leaderboardFeeBps) / BPS_DENOM;
-        uint256 companyFee     = (total * (feeBps - leaderboardFeeBps)) / BPS_DENOM;
-        uint256 fee            = leaderboardFee + companyFee;
-        uint256 netPool        = total - fee;
+        // Split-fee math. The total fee is company + leaderboard; each share
+        // is computed independently to avoid floor-division drift between
+        // the two recipients. Fees are the ones frozen when the market opened
+        // (M-01); markets opened before that existed fall back to the
+        // match-level values. No losers means no fee (L-02): winners get
+        // their stake back in full.
+        uint256 leaderboardFee;
+        uint256 companyFee;
+        if (winningPool != total) {
+            (uint16 totalBps, uint16 lbBps) = core.feesFrozen
+                ? (core.feeBps, core.leaderboardFeeBps)
+                : (feeBps, leaderboardFeeBps);
+            leaderboardFee = (total * lbBps) / BPS_DENOM;
+            companyFee     = (total * (totalBps - lbBps)) / BPS_DENOM;
+        }
+        uint256 fee     = leaderboardFee + companyFee;
+        uint256 netPool = total - fee;
 
         core.result          = result;
         core.resolvedAt      = uint40(block.timestamp);
         core.state           = MarketState.Resolved;
         core.resolvedNetPool = netPool;
+        _decreaseAccounted(fee);
 
         emit MarketStateChanged(marketId, MarketState.Closed, MarketState.Resolved);
         emit MarketResolved(marketId, result, total, fee, netPool);
 
         // CEI: state is written before the external calls below.
+        // L-04: a frozen leaderboard share whose recipient was cleared since
+        // goes to the company recipient instead of bricking the resolution.
+        address lb = leaderboardRecipient;
+        if (lb == address(0)) {
+            companyFee    += leaderboardFee;
+            leaderboardFee = 0;
+        }
         if (companyFee > 0) {
             if (feeRecipient == address(0)) revert FeeRecipientNotConfigured();
             usdcToken.safeTransfer(feeRecipient, companyFee);
         }
         if (leaderboardFee > 0) {
-            if (leaderboardRecipient == address(0)) revert LeaderboardRecipientNotConfigured();
-            usdcToken.safeTransfer(leaderboardRecipient, leaderboardFee);
+            usdcToken.safeTransfer(lb, leaderboardFee);
+            // M-03: attribute the fee to the epoch of this resolution. Best
+            // effort: if it fails the USDC still sits in the leaderboard and
+            // joins the next epoch that closes. The code check matters: a
+            // `try` on an address without code reverts in THIS contract
+            // instead of reaching `catch`, which would brick the resolution.
+            if (lb.code.length == 0) {
+                emit LeaderboardNotifyFailed(lb, leaderboardFee);
+            } else {
+                try ILeaderboardRewards(lb).notifyFee(leaderboardFee) {
+                    // ok
+                } catch {
+                    emit LeaderboardNotifyFailed(lb, leaderboardFee);
+                }
+            }
         }
+    }
+
+    /// @dev Saturating decrement of `_accountedUsdc` (see its natspec).
+    function _decreaseAccounted(uint256 amount) internal {
+        uint256 a = _accountedUsdc;
+        _accountedUsdc = amount >= a ? 0 : a - amount;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -662,30 +890,42 @@ abstract contract PariMatchBase is
         nonReentrant
         validMarket(marketId)
         inState(marketId, MarketState.Resolved)
-        whenNotPaused
     {
+        _requireClaimsOpen();
         _processClaim(msg.sender, marketId);
     }
 
+    /// @notice Claim several resolved markets at once. Markets that are not
+    ///         resolved, already claimed, or where the caller holds no
+    ///         winning stake are skipped instead of reverting (audit L-01).
     function claimBatch(uint256[] calldata marketIds)
         external
         nonReentrant
-        whenNotPaused
     {
+        _requireClaimsOpen();
         uint256 n = marketIds.length;
         for (uint256 i; i < n; ++i) {
             uint256 mid = marketIds[i];
             if (mid >= marketCount) revert InvalidMarketId(mid);
             if (_marketCores[mid].state != MarketState.Resolved) continue;
             if (_claimed[mid][msg.sender]) continue;
+            if (_userStake[mid][msg.sender][_marketCores[mid].result] == 0) continue;
             _processClaim(msg.sender, mid);
         }
+    }
+
+    /// @dev M-02: a pause stops claims for at most MAX_CLAIM_PAUSE, so the
+    ///      pauser cannot hold winnings hostage indefinitely.
+    function _requireClaimsOpen() internal view {
+        if (!paused()) return;
+        uint256 reopensAt = uint256(pausedAt) + MAX_CLAIM_PAUSE;
+        if (block.timestamp < reopensAt) revert ClaimsPaused(reopensAt);
     }
 
     function _processClaim(address user, uint256 marketId) internal {
         if (_claimed[marketId][user]) revert AlreadyClaimed(marketId, user);
 
-        MarketCore storage core = _marketCores[marketId];
+        MarketCoreData storage core = _marketCores[marketId];
         uint64 winningOutcome   = core.result;
         uint256 userWinStake    = _userStake[marketId][user][winningOutcome];
 
@@ -697,19 +937,29 @@ abstract contract PariMatchBase is
         uint256 payout = (userWinStake * netPool) / winningPool;
 
         _claimed[marketId][user] = true;
+        core.paidOut         += payout;
+        core.claimedWinStake += userWinStake;
+        _decreaseAccounted(payout);
 
         usdcToken.safeTransfer(user, payout);
         emit PositionClaimed(marketId, user, userWinStake, payout);
 
-        // Best-effort: notify the leaderboard so it can credit the user's
-        // cumulative score. Wrapped in try/catch — a paused, upgraded, or
-        // misconfigured leaderboard MUST NOT be able to brick claims.
+        // Best-effort leaderboard credit, wrapped in try/catch — a paused,
+        // upgraded, or misconfigured leaderboard MUST NOT be able to brick
+        // claims. M-05: the score is the NET profit on this market (payout
+        // minus everything the user staked on it, all outcomes), credited to
+        // the epoch of the market's resolution, not of the claim.
+        // A market whose leaderboard share is 0 feeds nothing to the prize
+        // pool, so it scores nothing either (no zero-fee score farming).
         address lb = leaderboardRecipient;
-        if (lb != address(0)) {
-            try ILeaderboardRewards(lb).recordWin(user, payout) {
+        uint256 totalStake = _userTotalStake[marketId][user];
+        uint16 lbBps = core.feesFrozen ? core.leaderboardFeeBps : leaderboardFeeBps;
+        if (lbBps != 0 && lb.code.length != 0 && payout > totalStake) { // no-code guard: see resolution
+            uint256 profit = payout - totalStake;
+            try ILeaderboardRewards(lb).recordProfit(user, profit, core.resolvedAt) {
                 // ok
             } catch {
-                emit LeaderboardRecordFailed(lb, user, payout);
+                emit LeaderboardRecordFailed(lb, user, profit);
             }
         }
     }
@@ -748,9 +998,39 @@ abstract contract PariMatchBase is
         if (refund == 0) revert NothingToRefund(marketId, user);
 
         _claimed[marketId][user] = true;
+        _decreaseAccounted(refund);
 
         usdcToken.safeTransfer(user, refund);
         emit StakeRefunded(marketId, user, refund);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // ROUNDING DUST  (audit L-02)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// @notice USDC left in a resolved market once every winner has claimed:
+    ///         the floor-division remainder of the payouts. Zero until the
+    ///         last winning stake is claimed, so unclaimed winnings are never
+    ///         counted as dust.
+    function sweepableDust(uint256 marketId) public view validMarket(marketId) returns (uint256) {
+        MarketCoreData storage core = _marketCores[marketId];
+        if (core.state != MarketState.Resolved) return 0;
+        if (core.claimedWinStake != _outcomePool[marketId][core.result]) return 0;
+        return core.resolvedNetPool - core.paidOut;
+    }
+
+    /// @notice Send a fully claimed market's rounding dust to `feeRecipient`.
+    ///         Permissionless; reverts when there is nothing to sweep.
+    function sweepDust(uint256 marketId) external nonReentrant validMarket(marketId) {
+        uint256 dust = sweepableDust(marketId);
+        if (dust == 0) revert DustNotSweepable(marketId);
+        address to = feeRecipient;
+        if (to == address(0)) revert FeeRecipientNotConfigured();
+
+        _marketCores[marketId].paidOut += dust; // nothing left to sweep twice
+        _decreaseAccounted(dust);
+        usdcToken.safeTransfer(to, dust);
+        emit DustSwept(marketId, to, dust);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -768,7 +1048,27 @@ abstract contract PariMatchBase is
 
     function getMarketCore(uint256 marketId)
         external view validMarket(marketId) returns (MarketCore memory)
-    { return _marketCores[marketId]; }
+    {
+        MarketCoreData storage c = _marketCores[marketId];
+        return MarketCore({
+            state:           c.state,
+            result:          c.result,
+            createdAt:       c.createdAt,
+            resolvedAt:      c.resolvedAt,
+            resolvedNetPool: c.resolvedNetPool
+        });
+    }
+
+    /// @notice Fees a market settles at: frozen at opening (M-01), or the
+    ///         current match-level values while it has never been opened.
+    function getMarketFees(uint256 marketId)
+        external view validMarket(marketId)
+        returns (uint16 totalFeeBps, uint16 leaderboardShareBps, bool frozen)
+    {
+        MarketCoreData storage c = _marketCores[marketId];
+        if (c.feesFrozen) return (c.feeBps, c.leaderboardFeeBps, true);
+        return (feeBps, leaderboardFeeBps, false);
+    }
 
     function getMarketSpec(uint256 marketId)
         external view validMarket(marketId) returns (MarketSpec memory)
@@ -787,7 +1087,7 @@ abstract contract PariMatchBase is
         )
     {
         MarketSpec storage spec = _marketSpec[marketId];
-        MarketCore storage core = _marketCores[marketId];
+        MarketCoreData storage core = _marketCores[marketId];
         marketType   = spec.marketType;
         state        = core.state;
         result       = core.result;
@@ -828,10 +1128,23 @@ abstract contract PariMatchBase is
     // EMERGENCY
     // ═══════════════════════════════════════════════════════════════════════
 
-    function emergencyPause() external onlyRole(PAUSER_ROLE) { _pause(); }
+    /// @dev The claim-freeze clock (`pausedAt`) only restarts if the previous
+    ///      pause began at least 2 x MAX_CLAIM_PAUSE ago, so cycling
+    ///      unpause / emergencyPause cannot keep claims frozen: they stay open
+    ///      at least half of the time (M-02, independent review finding 3).
+    function emergencyPause() external onlyRole(PAUSER_ROLE) {
+        if (pausedAt == 0 || block.timestamp >= uint256(pausedAt) + 2 * MAX_CLAIM_PAUSE) {
+            pausedAt = uint40(block.timestamp);
+        }
+        _pause();
+    }
     function unpause()        external onlyRole(ADMIN_ROLE)  { _unpause(); }
 
-    function _authorizeUpgrade(address) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
+    // No `_authorizeUpgrade` / UUPS (audit H-01): a match admin used to be
+    // able to upgrade its own proxy to code that drains the escrow and
+    // forges leaderboard scores. Code changes go through the beacon only.
+    // The storage layout is unchanged: OZ 5 keeps Ownable / UUPS state in
+    // ERC-7201 namespaced slots, never in the linear slots 0-49 used here.
 
     // ═══════════════════════════════════════════════════════════════════════
     // ABSTRACT (sport-specific)

@@ -5,10 +5,12 @@ import {Test} from "forge-std/Test.sol";
 import {ChilizSwapRouter} from "../src/swap/ChilizSwapRouter.sol";
 import {PariMatchFactory} from "../src/pari/PariMatchFactory.sol";
 import {StreamWalletFactory} from "../src/streamer/StreamWalletFactory.sol";
+import {StreamWallet} from "../src/streamer/StreamWallet.sol";
 import {MockUSDC} from "./mocks/MockUSDC.sol";
 import {MockKayenRouter} from "./mocks/MockKayenRouter.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {PariFactoryDeployer} from "./helpers/PariFactoryDeployer.sol";
 
 /// @dev Simple mock fan token for ERC20 swap tests
 contract MockFanToken is ERC20 {
@@ -57,6 +59,12 @@ contract StreamSwapRouterTest is Test {
         walletFactory.setSwapRouter(address(streamSwapRouter));
         streamSwapRouter.setStreamWalletFactory(address(walletFactory));
 
+        // H-03: subscriptions need an on-chain price set by the streamer
+        // (1 USDC per 30 days here; the subscription tests pay at least that).
+        StreamWallet w1 = StreamWallet(payable(walletFactory.deployWalletFor(streamer1)));
+        vm.prank(streamer1);
+        w1.setSubscriptionPricing(1e6, 30 days);
+
         vm.deal(viewer1, 100 ether);
         vm.deal(viewer2, 100 ether);
 
@@ -83,7 +91,7 @@ contract StreamSwapRouterTest is Test {
         streamSwapRouter.donateWithCHZ{value: 10 ether}(
             streamer1,
             "Great stream!",
-            0,
+            1, // amountOutMin must be non-zero (audit M-07)
             block.timestamp + 1 hours
         );
 
@@ -102,7 +110,7 @@ contract StreamSwapRouterTest is Test {
         streamSwapRouter.subscribeWithCHZ{value: 10 ether}(
             streamer1,
             duration,
-            0,
+            1, // amountOutMin must be non-zero (audit M-07)
             block.timestamp + 1 hours
         );
 
@@ -164,7 +172,7 @@ contract StreamSwapRouterTest is Test {
             tokenAmount,
             streamer1,
             "Fan token donation!",
-            0,
+            1, // amountOutMin must be non-zero (audit M-07)
             block.timestamp + 1 hours
         );
         vm.stopPrank();
@@ -188,7 +196,7 @@ contract StreamSwapRouterTest is Test {
             tokenAmount,
             streamer1,
             duration,
-            0,
+            1, // amountOutMin must be non-zero (audit M-07)
             block.timestamp + 1 hours
         );
         vm.stopPrank();
@@ -229,6 +237,24 @@ contract StreamSwapRouterTest is Test {
         );
     }
 
+    function test_H03_UnderpaidSubscriptionReverts() public {
+        // 0.5 USDC cannot buy 30 days at 1 USDC / 30 days.
+        vm.startPrank(viewer1);
+        usdc.approve(address(streamSwapRouter), 5e5);
+        vm.expectRevert(abi.encodeWithSelector(StreamWallet.InsufficientSubscriptionPayment.selector, 1e6, 5e5));
+        streamSwapRouter.subscribeWithUSDC(streamer1, 30 days, 5e5);
+        vm.stopPrank();
+    }
+
+    function test_H03_UnpricedStreamerRefusesSubscriptions() public {
+        address unpriced = makeAddr("unpricedStreamer");
+        vm.startPrank(viewer1);
+        usdc.approve(address(streamSwapRouter), 1e6);
+        vm.expectRevert(StreamWallet.SubscriptionPriceNotSet.selector);
+        streamSwapRouter.subscribeWithUSDC(unpriced, 30 days, 1e6);
+        vm.stopPrank();
+    }
+
     function test_RevertSubscribeZeroDuration() public {
         vm.prank(viewer1);
         vm.expectRevert(ChilizSwapRouter.ZeroValue.selector);
@@ -245,13 +271,21 @@ contract StreamSwapRouterTest is Test {
         );
     }
 
+    function test_Revert_M07_ZeroSlippageRejected() public {
+        vm.prank(viewer1);
+        vm.expectRevert(ChilizSwapRouter.SlippageNotSet.selector);
+        streamSwapRouter.donateWithCHZ{value: 1 ether}(
+            streamer1, "test", 0, block.timestamp + 1 hours
+        );
+    }
+
     function test_RevertDonateSwapFailure() public {
         mockRouter.setShouldFail(true);
 
         vm.prank(viewer1);
         vm.expectRevert("MockRouter: swap failed");
         streamSwapRouter.donateWithCHZ{value: 1 ether}(
-            streamer1, "test", 0, block.timestamp + 1 hours
+            streamer1, "test", 1, block.timestamp + 1 hours
         );
     }
 
@@ -333,7 +367,7 @@ contract StreamSwapRouterTest is Test {
     // ══════════════════════════════════════════════════════════════════════════
 
     function test_M02_SetMatchFactory_SetsFactory() public {
-        PariMatchFactory bmf = new PariMatchFactory();
+        PariMatchFactory bmf = PariFactoryDeployer.deploy();
         streamSwapRouter.setMatchFactory(address(bmf));
         assertEq(address(streamSwapRouter.bettingMatchFactory()), address(bmf));
     }
@@ -344,7 +378,7 @@ contract StreamSwapRouterTest is Test {
     }
 
     function test_M02_NonOwner_SetMatchFactory_Reverts() public {
-        PariMatchFactory bmf = new PariMatchFactory();
+        PariMatchFactory bmf = PariFactoryDeployer.deploy();
         vm.prank(viewer1);
         vm.expectRevert();
         streamSwapRouter.setMatchFactory(address(bmf));
@@ -352,7 +386,7 @@ contract StreamSwapRouterTest is Test {
 
     function test_M02_PlaceBetWithUSDC_UnauthorizedMatch_Reverts() public {
         // Register a real factory — the unknown address is NOT in it
-        PariMatchFactory bmf = new PariMatchFactory();
+        PariMatchFactory bmf = PariFactoryDeployer.deploy();
         streamSwapRouter.setMatchFactory(address(bmf));
 
         address unknownMatch = address(0xBEEF);

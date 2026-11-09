@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# ChilizTV Deployment Script (Chiliz-only)
+# ChilizTV Deployment Script (Chiliz Chain + Base)
 #
 # All configuration is loaded from .env (see .env.example).
 #
@@ -12,6 +12,10 @@
 #   ./deploy.sh --network chilizTestnet --redeploy-swap      # ChilizSwapRouter redeploy + auto-wire to existing factories
 #   ./deploy.sh --network chilizTestnet --upgrade-leaderboard # LeaderboardRewards V2 (UUPS upgradeToAndCall + initializeV2)
 #   ./deploy.sh --network chilizMainnet  --all
+#   ./deploy.sh --network baseSepolia    --all     # Base Sepolia (84532), see .env.baseSepolia.example
+#
+# On Base the same contracts run unchanged: Uniswap V2 Router02 stands in for
+# Kayen (same ABI), WETH for WCHZ, native ETH for CHZ ("*WithCHZ" entrypoints).
 #
 # Add `--dry-run` to simulate via forge without broadcasting — no on-chain tx,
 # no deployments/<network>.json update. Useful to preview gas + address layout.
@@ -67,14 +71,14 @@ while [[ $# -gt 0 ]]; do
             exit 1 ;;
         *)
             echo -e "${RED}Unknown argument: $1${NC}"
-            echo "Usage: ./deploy.sh --network <chilizTestnet|chilizMainnet> <--all|--pari|--stream|--swap|--redeploy-swap|--upgrade-leaderboard> [--dry-run]"
+            echo "Usage: ./deploy.sh --network <chilizTestnet|chilizMainnet|baseSepolia|baseMainnet> <--all|--pari|--stream|--swap|--redeploy-swap|--upgrade-leaderboard> [--dry-run]"
             exit 1 ;;
     esac
 done
 
 if [ -z "$NETWORK" ] || [ -z "$DEPLOY_TYPE" ]; then
     echo -e "${RED}Missing required arguments.${NC}"
-    echo "Usage: ./deploy.sh --network <chilizTestnet|chilizMainnet> <--all|--pari|--stream|--swap|--redeploy-swap|--upgrade-leaderboard> [--dry-run]"
+    echo "Usage: ./deploy.sh --network <chilizTestnet|chilizMainnet|baseSepolia|baseMainnet> <--all|--pari|--stream|--swap|--redeploy-swap|--upgrade-leaderboard> [--dry-run]"
     exit 1
 fi
 
@@ -118,6 +122,10 @@ case "$NETWORK" in
         EXPECTED_CHAIN_ID=88882 ;;
     chilizMainnet)
         EXPECTED_CHAIN_ID=88888 ;;
+    baseSepolia)
+        EXPECTED_CHAIN_ID=84532 ;;
+    baseMainnet)
+        EXPECTED_CHAIN_ID=8453 ;;
     *)
         echo -e "${YELLOW}Warning: unknown --network '$NETWORK' (skipping chain-id sanity check)${NC}"
         EXPECTED_CHAIN_ID="" ;;
@@ -178,7 +186,7 @@ if [ "$REQUIRES_KAYEN" = true ]; then
         echo -e "${RED}Missing in $ENV_FILE:${MISSING}${NC}"
         exit 1
     fi
-    if [ "${KAYEN_MASTER_ROUTER,,}" = "${KAYEN_ROUTER,,}" ]; then
+    if [ "${KAYEN_MASTER_ROUTER,,}" = "${KAYEN_ROUTER,,}" ] && [[ "$NETWORK" == chiliz* ]]; then
         echo -e "${YELLOW}WARNING: KAYEN_MASTER_ROUTER == KAYEN_ROUTER.${NC}"
         echo -e "${YELLOW}  Master Router V2 (CHZ-native, Kayen-specific signature) and the basic"
         echo -e "${YELLOW}  Kayen Router (Uniswap V2 fork, standard signature) are documented as"
@@ -258,7 +266,7 @@ if [ -n "$GAS_PRICE_OVERRIDE" ] && command -v curl &> /dev/null; then
 fi
 
 # ── Mainnet safety warning ───────────────────────────────────────────────────
-if [ "$NETWORK" = "chilizMainnet" ]; then
+if [ "$NETWORK" = "chilizMainnet" ] || [ "$NETWORK" = "baseMainnet" ]; then
     echo -e "${RED}╔══════════════════════════════════════════════╗${NC}"
     echo -e "${RED}║        ⚠  MAINNET DEPLOYMENT WARNING  ⚠     ║${NC}"
     echo -e "${RED}║  Real funds are at risk. Double-check:       ║${NC}"

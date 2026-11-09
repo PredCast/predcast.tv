@@ -102,6 +102,8 @@ contract RedeploySwapRouter is Script {
 
         // 6. Optional: hand ownership to Safe.
         if (transferOwnership) {
+            require(treasury.code.length > 0, "SAFE_ADDRESS has no code on this chain"); // H-04
+            // Ownable2Step: the Safe must call acceptOwnership().
             newRouter.transferOwnership(treasury);
             console.log("  newRouter.transferOwnership ->", treasury);
         }
@@ -123,7 +125,7 @@ contract RedeploySwapRouter is Script {
         tokenRouter       = vm.envAddress("KAYEN_ROUTER");
         wrapperFactory    = _envAddressOr("WRAPPER_FACTORY", address(0));
         platformFeeBps    = uint16(_envUintOr("PLATFORM_FEE_BPS", 500));
-        transferOwnership = _envBoolOr("TRANSFER_OWNERSHIP", false);
+        transferOwnership = _envBoolOr("TRANSFER_OWNERSHIP", !_isTestChain()); // H-04
 
         // Distinctness is preferred but not required. On Chiliz Spicy testnet
         // only one usable Kayen-fork router is deployed at present, so the
@@ -197,5 +199,10 @@ contract RedeploySwapRouter is Script {
 
     function _envAddressOr(string memory key, address def) internal view returns (address) {
         try vm.envAddress(key) returns (address v) { return v; } catch { return def; }
+    }
+
+    /// @dev Chains where a deployer-owned setup is acceptable by default (audit H-04).
+    function _isTestChain() internal view returns (bool) {
+        return block.chainid == 88882 || block.chainid == 84532 || block.chainid == 31337;
     }
 }

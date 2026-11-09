@@ -9,6 +9,7 @@ import {FootballPariMatch}   from "../src/pari/FootballPariMatch.sol";
 import {BasketballPariMatch} from "../src/pari/BasketballPariMatch.sol";
 import {PariMatchFactory}    from "../src/pari/PariMatchFactory.sol";
 import {MockUSDC}            from "./mocks/MockUSDC.sol";
+import {PariFactoryDeployer} from "./helpers/PariFactoryDeployer.sol";
 
 /**
  * @title PariMatchTest
@@ -113,7 +114,7 @@ contract PariMatchTest is Test {
         vm.stopPrank();
 
         // Deploy factory.
-        factory = new PariMatchFactory();
+        factory = PariFactoryDeployer.deploy();
 
         // Fund actors.
         usdc.mint(alice,  100_000e6);
@@ -1000,6 +1001,9 @@ contract PariMatchTest is Test {
         assertTrue(m.hasRole(SWAP_ROUTER_ROLE, swapRouter),  "swapRouter has role");
         assertTrue(m.hasRole(ADMIN_ROLE,       owner),       "owner has admin");
         assertFalse(m.hasRole(ADMIN_ROLE, address(factory)), "factory renounced");
+        // H-01: role management belongs to governance (the beacon owner), not the ops key.
+        assertFalse(m.hasRole(m.DEFAULT_ADMIN_ROLE(), owner), "ops key cannot manage roles");
+        assertTrue(m.hasRole(m.DEFAULT_ADMIN_ROLE(), factory.upgradeAdmin()), "governance manages roles");
     }
 
     function test_FactoryDeployBasketball() public {
@@ -1258,6 +1262,7 @@ contract PariMatchTest is Test {
 
     function test_Revert_LowerTotalBelowLeaderboard() public {
         vm.startPrank(owner);
+        match_.setLeaderboardRecipient(makeAddr("leaderboardRewards"));
         match_.setLeaderboardFeeBps(100); // ok, <= 200
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -1271,21 +1276,118 @@ contract PariMatchTest is Test {
     }
 
     function test_Revert_LeaderboardRecipientMissing() public {
-        // Configure a leaderboard SHARE without setting a recipient: resolve
-        // should revert at fee-transfer time so we never silently burn the fee.
+        // L-04: a leaderboard SHARE without a recipient is rejected when it is
+        // configured, instead of making every later resolution revert.
         vm.prank(owner);
+        vm.expectRevert(PariMatchBase.LeaderboardRecipientNotConfigured.selector);
         match_.setLeaderboardFeeBps(100);
-        // Note: leaderboardRecipient stays address(0).
+    }
 
-        uint256 mid = _openWinnerMarket();
+    function test_Revert_ClearRecipientWhileShareSet() public {
+        vm.startPrank(owner);
+        match_.setLeaderboardRecipient(makeAddr("leaderboardRewards"));
+        match_.setLeaderboardFeeBps(100);
+        vm.expectRevert(
+            abi.encodeWithSelector(PariMatchBase.LeaderboardFeeExceedsTotal.selector, uint16(100), uint16(0))
+        );
+        match_.setLeaderboardRecipient(address(0));
+        vm.stopPrank();
+    }
+
+    /// L-04: a market keeps the leaderboard share frozen at opening (M-01).
+    /// If the recipient is cleared afterwards, that share goes to the company
+    /// recipient instead of bricking the resolution.
+    function test_FrozenLeaderboardShareFallsBackToCompany() public {
+        vm.startPrank(owner);
+        match_.setLeaderboardRecipient(makeAddr("leaderboardRewards"));
+        match_.setLeaderboardFeeBps(100);
+        vm.stopPrank();
+
+        uint256 mid = _openWinnerMarket(); // freezes 200 / 100
         _stake(alice, mid, 0, 600e6);
         _stake(bob,   mid, 1, 400e6);
 
-        vm.prank(owner);
-        match_.closeMarket(mid);
+        vm.startPrank(owner);
+        match_.setLeaderboardFeeBps(0);
+        match_.setLeaderboardRecipient(address(0));
+        vm.stopPrank();
 
-        vm.prank(oracle);
-        vm.expectRevert(PariMatchBase.LeaderboardRecipientNotConfigured.selector);
-        match_.resolveMarket(mid, 0);
+        uint256 feeBefore = usdc.balanceOf(feeAddr);
+        _closeResolve(mid, 0);
+        assertEq(usdc.balanceOf(feeAddr) - feeBefore, 20e6, "whole 2% to company");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 17. AUDIT 2026-10 LOT 2 — cutoff, USDC lock, factory validation
+    // ═══════════════════════════════════════════════════════════════════════
+
+    function test_H02_CloseTimeConstraints() public {
+        uint256 mid = _openWinnerMarket();
+        vm.startPrank(owner);
+        vm.expectRevert(abi.encodeWithSelector(PariMatchBase.InvalidCloseTime.selector, mid, uint40(block.timestamp)));
+        match_.setMarketCloseTime(mid, uint40(block.timestamp));
+        match_.setMarketCloseTime(mid, uint40(block.timestamp + 1 hours));
+        match_.setMarketCloseTime(mid, uint40(block.timestamp + 2 hours)); // extending before the cutoff is fine
+        vm.stopPrank();
+
+        assertEq(match_.getMarketSpec(mid).closesAt, uint40(block.timestamp + 2 hours));
+
+        vm.warp(block.timestamp + 2 hours);
+        vm.prank(owner);
+        vm.expectRevert(abi.encodeWithSelector(PariMatchBase.BettingClosed.selector, mid, uint40(block.timestamp)));
+        match_.setMarketCloseTime(mid, uint40(block.timestamp + 1 days)); // a passed cutoff cannot be reopened
+    }
+
+    function test_H02_CloseExpiredMarketIsPermissionless() public {
+        uint256 mid = _openWinnerMarket();
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(PariMatchBase.MarketNotExpired.selector, mid));
+        match_.closeExpiredMarket(mid); // no cutoff set
+
+        vm.prank(owner);
+        match_.setMarketCloseTime(mid, uint40(block.timestamp + 1 hours));
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(PariMatchBase.MarketNotExpired.selector, mid));
+        match_.closeExpiredMarket(mid);
+
+        vm.warp(block.timestamp + 1 hours);
+        vm.prank(alice);
+        match_.closeExpiredMarket(mid);
+        assertEq(uint8(match_.getMarketCore(mid).state), uint8(PariMatchBase.MarketState.Closed));
+    }
+
+    function test_M01_USDCTokenLockedOnceMarketsExist() public {
+        _openWinnerMarket();
+        vm.prank(owner);
+        vm.expectRevert(PariMatchBase.USDCAlreadyConfigured.selector);
+        match_.setUSDCToken(makeAddr("otherToken"));
+    }
+
+    function test_M02_StaleDeadlineWithoutCutoffUsesLegacyTtl() public {
+        uint256 mid = _openWinnerMarket();
+        assertEq(match_.staleAt(mid), block.timestamp + 90 days + 7 days);
+    }
+
+    function test_L04_FactoryLeaderboardWiringValidated() public {
+        vm.expectRevert(abi.encodeWithSelector(PariMatchFactory.InvalidLeaderboardBps.selector, uint16(100)));
+        factory.setLeaderboardWiring(address(0), 100);
+
+        vm.expectRevert(PariMatchFactory.InvalidAddress.selector);
+        factory.setLeaderboardWiring(makeAddr("eoa"), 100); // no code
+
+        vm.expectRevert(abi.encodeWithSelector(PariMatchFactory.InvalidLeaderboardBps.selector, uint16(201)));
+        factory.setLeaderboardWiring(address(usdc), 201); // above the 2% default fee
+
+        factory.setLeaderboardWiring(address(0), 0); // opt-out stays allowed
+    }
+
+    function test_FactoryRejectsImplementationsWithoutCode() public {
+        vm.expectRevert(PariMatchFactory.InvalidAddress.selector);
+        new PariMatchFactory(makeAddr("a"), makeAddr("b"), address(this));
+
+        address f = address(new FootballPariMatch());
+        address b = address(new BasketballPariMatch());
+        vm.expectRevert(PariMatchFactory.InvalidAddress.selector);
+        new PariMatchFactory(f, b, address(0)); // beacons need an owner
     }
 }

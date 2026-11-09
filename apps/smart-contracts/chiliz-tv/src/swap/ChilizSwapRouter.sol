@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import {ReentrancyGuard}       from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Ownable}               from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {IERC20}                from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata}        from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {SafeERC20}             from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -55,9 +56,11 @@ import {StreamWalletFactory}  from "../streamer/StreamWalletFactory.sol";
  *     before USDC is forwarded, preventing loss to arbitrary addresses.
  *   - Reentrancy protected via OpenZeppelin ReentrancyGuard.
  *   - SafeERC20 used for all token transfers.
- *   - Strict deadline + slippage validation on every swap.
+ *   - Strict deadline + slippage validation on every swap: amountOutMin
+ *     must be non-zero (audit M-07); compute it with quoteTokenToUSDC /
+ *     the Kayen quote minus the user's tolerance.
  */
-contract ChilizSwapRouter is ReentrancyGuard, Ownable {
+contract ChilizSwapRouter is ReentrancyGuard, Ownable2Step {
     using SafeERC20 for IERC20;
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -209,6 +212,9 @@ contract ChilizSwapRouter is ReentrancyGuard, Ownable {
     error BettingMatchFactoryNotSet();
     error StreamWalletFactoryNotSet();
     error RouterNotConfiguredOnFactory();
+    /// @notice Every swap needs a non-zero minimum output (audit M-07):
+    ///         amountOutMin = 0 lets a sandwich take the whole trade.
+    error SlippageNotSet();
 
     // ══════════════════════════════════════════════════════════════════════════
     // CONSTRUCTOR
@@ -502,7 +508,9 @@ contract ChilizSwapRouter is ReentrancyGuard, Ownable {
     // ══════════════════════════════════════════════════════════════════════════
 
     /**
-     * @notice Resolve the exact route `_swapTokensToUSDC` will take for `token`.
+     * @notice Route `_swapTokensToUSDC` takes for one whole unit of `token`
+     *         (10**decimals). The swap itself decides on the actual amount
+     *         with the same rule; use `routeFor(token, amount)` for that.
      * @return swapToken  The token actually swapped (wrapped version for fan tokens).
      * @return swapAmountPerUnit  Wrapped units minted per 1 unit of `token`
      *                            (1 when no wrapping applies).
@@ -513,38 +521,47 @@ contract ChilizSwapRouter is ReentrancyGuard, Ownable {
         view
         returns (address swapToken, uint256 swapAmountPerUnit, address[] memory path)
     {
+        (swapToken, swapAmountPerUnit, path,) = routeFor(token, _oneUnit(token));
+    }
+
+    /**
+     * @notice Route and expected USDC output for swapping `amount` of `token`.
+     * @dev    L-09: when a wrapped version of `token` exists, both the raw
+     *         [token, WCHZ, USDC] path and the wrapped path are quoted for
+     *         this amount and the better one wins. Since anyone can create a
+     *         wrapper, neither a poolless nor a dust-seeded wrapper can divert
+     *         a token that trades raw; genuine fan tokens (no raw pool) still
+     *         route through their wrapper.
+     */
+    function routeFor(address token, uint256 amount)
+        public
+        view
+        returns (address swapToken, uint256 swapAmountPerUnit, address[] memory path, uint256 expectedOut)
+    {
         swapToken = token;
         swapAmountPerUnit = 1;
+        path = _pathFrom(token);
+        expectedOut = _quote(amount, path);
 
-        address wrapped = _wrappedVersionOf(token);
+        (address wrapped, uint256 perUnit) = _wrapCandidate(token);
         if (wrapped != address(0)) {
-            swapToken = wrapped;
-            swapAmountPerUnit = 10 ** (18 - IERC20Metadata(token).decimals());
-        }
-
-        if (swapToken == wchz) {
-            path = new address[](2);
-            path[0] = wchz;
-            path[1] = address(usdc);
-        } else {
-            path = new address[](3);
-            path[0] = swapToken;
-            path[1] = wchz;
-            path[2] = address(usdc);
+            address[] memory wrappedPath = _pathFrom(wrapped);
+            uint256 wrappedOut = _quote(amount * perUnit, wrappedPath);
+            if (wrappedOut > expectedOut) {
+                return (wrapped, perUnit, wrappedPath, wrappedOut);
+            }
         }
     }
 
     /// @notice Expected USDC out for swapping `amount` of `token`, following the
-    ///         same route the swap will execute. Use this (not a hand-built
-    ///         path) to compute `amountOutMin` on the frontend.
+    ///         same route the swap will execute (0 if no route is priced).
+    ///         Use this (not a hand-built path) to compute `amountOutMin`.
     function quoteTokenToUSDC(address token, uint256 amount)
         external
         view
         returns (uint256 usdcOut)
     {
-        (, uint256 perUnit, address[] memory path) = swapRouteFor(token);
-        uint256[] memory amounts = tokenRouter.getAmountsOut(amount * perUnit, path);
-        usdcOut = amounts[amounts.length - 1];
+        (,,, usdcOut) = routeFor(token, amount);
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -566,6 +583,7 @@ contract ChilizSwapRouter is ReentrancyGuard, Ownable {
         uint256 amountOutMin,
         uint256 deadline
     ) internal returns (uint256 usdcReceived) {
+        if (amountOutMin == 0) revert SlippageNotSet();
         address[] memory path = new address[](2);
         path[0] = wchz;
         path[1] = address(usdc);
@@ -577,7 +595,7 @@ contract ChilizSwapRouter is ReentrancyGuard, Ownable {
     }
 
     /// @dev Swap `amount` of `token` for USDC, wrapping fan tokens first.
-    ///      Routing matches `swapRouteFor` exactly; `amountOutMin` always
+    ///      Routing is `routeFor(token, amount)`; `amountOutMin` always
     ///      applies to the final USDC amount.
     function _swapTokensToUSDC(
         address token,
@@ -585,30 +603,16 @@ contract ChilizSwapRouter is ReentrancyGuard, Ownable {
         uint256 amountOutMin,
         uint256 deadline
     ) internal returns (uint256 usdcReceived) {
-        address swapToken  = token;
+        if (amountOutMin == 0) revert SlippageNotSet();
+        (address swapToken,, address[] memory path,) = routeFor(token, amount);
         uint256 swapAmount = amount;
 
-        address wrapped = _wrappedVersionOf(token);
-        if (wrapped != address(0)) {
+        if (swapToken != token) {
             IERC20(token).forceApprove(address(wrapperFactory), amount);
-            uint256 balBefore = IERC20(wrapped).balanceOf(address(this));
+            uint256 balBefore = IERC20(swapToken).balanceOf(address(this));
             wrapperFactory.wrap(address(this), token, amount);
-            swapAmount = IERC20(wrapped).balanceOf(address(this)) - balBefore;
-            swapToken  = wrapped;
-            emit FanTokenWrapped(token, wrapped, amount, swapAmount);
-        }
-
-        address[] memory path;
-        if (swapToken == wchz) {
-            path = new address[](2);
-            path[0] = wchz;
-            path[1] = address(usdc);
-        } else {
-            // Kayen liquidity is hubbed on WCHZ; no token has a direct USDC pair.
-            path = new address[](3);
-            path[0] = swapToken;
-            path[1] = wchz;
-            path[2] = address(usdc);
+            swapAmount = IERC20(swapToken).balanceOf(address(this)) - balBefore;
+            emit FanTokenWrapped(token, swapToken, amount, swapAmount);
         }
 
         IERC20(swapToken).forceApprove(address(tokenRouter), swapAmount);
@@ -619,24 +623,56 @@ contract ChilizSwapRouter is ReentrancyGuard, Ownable {
         usdcReceived = amounts[amounts.length - 1];
     }
 
-    /// @dev Returns the wrapped version of `token` when wrapping should be
-    ///      applied, else address(0). Wrapping applies only when the wrapper
-    ///      factory is set, the wrapped token already exists, AND the token
-    ///      has fewer than 18 decimals. The decimals guard matters because
-    ///      `createWrappedToken` is permissionless — without it, anyone could
-    ///      register a wrapper for a normal 18-decimals token and force this
-    ///      router into a poolless wrapped market (DoS for that token).
-    function _wrappedVersionOf(address token) internal view returns (address wrapped) {
+    /// @dev Kayen liquidity is hubbed on WCHZ; no token has a direct USDC pair.
+    function _pathFrom(address t) internal view returns (address[] memory path) {
+        if (t == wchz) {
+            path = new address[](2);
+            path[0] = wchz;
+            path[1] = address(usdc);
+        } else {
+            path = new address[](3);
+            path[0] = t;
+            path[1] = wchz;
+            path[2] = address(usdc);
+        }
+    }
+
+    /// @dev USDC out for `amountIn` along `path`, 0 when the route is not priced.
+    function _quote(uint256 amountIn, address[] memory path) internal view returns (uint256) {
+        if (amountIn == 0) return 0;
+        try tokenRouter.getAmountsOut(amountIn, path) returns (uint256[] memory out) {
+            return out.length == 0 ? 0 : out[out.length - 1];
+        } catch {
+            return 0;
+        }
+    }
+
+    function _oneUnit(address token) internal view returns (uint256) {
+        // A `try` on an address without code reverts here instead of in `catch`.
+        if (token.code.length == 0) return 1e18;
+        try IERC20Metadata(token).decimals() returns (uint8 d) {
+            return 10 ** uint256(d);
+        } catch {
+            return 1e18;
+        }
+    }
+
+    /// @dev Wrapped version of `token` worth considering, with the wrapped
+    ///      units minted per unit of `token`. Only when the wrapper factory is
+    ///      set, the wrapped token exists and `token` has fewer than 18
+    ///      decimals; `routeFor` then compares prices (L-09).
+    function _wrapCandidate(address token) internal view returns (address wrapped, uint256 perUnit) {
         IChilizWrapperFactory factory = wrapperFactory;
-        if (address(factory) == address(0)) return address(0);
+        if (address(factory) == address(0)) return (address(0), 0);
 
         wrapped = factory.underlyingToWrapped(token);
-        if (wrapped == address(0)) return address(0);
+        if (wrapped == address(0) || token.code.length == 0) return (address(0), 0);
 
         try IERC20Metadata(token).decimals() returns (uint8 d) {
-            if (d >= 18) return address(0);
+            if (d >= 18) return (address(0), 0);
+            perUnit = 10 ** (18 - uint256(d));
         } catch {
-            return address(0);
+            return (address(0), 0);
         }
     }
 

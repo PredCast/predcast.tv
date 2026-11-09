@@ -15,6 +15,13 @@ ChilizTV provides a decentralized platform with two main systems:
 
 All settlements happen in **USDC**. Users can pay with any token — the swap router handles conversion automatically.
 
+> **Audit 2026-10 remediation**:
+> new matches are **BeaconProxies** (no per-match upgrade; one beacon per sport owned by governance), markets carry an
+> on-chain betting cutoff (`closesAt`) and fees frozen at opening, unresolved markets can be cancelled by anyone after a
+> timeout, every swap needs a non-zero `amountOutMin`, subscriptions are priced on-chain by the streamer, the leaderboard
+> scores net profit per resolution epoch, and the oracle must be a dedicated key. Parts of the sections below that
+> describe UUPS matches or factory-side fan-token payments predate these changes.
+
 ---
 
 ## 2. Architecture
@@ -158,6 +165,7 @@ flowchart LR
   - Splits platform fee to treasury, remainder accumulates in the wallet
   - Streamer drains their full USDC balance via `withdrawRevenue()` (no amount argument)
   - Upgrade authority is locked to the factory — streamers cannot self-upgrade
+  - Reads `treasury`, platform fee, Kayen router, USDC and the authorized swap router live from its factory (audit 2026-10 M-04): a `StreamWalletFactory.set*` call reaches every wallet at once, no per-wallet sync
 
 - **StreamWalletFactory** (`src/streamer/StreamWalletFactory.sol`): Factory for deploying & upgrading streamer wallets
   - Deploys `ERC1967Proxy` instances (one per streamer, created lazily on first subscribe/donate)
@@ -439,6 +447,22 @@ forge script script/DeployAll.s.sol \
 
 **Deploys both betting and streaming systems.**
 
+### 4.6 Base Sepolia (and Base)
+
+The same contracts deploy unchanged on Base: Uniswap V2 Router02 has the ABI of the Kayen routers, WETH stands in for
+WCHZ and native ETH for CHZ (`placeBetWithCHZ`, `donateWithCHZ`, `subscribeWithCHZ` take ETH). There are no fan tokens.
+
+```bash
+cp .env.baseSepolia.example .env.baseSepolia   # fill PRIVATE_KEY, SAFE_ADDRESS (a Safe on Base Sepolia), ORACLE_ADDRESS…
+./deploy.sh --network baseSepolia --all --dry-run
+./deploy.sh --network baseSepolia --all
+```
+
+`foundry.toml` registers `base_sepolia` / `base` RPC endpoints and Etherscan v2 verifiers. The integration suite
+`test/fork/BaseSepoliaFork.t.sol` deploys the whole platform on a Base Sepolia fork and runs bets, a full betting round,
+donations and subscriptions against the real Router02 and Circle USDC. The V2 WETH/USDC pool there is tiny (~150 USDC):
+fine for tests, not for volume. A pool on Base is independent from the one on Chiliz for the same match (audit I-05).
+
 ### 4.5 Post-Deploy Wiring — **DO NOT SKIP**
 
 `DeployAll` creates the contracts; several runtime links are left to you. Miss
@@ -596,23 +620,22 @@ cast send $STREAM_FACTORY \
 
 ### 5.9 Subscribe / Donate to a Stream
 
-All payment paths (CHZ, any ERC20, USDC direct) are on **ChilizSwapRouter**, not the
-factory. Use the factory directly only for fan-token paths that don't need a swap.
+All payment paths (CHZ, any ERC20, USDC direct) are on **ChilizSwapRouter**. The factory-side
+fan-token entrypoints were removed (audit H-05). Subscriptions need a price set by the streamer
+first (`setSubscriptionPricing`), and every swap needs a non-zero `amountOutMin` (audit M-07).
 
 ```bash
-# Preferred: subscribe with CHZ via the swap router (swaps to USDC, splits, records)
+# The streamer prices subscriptions once (here 10 USDC per 30 days):
+cast send $STREAM_WALLET "setSubscriptionPricing(uint256,uint64)" 10000000 2592000 \
+  --rpc-url $RPC_URL --private-key $STREAMER_KEY
+
+# Subscribe with CHZ via the swap router (swaps to USDC, splits, records).
+# MIN_USDC = quote minus your slippage tolerance, never 0; it must cover
+# subscriptionCost(duration) on the wallet.
 cast send $SWAP_ROUTER \
   "subscribeWithCHZ(address,uint256,uint256,uint256)" \
-  $STREAMER_ADDRESS 2592000 0 $(date -d '+5 min' +%s) \
+  $STREAMER_ADDRESS 2592000 $MIN_USDC $(date -d '+5 min' +%s) \
   --value 10ether \
-  --rpc-url $RPC_URL --private-key $PRIVATE_KEY
-
-# Direct USDC path via the factory (fan-token path uses the same function
-# with token = fan-token address; on-the-fly swap happens inside the wallet):
-#   subscribeToStream(streamer, duration, amount, minOut, deadline, token)
-cast send $STREAM_FACTORY \
-  "subscribeToStream(address,uint256,uint256,uint256,uint256,address)" \
-  $STREAMER_ADDRESS 2592000 100000000 0 $(date -d '+5 min' +%s) $USDC \
   --rpc-url $RPC_URL --private-key $PRIVATE_KEY
 ```
 

@@ -4,6 +4,8 @@ pragma solidity 0.8.24;
 import {Script, console} from "forge-std/Script.sol";
 
 import {PariMatchFactory}    from "../src/pari/PariMatchFactory.sol";
+import {FootballPariMatch}   from "../src/pari/FootballPariMatch.sol";
+import {BasketballPariMatch} from "../src/pari/BasketballPariMatch.sol";
 import {ChilizSwapRouter}    from "../src/swap/ChilizSwapRouter.sol";
 
 /**
@@ -57,6 +59,7 @@ contract DeployPari is Script {
     address public wchz;
     uint16  public platformFeeBps;
     bool    public transferOwnership;
+    address public upgradeAdmin;
     bool    public skipSampleMatch;
     string  public sampleMatchName;
 
@@ -115,8 +118,19 @@ contract DeployPari is Script {
             console.log("  Verify before broadcasting to mainnet.");
         }
 
-        transferOwnership = _envBoolOr("TRANSFER_OWNERSHIP", false);
+        transferOwnership = _envBoolOr("TRANSFER_OWNERSHIP", !_isTestChain());
         skipSampleMatch   = _envBoolOr("SKIP_SAMPLE_MATCH", false);
+
+        // H-01: the oracle must be a dedicated key (the factory enforces it
+        // too; failing here is clearer than a revert mid-broadcast).
+        require(oracle != owner_ && oracle != msg.sender, "ORACLE_ADDRESS must differ from OWNER_ADDRESS and the deployer");
+        // Owner of the match beacons (the only key able to change match code).
+        try vm.envAddress("UPGRADE_ADMIN") returns (address v) { upgradeAdmin = v; } catch { upgradeAdmin = feeRecip; }
+        // H-04: on a real network the receiving Safe must exist on THIS chain.
+        if (!_isTestChain()) {
+            require(feeRecip.code.length > 0, "FEE_RECIPIENT has no code on this chain");
+            require(upgradeAdmin.code.length > 0, "UPGRADE_ADMIN has no code on this chain");
+        }
 
         try vm.envString("SAMPLE_MATCH_NAME") returns (string memory v) {
             sampleMatchName = v;
@@ -126,8 +140,15 @@ contract DeployPari is Script {
     }
 
     function _deployFactory() internal {
-        factory = new PariMatchFactory();
+        // Implementations are deployed separately (initcode size, see
+        // PariMatchFactory constructor).
+        factory = new PariMatchFactory(
+            address(new FootballPariMatch()),
+            address(new BasketballPariMatch()),
+            upgradeAdmin
+        );
         console.log("PariMatchFactory  :", address(factory));
+        console.log("  Beacon owner    :", upgradeAdmin);
         console.log("  FootballImpl    :", factory.footballImplementation());
         console.log("  BasketballImpl  :", factory.basketballImplementation());
     }
@@ -147,6 +168,13 @@ contract DeployPari is Script {
         factory.setWiring(usdcAddr, feeRecip, address(router));
         console.log("factory.setWiring        -> usdc / feeRecip / router");
 
+        // Ops key that keeps creating matches once the Safe owns the factory
+        // (TRANSFER_OWNERSHIP defaults to true outside test chains).
+        address operator;
+        try vm.envAddress("MATCH_OPERATOR") returns (address v) { operator = v; } catch { operator = msg.sender; }
+        factory.setMatchOperator(operator);
+        console.log("factory.setMatchOperator ->", operator);
+
         // Router will allow placeBet* only for addresses returned by
         // factory.isMatch(addr).
         router.setMatchFactory(address(factory));
@@ -163,10 +191,11 @@ contract DeployPari is Script {
 
     function _transferOwnershipToSafe() internal {
         console.log("Transferring top-level ownership to:", feeRecip);
+        // Ownable2Step: the Safe must call acceptOwnership() on both.
         factory.transferOwnership(feeRecip);
         router.transferOwnership(feeRecip);
-        console.log("  factory.transferOwnership -> Safe");
-        console.log("  router.transferOwnership  -> Safe");
+        console.log("  factory.transferOwnership -> Safe (pending acceptOwnership)");
+        console.log("  router.transferOwnership  -> Safe (pending acceptOwnership)");
     }
 
     // ──────────────────────────────────────────────────────────────────────
@@ -216,6 +245,10 @@ contract DeployPari is Script {
         console.log("  SWAP_ROUTER_ROLE for the OLD router. Their owners must call");
         console.log("  revokeRole+grantRole on each match. See RedeploySwapRouter.s.sol.");
         console.log("==============================================");
+    }
+
+    function _isTestChain() internal view returns (bool) {
+        return block.chainid == 88882 || block.chainid == 84532 || block.chainid == 31337;
     }
 
     function _envBoolOr(string memory key, bool defaultVal)

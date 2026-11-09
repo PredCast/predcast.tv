@@ -33,6 +33,9 @@ coverage/
 # Environment / secrets
 .env
 .env.*.local
+# Per-network templates are committed (no secrets); the real .env.<network> files are not.
+!.env.example
+!.env.*.example
 .envrc
 secret*
 *.key
