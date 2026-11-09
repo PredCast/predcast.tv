@@ -15,13 +15,13 @@ import {LeaderboardRewards}  from "../../src/leaderboard/LeaderboardRewards.sol"
 
 /**
  * @title Base Sepolia integration (fork)
- * @notice Lot 5: the EVM port to Base is configuration only. This suite
- *         deploys the whole platform on a fork of Base Sepolia (84532), wired
- *         exactly like script/DeployAll.s.sol with the `.env.baseSepolia`
- *         values, and runs the real money paths against Uniswap V2 Router02
- *         (its ABI matches IKayenMasterRouterV2 / IKayenRouter) and Circle
- *         USDC. "CHZ" in function names means native ETH on Base, "WCHZ"
- *         means WETH.
+ * @notice Lot 5: this suite deploys the whole platform on a fork of Base
+ *         Sepolia (84532), wired like script/DeployAll.s.sol with a V2 router
+ *         set in KAYEN_ROUTER, and runs the real money paths against Uniswap
+ *         V2 Router02 (its ABI matches IKayenMasterRouterV2 / IKayenRouter)
+ *         and Circle USDC. DeployAll's default on Base is the pool adapter,
+ *         covered by test/fork/BaseDexAdapterFork.t.sol. "CHZ" in function
+ *         names means native ETH on Base, "WCHZ" means WETH.
  *         Needs network access to https://sepolia.base.org (override with
  *         BASE_SEPOLIA_RPC_URL). The WETH/USDC V2 pair is thin (~150 USDC):
  *         amounts stay tiny.

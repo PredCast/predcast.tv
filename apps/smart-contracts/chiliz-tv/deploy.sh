@@ -14,8 +14,11 @@
 #   ./deploy.sh --network chilizMainnet  --all
 #   ./deploy.sh --network baseSepolia    --all     # Base Sepolia (84532), see .env.baseSepolia.example
 #
-# On Base the same contracts run unchanged: Uniswap V2 Router02 stands in for
-# Kayen (same ABI), WETH for WCHZ, native ETH for CHZ ("*WithCHZ" entrypoints).
+#   ./deploy.sh --network baseMainnet    --all     # Base (8453), see .env.baseMainnet.example
+#
+# On Base, WETH stands in for WCHZ and native ETH for CHZ ("*WithCHZ"
+# entrypoints). With both KAYEN_* left empty, --all deploys a
+# ConcentratedPoolAdapter (script/config/BaseDexConfig.sol) in place of Kayen.
 #
 # Add `--dry-run` to simulate via forge without broadcasting — no on-chain tx,
 # no deployments/<network>.json update. Useful to preview gas + address layout.
@@ -179,8 +182,11 @@ fi
 if [ "$REQUIRES_KAYEN" = true ]; then
     echo -e "${CYAN}Resolving Kayen DEX addresses...${NC}"
     MISSING=""
-    [ -z "$KAYEN_MASTER_ROUTER" ] && MISSING="${MISSING}\n  - KAYEN_MASTER_ROUTER"
-    [ -z "$KAYEN_ROUTER" ]        && MISSING="${MISSING}\n  - KAYEN_ROUTER"
+    # DeployAll deploys the adapter on Base when both routers are empty.
+    if [[ "$NETWORK" != base* ]] || [ "$DEPLOY_TYPE" != "all" ] || [ -n "$KAYEN_MASTER_ROUTER$KAYEN_ROUTER" ]; then
+        [ -z "$KAYEN_MASTER_ROUTER" ] && MISSING="${MISSING}\n  - KAYEN_MASTER_ROUTER"
+        [ -z "$KAYEN_ROUTER" ]        && MISSING="${MISSING}\n  - KAYEN_ROUTER"
+    fi
     [ -z "$WCHZ_ADDRESS" ]        && MISSING="${MISSING}\n  - WCHZ_ADDRESS"
     if [ -n "$MISSING" ]; then
         echo -e "${RED}Missing in $ENV_FILE:${MISSING}${NC}"

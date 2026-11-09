@@ -19,6 +19,10 @@ import {NetworkRouter} from "../src/swap/NetworkRouter.sol";
 // Leaderboard
 import {LeaderboardRewards} from "../src/leaderboard/LeaderboardRewards.sol";
 
+// Base DEX adapter
+import {ConcentratedPoolAdapter} from "../src/swap/ConcentratedPoolAdapter.sol";
+import {BaseDexConfig}           from "./config/BaseDexConfig.sol";
+
 /**
  * @title DeployAll
  * @author ChilizTV
@@ -56,8 +60,12 @@ import {LeaderboardRewards} from "../src/leaderboard/LeaderboardRewards.sol";
  *                           serves as feeRecipient for match protocol fees.
  *   KAYEN_MASTER_ROUTER  — Kayen MasterRouterV2 (CHZ → USDC path).
  *   KAYEN_ROUTER         — Kayen standard router (ERC20 → USDC path).
- *   WCHZ_ADDRESS         — Wrapped CHZ address.
+ *   WCHZ_ADDRESS         — Wrapped CHZ address (WETH on Base).
  *   USDC_ADDRESS         — USDC token address.
+ *
+ *   On Base (8453, 84532), leave both KAYEN_* empty: the run deploys a
+ *   ConcentratedPoolAdapter from script/config/BaseDexConfig.sol and uses it
+ *   as both routers. Setting them skips the adapter.
  *
  * OPTIONAL:
  * =========
@@ -94,6 +102,7 @@ contract DeployAll is Script {
     StreamWalletFactory public streamFactory;
     NetworkRouter       public swapRouter;
     LeaderboardRewards  public leaderboard;
+    ConcentratedPoolAdapter public dexAdapter; // Base only
 
     address public deployer;
     address public treasury;   // SAFE_ADDRESS — fee recipient for both modules
@@ -108,6 +117,7 @@ contract DeployAll is Script {
     address public matchOperator; // backend hot key allowed to create matches
     uint256 public timelockDelay;
     TimelockController public timelock;
+    bool    public deployDexAdapter;
 
     function run() external {
         deployer = msg.sender;
@@ -116,6 +126,9 @@ contract DeployAll is Script {
         vm.startBroadcast();
 
         _printHeader();
+        if (deployDexAdapter) {
+            _deployDexAdapter();
+        }
         _deployPariFactory();
         _deployStreamingFactory();
         _deploySwapRouter();
@@ -136,16 +149,27 @@ contract DeployAll is Script {
 
     function _loadConfig() internal {
         treasury          = vm.envAddress("SAFE_ADDRESS");
-        kayenMasterRouter = vm.envAddress("KAYEN_MASTER_ROUTER");
-        kayenRouter       = vm.envAddress("KAYEN_ROUTER");
+        kayenMasterRouter = _envAddressOr("KAYEN_MASTER_ROUTER", address(0));
+        kayenRouter       = _envAddressOr("KAYEN_ROUTER", address(0));
         wchz              = vm.envAddress("WCHZ_ADDRESS");
         usdcAddress       = vm.envAddress("USDC_ADDRESS");
 
         require(treasury          != address(0), "SAFE_ADDRESS required");
-        require(kayenMasterRouter != address(0), "KAYEN_MASTER_ROUTER required");
-        require(kayenRouter       != address(0), "KAYEN_ROUTER required");
         require(wchz              != address(0), "WCHZ_ADDRESS required");
         require(usdcAddress       != address(0), "USDC_ADDRESS required");
+
+        deployDexAdapter = BaseDexConfig.isSupported(block.chainid)
+            && kayenMasterRouter == address(0) && kayenRouter == address(0);
+        if (deployDexAdapter) {
+            // Checked before the broadcast starts, so a wrong address costs nothing.
+            BaseDexConfig.Network memory net = BaseDexConfig.forChain(block.chainid);
+            require(usdcAddress == net.usdc, "USDC_ADDRESS differs from BaseDexConfig");
+            require(wchz == net.weth, "WCHZ_ADDRESS differs from BaseDexConfig");
+            BaseDexConfig.verify(net);
+        } else {
+            require(kayenMasterRouter != address(0), "KAYEN_MASTER_ROUTER required");
+            require(kayenRouter       != address(0), "KAYEN_ROUTER required");
+        }
 
         platformFeeBps    = uint16(_envUintOr("PLATFORM_FEE_BPS", 500));
         transferOwnership = _envBoolOr("TRANSFER_OWNERSHIP", !_isTestChain());
@@ -169,6 +193,18 @@ contract DeployAll is Script {
     // ══════════════════════════════════════════════════════════════════════════
     // DEPLOYMENT
     // ══════════════════════════════════════════════════════════════════════════
+
+    /// @dev Must run first: the streaming factory and the swap router both
+    ///      take the router addresses in their constructors.
+    function _deployDexAdapter() internal {
+        console.log("BASE DEX ADAPTER");
+        console.log("================");
+        dexAdapter = BaseDexConfig.deployAdapter(BaseDexConfig.forChain(block.chainid));
+        kayenMasterRouter = address(dexAdapter);
+        kayenRouter       = address(dexAdapter);
+        console.log("ConcentratedPoolAdapter :", address(dexAdapter));
+        console.log("");
+    }
 
     function _deployPariFactory() internal {
         console.log("[1/4] PARI MATCH FACTORY");
@@ -334,6 +370,11 @@ contract DeployAll is Script {
 
         swapRouter.transferOwnership(treasury);
         console.log("  swapRouter.transferOwnership     -> Safe (pending)");
+
+        if (address(dexAdapter) != address(0)) {
+            dexAdapter.transferOwnership(treasury);
+            console.log("  dexAdapter.transferOwnership     -> Safe (pending)");
+        }
 
         // LeaderboardRewards uses AccessControl. Grant the Safe every role
         // the deployer currently holds, then renounce from the deployer.
