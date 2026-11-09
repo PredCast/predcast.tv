@@ -2,13 +2,13 @@
 pragma solidity ^0.8.24;
 
 import {Script, console}     from "forge-std/Script.sol";
-import {ChilizSwapRouter}    from "../src/swap/ChilizSwapRouter.sol";
+import {NetworkRouter}       from "../src/swap/NetworkRouter.sol";
 import {PariMatchFactory}    from "../src/pari/PariMatchFactory.sol";
 import {StreamWalletFactory} from "../src/streamer/StreamWalletFactory.sol";
 
 /**
  * @title  RedeploySwapRouter
- * @notice Redeploys ONLY the ChilizSwapRouter and re-wires the existing
+ * @notice Redeploys ONLY the NetworkRouter and re-wires the existing
  *         PariMatchFactory + StreamWalletFactory to point at the new one.
  *
  * ⚠ EXISTING-MATCH MIGRATION REQUIRED ⚠
@@ -43,7 +43,7 @@ contract RedeploySwapRouter is Script {
 
     PariMatchFactory    public pariFactory;
     StreamWalletFactory public streamFactory;
-    ChilizSwapRouter    public newRouter;
+    NetworkRouter       public newRouter;
     address             public oldRouter;
 
     address public usdcAddress;
@@ -70,10 +70,10 @@ contract RedeploySwapRouter is Script {
         vm.startBroadcast();
 
         // 1. Deploy new router.
-        newRouter = new ChilizSwapRouter(
+        newRouter = new NetworkRouter(
             masterRouter, tokenRouter, usdcAddress, wchz, treasury, platformFeeBps
         );
-        console.log("New ChilizSwapRouter:", address(newRouter));
+        console.log("New NetworkRouter:", address(newRouter));
 
         // 1b. Fan-token wrapper factory (optional — enables PSG/BAR/etc. bets).
         if (wrapperFactory != address(0)) {

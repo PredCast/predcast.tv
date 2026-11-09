@@ -5,11 +5,11 @@
 # All configuration is loaded from .env (see .env.example).
 #
 # Usage:
-#   ./deploy.sh --network chilizTestnet --all     # full platform (PariMatchFactory + StreamWalletFactory + ChilizSwapRouter, fully wired)
+#   ./deploy.sh --network chilizTestnet --all     # full platform (PariMatchFactory + StreamWalletFactory + NetworkRouter, fully wired)
 #   ./deploy.sh --network chilizTestnet --pari    # PariMatchFactory + router + sample match (no streaming)
 #   ./deploy.sh --network chilizTestnet --stream  # StreamWalletFactory only
-#   ./deploy.sh --network chilizTestnet --swap          # ChilizSwapRouter only (wire it post-deploy)
-#   ./deploy.sh --network chilizTestnet --redeploy-swap      # ChilizSwapRouter redeploy + auto-wire to existing factories
+#   ./deploy.sh --network chilizTestnet --swap          # NetworkRouter only (wire it post-deploy)
+#   ./deploy.sh --network chilizTestnet --redeploy-swap      # NetworkRouter redeploy + auto-wire to existing factories
 #   ./deploy.sh --network chilizTestnet --upgrade-leaderboard # LeaderboardRewards V2 (UUPS upgradeToAndCall + initializeV2)
 #   ./deploy.sh --network chilizMainnet  --all
 #   ./deploy.sh --network baseSepolia    --all     # Base Sepolia (84532), see .env.baseSepolia.example
@@ -456,12 +456,12 @@ if [ "$DEPLOY_TYPE" = "redeploy-swap" ]; then
     echo "Remaining manual steps:"
     echo "  1. Match admin (SAFE_ADDRESS) runs the printed cast commands"
     echo "     per match to rotate SWAP_ROUTER_ROLE from OLD to NEW router."
-    echo "  2. Update env files with the new ChilizSwapRouter address:"
+    echo "  2. Update env files with the new NetworkRouter address:"
     echo "       apps/frontend/.env       NEXT_PUBLIC_CHILIZ_SWAP_ROUTER_ADDRESS"
     echo "       apps/frontend/.env.example  (same key)"
     echo "       apps/backend/.env        CHILIZ_SWAP_ROUTER_ADDRESS"
     echo "       apps/backend/.env.example   (same key)"
-    echo "  3. The ChilizSwapRouter entry in $DEPLOY_OUT is the new address."
+    echo "  3. The NetworkRouter entry in $DEPLOY_OUT is the new address."
     echo "  4. Restart backend so ChilizSwapRouterIndexer re-targets the new addr."
     echo ""
     echo "Known limitation: existing StreamWallets cache the OLD router in their"

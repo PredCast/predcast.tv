@@ -12,7 +12,7 @@ import {IStreamWalletFactory} from "../interfaces/IStreamWalletFactory.sol";
 /**
  * @title StreamWallet
  * @notice USDC escrow of one streamer: records donations and subscriptions
- *         paid through the ChilizSwapRouter and lets the streamer withdraw.
+ *         paid through the NetworkRouter and lets the streamer withdraw.
  * @dev Deployed via ERC1967 UUPS proxy by StreamWalletFactory.
  *      The protocol config (treasury, platform fee, USDC, swap router) is
  *      read live from `factory` on every call, so a rotation on the factory
@@ -196,7 +196,7 @@ contract StreamWallet is Initializable, OwnableUpgradeable, UUPSUpgradeable, Ree
         return IStreamWalletFactory(factory).usdc();
     }
 
-    /// @notice ChilizSwapRouter allowed to record donations and subscriptions (factory config).
+    /// @notice NetworkRouter allowed to record donations and subscriptions (factory config).
     function swapRouter() public view returns (address) {
         return IStreamWalletFactory(factory).swapRouter();
     }

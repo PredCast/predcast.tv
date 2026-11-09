@@ -6,12 +6,12 @@ import {Script, console} from "forge-std/Script.sol";
 import {PariMatchFactory}    from "../src/pari/PariMatchFactory.sol";
 import {FootballPariMatch}   from "../src/pari/FootballPariMatch.sol";
 import {BasketballPariMatch} from "../src/pari/BasketballPariMatch.sol";
-import {ChilizSwapRouter}    from "../src/swap/ChilizSwapRouter.sol";
+import {NetworkRouter}       from "../src/swap/NetworkRouter.sol";
 
 /**
  * @title DeployPari
  * @notice Deploys ONLY the pari-mutuel betting system (PariMatchFactory +
- *         ChilizSwapRouter + one sample match). No streaming.
+ *         NetworkRouter + one sample match). No streaming.
  *
  * ⚠ Streaming is intentionally not wired. The swap router's `donateWith*` /
  *   `subscribeWith*` entrypoints WILL revert with `StreamFactoryNotSet` until
@@ -47,7 +47,7 @@ import {ChilizSwapRouter}    from "../src/swap/ChilizSwapRouter.sol";
 contract DeployPari is Script {
 
     PariMatchFactory public factory;
-    ChilizSwapRouter public router;
+    NetworkRouter public router;
 
     address public deployer;
     address public owner_;       // match admin (multisig)
@@ -154,10 +154,10 @@ contract DeployPari is Script {
     }
 
     function _deployRouter() internal {
-        router = new ChilizSwapRouter(
+        router = new NetworkRouter(
             masterRouter, tokenRouter, usdcAddr, wchz, feeRecip, platformFeeBps
         );
-        console.log("ChilizSwapRouter  :", address(router));
+        console.log("NetworkRouter     :", address(router));
     }
 
     function _wire() internal {
@@ -222,7 +222,7 @@ contract DeployPari is Script {
         console.log("DEPLOYMENT SUMMARY");
         console.log("==============================================");
         console.log("PariMatchFactory  :", address(factory));
-        console.log("ChilizSwapRouter  :", address(router));
+        console.log("NetworkRouter     :", address(router));
         if (sampleMatch != address(0)) {
             console.log("Sample match      :", sampleMatch);
         }

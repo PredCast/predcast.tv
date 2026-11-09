@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 /**
  * @title IKayenMasterRouterV2
- * @notice Native-CHZ swap interface used by `ChilizSwapRouter._swapCHZToUSDC`.
+ * @notice Native-CHZ swap interface used by `NetworkRouter._swapCHZToUSDC`.
  * @dev    On Chiliz Spicy testnet the routers Kayen advertises (e.g.
  *         0x4D3D…3079) do NOT implement the documented V1
  *         `swapExactETHForTokens(uint256,address[],bool,address,uint256)`
@@ -20,7 +20,7 @@ pragma solidity ^0.8.24;
  *         ending in USDC reverts (verified on-chain 2026-06-11; caused the
  *         post-deploy mainnet outage). Point this at the vanilla V2 router
  *         (same address as KAYEN_ROUTER). Fan-token wrapping is handled by
- *         ChilizSwapRouter itself via IChilizWrapperFactory.
+ *         NetworkRouter itself via IChilizWrapperFactory.
  */
 interface IKayenMasterRouterV2 {
     /// @notice Swap exact native CHZ for tokens (e.g., USDC). Standard V2.

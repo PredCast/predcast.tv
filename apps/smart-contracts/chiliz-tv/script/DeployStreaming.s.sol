@@ -194,7 +194,7 @@ contract DeployStreaming is Script {
         console.log("cast send <STREAM_WALLET> 'setSubscriptionPricing(uint256,uint64)'");
         console.log("  <USDC_PRICE_6DP> <PERIOD_SECONDS>");
         console.log("");
-        console.log("SUBSCRIBE / DONATE: through ChilizSwapRouter (subscribeWith*, donateWith*).");
+        console.log("SUBSCRIBE / DONATE: through NetworkRouter (subscribeWith*, donateWith*).");
         console.log("");
     }
 

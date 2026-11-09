@@ -30,7 +30,7 @@ contract MockWrappedFanToken is ERC20 {
 /**
  * @title MockChilizWrapperFactory
  * @notice Mock of Kayen's ChilizWrapperFactory for Foundry tests.
- * @dev Mirrors the real semantics ChilizSwapRouter relies on:
+ * @dev Mirrors the real semantics NetworkRouter relies on:
  *      - `wrap` pulls the underlying from msg.sender (prior approval needed)
  *        and mints amount * 10^(18 - underlyingDecimals) wrapped to `account`;
  *      - `underlyingToWrapped` returns address(0) until created;

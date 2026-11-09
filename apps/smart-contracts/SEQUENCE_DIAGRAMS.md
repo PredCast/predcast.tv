@@ -15,7 +15,7 @@
   - [5. Streaming Donations â€” Happy Path](#5-streaming-donations--happy-path)
   - [6. Streaming Subscriptions â€” Happy Path](#6-streaming-subscriptions--happy-path)
   - [7. Streaming Failure Routes](#7-streaming-failure-routes)
-  - [8. ChilizSwapRouter â€” All Payment Paths Summary](#8-chilizswaprouter--all-payment-paths-summary)
+  - [8. NetworkRouter â€” All Payment Paths Summary](#8-networkrouter--all-payment-paths-summary)
   - [Contract Summary](#contract-summary)
     - [Error Quick Reference](#error-quick-reference)
 
@@ -40,7 +40,7 @@ sequenceDiagram
     participant SWFactory as StreamWalletFactory
     participant KayenMR as KayenMasterRouterV2
     participant KayenR as KayenRouter
-    participant SwapRouter as ChilizSwapRouter
+    participant SwapRouter as NetworkRouter
     participant Safe as Gnosis Safe (Treasury)
 
     rect rgb(200, 220, 255)
@@ -82,7 +82,7 @@ sequenceDiagram
     rect rgb(255, 230, 230)
         Note over Deployer,Safe: PHASE 4: UNIFIED SWAP ROUTER
 
-        Deployer->>SwapRouter: deploy ChilizSwapRouter(<br/>  masterRouter, tokenRouter,<br/>  usdc, wchz, treasury, feeBps)
+        Deployer->>SwapRouter: deploy NetworkRouter(<br/>  masterRouter, tokenRouter,<br/>  usdc, wchz, treasury, feeBps)
         activate SwapRouter
         Note right of SwapRouter: Immutables: masterRouter, tokenRouter, usdc, wchz<br/>Mutable: treasury, platformFeeBps<br/>Ownable(msg.sender) + ReentrancyGuard
         SwapRouter-->>Deployer: SwapRouter deployed âœ“
@@ -92,7 +92,7 @@ sequenceDiagram
     rect rgb(240, 240, 255)
         Note over Deployer,Safe: PHASE 5: CROSS-SYSTEM WIRING
 
-        Note right of Deployer: Order matters: SWFactory must know the router<br/>BEFORE the router registers the factory, otherwise<br/>ChilizSwapRouter reverts `RouterNotConfiguredOnFactory`.
+        Note right of Deployer: Order matters: SWFactory must know the router<br/>BEFORE the router registers the factory, otherwise<br/>NetworkRouter reverts `RouterNotConfiguredOnFactory`.
 
         Deployer->>SWFactory: setSwapRouter(SwapRouter)
         SWFactory-->>Deployer: âœ“
@@ -113,7 +113,7 @@ sequenceDiagram
         Note over Factory: BettingMatchFactory ready<br/>FootballMatch + BasketballMatch impls
         Note over Pool: LiquidityPool seeded by LPs<br/>Matches authorized by Safe
         Note over SWFactory: StreamWalletFactory ready<br/>with SwapRouter wired
-        Note over SwapRouter: ChilizSwapRouter ready<br/>Betting + Streaming + Kayen DEX
+        Note over SwapRouter: NetworkRouter ready<br/>Betting + Streaming + Kayen DEX
     end
 ```
 
@@ -165,7 +165,7 @@ sequenceDiagram
         Note right of Pool: onlyRole(DEFAULT_ADMIN_ROLE)<br/>emit MatchAuthorized
 
         Admin->>Proxy: grantRole(SWAP_ROUTER_ROLE, swapRouter)
-        Note right of Proxy: onlyRole(DEFAULT_ADMIN_ROLE)<br/>Allows ChilizSwapRouter to call placeBetUSDCFor
+        Note right of Proxy: onlyRole(DEFAULT_ADMIN_ROLE)<br/>Allows NetworkRouter to call placeBetUSDCFor
 
         Admin->>Escrow: authorizeMatch(proxy) [via Safe]
         Note right of Escrow: onlyOwner<br/>authorizedMatches[proxy] = true<br/>emit MatchAuthorized
@@ -461,7 +461,7 @@ sequenceDiagram
 
     actor Donor as Donor / Fan
     
-    participant SwapRouter as ChilizSwapRouter
+    participant SwapRouter as NetworkRouter
     participant Kayen as Kayen DEX
     participant USDC as USDC Token
     participant SWFactory as StreamWalletFactory
@@ -569,7 +569,7 @@ sequenceDiagram
 
     actor Sub as Subscriber
     
-    participant SwapRouter as ChilizSwapRouter
+    participant SwapRouter as NetworkRouter
     participant Kayen as Kayen DEX
     participant USDC as USDC Token
     participant SWFactory as StreamWalletFactory
@@ -667,7 +667,7 @@ sequenceDiagram
     actor User as User
     actor BadActor as Unauthorized
 
-    participant SwapRouter as ChilizSwapRouter
+    participant SwapRouter as NetworkRouter
     participant Kayen as Kayen DEX
     participant SWFactory as StreamWalletFactory
     participant Wallet as StreamWallet Proxy
@@ -766,17 +766,17 @@ sequenceDiagram
 
 ---
 
-## 8. ChilizSwapRouter â€” All Payment Paths Summary
+## 8. NetworkRouter â€” All Payment Paths Summary
 
 Visual overview of every entry point and where tokens flow.
 
 ```mermaid
 sequenceDiagram
-    title ChilizSwapRouter â€” Complete Payment Flow Map
+    title NetworkRouter â€” Complete Payment Flow Map
 
     actor User as User
 
-    participant SwapRouter as ChilizSwapRouter
+    participant SwapRouter as NetworkRouter
     participant Kayen as Kayen DEX (MasterRouter + TokenRouter)
     participant Match as BettingMatch Proxy
     participant Wallet as StreamWallet Proxy
@@ -862,7 +862,7 @@ sequenceDiagram
 | **LiquidityPool** | ERC-4626 + AccessControl + Pausable + ReentrancyGuard + UUPS | DEFAULT_ADMIN_ROLE (Safe) manages matches, caps, fees, upgrade |
 | **StreamWalletFactory** | Ownable + ReentrancyGuard | Owner configures; deploys UUPS proxies |
 | **StreamWallet** | UUPS Proxy + Ownable | Streamer withdraws; Factory/SwapRouter record |
-| **ChilizSwapRouter** | Ownable + ReentrancyGuard | Owner sets treasury/fees; immutable DEX config |
+| **NetworkRouter** | Ownable + ReentrancyGuard | Owner sets treasury/fees; immutable DEX config |
 
 ### Error Quick Reference
 
@@ -882,11 +882,11 @@ sequenceDiagram
 | `ContractNotPaused` | BettingMatch | emergencyWithdraw when active |
 | `InsufficientFreeBalance` | LiquidityPool | Pool freeBalance cannot cover new bet exposure |
 | `MatchNotAuthorized` | LiquidityPool | Match not granted MATCH_ROLE |
-| `ZeroValue` | ChilizSwapRouter | 0 amount / 0 CHZ sent |
-| `ZeroAddress` | ChilizSwapRouter | address(0) parameter |
-| `DeadlinePassed` | ChilizSwapRouter | block.timestamp > deadline |
-| `TokenIsUSDC` | ChilizSwapRouter | Use direct USDC function |
-| `InvalidFeeBps` | ChilizSwapRouter | Fee > 10000 bps |
+| `ZeroValue` | NetworkRouter | 0 amount / 0 CHZ sent |
+| `ZeroAddress` | NetworkRouter | address(0) parameter |
+| `DeadlinePassed` | NetworkRouter | block.timestamp > deadline |
+| `TokenIsUSDC` | NetworkRouter | Use direct USDC function |
+| `InvalidFeeBps` | NetworkRouter | Fee > 10000 bps |
 | `OnlyFactory` | StreamWallet | Caller not factory |
 | `OnlyStreamer` | StreamWallet | Caller not streamer |
 | `OnlyAuthorized` | StreamWallet | Caller not factory/router |

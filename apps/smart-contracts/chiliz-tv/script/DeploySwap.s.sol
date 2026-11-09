@@ -2,12 +2,12 @@
 pragma solidity ^0.8.24;
 
 import {Script, console} from "forge-std/Script.sol";
-import {ChilizSwapRouter} from "../src/swap/ChilizSwapRouter.sol";
+import {NetworkRouter} from "../src/swap/NetworkRouter.sol";
 
 /**
  * @title DeploySwap
  * @author ChilizTV
- * @notice Deployment script for the unified ChilizSwapRouter
+ * @notice Deployment script for the unified NetworkRouter
  *
  * @dev Deploys a single swap router that handles both betting and streaming swaps.
  *
@@ -64,7 +64,7 @@ import {ChilizSwapRouter} from "../src/swap/ChilizSwapRouter.sol";
  *     --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY -vvvv
  */
 contract DeploySwap is Script {
-    ChilizSwapRouter public swapRouter;
+    NetworkRouter public swapRouter;
 
     address public deployer;
     address public kayenMasterRouter;
@@ -138,10 +138,10 @@ contract DeploySwap is Script {
     }
 
     function _deploySwapRouter() internal {
-        console.log("Deploying ChilizSwapRouter (unified)");
+        console.log("Deploying NetworkRouter (unified)");
         console.log("------------------------------------");
 
-        swapRouter = new ChilizSwapRouter(
+        swapRouter = new NetworkRouter(
             kayenMasterRouter,  // masterRouter (native CHZ swaps)
             kayenRouter,        // tokenRouter (ERC20-to-ERC20 swaps)
             usdcAddress,
@@ -150,7 +150,7 @@ contract DeploySwap is Script {
             platformFeeBps
         );
 
-        console.log("ChilizSwapRouter:", address(swapRouter));
+        console.log("NetworkRouter:", address(swapRouter));
         console.log("  Kayen Master Router:", kayenMasterRouter);
         console.log("  Kayen Token Router:", kayenRouter);
         console.log("  USDC:", usdcAddress);
@@ -188,7 +188,7 @@ contract DeploySwap is Script {
         console.log("=========================================");
         console.log("");
         console.log("DEPLOYED:");
-        console.log("  ChilizSwapRouter:", address(swapRouter));
+        console.log("  NetworkRouter:", address(swapRouter));
         console.log("  Owner           :", transferOwnership ? treasury : deployer);
         console.log("");
         console.log("=========================================");

@@ -14,7 +14,7 @@ import {BasketballPariMatch} from "../src/pari/BasketballPariMatch.sol";
 import {StreamWalletFactory} from "../src/streamer/StreamWalletFactory.sol";
 
 // Unified swap router
-import {ChilizSwapRouter} from "../src/swap/ChilizSwapRouter.sol";
+import {NetworkRouter} from "../src/swap/NetworkRouter.sol";
 
 // Leaderboard
 import {LeaderboardRewards} from "../src/leaderboard/LeaderboardRewards.sol";
@@ -26,7 +26,7 @@ import {LeaderboardRewards} from "../src/leaderboard/LeaderboardRewards.sol";
  *
  *           1. PariMatchFactory     — Deploys FootballPariMatch / BasketballPariMatch proxies.
  *           2. StreamWalletFactory  — Deploys StreamWallet proxies.
- *           3. ChilizSwapRouter     — Token-to-USDC swap adapter for both modules.
+ *           3. NetworkRouter        — Token-to-USDC swap adapter for both modules.
  *           4. LeaderboardRewards   — UUPS proxy. Receives 1% of every pool
  *                                      and distributes pro-rata per epoch.
  *                                      Init runs both V1 `initialize(...)` and
@@ -64,7 +64,7 @@ import {LeaderboardRewards} from "../src/leaderboard/LeaderboardRewards.sol";
  *   PLATFORM_FEE_BPS    — Streaming platform fee bps (default 500 = 5%)
  *   TRANSFER_OWNERSHIP  — When "true", starts the transfer of
  *                          PariMatchFactory, StreamWalletFactory and
- *                          ChilizSwapRouter ownership to SAFE_ADDRESS
+ *                          NetworkRouter ownership to SAFE_ADDRESS
  *                          (Ownable2Step: the Safe must then call
  *                          acceptOwnership() on each) and moves the
  *                          leaderboard roles to it. Default: false on test
@@ -92,7 +92,7 @@ contract DeployAll is Script {
 
     PariMatchFactory    public pariFactory;
     StreamWalletFactory public streamFactory;
-    ChilizSwapRouter    public swapRouter;
+    NetworkRouter       public swapRouter;
     LeaderboardRewards  public leaderboard;
 
     address public deployer;
@@ -216,10 +216,10 @@ contract DeployAll is Script {
     function _deploySwapRouter() internal {
         console.log("[3/4] CHILIZ SWAP ROUTER");
         console.log("========================");
-        swapRouter = new ChilizSwapRouter(
+        swapRouter = new NetworkRouter(
             kayenMasterRouter, kayenRouter, usdcAddress, wchz, treasury, platformFeeBps
         );
-        console.log("ChilizSwapRouter    :", address(swapRouter));
+        console.log("NetworkRouter       :", address(swapRouter));
         console.log("  Treasury          :", treasury);
         console.log("  Master router     :", kayenMasterRouter);
         console.log("  Token router      :", kayenRouter);
@@ -314,7 +314,7 @@ contract DeployAll is Script {
     /// @dev Transfers admin authority on all top-level contracts to the
     ///      Safe. Skipped by default — set TRANSFER_OWNERSHIP=true to enable.
     ///
-    ///      - PariMatchFactory / StreamWalletFactory / ChilizSwapRouter use
+    ///      - PariMatchFactory / StreamWalletFactory / NetworkRouter use
     ///        Ownable → simple transferOwnership.
     ///      - LeaderboardRewards uses AccessControl (UUPS, no Ownable) →
     ///        grant the Safe DEFAULT_ADMIN_ROLE + ADMIN_ROLE + PAUSER_ROLE,
@@ -380,7 +380,7 @@ contract DeployAll is Script {
         console.log("==============================================");
         console.log("PariMatchFactory    :", address(pariFactory));
         console.log("StreamWalletFactory :", address(streamFactory));
-        console.log("ChilizSwapRouter    :", address(swapRouter));
+        console.log("NetworkRouter       :", address(swapRouter));
         console.log("LeaderboardRewards  :", address(leaderboard));
         console.log("Treasury (Safe)     :", treasury);
         console.log("Owner of contracts  :", transferOwnership ? treasury : deployer);

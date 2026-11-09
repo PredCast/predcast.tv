@@ -20,7 +20,7 @@ This document illustrates the complete architecture of the **Chiliz-TV Dual Syst
 - **Upgradeability**: Each streamer wallet is an independent UUPS proxy. `StreamWallet._authorizeUpgrade()` is locked to the factory, so only the factory owner (via `StreamWalletFactory.upgradeWallet(streamer, newImpl)`) can upgrade a wallet. Streamers cannot self-upgrade. Upgrading many wallets is an **O(N) operation** — one transaction per wallet — not atomic. There is no `StreamBeaconRegistry`; it was designed but not built.
 
 ### 3. Unified Swap Router
-- **ChilizSwapRouter** (`src/swap/ChilizSwapRouter.sol`): Single swap adapter for the entire platform
+- **NetworkRouter** (`src/swap/NetworkRouter.sol`): Single swap adapter for the entire platform
 - Handles **betting** (CHZ / Fan Token / USDC â†’ USDC â†’ BettingMatch) and **streaming** (CHZ / Fan Token / USDC â†’ USDC â†’ streamer/treasury) in one contract
 - Swaps via Kayen DEX (IKayenMasterRouterV2 for native CHZ, IKayenRouter for ERC20)
 - Ownable + ReentrancyGuard; platform fee + treasury config for streaming flows
@@ -30,7 +30,7 @@ This document illustrates the complete architecture of the **Chiliz-TV Dual Syst
 - **LiquidityPool**: Single ERC-4626 vault that backs all bet payouts. LPs deposit USDC and receive transferable `ctvLP` shares that auto-compound the house edge priced into fixed odds.
 - **BettingMatch proxies hold no USDC** — all stake enters the pool; all payouts leave the pool.
 - NAV model: `totalAssets() = USDC.balanceOf(pool) - totalLiabilities`
-- Roles: `DEFAULT_ADMIN_ROLE` (Safe multisig), `MATCH_ROLE` (one per authorized match proxy), `ROUTER_ROLE` (ChilizSwapRouter), `PAUSER_ROLE` (emergency stop)
+- Roles: `DEFAULT_ADMIN_ROLE` (Safe multisig), `MATCH_ROLE` (one per authorized match proxy), `ROUTER_ROLE` (NetworkRouter), `PAUSER_ROLE` (emergency stop)
 - Match-facing API: `recordBet()`, `settleMarket()`, `payWinner()`, `payRefund()`
 - Withdrawal gated on `freeBalance` (unreserved USDC) and per-depositor cooldown to prevent flash-NAV manipulation
 - Per-market and per-match liability caps (in bps of `totalAssets()`) enforce solvency at bet time
@@ -41,7 +41,7 @@ This document illustrates the complete architecture of the **Chiliz-TV Dual Syst
 - `script/DeployAll.s.sol`: Complete system deployment (betting + streaming + swap router)
 - `script/DeployBetting.s.sol`: Betting system only
 - `script/DeployStreaming.s.sol`: Streaming system only
-- `script/DeploySwap.s.sol`: Unified ChilizSwapRouter (Kayen DEX integration)
+- `script/DeploySwap.s.sol`: Unified NetworkRouter (Kayen DEX integration)
 - `script/DeployLiquidityPool.s.sol`: LiquidityPool deployment + configuration
 
 ---
@@ -226,7 +226,7 @@ sequenceDiagram
 
     participant Impl as StreamWallet Logic
     participant Factory as StreamWalletFactory
-    participant Router as ChilizSwapRouter
+    participant Router as NetworkRouter
     participant Wallet as StreamWallet Proxy (ERC1967)
     participant Treasury as Treasury Multisig
 
@@ -269,7 +269,7 @@ sequenceDiagram
     rect rgb(255, 240, 220)
         Note over Admin,Treasury: PHASE 3: SUBSCRIPTIONS & DONATIONS (all settle in USDC)
 
-        Note over Viewer: Preferred path — all entrypoints live on ChilizSwapRouter<br/>Any token / CHZ / USDC → swap → USDC → split → wallet
+        Note over Viewer: Preferred path — all entrypoints live on NetworkRouter<br/>Any token / CHZ / USDC → swap → USDC → split → wallet
 
         Viewer->>Router: donateWithCHZ(streamer, message, minOut, deadline) {value: 50 CHZ}
         activate Router
@@ -327,7 +327,7 @@ sequenceDiagram
     rect rgb(240, 240, 240)
         Note over Admin,Treasury: FINAL STATE SUMMARY
 
-        Note over Wallet: Streamer Wallet State:<br/>✓ Revenue settled in USDC (6 decimals)<br/>✓ Platform fees sent to Treasury on every payment<br/>✓ Streamer share accumulates in wallet; withdrawRevenue() drains it<br/><br/>Payment Paths Supported (via ChilizSwapRouter):<br/>✓ Native CHZ → USDC<br/>✓ Any ERC20 / Fan Token → USDC<br/>✓ USDC direct (no swap)<br/><br/>Upgrade Model:<br/>✓ Per-wallet UUPS, factory-gated<br/>✗ NOT atomic — no beacon, no StreamBeaconRegistry<br/>✓ Streamer cannot self-upgrade (factory-only authorize)
+        Note over Wallet: Streamer Wallet State:<br/>✓ Revenue settled in USDC (6 decimals)<br/>✓ Platform fees sent to Treasury on every payment<br/>✓ Streamer share accumulates in wallet; withdrawRevenue() drains it<br/><br/>Payment Paths Supported (via NetworkRouter):<br/>✓ Native CHZ → USDC<br/>✓ Any ERC20 / Fan Token → USDC<br/>✓ USDC direct (no swap)<br/><br/>Upgrade Model:<br/>✓ Per-wallet UUPS, factory-gated<br/>✗ NOT atomic — no beacon, no StreamBeaconRegistry<br/>✓ Streamer cannot self-upgrade (factory-only authorize)
     end
 ```
 
@@ -344,7 +344,7 @@ sequenceDiagram
 | `ODDS_SETTER_ROLE` | Update market odds in real-time | Backend odds service |
 | `RESOLVER_ROLE` | Resolve markets with outcomes | Backend resolver service (NOT auto-granted at init — must be granted explicitly) |
 | `PAUSER_ROLE` | Emergency pause in critical situations | Match owner, security team |
-| `SWAP_ROUTER_ROLE` | Call `placeBetUSDCFor()` on behalf of users | ChilizSwapRouter contract |
+| `SWAP_ROUTER_ROLE` | Call `placeBetUSDCFor()` on behalf of users | NetworkRouter contract |
 
 > `TREASURY_ROLE` no longer exists — it was retired when bet custody moved to `LiquidityPool`. The match contract is pure bookkeeping and never holds USDC; emergency-fund and treasury-related operations live on the pool.
 
@@ -448,14 +448,14 @@ These calls are NOT done by the factory and, if skipped, will silently break bet
 | 1 | `match.setUSDCToken(usdc)` | `ADMIN_ROLE` | `placeBetUSDC` reverts `USDCNotConfigured` |
 | 2 | `pool.authorizeMatch(match)` | `DEFAULT_ADMIN_ROLE` (Safe on pool) | Pool refuses `recordBet` / `payWinner` → reverts `MatchNotAuthorized` |
 | 4 | `match.grantRole(RESOLVER_ROLE, oracle)` | `DEFAULT_ADMIN_ROLE` | `resolveMarket` reverts (RESOLVER is **not** auto-granted at init by design; see Role-Based Access Control) |
-| 5 | `match.grantRole(SWAP_ROUTER_ROLE, ChilizSwapRouter)` | `DEFAULT_ADMIN_ROLE` | Any `placeBetWith*` through the router reverts |
-| 6 | (optional M-02) `ChilizSwapRouter.setMatchFactory(bettingFactory)` | router owner | Router will forward USDC to any address, not only factory-registered matches |
+| 5 | `match.grantRole(SWAP_ROUTER_ROLE, NetworkRouter)` | `DEFAULT_ADMIN_ROLE` | Any `placeBetWith*` through the router reverts |
+| 6 | (optional M-02) `NetworkRouter.setMatchFactory(bettingFactory)` | router owner | Router will forward USDC to any address, not only factory-registered matches |
 
-**⚠ Required wiring — ChilizSwapRouter ↔ StreamWalletFactory**
+**⚠ Required wiring — NetworkRouter ↔ StreamWalletFactory**
 The router verifies that the factory knows about it before accepting the registration. Correct order:
 
-1. `StreamWalletFactory.setSwapRouter(chilizSwapRouter)`
-2. `ChilizSwapRouter.setStreamWalletFactory(streamWalletFactory)` — this reverts `RouterNotConfiguredOnFactory` if step 1 was skipped.
+1. `StreamWalletFactory.setSwapRouter(networkRouter)`
+2. `NetworkRouter.setStreamWalletFactory(streamWalletFactory)` — this reverts `RouterNotConfiguredOnFactory` if step 1 was skipped.
 
 ---
 
@@ -466,7 +466,7 @@ The router verifies that the factory knows about it before accepting the registr
 | FootballMatch Implementation | TBD | Chiliz Spicy Testnet |
 | BasketballMatch Implementation | TBD | Chiliz Spicy Testnet |
 | BettingMatchFactory | TBD | Chiliz Spicy Testnet |
-| ChilizSwapRouter | TBD | Chiliz Spicy Testnet |
+| NetworkRouter | TBD | Chiliz Spicy Testnet |
 | StreamWallet Implementation | TBD | Chiliz Spicy Testnet |
 | StreamWalletFactory | TBD | Chiliz Spicy Testnet |
 | USDC Token | TBD | Chiliz Spicy Testnet |
@@ -485,7 +485,7 @@ src/
 â”‚   â”œâ”€â”€ BasketballMatch.sol        # Basketball-specific implementation
 â”‚   â”œâ”€â”€ BettingMatchFactory.sol    # Factory for ERC1967Proxy deployment
 â”œâ”€â”€ swap/
-â”‚   â””â”€â”€ ChilizSwapRouter.sol       # Unified CHZ / Token / USDC swap router (betting + streaming)
+â”‚   â””â”€â”€ NetworkRouter.sol       # Unified CHZ / Token / USDC swap router (betting + streaming)
 â”œâ”€â”€ streamer/
 â”‚   â”œâ”€â”€ StreamWallet.sol           # Subscription & donation logic, UUPS (USDC-denominated)
 â”‚   â””â”€â”€ StreamWalletFactory.sol    # Factory for ERC1967Proxy deployment + per-wallet upgrades
@@ -500,15 +500,15 @@ script/
 â”œâ”€â”€ DeployBetting.s.sol            # Betting system deployment
 ├── DeployLiquidityPool.s.sol      # LiquidityPool deployment + authorization
 â”œâ”€â”€ DeployStreaming.s.sol          # Streaming system deployment
-â””â”€â”€ DeploySwap.s.sol               # ChilizSwapRouter deployment
+â””â”€â”€ DeploySwap.s.sol               # NetworkRouter deployment
 
 test/
 â”œâ”€â”€ BettingMatchTest.t.sol         # Core USDC betting + dynamic odds tests
 â”œâ”€â”€ BasketballMatchTest.t.sol      # Basketball lifecycle tests
 ├── LiquidityPoolTest.t.sol        # LiquidityPool deposit/withdraw, bet lifecycle, solvency caps
 â”œâ”€â”€ StreamWalletTest.t.sol         # StreamWallet + StreamWalletFactory UUPS upgrade tests
-â”œâ”€â”€ ChilizSwapRouterTest.t.sol     # ChilizSwapRouter betting + streaming payment paths
-â”œâ”€â”€ SwapIntegrationTest.t.sol      # ChilizSwapRouter betting integration tests
+â”œâ”€â”€ ChilizSwapRouterTest.t.sol     # NetworkRouter betting + streaming payment paths
+â”œâ”€â”€ SwapIntegrationTest.t.sol      # NetworkRouter betting integration tests
 â””â”€â”€ mocks/
     â””â”€â”€ MockUSDC.sol               # Mock USDC token for testing
 ```

@@ -12,7 +12,7 @@ import {MockUSDC} from "./mocks/MockUSDC.sol";
  *         router-only payments, on-chain subscription pricing (H-03),
  *         payout address (L-06), removed fan-token paths (H-05 residual),
  *         config read live from the factory (M-04), factory-only upgrades.
- *         End-to-end flows through the real ChilizSwapRouter live in
+ *         End-to-end flows through the real NetworkRouter live in
  *         StreamSwapRouterTest / FanTokenSwapRouterTest.
  * @dev    Historical file name: the beacon design it was named after never
  *         shipped (see README).
@@ -55,7 +55,7 @@ contract StreamBeaconRegistryTest is Test {
         w.setSubscriptionPricing(PRICE, PERIOD);
     }
 
-    /// Mimics ChilizSwapRouter: fee already sent to the treasury, the rest to
+    /// Mimics NetworkRouter: fee already sent to the treasury, the rest to
     /// the wallet, then the wallet records the payment.
     function _routerDonate(StreamWallet w, address donor, uint256 total) internal {
         uint256 fee = (total * PLATFORM_FEE_BPS) / 10_000;

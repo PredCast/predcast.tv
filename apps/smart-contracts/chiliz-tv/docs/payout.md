@@ -20,7 +20,7 @@ The ChilizTV betting system uses a **LiquidityPool-backed payout** architecture.
 | `DEFAULT_ADMIN_ROLE` (pool) | **Admin key (EOA or multisig) — NOT the treasury Safe** | Authorize/revoke matches, set fees & caps & cooldown & `maxBetAmount`, upgrade pool |
 | `PAUSER_ROLE` (pool) | Admin key / security team | Emergency pause |
 | `MATCH_ROLE` (pool) | Each BettingMatch proxy | Call `recordBet`, `settleMarket`, `payWinner`, `payRefund` |
-| `ROUTER_ROLE` (pool) | ChilizSwapRouter | Call `recordBet` on behalf of users |
+| `ROUTER_ROLE` (pool) | NetworkRouter | Call `recordBet` on behalf of users |
 | `treasury` (pool state) | **Treasury Safe (multisig)** | `proposeTreasury` / `cancelTreasuryProposal` / `acceptTreasury` / `withdrawTreasury` |
 | `ADMIN_ROLE` (match) | Match owner | Create markets, manage state, `setMaxAllowedOdds` |
 | `RESOLVER_ROLE` (match) | Oracle / admin | Resolve markets with results |

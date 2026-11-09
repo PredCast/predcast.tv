@@ -8,7 +8,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {PariMatchFactory}    from "../../src/pari/PariMatchFactory.sol";
 import {FootballPariMatch}   from "../../src/pari/FootballPariMatch.sol";
 import {BasketballPariMatch} from "../../src/pari/BasketballPariMatch.sol";
-import {ChilizSwapRouter}    from "../../src/swap/ChilizSwapRouter.sol";
+import {NetworkRouter}       from "../../src/swap/NetworkRouter.sol";
 import {StreamWalletFactory} from "../../src/streamer/StreamWalletFactory.sol";
 import {StreamWallet}        from "../../src/streamer/StreamWallet.sol";
 import {LeaderboardRewards}  from "../../src/leaderboard/LeaderboardRewards.sol";
@@ -41,7 +41,7 @@ contract BaseSepoliaForkTest is Test {
     address streamer   = makeAddr("streamer");
 
     PariMatchFactory    factory;
-    ChilizSwapRouter    router;
+    NetworkRouter       router;
     StreamWalletFactory streamFactory;
     LeaderboardRewards  leaderboard;
     FootballPariMatch   m;
@@ -55,7 +55,7 @@ contract BaseSepoliaForkTest is Test {
             address(new FootballPariMatch()), address(new BasketballPariMatch()), governance
         );
         streamFactory = new StreamWalletFactory(address(this), governance, 500, UNISWAP_V2_ROUTER, USDC);
-        router = new ChilizSwapRouter(UNISWAP_V2_ROUTER, UNISWAP_V2_ROUTER, USDC, WETH, governance, 500);
+        router = new NetworkRouter(UNISWAP_V2_ROUTER, UNISWAP_V2_ROUTER, USDC, WETH, governance, 500);
         LeaderboardRewards impl = new LeaderboardRewards();
         leaderboard = LeaderboardRewards(address(new ERC1967Proxy(
             address(impl), abi.encodeCall(LeaderboardRewards.initialize, (USDC, address(this), address(0)))

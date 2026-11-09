@@ -16,7 +16,7 @@ import {StreamWallet}         from "../streamer/StreamWallet.sol";
 import {StreamWalletFactory}  from "../streamer/StreamWalletFactory.sol";
 
 /**
- * @title ChilizSwapRouter
+ * @title NetworkRouter
  * @author ChilizTV
  * @notice Unified swap router for the ChilizTV platform (pari-mutuel edition).
  *
@@ -60,7 +60,7 @@ import {StreamWalletFactory}  from "../streamer/StreamWalletFactory.sol";
  *     must be non-zero (audit M-07); compute it with quoteTokenToUSDC /
  *     the Kayen quote minus the user's tolerance.
  */
-contract ChilizSwapRouter is ReentrancyGuard, Ownable2Step {
+contract NetworkRouter is ReentrancyGuard, Ownable2Step {
     using SafeERC20 for IERC20;
 
     // ══════════════════════════════════════════════════════════════════════════

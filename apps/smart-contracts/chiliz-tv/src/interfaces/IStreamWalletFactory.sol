@@ -23,6 +23,6 @@ interface IStreamWalletFactory {
     /// @notice USDC token escrowed by the wallets.
     function usdc() external view returns (address);
 
-    /// @notice ChilizSwapRouter allowed to record donations and subscriptions.
+    /// @notice NetworkRouter allowed to record donations and subscriptions.
     function swapRouter() external view returns (address);
 }

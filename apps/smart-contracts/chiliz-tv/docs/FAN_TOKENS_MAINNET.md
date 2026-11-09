@@ -1,4 +1,4 @@
-# Fan tokens tradeable via ChilizSwapRouter (Chiliz mainnet)
+# Fan tokens tradeable via NetworkRouter (Chiliz mainnet)
 
 Generated 2026-06-11 by enumerating all 439 Kayen pairs on factory
 `0xE2918AA38088878546c1A18F2F9b1BC83297fdD3`, keeping WCHZ pairs whose other

@@ -11,7 +11,7 @@ import {IStreamWalletInit} from "../interfaces/IStreamWalletInit.sol";
  * @title StreamWalletFactory
  * @notice Factory for deploying StreamWallet UUPS proxies for streamers
  * @dev Uses ERC1967 proxy pattern matching betting system architecture.
- *      Payments go through ChilizSwapRouter, which creates wallets lazily via
+ *      Payments go through NetworkRouter, which creates wallets lazily via
  *      `getOrCreateWallet`. The former fan-token entrypoints
  *      `subscribeToStream` / `donateToStream` were removed (audit H-05
  *      residual): their hard-coded [token, USDC] swap path reverted for every
@@ -129,7 +129,7 @@ contract StreamWalletFactory is Ownable2Step {
 
     /**
      * @notice Get or create a StreamWallet for a streamer
-     * @dev Used by ChilizSwapRouter to ensure a wallet exists before recording
+     * @dev Used by NetworkRouter to ensure a wallet exists before recording
      * @param streamer The streamer address
      * @return wallet The StreamWallet proxy address
      */
@@ -226,7 +226,7 @@ contract StreamWalletFactory is Ownable2Step {
 
     /**
      * @notice Update the authorized swap router address
-     * @param _swapRouter The ChilizSwapRouter address
+     * @param _swapRouter The NetworkRouter address
      */
     function setSwapRouter(address _swapRouter) external onlyOwner {
         if (_swapRouter == address(0)) revert InvalidAddress();

@@ -109,7 +109,7 @@ All scripts follow this streamlined order:
    - BettingMatchFactory → Safe (controls who gets new matches + implementation pointer)
    - StreamWalletFactory → Safe (controls per-wallet upgrades)
    - LiquidityPool admin → **Admin key (EOA or dedicated ops multisig — NOT the treasury Safe)**. `DEFAULT_ADMIN_ROLE` controls match whitelist, caps, fees, pause, upgrades. Treasury Safe is passed as a **separate** `treasury_` parameter at `initialize()` and is the only address that can rotate treasury or withdraw accrued funds.
-   - ChilizSwapRouter → Safe (controls treasury, platformFeeBps, registered factories — Ownable, independent of the pool's admin/treasury split)
+   - NetworkRouter → Safe (controls treasury, platformFeeBps, registered factories — Ownable, independent of the pool's admin/treasury split)
 
 **Gas Optimization:**
 - First proxy deployment: ~680K gas (factory constructor cost already paid separately — implementations sit on-chain ready to be reused)

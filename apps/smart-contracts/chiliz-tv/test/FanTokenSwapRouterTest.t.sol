@@ -4,7 +4,7 @@ pragma solidity ^0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-import {ChilizSwapRouter}    from "../src/swap/ChilizSwapRouter.sol";
+import {NetworkRouter}       from "../src/swap/NetworkRouter.sol";
 import {PariMatchFactory}    from "../src/pari/PariMatchFactory.sol";
 import {FootballPariMatch}   from "../src/pari/FootballPariMatch.sol";
 import {StreamWalletFactory} from "../src/streamer/StreamWalletFactory.sol";
@@ -29,7 +29,7 @@ contract MockERC20 is ERC20 {
 
 /**
  * @title FanTokenSwapRouterTest
- * @notice Fan-token (sub-18-decimals) swap support in ChilizSwapRouter:
+ * @notice Fan-token (sub-18-decimals) swap support in NetworkRouter:
  *         wrap via the Kayen wrapper factory, then [wrapped, WCHZ, USDC].
  */
 contract FanTokenSwapRouterTest is Test {
@@ -38,7 +38,7 @@ contract FanTokenSwapRouterTest is Test {
     MockChilizWrapperFactory public wrapperFactory;
     MockFanToken0Dec         public fanToken;
     MockERC20                public regularToken;
-    ChilizSwapRouter         public swapRouter;
+    NetworkRouter            public swapRouter;
     PariMatchFactory         public pariFactory;
     FootballPariMatch        public match_;
     StreamWalletFactory      public walletFactory;
@@ -62,7 +62,7 @@ contract FanTokenSwapRouterTest is Test {
         fanToken       = new MockFanToken0Dec();
         regularToken   = new MockERC20();
 
-        swapRouter = new ChilizSwapRouter(
+        swapRouter = new NetworkRouter(
             address(mockRouter), // masterRouter (mock implements both)
             address(mockRouter), // tokenRouter
             address(usdc),
@@ -208,7 +208,7 @@ contract FanTokenSwapRouterTest is Test {
         fanToken.approve(address(swapRouter), 100);
 
         vm.expectEmit(true, true, false, true, address(swapRouter));
-        emit ChilizSwapRouter.FanTokenWrapped(address(fanToken), wrapped, 100, 100e18);
+        emit NetworkRouter.FanTokenWrapped(address(fanToken), wrapped, 100, 100e18);
 
         swapRouter.placeBetWithToken(
             address(fanToken), 100, address(match_), marketId, 1, 10e6, block.timestamp + 1 hours

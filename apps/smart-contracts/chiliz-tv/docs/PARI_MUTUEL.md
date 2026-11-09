@@ -26,7 +26,7 @@ to their stake on the winning outcome.
                        + pari-mutuel math)
 ```
 
-`ChilizSwapRouter` calls `placeBetUSDCFor` after swapping the user's CHZ /
+`NetworkRouter` calls `placeBetUSDCFor` after swapping the user's CHZ /
 fan-token / arbitrary ERC20 → USDC. The router holds `SWAP_ROUTER_ROLE` on
 each proxy.
 
@@ -229,7 +229,7 @@ keep order.
 | `ADMIN_ROLE`          | Owner (multisig)      | Create / open / close / cancel markets, fee setters |
 | `RESOLVER_ROLE`       | Oracle EOA            | `resolveMarket`, `resolveByScore`                   |
 | `PAUSER_ROLE`         | Owner / ops EOA       | `emergencyPause`                                    |
-| `SWAP_ROUTER_ROLE`    | `ChilizSwapRouter`    | `placeBetUSDCFor`                                   |
+| `SWAP_ROUTER_ROLE`    | `NetworkRouter`       | `placeBetUSDCFor`                                   |
 
 `PariMatchFactory` is granted all roles temporarily during deployment and
 renounces them inside the same transaction. After `createFootballMatch` /

@@ -11,7 +11,7 @@ ChilizTV provides a decentralized platform with two main systems:
 
 1. **Betting System** — UUPS-based match betting with multiple markets, settled entirely in USDC
 2. **Streaming System** — UUPS streamer wallets (one per streamer, factory-gated upgrades) with subscriptions and donations
-3. **Unified Swap Router** — Single `ChilizSwapRouter` that accepts CHZ, WCHZ, fan tokens, or any ERC20, swaps to USDC via Kayen DEX, and forwards to the target (betting match or streamer/treasury)
+3. **Unified Swap Router** — Single `NetworkRouter` that accepts CHZ, WCHZ, fan tokens, or any ERC20, swaps to USDC via Kayen DEX, and forwards to the target (betting match or streamer/treasury)
 
 All settlements happen in **USDC**. Users can pay with any token — the swap router handles conversion automatically.
 
@@ -46,7 +46,7 @@ flowchart LR
     end
     
     subgraph SwapRouter
-        CSR[ChilizSwapRouter]
+        CSR[NetworkRouter]
     end
     
     subgraph Users
@@ -88,7 +88,7 @@ flowchart LR
   - `createFootballMatch(name, owner)` / `createBasketballMatch(name, owner)` — grants `DEFAULT_ADMIN_ROLE` on the proxy to `owner`. **Prefer a multisig here** (see §6.1).
   - Tracks all deployed matches by sport type
 
-- **ChilizSwapRouter** (`src/swap/ChilizSwapRouter.sol`): Unified swap router for the entire platform
+- **NetworkRouter** (`src/swap/NetworkRouter.sol`): Unified swap router for the entire platform
   - Single contract handling **both** betting and streaming swap flows
   - Accepts native CHZ, WCHZ, fan tokens, any ERC20, or USDC directly
   - Betting: swaps to USDC and calls `placeBetUSDCFor` on BettingMatch
@@ -106,7 +106,7 @@ flowchart LR
 1. Factory creates sport-specific match proxy (football or basketball)
 2. Admin adds markets with bytes32 type + initial odds (x10000)
 3. Admin opens markets for betting
-4. Users bet via **ChilizSwapRouter** (CHZ/tokens) or **placeBetUSDC** (direct USDC)
+4. Users bet via **NetworkRouter** (CHZ/tokens) or **placeBetUSDC** (direct USDC)
 5. All bets settle in USDC — odds locked at bet time
 6. Odds can change → new bets get new odds, old bets keep locked odds
 7. Admin resolves markets with result
@@ -123,7 +123,7 @@ flowchart LR
     end
 
     subgraph SwapRouter
-        CSR[ChilizSwapRouter]
+        CSR[NetworkRouter]
     end
 
     subgraph Implementation
@@ -175,12 +175,12 @@ flowchart LR
 
 > There is **no `StreamBeaconRegistry`** and no `UpgradeableBeacon` in the code. The streaming system uses per-wallet UUPS, not a beacon. Earlier docs described a beacon design that was never shipped.
 
-- **StreamSwapRouter** — **Removed** (merged into ChilizSwapRouter)
-  - All streaming payment functions (donateWithCHZ/Token/USDC, subscribeWithCHZ/Token/USDC) are now on `ChilizSwapRouter`
+- **StreamSwapRouter** — **Removed** (merged into NetworkRouter)
+  - All streaming payment functions (donateWithCHZ/Token/USDC, subscribeWithCHZ/Token/USDC) are now on `NetworkRouter`
 
 **Streaming Flow:**
 1. Factory creates StreamWallet proxy for a streamer
-2. Users donate/subscribe via **ChilizSwapRouter** (CHZ/tokens/USDC) or **Factory** (fan tokens)
+2. Users donate/subscribe via **NetworkRouter** (CHZ/tokens/USDC) or **Factory** (fan tokens)
 3. Non-USDC tokens swapped to USDC automatically via Kayen DEX
 4. Platform fee split to treasury, net amount to streamer
 5. Streamer withdraws accumulated balance
@@ -280,10 +280,10 @@ contract BettingMatchFactory {
 }
 ```
 
-#### ChilizSwapRouter.sol
+#### NetworkRouter.sol
 ```solidity
 // Unified swap router: any token → USDC → bet or streamer/treasury
-contract ChilizSwapRouter is ReentrancyGuard, Ownable {
+contract NetworkRouter is ReentrancyGuard, Ownable {
     // ── BETTING ──────────────────────────────────────────────
     // Native CHZ → USDC → bet
     function placeBetWithCHZ(
@@ -370,7 +370,7 @@ contract StreamWalletFactory {
     // on first subscribeToStream / donateToStream).
     function deployWalletFor(address streamer) external returns (address);
 
-    // Pulls `amount` of `token` (or takes native CHZ via ChilizSwapRouter) from msg.sender
+    // Pulls `amount` of `token` (or takes native CHZ via NetworkRouter) from msg.sender
     // and forwards the subscription to the streamer's wallet.
     function subscribeToStream(
         address streamer,
@@ -478,7 +478,7 @@ router with the streaming factory.
 | 2 | `match.setLiquidityPool(pool)` | `ADMIN_ROLE` | `placeBetUSDC` reverts `LiquidityPoolNotConfigured` |
 | 3 | `pool.authorizeMatch(match)` | `DEFAULT_ADMIN_ROLE` (admin key on pool — **NOT** the treasury Safe) | Pool refuses `recordBet` / `payWinner` → reverts `MatchNotAuthorized` |
 | 4 | `match.grantRole(RESOLVER_ROLE, oracle)` | `DEFAULT_ADMIN_ROLE` (match admin) | `resolveMarket` reverts. **RESOLVER is deliberately NOT granted at init** to separate the resolver key from the admin key. |
-| 5 | `match.grantRole(SWAP_ROUTER_ROLE, ChilizSwapRouter)` | `DEFAULT_ADMIN_ROLE` (match admin) | Any `placeBetWith*` routed through the swap router reverts |
+| 5 | `match.grantRole(SWAP_ROUTER_ROLE, NetworkRouter)` | `DEFAULT_ADMIN_ROLE` (match admin) | Any `placeBetWith*` routed through the swap router reverts |
 | 6 | `match.setMaxAllowedOdds(maxOdds)` *(recommended)* | `ADMIN_ROLE` | Falls back to hardcoded `MAX_ODDS = 100x` (1_000_000). Tighten per-sport to harden against odds-setter fat-fingers. |
 | 7 | `pool.setMaxBetAmount(cap)` *(recommended)* | `DEFAULT_ADMIN_ROLE` (pool admin) | 0 disables. Any single bet larger than this (post-fee netStake) reverts `BetAmountAboveCap`. |
 
@@ -486,14 +486,14 @@ router with the streaming factory.
 
 Order matters — the router asserts the factory knows about it:
 
-1. `StreamWalletFactory.setSwapRouter(ChilizSwapRouter)`
-2. `ChilizSwapRouter.setStreamWalletFactory(streamWalletFactory)` — reverts `RouterNotConfiguredOnFactory` if (1) was skipped.
+1. `StreamWalletFactory.setSwapRouter(NetworkRouter)`
+2. `NetworkRouter.setStreamWalletFactory(streamWalletFactory)` — reverts `RouterNotConfiguredOnFactory` if (1) was skipped.
 
 **Optional but recommended**
 
-- `ChilizSwapRouter.setMatchFactory(bettingMatchFactory)` — without this, the router will forward USDC to any `bettingMatch` argument, not just factory-registered ones (M-02 hardening).
+- `NetworkRouter.setMatchFactory(bettingMatchFactory)` — without this, the router will forward USDC to any `bettingMatch` argument, not just factory-registered ones (M-02 hardening).
 - **Role separation on `LiquidityPool` (critical):** the admin key (`DEFAULT_ADMIN_ROLE`) and the `treasury` state variable MUST be distinct addresses. Admin is typically a Safe or ops EOA for operational changes; the treasury is the Safe that pulls accrued funds. Deploying with the same address collapses the compartmentalisation and lets an admin compromise drain accrued treasury. See [docs/treasury.md](docs/treasury.md).
-- Transfer `DEFAULT_ADMIN_ROLE` on `BettingMatchFactory`, `StreamWalletFactory`, and `ChilizSwapRouter` to the Safe multisig (these are singleton admin keys for those contracts — separate from the pool's admin/treasury split).
+- Transfer `DEFAULT_ADMIN_ROLE` on `BettingMatchFactory`, `StreamWalletFactory`, and `NetworkRouter` to the Safe multisig (these are singleton admin keys for those contracts — separate from the pool's admin/treasury split).
 - Seed the `LiquidityPool` via `deposit(amount, receiver)` (requires USDC approval first). First deposit is safe against inflation attack (`_decimalsOffset = 6`).
 
 ---
@@ -620,7 +620,7 @@ cast send $STREAM_FACTORY \
 
 ### 5.9 Subscribe / Donate to a Stream
 
-All payment paths (CHZ, any ERC20, USDC direct) are on **ChilizSwapRouter**. The factory-side
+All payment paths (CHZ, any ERC20, USDC direct) are on **NetworkRouter**. The factory-side
 fan-token entrypoints were removed (audit H-05). Subscriptions need a price set by the streamer
 first (`setSubscriptionPricing`), and every swap needs a non-zero `amountOutMin` (audit M-07).
 
@@ -650,7 +650,7 @@ cast send $SWAP_ROUTER \
 - **ODDS_SETTER_ROLE**: Update market odds in real-time
 - **RESOLVER_ROLE**: Set final results for markets
 - **PAUSER_ROLE**: Emergency pause/unpause
-- **SWAP_ROUTER_ROLE**: Allows ChilizSwapRouter to call `placeBetUSDCFor`
+- **SWAP_ROUTER_ROLE**: Allows NetworkRouter to call `placeBetUSDCFor`
 - **Factory Owner**: Can point the factory at a new implementation for FUTURE match deployments via `setFootballImplementation` / `setBasketballImplementation`. Existing proxies are NOT auto-upgraded.
 
 > **Note:** the match contract no longer holds USDC. There is no `TREASURY_ROLE` — all USDC lives in `LiquidityPool`, which has its own admin/treasury separation (see §6.3).
@@ -687,7 +687,7 @@ cast send $SWAP_ROUTER \
 **Inflation-attack mitigated:** ctvLP uses OZ 5.x `_decimalsOffset = 6` (12 total decimals). First deposit is safe regardless of size.
 
 **Other treasury-adjacent:**
-- **Streaming platform fees**: forwarded directly to the Safe by `StreamWalletFactory` / `ChilizSwapRouter`. Admin on those factories rotates treasury via their own `setTreasury` (Ownable — unchanged, independent of the pool's 2-step pattern).
+- **Streaming platform fees**: forwarded directly to the Safe by `StreamWalletFactory` / `NetworkRouter`. Admin on those factories rotates treasury via their own `setTreasury` (Ownable — unchanged, independent of the pool's 2-step pattern).
 
 See [docs/treasury.md](docs/treasury.md) for the operational runbook and [docs/liquidity-providers.md](docs/liquidity-providers.md) for the LP-facing explainer.
 
@@ -731,7 +731,7 @@ forge test --match-contract StreamWalletTest -vvv
 **Betting System:**
 - BettingMatch Implementation: `TBD`
 - BettingMatchFactory: `TBD`
-- ChilizSwapRouter: `TBD`
+- NetworkRouter: `TBD`
 
 **Streaming System:**
 - StreamWallet Implementation: `TBD`
