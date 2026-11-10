@@ -438,6 +438,86 @@ contract LeaderboardRewardsTest is Test {
         assertEq(uint256(vm.load(address(lb), legacyScoreSlot)), 0xdeadbeef);
         assertEq(lb.epochScore(0, alice), 100e6);
     }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 10. PAUSES EXTEND CLAIM WINDOWS (V4)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// Epoch 0 closed with a 50 USDC prize, alice its only scorer.
+    function _closedEpochWithPrize() internal returns (uint64 claimExpiry) {
+        _profit(matchA, alice, 100e6, block.timestamp);
+        _fee(matchA, 50e6);
+        vm.warp(T0 + D + GRACE);
+        lb.advanceEpoch();
+        claimExpiry = lb.epoch(0).claimExpiry;
+        assertEq(lb.claimDeadline(0), claimExpiry, "no pause yet");
+    }
+
+    function test_V4_PauseExtendsTheClaimWindow() public {
+        uint64 expiry = _closedEpochWithPrize();
+
+        vm.warp(uint256(expiry) - 1 days);
+        vm.prank(admin);
+        lb.emergencyPause();
+        assertEq(uint64(uint256(vm.load(address(lb), bytes32(uint256(12))))), block.timestamp, "pause clock slot");
+
+        vm.warp(uint256(expiry) + 9 days); // paused for 10 days
+        assertEq(lb.claimDeadline(0), uint256(expiry) + 10 days, "the ongoing pause counts");
+        vm.prank(admin);
+        lb.unpause();
+        assertEq(lb.claimDeadline(0), uint256(expiry) + 10 days);
+
+        // Past the stored expiry, but the window is still open.
+        vm.expectRevert(abi.encodeWithSelector(
+            LeaderboardRewards.EpochClaimWindowNotExpired.selector, 0, uint64(expiry) + 10 days, block.timestamp
+        ));
+        lb.rolloverEpoch(0);
+        assertEq(lb.pendingClaim(0, alice), 50e6);
+        vm.prank(alice);
+        assertEq(lb.claim(0), 50e6);
+    }
+
+    function test_V4_RolloverWaitsForTheExtendedDeadline() public {
+        uint64 expiry = _closedEpochWithPrize();
+        vm.prank(admin);
+        lb.emergencyPause();
+        vm.warp(block.timestamp + 4 days);
+        vm.prank(admin);
+        lb.unpause();
+
+        vm.warp(uint256(expiry) + 4 days);
+        vm.expectRevert();
+        lb.rolloverEpoch(0);
+        vm.warp(uint256(expiry) + 4 days + 1);
+        assertEq(lb.rolloverEpoch(0), 50e6);
+        assertEq(lb.lockedInClosedEpochs(), 0);
+    }
+
+    function test_V4_PauseBeforeTheCloseDoesNotExtend() public {
+        vm.prank(admin);
+        lb.emergencyPause();
+        vm.warp(block.timestamp + 5 days);
+        vm.prank(admin);
+        lb.unpause();
+
+        uint64 expiry = _closedEpochWithPrize();
+        vm.warp(uint256(expiry) + 1);
+        assertEq(lb.pendingClaim(0, alice), 0, "window closed on time");
+        assertEq(lb.rolloverEpoch(0), 50e6);
+    }
+
+    /// A pause that began before the V4 upgrade has no start time: its
+    /// length is not counted, and nothing overflows.
+    function test_V4_PauseFromBeforeTheUpgradeIsIgnored() public {
+        uint64 expiry = _closedEpochWithPrize();
+        vm.prank(admin);
+        lb.emergencyPause();
+        vm.store(address(lb), bytes32(uint256(12)), bytes32(0)); // as left by V3
+        vm.warp(block.timestamp + 5 days);
+        vm.prank(admin);
+        lb.unpause();
+        assertEq(lb.claimDeadline(0), expiry);
+    }
 }
 
 contract MockMatchFactory {

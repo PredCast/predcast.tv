@@ -46,14 +46,16 @@ interface IPariMatchFactoryView {
  *      merkle proof — every scorer is implicitly entitled.
  *   4. After the claim window expires, any unclaimed remainder rolls back
  *      into the open prize pool via permissionless `rolloverEpoch(epochId)`.
+ *      Time spent paused does not count: `claimDeadline` adds it to the window.
  *
  * V2 upgrade notes
  * ────────────────
  * V1 used an off-chain ranker + merkle distribution. V2 deletes that path and
  * keeps everything on-chain. Storage layout is preserved: the legacy
  * cumulative `_score` mapping at slot 2 is left untouched (orphaned, harmless)
- * and the new state lives at slots 7–9 (slot 7 packs `epochStartTime` and
- * `epochDuration`; slots 8 and 9 hold the two new mappings). The
+ * and the new state lives at slots 6–9 (`epochStartTime` is packed into
+ * slot 6 after `matchFactory`, `epochDuration` takes slot 7; slots 8 and 9
+ * hold the two new mappings). The
  * `Epoch.merkleRoot` field is also preserved (slot reservation) but never
  * written or read post-V2.
  *
@@ -77,6 +79,14 @@ interface IPariMatchFactoryView {
  *     `initializeV2` is restricted to DEFAULT_ADMIN_ROLE.
  *   Storage: two variables appended after slot 9 (`_epochFees`,
  *   `_notifiedAhead`); the gap shrinks from 40 to 38.
+ *
+ * V4 changes
+ * ──────────
+ *   - A pause no longer lets prizes expire: claim windows and rollovers are
+ *     extended by the time spent paused after the epoch closed
+ *     (`claimDeadline`).
+ *   Storage: slot 12 packs the pause clock, slot 13 maps each epoch to the
+ *   clock at its close; the gap shrinks from 38 to 36.
  *
  * Trust model
  * ────────────
@@ -174,10 +184,10 @@ contract LeaderboardRewards is
 
     /// @notice Start time of the currently-open epoch (`_epochs[epochIndex]`).
     ///         Set at V2 init and rolled forward by `_maybeAdvanceEpoch`.
-    uint64 public epochStartTime;                                         // slot 7
+    uint64 public epochStartTime;                                         // slot 6 (packed after matchFactory)
 
     /// @notice Current epoch duration. Admin-settable in `[MIN, MAX]`.
-    uint64 public epochDuration;                                          // slot 7 (packed with epochStartTime)
+    uint64 public epochDuration;                                          // slot 7
 
     /// @notice Per-epoch user score: `_epochScores[epochId][user]`.
     mapping(uint256 epochId => mapping(address user => uint256 score)) internal _epochScores; // slot 8
@@ -198,9 +208,20 @@ contract LeaderboardRewards is
     ///         into it when it closes.
     uint256 internal _notifiedAhead;                                      // slot 11
 
+    // ─── V4 additions (appended; layout-safe) ──────────────────────────────
+
+    /// @notice When the current pause started, 0 when not paused.
+    uint64 internal _pauseStartedAt;                                      // slot 12
+    /// @notice Seconds spent in pauses that have ended (since V4).
+    uint64 internal _pausedTotal;                                         // slot 12 (packed)
+
+    /// @notice `_pausedClock()` when each epoch closed. The epoch's claim
+    ///         window is extended by the time spent paused since then.
+    mapping(uint256 epochId => uint256 pausedClock) internal _pausedClockAtClose; // slot 13
+
     /// Reserved storage gap. V1 reserved [43]; V2 consumed 3 slots (7-9),
-    /// V3 consumes 2 (10-11), leaving 38.
-    uint256[38] private __gap;
+    /// V3 consumed 2 (10-11), V4 consumes 2 (12-13), leaving 36.
+    uint256[36] private __gap;
 
     // ═══════════════════════════════════════════════════════════════════════
     // EVENTS
@@ -370,10 +391,22 @@ contract LeaderboardRewards is
 
     /// @notice Pause `advanceEpoch`, rollovers and prize claims. Score and fee
     ///         credits keep working, and a credit still closes an epoch that is
-    ///         due. Claim windows keep running during a pause.
-    function emergencyPause() external onlyRole(PAUSER_ROLE) { _pause(); }
+    ///         due. Every claim window is extended by the length of the pause,
+    ///         so a pause never makes a prize expire.
+    function emergencyPause() external onlyRole(PAUSER_ROLE) {
+        _pause();
+        _pauseStartedAt = uint64(block.timestamp);
+    }
+
     /// @notice Lift the pause.
-    function unpause()        external onlyRole(ADMIN_ROLE)  { _unpause(); }
+    function unpause() external onlyRole(ADMIN_ROLE) {
+        _unpause();
+        // 0 when the pause began before V4: its length is not known, so it is not counted.
+        if (_pauseStartedAt != 0) {
+            _pausedTotal += uint64(block.timestamp - _pauseStartedAt);
+            _pauseStartedAt = 0;
+        }
+    }
 
     function _authorizeUpgrade(address) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
 
@@ -485,6 +518,7 @@ contract LeaderboardRewards is
         ep.claimExpiry  = claimExpiry;
         ep.prizePool    = pool;
         _lockedInClosedEpochs += pool;
+        _pausedClockAtClose[closedId] = _pausedClock();
 
         // Roll forward; fees already attributed to the new open epoch stop
         // being "ahead".
@@ -508,8 +542,9 @@ contract LeaderboardRewards is
     {
         Epoch storage ep = _epochs[epochId];
         if (!ep.closed) revert EpochNotClosed(epochId);
-        if (block.timestamp <= ep.claimExpiry) {
-            revert EpochClaimWindowNotExpired(epochId, ep.claimExpiry, block.timestamp);
+        uint256 deadline = claimDeadline(epochId);
+        if (block.timestamp <= deadline) {
+            revert EpochClaimWindowNotExpired(epochId, uint64(deadline), block.timestamp);
         }
 
         rolledOver = ep.prizePool - ep.totalClaimed;
@@ -538,8 +573,9 @@ contract LeaderboardRewards is
     {
         Epoch storage ep = _epochs[epochId];
         if (!ep.closed) revert EpochNotClosed(epochId);
-        if (block.timestamp > ep.claimExpiry) {
-            revert EpochClaimWindowExpired(epochId, ep.claimExpiry, block.timestamp);
+        uint256 deadline = claimDeadline(epochId);
+        if (block.timestamp > deadline) {
+            revert EpochClaimWindowExpired(epochId, uint64(deadline), block.timestamp);
         }
         if (_claimed[epochId][msg.sender]) revert AlreadyClaimed(epochId, msg.sender);
 
@@ -591,7 +627,7 @@ contract LeaderboardRewards is
     function pendingClaim(uint256 epochId, address user) external view returns (uint256) {
         Epoch storage ep = _epochs[epochId];
         if (!ep.closed) return 0;
-        if (block.timestamp > ep.claimExpiry) return 0;
+        if (block.timestamp > claimDeadline(epochId)) return 0;
         if (_claimed[epochId][user]) return 0;
         uint256 userScore  = _epochScores[epochId][user];
         uint256 totalScore = _epochTotalScore[epochId];
@@ -599,7 +635,14 @@ contract LeaderboardRewards is
         return (userScore * ep.prizePool) / totalScore;
     }
 
-    /// @notice Snapshot of an epoch.
+    /// @notice Last timestamp at which `epochId` can be claimed: its stored
+    ///         `claimExpiry` plus the time spent paused since it closed, the
+    ///         current pause included. Rollover is possible after it.
+    function claimDeadline(uint256 epochId) public view returns (uint256) {
+        return uint256(_epochs[epochId].claimExpiry) + _pausedClock() - _pausedClockAtClose[epochId];
+    }
+
+    /// @notice Snapshot of an epoch. `claimExpiry` ignores pauses; see `claimDeadline`.
     function epoch(uint256 epochId) external view returns (Epoch memory) {
         return _epochs[epochId];
     }
@@ -641,6 +684,12 @@ contract LeaderboardRewards is
     /// @notice Earliest time the open epoch can be closed.
     function nextCloseTime() external view returns (uint256) {
         return uint256(epochStartTime) + uint256(epochDuration) + SCORING_GRACE;
+    }
+
+    /// @dev Seconds spent paused since V4, the current pause included.
+    function _pausedClock() internal view returns (uint256 t) {
+        t = _pausedTotal;
+        if (_pauseStartedAt != 0) t += block.timestamp - _pauseStartedAt;
     }
 
     function _openPrizePool() internal view returns (uint256) {

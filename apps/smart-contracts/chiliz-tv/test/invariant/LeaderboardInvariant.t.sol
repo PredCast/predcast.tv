@@ -92,7 +92,7 @@ contract LeaderboardHandler is Test {
         address user = _actors[actorSeed % _actors.length];
         uint256 id = epochSeed % (lb.epochIndex() + 1);
         LeaderboardRewards.Epoch memory ep = lb.epoch(id);
-        bool claimable = !lb.paused() && ep.closed && block.timestamp <= ep.claimExpiry
+        bool claimable = !lb.paused() && ep.closed && block.timestamp <= lb.claimDeadline(id)
             && !lb.hasClaimed(id, user) && lb.pendingClaim(id, user) != 0;
 
         uint256 before = usdc.balanceOf(user);
@@ -110,7 +110,7 @@ contract LeaderboardHandler is Test {
     function rollover(uint256 epochSeed) external timed {
         uint256 id = epochSeed % (lb.epochIndex() + 1);
         LeaderboardRewards.Epoch memory ep = lb.epoch(id);
-        bool due = !lb.paused() && ep.closed && block.timestamp > ep.claimExpiry;
+        bool due = !lb.paused() && ep.closed && block.timestamp > lb.claimDeadline(id);
         bool ok;
         try lb.rolloverEpoch(id) { ok = true; } catch {}
         if (ok) rolledOver[id] = true;
@@ -123,12 +123,28 @@ contract LeaderboardHandler is Test {
 
     // ─── admin ──────────────────────────────────────────────────────────────
 
+    /// Epochs still claimable when the current pause began.
+    uint256[] internal _claimableAtPause;
+
     function pause() external timed {
-        try lb.emergencyPause() {} catch {}
+        try lb.emergencyPause() {
+            delete _claimableAtPause;
+            uint256 closed = lb.epochIndex();
+            for (uint256 id; id < closed; ++id) {
+                if (block.timestamp <= lb.claimDeadline(id)) _claimableAtPause.push(id);
+            }
+        } catch {}
     }
 
+    /// A pause must never make a prize expire: every epoch claimable when the
+    /// pause began is still claimable when it ends.
     function unpause() external timed {
-        try lb.unpause() {} catch {}
+        try lb.unpause() {
+            for (uint256 i; i < _claimableAtPause.length; ++i) {
+                if (block.timestamp > lb.claimDeadline(_claimableAtPause[i])) _fail("a pause let a prize expire");
+            }
+            delete _claimableAtPause;
+        } catch {}
     }
 
     function setEpochDuration(uint256 duration) external timed {
@@ -143,19 +159,20 @@ contract LeaderboardHandler is Test {
         if (lb.paused()) lb.unpause();
         uint256 closed = lb.epochIndex();
         for (uint256 id; id < closed; ++id) {
-            LeaderboardRewards.Epoch memory ep = lb.epoch(id);
-            if (block.timestamp > ep.claimExpiry) continue;
-            for (uint256 a; a < _actors.length; ++a) {
-                address user = _actors[a];
-                if (lb.hasClaimed(id, user) || lb.pendingClaim(id, user) == 0) continue;
-                uint256 before = usdc.balanceOf(user);
-                vm.prank(user);
-                lb.claim(id);
-                uint256 got = usdc.balanceOf(user) - before;
-                ghostOut += got;
-                claimedOf[id] += got;
-            }
+            if (block.timestamp > lb.claimDeadline(id)) continue;
+            for (uint256 a; a < _actors.length; ++a) this.claimFor(id, _actors[a]);
         }
+    }
+
+    /// @dev Not a fuzz target. External so via_ir keeps the caller's stack small.
+    function claimFor(uint256 id, address user) external {
+        if (lb.hasClaimed(id, user) || lb.pendingClaim(id, user) == 0) return;
+        uint256 before = usdc.balanceOf(user);
+        vm.prank(user);
+        lb.claim(id);
+        uint256 got = usdc.balanceOf(user) - before;
+        ghostOut += got;
+        claimedOf[id] += got;
     }
 
     function _expect(bool ok, bool shouldSucceed, string memory what) internal {
@@ -231,6 +248,7 @@ contract LeaderboardInvariantTest is Test {
             LeaderboardRewards.Epoch memory ep = lb.epoch(id);
             assertTrue(ep.closed, "epochs below the index are closed");
             assertLe(ep.totalClaimed, ep.prizePool, "never claims more than the pool");
+            assertGe(lb.claimDeadline(id), ep.claimExpiry, "pauses only extend a claim window");
             if (handler.rolledOver(id)) {
                 assertEq(ep.totalClaimed, ep.prizePool, "rolled over: remainder released");
             } else {
