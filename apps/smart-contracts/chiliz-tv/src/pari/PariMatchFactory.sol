@@ -207,6 +207,23 @@ contract PariMatchFactory is Ownable2Step {
     // MATCH DEPLOYMENT
     // ═══════════════════════════════════════════════════════════════════════
 
+    /// @notice Markets created with a match, in the same transaction.
+    /// @param marketTypes Market types, as in `PariMatchBase.addMarketsBatchAdvanced`.
+    /// @param lines       One line per market.
+    /// @param extras      One sport-specific byte per market (basketball quarter
+    ///                    1..4, points-exact step), 0 otherwise.
+    /// @param groupIds    One UI group per market, 0 for none.
+    /// @param closesAt    Betting cutoff of every market, 0 to leave it unset.
+    /// @param open        Open every market for stakes.
+    struct MarketSetup {
+        bytes32[] marketTypes;
+        int16[]   lines;
+        uint8[]   extras;
+        uint16[]  groupIds;
+        uint40    closesAt;
+        bool      open;
+    }
+
     /// @notice Deploy, initialize, and fully wire a FootballPariMatch proxy.
     /// @param _matchName Human-readable name (e.g. "Barcelona vs Real Madrid").
     /// @param _owner     Match ops key: receives ADMIN_ROLE + PAUSER_ROLE
@@ -220,13 +237,8 @@ contract PariMatchFactory is Ownable2Step {
         address _owner,
         address _oracle
     ) external onlyOwnerOrOperator returns (address proxy) {
-        proxy = _createMatch(
-            footballBeacon,
-            abi.encodeWithSelector(FootballPariMatch.initialize.selector, _matchName, address(this)),
-            SportType.FOOTBALL,
-            _owner,
-            _oracle
-        );
+        proxy = _createFootball(_matchName, _owner, _oracle);
+        _releaseMatch(proxy);
     }
 
     /// @notice Deploy, initialize, and fully wire a BasketballPariMatch proxy.
@@ -235,13 +247,73 @@ contract PariMatchFactory is Ownable2Step {
         address _owner,
         address _oracle
     ) external onlyOwnerOrOperator returns (address proxy) {
-        proxy = _createMatch(
+        proxy = _createBasketball(_matchName, _owner, _oracle);
+        _releaseMatch(proxy);
+    }
+
+    /// @notice `createFootballMatch` plus its markets, cutoff and opening, in
+    ///         one transaction instead of one per step. Same roles as
+    ///         `createFootballMatch`; the factory sets the markets up while it
+    ///         still holds ADMIN_ROLE, then renounces every role.
+    function createFootballMatchWithMarkets(
+        string calldata _matchName,
+        address _owner,
+        address _oracle,
+        MarketSetup calldata _markets
+    ) external onlyOwnerOrOperator returns (address proxy) {
+        proxy = _createFootball(_matchName, _owner, _oracle);
+        _setUpMarkets(PariMatchBase(payable(proxy)), _markets);
+        _releaseMatch(proxy);
+    }
+
+    /// @notice `createBasketballMatch` plus its markets, cutoff and opening,
+    ///         in one transaction. See `createFootballMatchWithMarkets`.
+    function createBasketballMatchWithMarkets(
+        string calldata _matchName,
+        address _owner,
+        address _oracle,
+        MarketSetup calldata _markets
+    ) external onlyOwnerOrOperator returns (address proxy) {
+        proxy = _createBasketball(_matchName, _owner, _oracle);
+        _setUpMarkets(PariMatchBase(payable(proxy)), _markets);
+        _releaseMatch(proxy);
+    }
+
+    function _createFootball(string calldata _matchName, address _owner, address _oracle)
+        internal
+        returns (address)
+    {
+        return _createMatch(
+            footballBeacon,
+            abi.encodeWithSelector(FootballPariMatch.initialize.selector, _matchName, address(this)),
+            SportType.FOOTBALL,
+            _owner,
+            _oracle
+        );
+    }
+
+    function _createBasketball(string calldata _matchName, address _owner, address _oracle)
+        internal
+        returns (address)
+    {
+        return _createMatch(
             basketballBeacon,
             abi.encodeWithSelector(BasketballPariMatch.initialize.selector, _matchName, address(this)),
             SportType.BASKETBALL,
             _owner,
             _oracle
         );
+    }
+
+    /// @dev Markets of a new match get ids 0..n-1.
+    function _setUpMarkets(PariMatchBase m, MarketSetup calldata s) internal {
+        uint256 n = s.marketTypes.length;
+        if (n == 0) return;
+        m.addMarketsBatchAdvanced(s.marketTypes, s.lines, s.extras, s.groupIds);
+        uint256[] memory ids = new uint256[](n);
+        for (uint256 i; i < n; ++i) ids[i] = i;
+        if (s.closesAt != 0) m.setMarketsCloseTime(ids, s.closesAt);
+        if (s.open) m.openMarketsBatch(ids);
     }
 
     function _createMatch(
@@ -311,8 +383,8 @@ contract PariMatchFactory is Ownable2Step {
             revert WiringNotConfigured();
     }
 
-    /// @dev Full wiring sequence while the factory is the temporary admin.
-    ///      After this function the factory holds NO role on the proxy.
+    /// @dev Wiring done while the factory is the temporary admin. The factory
+    ///      keeps its roles until `_releaseMatch`.
     function _wireMatch(address proxy, address _owner, address _oracle, address governance) internal {
         PariMatchBase m = PariMatchBase(payable(proxy));
 
@@ -335,8 +407,12 @@ contract PariMatchFactory is Ownable2Step {
         m.grantRole(m.ADMIN_ROLE(),         _owner);
         m.grantRole(m.PAUSER_ROLE(),        _owner);
         m.grantRole(m.DEFAULT_ADMIN_ROLE(), governance);
+    }
 
-        // 4) Renounce every factory role. DEFAULT_ADMIN last.
+    /// @dev Renounce every factory role, DEFAULT_ADMIN last. After this the
+    ///      factory holds no role on the match.
+    function _releaseMatch(address proxy) internal {
+        PariMatchBase m = PariMatchBase(payable(proxy));
         m.renounceRole(m.ADMIN_ROLE(),         address(this));
         m.renounceRole(m.PAUSER_ROLE(),        address(this));
         m.renounceRole(m.DEFAULT_ADMIN_ROLE(), address(this));
