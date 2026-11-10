@@ -70,6 +70,19 @@ The Safe then calls `acceptOwnership()` on each.
 
 ## 3. Create a match
 
+**In one transaction (recommended).** The factory owner or `matchOperator` calls:
+
+```solidity
+factory.createFootballMatchWithMarkets(name, owner, oracle, setup)   // or createBasketballMatchWithMarkets
+// setup = MarketSetup({ marketTypes, lines, extras, groupIds, closesAt, open })
+```
+
+It creates the match, adds every market (ids 0..n-1), sets their cutoff to `closesAt` when it is not 0 and opens them when `open` is true. The roles are the same as in the step-by-step flow, and the factory keeps none.
+
+`extras` carries the basketball quarter (1..4) or the points-exact step, 0 otherwise; `groupIds` are UI groups, 0 for none. Measured with real transactions on a Base Sepolia fork (2026-11-10, three markets): 893,017 gas in one transaction against 1,003,888 gas for the four below, about 11 % less, mostly the three transaction base fees and the repeated cold access to the match.
+
+**Step by step:**
+
 | # | Caller | Call |
 |---|---|---|
 | 1 | Factory owner or `matchOperator` | `factory.createFootballMatch(name, owner, oracle)` or `factory.createBasketballMatch(name, owner, oracle)` |
@@ -89,15 +102,12 @@ The Safe then calls `acceptOwnership()` on each.
 Useful reads before betting: `factory.isMatch(match)`, `match.getMarketInfo(marketId)` and `match.getMarketSpec(marketId)`.
 The market must be Open and before its `closesAt`. The minimum stake is 0.01 USDC. A user can stake several times, on several outcomes.
 
-**With USDC, through the router**
+Every bet goes through the router, so a user approves one contract, not every match. The router checks `factory.isMatch(match)`, sends the USDC to the match and calls `placeBetUSDCFor`. Matches have no direct staking entry point.
+
+**With USDC**
 
 1. `usdc.approve(router, amount)`
 2. `router.placeBetWithUSDC(match, marketId, outcome, amount)`
-
-**With USDC, directly on the match**
-
-1. `usdc.approve(match, amount)`
-2. `match.placeBetUSDC(marketId, outcome, amount)`
 
 **With the native token (CHZ on Chiliz, ETH on Base)**
 
@@ -216,8 +226,8 @@ Fees and scores arrive automatically: fees at resolution, scores when a winner c
 | Read the open epoch | Anyone | `leaderboard.currentEpoch()`, `leaderboard.epochScore(id, user)`, `leaderboard.openPrizePool()` |
 | Close the epoch | Anyone, after `leaderboard.nextCloseTime()` | `leaderboard.advanceEpoch()` |
 | Preview a prize | Anyone | `leaderboard.pendingClaim(id, user)` |
-| Claim a prize | User, before `leaderboard.epoch(id).claimExpiry` | `leaderboard.claim(id)` |
-| Recycle what was not claimed | Anyone, after `claimExpiry` | `leaderboard.rolloverEpoch(id)` |
+| Claim a prize | User, until `leaderboard.claimDeadline(id)` | `leaderboard.claim(id)` |
+| Recycle what was not claimed | Anyone, after `claimDeadline(id)` | `leaderboard.rolloverEpoch(id)` |
 
 ## 9. Operations
 

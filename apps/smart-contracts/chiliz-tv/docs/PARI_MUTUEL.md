@@ -281,14 +281,14 @@ uint256 prob = match.getImpliedProbabilityBps(marketId, outcome);   // off-chain
 identically on related markets (e.g. all O/U lines for the same match) so the
 frontend can render them under one heading.
 
-Placing a bet directly with USDC:
+Bets go through the router only. With USDC:
 
 ```solidity
-usdc.approve(matchAddr, amount);
-match.placeBetUSDC(marketId, outcome, amount);
+usdc.approve(router, amount);
+router.placeBetWithUSDC(matchAddr, marketId, outcome, amount);
 ```
 
-Or via the router, with the native token:
+With the native token:
 
 ```solidity
 router.placeBetWithNativeToken{value: amount}(matchAddr, marketId, outcome, minUsdcOut, deadline);

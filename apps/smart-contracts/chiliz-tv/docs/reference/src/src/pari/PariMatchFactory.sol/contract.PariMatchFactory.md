@@ -270,6 +270,61 @@ function createBasketballMatch(string calldata _matchName, address _owner, addre
     returns (address proxy);
 ```
 
+### createFootballMatchWithMarkets
+
+`createFootballMatch` plus its markets, cutoff and opening, in
+one transaction instead of one per step. Same roles as
+`createFootballMatch`; the factory sets the markets up while it
+still holds ADMIN_ROLE, then renounces every role.
+
+
+```solidity
+function createFootballMatchWithMarkets(
+    string calldata _matchName,
+    address _owner,
+    address _oracle,
+    MarketSetup calldata _markets
+) external onlyOwnerOrOperator returns (address proxy);
+```
+
+### createBasketballMatchWithMarkets
+
+`createBasketballMatch` plus its markets, cutoff and opening,
+in one transaction. See `createFootballMatchWithMarkets`.
+
+
+```solidity
+function createBasketballMatchWithMarkets(
+    string calldata _matchName,
+    address _owner,
+    address _oracle,
+    MarketSetup calldata _markets
+) external onlyOwnerOrOperator returns (address proxy);
+```
+
+### _createFootball
+
+
+```solidity
+function _createFootball(string calldata _matchName, address _owner, address _oracle) internal returns (address);
+```
+
+### _createBasketball
+
+
+```solidity
+function _createBasketball(string calldata _matchName, address _owner, address _oracle) internal returns (address);
+```
+
+### _setUpMarkets
+
+*Markets of a new match get ids 0..n-1.*
+
+
+```solidity
+function _setUpMarkets(PariMatchBase m, MarketSetup calldata s) internal;
+```
+
 ### _createMatch
 
 
@@ -342,12 +397,22 @@ function _requireWiring() internal view;
 
 ### _wireMatch
 
-*Full wiring sequence while the factory is the temporary admin.
-After this function the factory holds NO role on the proxy.*
+*Wiring done while the factory is the temporary admin. The factory
+keeps its roles until `_releaseMatch`.*
 
 
 ```solidity
 function _wireMatch(address proxy, address _owner, address _oracle, address governance) internal;
+```
+
+### _releaseMatch
+
+*Renounce every factory role, DEFAULT_ADMIN last. After this the
+factory holds no role on the match.*
+
+
+```solidity
+function _releaseMatch(address proxy) internal;
 ```
 
 ## Events
@@ -421,6 +486,33 @@ error OracleMustBeDistinct(address oracle);
 ```solidity
 error NotOwnerOrOperator(address caller);
 ```
+
+## Structs
+### MarketSetup
+Markets created with a match, in the same transaction.
+
+
+```solidity
+struct MarketSetup {
+    bytes32[] marketTypes;
+    int16[] lines;
+    uint8[] extras;
+    uint16[] groupIds;
+    uint40 closesAt;
+    bool open;
+}
+```
+
+**Properties**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`marketTypes`|`bytes32[]`|Market types, as in `PariMatchBase.addMarketsBatchAdvanced`.|
+|`lines`|`int16[]`|      One line per market.|
+|`extras`|`uint8[]`|     One sport-specific byte per market (basketball quarter 1..4, points-exact step), 0 otherwise.|
+|`groupIds`|`uint16[]`|   One UI group per market, 0 for none.|
+|`closesAt`|`uint40`|   Betting cutoff of every market, 0 to leave it unset.|
+|`open`|`bool`|       Open every market for stakes.|
 
 ## Enums
 ### SportType

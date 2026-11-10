@@ -604,26 +604,12 @@ function cancelMarket(uint256 marketId, string calldata reason) external validMa
 function _transitionMarketState(uint256 marketId, MarketState newState) internal;
 ```
 
-### placeBetUSDC
-
-Place a stake directly with USDC.
-
-*Caller must approve `amount` USDC to THIS contract.*
-
-
-```solidity
-function placeBetUSDC(uint256 marketId, uint64 outcome, uint256 amount)
-    external
-    nonReentrant
-    validMarket(marketId)
-    inState(marketId, MarketState.Open)
-    whenNotPaused;
-```
-
 ### placeBetUSDCFor
 
 Place a stake on behalf of a user after the router has already
-transferred `amount` USDC to this contract.
+transferred `amount` USDC to this contract. This is the only
+way to stake: users pay through `NetworkRouter`, so they approve
+one contract instead of every match.
 
 *Reverts unless the USDC balance covers every stake
 already accounted for plus `amount`, so a SWAP_ROUTER_ROLE

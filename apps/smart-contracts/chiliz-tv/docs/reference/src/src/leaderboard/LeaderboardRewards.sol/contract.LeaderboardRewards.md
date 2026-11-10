@@ -27,13 +27,15 @@ epoch's pool: `(epochScore[user] * prizePool) / totalScore`. No
 merkle proof — every scorer is implicitly entitled.
 4. After the claim window expires, any unclaimed remainder rolls back
 into the open prize pool via permissionless `rolloverEpoch(epochId)`.
+Time spent paused does not count: `claimDeadline` adds it to the window.
 V2 upgrade notes
 ────────────────
 V1 used an off-chain ranker + merkle distribution. V2 deletes that path and
 keeps everything on-chain. Storage layout is preserved: the legacy
 cumulative `_score` mapping at slot 2 is left untouched (orphaned, harmless)
-and the new state lives at slots 7–9 (slot 7 packs `epochStartTime` and
-`epochDuration`; slots 8 and 9 hold the two new mappings). The
+and the new state lives at slots 6–9 (`epochStartTime` is packed into
+slot 6 after `matchFactory`, `epochDuration` takes slot 7; slots 8 and 9
+hold the two new mappings). The
 `Epoch.merkleRoot` field is also preserved (slot reservation) but never
 written or read post-V2.
 V3 changes
@@ -56,6 +58,13 @@ the credits of the whole pause period disappear.
 `initializeV2` is restricted to DEFAULT_ADMIN_ROLE.
 Storage: two variables appended after slot 9 (`_epochFees`,
 `_notifiedAhead`); the gap shrinks from 40 to 38.
+V4 changes
+──────────
+- A pause no longer lets prizes expire: claim windows and rollovers are
+extended by the time spent paused after the epoch closed
+(`claimDeadline`).
+Storage: slot 12 packs the pause clock, slot 13 maps each epoch to the
+clock at its close; the gap shrinks from 38 to 36.
 Trust model
 ────────────
 - Match proxies are authorized via `matchFactory.isMatch(msg.sender)` —
@@ -262,13 +271,41 @@ uint256 internal _notifiedAhead;
 ```
 
 
-### __gap
-Reserved storage gap. V1 reserved [43]; V2 consumed 3 slots (7-9),
-V3 consumes 2 (10-11), leaving 38.
+### _pauseStartedAt
+When the current pause started, 0 when not paused.
 
 
 ```solidity
-uint256[38] private __gap;
+uint64 internal _pauseStartedAt;
+```
+
+
+### _pausedTotal
+Seconds spent in pauses that have ended (since V4).
+
+
+```solidity
+uint64 internal _pausedTotal;
+```
+
+
+### _pausedClockAtClose
+`_pausedClock()` when each epoch closed. The epoch's claim
+window is extended by the time spent paused since then.
+
+
+```solidity
+mapping(uint256 epochId => uint256 pausedClock) internal _pausedClockAtClose;
+```
+
+
+### __gap
+Reserved storage gap. V1 reserved [43]; V2 consumed 3 slots (7-9),
+V3 consumed 2 (10-11), V4 consumes 2 (12-13), leaving 36.
+
+
+```solidity
+uint256[36] private __gap;
 ```
 
 
@@ -358,7 +395,8 @@ function setEpochDuration(uint64 newDuration) external onlyRole(ADMIN_ROLE);
 
 Pause `advanceEpoch`, rollovers and prize claims. Score and fee
 credits keep working, and a credit still closes an epoch that is
-due. Claim windows keep running during a pause.
+due. Every claim window is extended by the length of the pause,
+so a pause never makes a prize expire.
 
 
 ```solidity
@@ -530,9 +568,20 @@ and zero-score callers.
 function pendingClaim(uint256 epochId, address user) external view returns (uint256);
 ```
 
+### claimDeadline
+
+Last timestamp at which `epochId` can be claimed: its stored
+`claimExpiry` plus the time spent paused since it closed, the
+current pause included. Rollover is possible after it.
+
+
+```solidity
+function claimDeadline(uint256 epochId) public view returns (uint256);
+```
+
 ### epoch
 
-Snapshot of an epoch.
+Snapshot of an epoch. `claimExpiry` ignores pauses; see `claimDeadline`.
 
 
 ```solidity
@@ -603,6 +652,15 @@ Earliest time the open epoch can be closed.
 
 ```solidity
 function nextCloseTime() external view returns (uint256);
+```
+
+### _pausedClock
+
+*Seconds spent paused since V4, the current pause included.*
+
+
+```solidity
+function _pausedClock() internal view returns (uint256 t);
 ```
 
 ### _openPrizePool
