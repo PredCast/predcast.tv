@@ -34,7 +34,8 @@ import {StreamWalletFactory}  from "../streamer/StreamWalletFactory.sol";
  *
  *      USDC goes straight into the match contract (the escrow) on the betting
  *      path and into the streamer's `StreamWallet` on the streaming path. This
- *      contract never holds USDC at rest.
+ *      contract never holds USDC at rest, and it refuses native tokens sent
+ *      outside a payment.
  *
  * Payment paths (all settle in USDC):
  *   Betting:   placeBetWithNativeToken, placeBetWithToken, placeBetWithUSDC
@@ -54,7 +55,9 @@ import {StreamWalletFactory}  from "../streamer/StreamWalletFactory.sol";
  * Security:
  *   - Requires SWAP_ROUTER_ROLE on each PariMatch proxy.
  *   - `bettingMatchFactory` validates every match before USDC is forwarded.
- *   - Every swap needs a deadline and a non-zero `amountOutMin`.
+ *   - Every swap needs a deadline and a non-zero `amountOutMin`, checked
+ *     against the USDC that actually arrived.
+ *   - Subscriptions are priced by the wallet and checked here too.
  *   - Reentrancy guarded; SafeERC20 on every transfer.
  */
 contract NetworkRouter is ReentrancyGuard, Ownable2Step {
@@ -215,6 +218,9 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
     /// @notice A fan token was wrapped before its swap.
     event FanTokenWrapped(address indexed token, address indexed wrapped, uint256 amountIn, uint256 wrappedAmount);
 
+    /// @notice Tokens sent to this contract by mistake were sent on to `to`.
+    event TokensRescued(address indexed token, address indexed to, uint256 amount);
+
     // ══════════════════════════════════════════════════════════════════════════
     // ERRORS
     // ══════════════════════════════════════════════════════════════════════════
@@ -231,6 +237,10 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
     /// @notice Every swap needs a non-zero minimum output:
     ///         amountOutMin = 0 lets a sandwich take the whole trade.
     error SlippageNotSet();
+    /// @notice The swap delivered less USDC than `amountOutMin`.
+    error InsufficientOutput(uint256 received, uint256 amountOutMin);
+    /// @notice The USDC paid does not cover the streamer's price for `duration`.
+    error SubscriptionUnderpaid(uint256 paid, uint256 cost);
 
     // ══════════════════════════════════════════════════════════════════════════
     // CONSTRUCTOR
@@ -559,6 +569,15 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
         emit WrapperFactorySet(old, _factory);
     }
 
+    /// @notice Send ERC20 tokens sent to this contract by mistake to `to`. Owner only.
+    /// @dev Payments never leave funds here between calls, so this cannot reach
+    ///      anything a user is owed.
+    function rescueTokens(IERC20 token, address to, uint256 amount) external onlyOwner {
+        if (to == address(0)) revert ZeroAddress();
+        token.safeTransfer(to, amount);
+        emit TokensRescued(address(token), to, amount);
+    }
+
     // ══════════════════════════════════════════════════════════════════════════
     // VIEWS — QUOTING (keep frontends in sync with the executed route)
     // ══════════════════════════════════════════════════════════════════════════
@@ -644,15 +663,15 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
         path[0] = wrappedNativeToken;
         path[1] = address(usdc);
 
-        uint256[] memory amounts = masterRouter.swapExactETHForTokens{value: nativeTokenAmount}(
-            amountOutMin, path, address(this), deadline
-        );
-        usdcReceived = amounts[amounts.length - 1];
+        uint256 before = usdc.balanceOf(address(this));
+        masterRouter.swapExactETHForTokens{value: nativeTokenAmount}(amountOutMin, path, address(this), deadline);
+        usdcReceived = _receivedSince(before, amountOutMin);
     }
 
     /// @dev Swap `amount` of `token` for USDC, wrapping fan tokens first.
     ///      Routing is `routeFor(token, amount)`; `amountOutMin` always
-    ///      applies to the final USDC amount.
+    ///      applies to the final USDC amount. Without a wrap candidate (always
+    ///      the case on Base) there is nothing to compare, so the quote is skipped.
     function _swapTokensToUSDC(
         address token,
         uint256 amount,
@@ -660,7 +679,14 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
         uint256 deadline
     ) internal returns (uint256 usdcReceived) {
         if (amountOutMin == 0) revert SlippageNotSet();
-        (address swapToken,, address[] memory path,) = routeFor(token, amount);
+        address swapToken = token;
+        address[] memory path;
+        (address wrapped,) = _wrapCandidate(token);
+        if (wrapped == address(0)) {
+            path = _pathFrom(token);
+        } else {
+            (swapToken,, path,) = routeFor(token, amount);
+        }
         uint256 swapAmount = amount;
 
         if (swapToken != token) {
@@ -673,10 +699,16 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
 
         IERC20(swapToken).forceApprove(address(tokenRouter), swapAmount);
 
-        uint256[] memory amounts = tokenRouter.swapExactTokensForTokens(
-            swapAmount, amountOutMin, path, address(this), deadline
-        );
-        usdcReceived = amounts[amounts.length - 1];
+        uint256 before = usdc.balanceOf(address(this));
+        tokenRouter.swapExactTokensForTokens(swapAmount, amountOutMin, path, address(this), deadline);
+        usdcReceived = _receivedSince(before, amountOutMin);
+    }
+
+    /// @dev USDC that actually arrived since `before`, at least `amountOutMin`.
+    ///      The amounts a DEX reports are not trusted.
+    function _receivedSince(uint256 before, uint256 amountOutMin) internal view returns (uint256 received) {
+        received = usdc.balanceOf(address(this)) - before;
+        if (received < amountOutMin) revert InsufficientOutput(received, amountOutMin);
     }
 
     /// @dev Kayen has no direct USDC pair for any token, so paths go through the
@@ -783,12 +815,17 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
         usdc.safeTransfer(wallet, streamerAmount);
     }
 
+    /// @dev The price is checked here as well as in the wallet, so a wallet
+    ///      still on an implementation without pricing cannot be subscribed to
+    ///      below cost: the call reverts.
     function _recordSubscription(
         address wallet,
         address subscriber,
         uint256 usdcAmount,
         uint256 duration
     ) internal {
+        uint256 cost = StreamWallet(payable(wallet)).subscriptionCost(duration);
+        if (usdcAmount < cost) revert SubscriptionUnderpaid(usdcAmount, cost);
         StreamWallet(payable(wallet)).recordSubscriptionByRouter(subscriber, usdcAmount, duration);
     }
 
@@ -802,6 +839,4 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
     ) internal {
         StreamWallet(payable(wallet)).recordDonationByRouter(donor, usdcAmount, platformFee, streamerAmount, message);
     }
-
-    receive() external payable {}
 }

@@ -34,6 +34,9 @@ interface IWETH {
  *         its first entry is the input and its last the output, as in V2.
  *
  *         Tokens only pass through this contract within a transaction.
+ *         Inputs and outputs are measured by balance, and a pool can only
+ *         be paid the input of its own hop, so a pool that misreports its
+ *         amounts cannot make a swap look better than it was.
  */
 contract ConcentratedPoolAdapter is IKayenRouter, ReentrancyGuard, Ownable2Step {
     using SafeERC20 for IERC20;
@@ -52,12 +55,16 @@ contract ConcentratedPoolAdapter is IKayenRouter, ReentrancyGuard, Ownable2Step 
 
     mapping(address tokenIn => mapping(address tokenOut => Hop[])) private _routes;
 
-    /// @dev The only address `uniswapV3SwapCallback` accepts, set for the
-    ///      duration of each `pool.swap`.
+    /// @dev The only address `uniswapV3SwapCallback` accepts, with the token
+    ///      and the most it may be paid, set for the duration of each `pool.swap`.
     address private _activePool;
+    address private _activeToken;
+    uint256 private _activeAmount;
 
     /// @notice The route from `tokenIn` to `tokenOut` was registered, replaced or removed.
     event RouteSet(address indexed tokenIn, address indexed tokenOut, address[] pools);
+    /// @notice Tokens sent to this contract by mistake were sent on to `to`.
+    event TokensRescued(address indexed token, address indexed to, uint256 amount);
 
     error ZeroAddress();
     error InvalidPath();
@@ -70,6 +77,8 @@ contract ConcentratedPoolAdapter is IKayenRouter, ReentrancyGuard, Ownable2Step 
     /// @notice The pool ran out of liquidity before taking the whole input.
     error PartialFill(address pool, uint256 consumed, uint256 amountIn);
     error UnauthorizedCallback(address caller);
+    /// @notice The pool asked for more than the input of its hop.
+    error ExcessivePayment(uint256 requested, uint256 allowed);
 
     constructor(address _weth) Ownable(msg.sender) {
         if (_weth == address(0)) revert ZeroAddress();
@@ -106,6 +115,14 @@ contract ConcentratedPoolAdapter is IKayenRouter, ReentrancyGuard, Ownable2Step 
         emit RouteSet(tokenIn, tokenOut, pools);
     }
 
+    /// @notice Send ERC20 tokens sent to this contract by mistake to `to`. Owner only.
+    /// @dev Swaps never leave tokens here, so this cannot reach a user's funds.
+    function rescueTokens(IERC20 token, address to, uint256 amount) external onlyOwner {
+        if (to == address(0)) revert ZeroAddress();
+        token.safeTransfer(to, amount);
+        emit TokensRescued(address(token), to, amount);
+    }
+
     /// @notice Pools the swap from `tokenIn` to `tokenOut` goes through.
     function getRoute(address tokenIn, address tokenOut) external view returns (Hop[] memory) {
         return _routes[tokenIn][tokenOut];
@@ -130,7 +147,8 @@ contract ConcentratedPoolAdapter is IKayenRouter, ReentrancyGuard, Ownable2Step 
     }
 
     /// @notice Swap an exact ERC20 input along the route from `path[0]` to the last token.
-    /// @dev The caller approves this contract first.
+    /// @dev The caller approves this contract first. `amounts[0]` is what
+    ///      arrived, which is less than `amountIn` for a fee-on-transfer token.
     function swapExactTokensForTokens(
         uint256 amountIn,
         uint256 amountOutMin,
@@ -140,8 +158,10 @@ contract ConcentratedPoolAdapter is IKayenRouter, ReentrancyGuard, Ownable2Step 
     ) external nonReentrant returns (uint256[] memory amounts) {
         Hop[] storage hops = _openSwap(path, deadline);
 
-        IERC20(path[0]).safeTransferFrom(msg.sender, address(this), amountIn);
-        amounts = _swap(hops, path[0], amountIn, amountOutMin, to);
+        IERC20 tokenIn = IERC20(path[0]);
+        uint256 before = tokenIn.balanceOf(address(this));
+        tokenIn.safeTransferFrom(msg.sender, address(this), amountIn);
+        amounts = _swap(hops, path[0], tokenIn.balanceOf(address(this)) - before, amountOutMin, to);
     }
 
     /// @notice Exact output of the swap at the current pool state.
@@ -167,12 +187,14 @@ contract ConcentratedPoolAdapter is IKayenRouter, ReentrancyGuard, Ownable2Step 
     // ══════════════════════════════════════════════════════════════════════════
 
     /// @notice Pays the pool during `pool.swap`. Both DEXes use this selector.
-    function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external {
+    /// @dev The token and the cap come from this contract's own state, not
+    ///      from `data`, which the pool hands back.
+    function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata) external {
         if (msg.sender != _activePool) revert UnauthorizedCallback(msg.sender);
 
-        address tokenIn = abi.decode(data, (address));
         uint256 owed = uint256(amount0Delta > 0 ? amount0Delta : amount1Delta);
-        IERC20(tokenIn).safeTransfer(msg.sender, owed);
+        if (owed > _activeAmount) revert ExcessivePayment(owed, _activeAmount);
+        IERC20(_activeToken).safeTransfer(msg.sender, owed);
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -207,11 +229,17 @@ contract ConcentratedPoolAdapter is IKayenRouter, ReentrancyGuard, Ownable2Step 
         if (amounts[count] < amountOutMin) revert InsufficientOutput(amounts[count], amountOutMin);
     }
 
+    /// @dev The output is what reached `recipient`, not what the pool reports.
     function _swapOnPool(Hop memory hop, address tokenIn, uint256 amountIn, address recipient)
         private
         returns (uint256 amountOut)
     {
+        IERC20 tokenOut = IERC20(hop.tokenOut);
+        uint256 before = tokenOut.balanceOf(recipient);
+
         _activePool = hop.pool;
+        _activeToken = tokenIn;
+        _activeAmount = amountIn;
         (int256 amount0, int256 amount1) = IConcentratedPool(hop.pool).swap(
             recipient,
             hop.zeroForOne,
@@ -219,12 +247,14 @@ contract ConcentratedPoolAdapter is IKayenRouter, ReentrancyGuard, Ownable2Step 
             hop.zeroForOne
                 ? ConcentratedPoolQuote.MIN_SQRT_RATIO + 1
                 : ConcentratedPoolQuote.MAX_SQRT_RATIO - 1,
-            abi.encode(tokenIn)
+            ""
         );
         _activePool = address(0);
+        _activeToken = address(0);
+        _activeAmount = 0;
 
-        (int256 paid, int256 received) = hop.zeroForOne ? (amount0, amount1) : (amount1, amount0);
-        if (uint256(paid) != amountIn) revert PartialFill(hop.pool, uint256(paid), amountIn);
-        amountOut = uint256(-received);
+        int256 paid = hop.zeroForOne ? amount0 : amount1;
+        if (paid < 0 || uint256(paid) != amountIn) revert PartialFill(hop.pool, paid < 0 ? 0 : uint256(paid), amountIn);
+        amountOut = tokenOut.balanceOf(recipient) - before;
     }
 }

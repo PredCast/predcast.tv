@@ -238,10 +238,11 @@ contract StreamSwapRouterTest is Test {
     }
 
     function test_H03_UnderpaidSubscriptionReverts() public {
-        // 0.5 USDC cannot buy 30 days at 1 USDC / 30 days.
+        // 0.5 USDC cannot buy 30 days at 1 USDC / 30 days. The router checks
+        // the price before the wallet does.
         vm.startPrank(viewer1);
         usdc.approve(address(streamSwapRouter), 5e5);
-        vm.expectRevert(abi.encodeWithSelector(StreamWallet.InsufficientSubscriptionPayment.selector, 1e6, 5e5));
+        vm.expectRevert(abi.encodeWithSelector(NetworkRouter.SubscriptionUnderpaid.selector, 5e5, 1e6));
         streamSwapRouter.subscribeWithUSDC(streamer1, 30 days, 5e5);
         vm.stopPrank();
     }
