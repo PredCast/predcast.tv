@@ -85,10 +85,10 @@ contract StreamSwapRouterTest is Test {
     // CHZ DONATION / SUBSCRIPTION TESTS
     // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-    function test_DonateWithCHZ() public {
+    function test_DonateWithNativeToken() public {
         // 10 CHZ * 0.10 = 1 USDC, 5% fee = 0.05 USDC to treasury, 0.95 USDC to streamer
         vm.prank(viewer1);
-        streamSwapRouter.donateWithCHZ{value: 10 ether}(
+        streamSwapRouter.donateWithNativeToken{value: 10 ether}(
             streamer1,
             "Great stream!",
             1, // amountOutMin must be non-zero (audit M-07)
@@ -103,11 +103,11 @@ contract StreamSwapRouterTest is Test {
         assertEq(_streamerEscrow(streamer1), expectedStreamer, "Streamer escrow should hold donation");
     }
 
-    function test_SubscribeWithCHZ() public {
+    function test_SubscribeWithNativeToken() public {
         uint256 duration = 30 days;
 
         vm.prank(viewer1);
-        streamSwapRouter.subscribeWithCHZ{value: 10 ether}(
+        streamSwapRouter.subscribeWithNativeToken{value: 10 ether}(
             streamer1,
             duration,
             1, // amountOutMin must be non-zero (audit M-07)
@@ -216,7 +216,7 @@ contract StreamSwapRouterTest is Test {
     function test_RevertDonateZeroValue() public {
         vm.prank(viewer1);
         vm.expectRevert(NetworkRouter.ZeroValue.selector);
-        streamSwapRouter.donateWithCHZ{value: 0}(
+        streamSwapRouter.donateWithNativeToken{value: 0}(
             streamer1, "test", 0, block.timestamp + 1 hours
         );
     }
@@ -224,7 +224,7 @@ contract StreamSwapRouterTest is Test {
     function test_RevertDonateZeroAddress() public {
         vm.prank(viewer1);
         vm.expectRevert(NetworkRouter.ZeroAddress.selector);
-        streamSwapRouter.donateWithCHZ{value: 1 ether}(
+        streamSwapRouter.donateWithNativeToken{value: 1 ether}(
             address(0), "test", 0, block.timestamp + 1 hours
         );
     }
@@ -232,7 +232,7 @@ contract StreamSwapRouterTest is Test {
     function test_RevertDonateExpiredDeadline() public {
         vm.prank(viewer1);
         vm.expectRevert(NetworkRouter.DeadlinePassed.selector);
-        streamSwapRouter.donateWithCHZ{value: 1 ether}(
+        streamSwapRouter.donateWithNativeToken{value: 1 ether}(
             streamer1, "test", 0, block.timestamp - 1
         );
     }
@@ -258,7 +258,7 @@ contract StreamSwapRouterTest is Test {
     function test_RevertSubscribeZeroDuration() public {
         vm.prank(viewer1);
         vm.expectRevert(NetworkRouter.ZeroValue.selector);
-        streamSwapRouter.subscribeWithCHZ{value: 1 ether}(
+        streamSwapRouter.subscribeWithNativeToken{value: 1 ether}(
             streamer1, 0, 0, block.timestamp + 1 hours
         );
     }
@@ -266,7 +266,7 @@ contract StreamSwapRouterTest is Test {
     function test_RevertDonateSlippageTooHigh() public {
         vm.prank(viewer1);
         vm.expectRevert("MockRouter: insufficient output");
-        streamSwapRouter.donateWithCHZ{value: 1 ether}(
+        streamSwapRouter.donateWithNativeToken{value: 1 ether}(
             streamer1, "test", 1e6, block.timestamp + 1 hours
         );
     }
@@ -274,7 +274,7 @@ contract StreamSwapRouterTest is Test {
     function test_Revert_M07_ZeroSlippageRejected() public {
         vm.prank(viewer1);
         vm.expectRevert(NetworkRouter.SlippageNotSet.selector);
-        streamSwapRouter.donateWithCHZ{value: 1 ether}(
+        streamSwapRouter.donateWithNativeToken{value: 1 ether}(
             streamer1, "test", 0, block.timestamp + 1 hours
         );
     }
@@ -284,7 +284,7 @@ contract StreamSwapRouterTest is Test {
 
         vm.prank(viewer1);
         vm.expectRevert("MockRouter: swap failed");
-        streamSwapRouter.donateWithCHZ{value: 1 ether}(
+        streamSwapRouter.donateWithNativeToken{value: 1 ether}(
             streamer1, "test", 1, block.timestamp + 1 hours
         );
     }

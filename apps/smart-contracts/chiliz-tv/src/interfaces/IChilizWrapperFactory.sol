@@ -15,13 +15,17 @@ pragma solidity ^0.8.24;
  *         always returns the deterministic CREATE2 address.
  */
 interface IChilizWrapperFactory {
+    /// @notice Wrap `amount` of `underlyingToken` and mint the wrapped token to `account`.
     function wrap(address account, address underlyingToken, uint256 amount)
         external
         returns (address wrappedToken);
 
+    /// @notice Burn `amount` of `wrappedToken` and send the underlying token to `account`.
     function unwrap(address account, address wrappedToken, uint256 amount) external;
 
+    /// @notice Wrapped token of `underlyingToken`, or address(0) if not created yet.
     function underlyingToWrapped(address underlyingToken) external view returns (address);
 
+    /// @notice Deterministic address of the wrapped token of `underlyingToken`.
     function wrappedTokenFor(address underlyingToken) external view returns (address);
 }

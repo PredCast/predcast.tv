@@ -17,9 +17,9 @@ interface IUUPSProxy {
  * @notice Upgrade the deployed `LeaderboardRewards` ERC1967 proxy to the V2
  *         implementation in `src/leaderboard/LeaderboardRewards.sol`.
  *
- *         Works for V1 -> V3 and V2 -> V3 proxies (see step 2). V3 = audit
- *         2026-10 lot 3 (profit-based scores, per-epoch fee attribution,
- *         scoring grace, claim window from the actual close).
+ *         Works for V1 -> V3 and V2 -> V3 proxies (see step 2). V3 =
+ *         profit-based scores, per-epoch fee attribution,
+ *         scoring grace, claim window from the actual close.
  *
  *         V2 swaps the off-chain merkle distribution for fully on-chain
  *         pro-rata per-epoch payouts with admin-settable epoch duration and
@@ -76,7 +76,7 @@ contract UpgradeLeaderboard is Script {
         IUUPSProxy(proxyAddr).upgradeToAndCall(newImpl, initData);
         console.log("Proxy upgraded:", proxyAddr, "->", newImpl);
 
-        // 3. Trust only the beacon-based PariMatchFactory (audit H-01). Until
+        // 3. Trust only the beacon-based PariMatchFactory. Until
         //    this runs, the old factory's UUPS matches (still upgradable by
         //    their admin) can call recordProfit / notifyFee, and new beacon
         //    matches are rejected. Do it in the same run when possible.

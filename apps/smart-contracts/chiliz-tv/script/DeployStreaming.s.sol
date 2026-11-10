@@ -92,7 +92,7 @@ contract DeployStreaming is Script {
         try vm.envBool("TRANSFER_OWNERSHIP") returns (bool v) {
             transferOwnership = v;
         } catch {
-            transferOwnership = !_isTestChain(); // audit H-04: default on outside test chains
+            transferOwnership = !_isTestChain(); // default on outside test chains
         }
 
         vm.startBroadcast();
@@ -106,7 +106,7 @@ contract DeployStreaming is Script {
         // ...but if you're handling step 2 via the Safe anyway, you can flip
         // TRANSFER_OWNERSHIP=true and skip the manual transfer.
         if (transferOwnership) {
-            require(treasury.code.length > 0, "SAFE_ADDRESS has no code on this chain"); // H-04
+            require(treasury.code.length > 0, "SAFE_ADDRESS has no code on this chain");
             // Ownable2Step: the Safe must call acceptOwnership().
             factory.transferOwnership(treasury);
             console.log("factory.transferOwnership ->", treasury);
@@ -198,7 +198,7 @@ contract DeployStreaming is Script {
         console.log("");
     }
 
-    /// @dev Chains where a deployer-owned setup is acceptable by default (audit H-04).
+    /// @dev Chains where a deployer-owned setup is acceptable by default.
     function _isTestChain() internal view returns (bool) {
         return block.chainid == 88882 || block.chainid == 84532 || block.chainid == 31337;
     }

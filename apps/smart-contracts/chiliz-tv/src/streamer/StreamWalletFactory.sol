@@ -13,8 +13,7 @@ import {IStreamWalletInit} from "../interfaces/IStreamWalletInit.sol";
  * @dev Uses ERC1967 proxy pattern matching betting system architecture.
  *      Payments go through NetworkRouter, which creates wallets lazily via
  *      `getOrCreateWallet`. The former fan-token entrypoints
- *      `subscribeToStream` / `donateToStream` were removed (audit H-05
- *      residual): their hard-coded [token, USDC] swap path reverted for every
+ *      `subscribeToStream` / `donateToStream` were removed: their hard-coded [token, USDC] swap path reverted for every
  *      token, and the wallet functions they called no longer exist.
  */
 contract StreamWalletFactory is Ownable2Step {
@@ -28,38 +27,52 @@ contract StreamWalletFactory is Ownable2Step {
     ///      redeploying this factory. Existing wallets are NOT auto-upgraded; call
     ///      upgradeWallet() individually for each streamer that needs the new impl.
     address public streamWalletImplementation;
+    /// @notice Wallet of each streamer.
     mapping(address => address) public streamerWallets; // streamer => wallet
 
-    // Protocol config below is read live by every StreamWallet (M-04): each
-    // setter applies at once to all wallets running the post-M-04
+    // Protocol config below is read live by every StreamWallet: each
+    // setter applies at once to all wallets running the current
     // implementation, existing ones included.
+    /// @notice Treasury read by every wallet.
     address public treasury;
+    /// @notice Platform fee in basis points read by every wallet.
     uint16 public defaultPlatformFeeBps; // e.g., 500 = 5%
+    /// @notice DEX router stored for wallet initialization. Wallets no longer use it.
     address public kayenRouter;
+    /// @notice USDC token read by every wallet.
     address public usdc;
+    /// @notice Router allowed to create wallets and record payments.
     address public swapRouter;
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice A wallet was deployed for a streamer.
     event StreamWalletCreated(
         address indexed streamer,
         address indexed wallet
     );
 
+    /// @notice The treasury changed.
     event TreasuryUpdated(address indexed oldTreasury, address indexed newTreasury);
 
+    /// @notice The platform fee changed.
     event PlatformFeeUpdated(uint16 oldFeeBps, uint16 newFeeBps);
 
+    /// @notice The stored DEX router changed.
     event KayenRouterUpdated(address indexed oldRouter, address indexed newRouter);
 
+    /// @notice The USDC token changed.
     event UsdcUpdated(address indexed oldUsdc, address indexed newUsdc);
 
+    /// @notice The authorized router changed.
     event SwapRouterUpdated(address indexed oldRouter, address indexed newRouter);
 
+    /// @notice The implementation for new wallets changed.
     event ImplementationUpdated(address indexed oldImplementation, address indexed newImplementation);
 
+    /// @notice A streamer's wallet moved to a new implementation.
     event WalletUpgraded(address indexed streamer, address indexed wallet, address indexed newImplementation);
 
     /*//////////////////////////////////////////////////////////////
@@ -121,7 +134,7 @@ contract StreamWalletFactory is Ownable2Step {
         );
         // Deploy ERC1967 UUPS proxy pointing at the current implementation.
         // No per-wallet router setup: the wallet reads swapRouter() from this
-        // factory on every call (M-04).
+        // factory on every call.
         wallet = address(new ERC1967Proxy(streamWalletImplementation, initData));
 
         emit StreamWalletCreated(streamer, wallet);
@@ -181,10 +194,6 @@ contract StreamWalletFactory is Ownable2Step {
      * @notice Update the default platform fee
      * @param newFeeBps The new fee in basis points
      */
-    /**
-     * @notice Update the default platform fee
-     * @param newFeeBps The new fee in basis points
-     */
     function setPlatformFee(uint16 newFeeBps) external onlyOwner {
         if (newFeeBps > 10_000) revert InvalidFeeBps();
 
@@ -209,7 +218,7 @@ contract StreamWalletFactory is Ownable2Step {
 
     /**
      * @notice Update the USDC token address
-     * @dev    Every wallet reads `usdc` live (M-04): `availableBalance` and
+     * @dev    Every wallet reads `usdc` live: `availableBalance` and
      *         `withdrawRevenue` switch to the new token at once, so USDC
      *         escrowed in the old token can no longer be withdrawn until this
      *         is set back. Only rotate with all wallets drained.
@@ -244,7 +253,7 @@ contract StreamWalletFactory is Ownable2Step {
      * @param newImplementation Address of the new StreamWallet implementation contract
      */
     function setImplementation(address newImplementation) external onlyOwner {
-        if (newImplementation.code.length == 0) revert InvalidAddress(); // L-05
+        if (newImplementation.code.length == 0) revert InvalidAddress();
 
         address old = streamWalletImplementation;
         streamWalletImplementation = newImplementation;
@@ -261,7 +270,7 @@ contract StreamWalletFactory is Ownable2Step {
      * @param newImplementation The new StreamWallet implementation address
      */
     function upgradeWallet(address streamer, address newImplementation) external onlyOwner {
-        if (newImplementation.code.length == 0) revert InvalidAddress(); // L-05
+        if (newImplementation.code.length == 0) revert InvalidAddress();
         address wallet = streamerWallets[streamer];
         if (wallet == address(0)) revert InvalidAddress();
 

@@ -96,7 +96,7 @@ contract BaseSepoliaForkTest is Test {
         uint256 minOut = _minOut(0.0005 ether);
         assertGt(minOut, 0, "pool has liquidity");
         vm.prank(alice);
-        router.placeBetWithCHZ{value: 0.0005 ether}(address(m), 0, 0, minOut, block.timestamp + 1 hours);
+        router.placeBetWithNativeToken{value: 0.0005 ether}(address(m), 0, 0, minOut, block.timestamp + 1 hours);
         uint256 stake = m.getUserStake(0, alice, 0);
         assertGe(stake, minOut);
         assertEq(IERC20(USDC).balanceOf(address(m)), stake, "the match is the escrow");
@@ -105,10 +105,10 @@ contract BaseSepoliaForkTest is Test {
     function test_Fork_Base_FullBettingRound() public {
         uint256 minA = _minOut(0.0005 ether);
         vm.prank(alice);
-        router.placeBetWithCHZ{value: 0.0005 ether}(address(m), 0, 0, minA, block.timestamp + 1 hours);
+        router.placeBetWithNativeToken{value: 0.0005 ether}(address(m), 0, 0, minA, block.timestamp + 1 hours);
         uint256 minB = _minOut(0.0003 ether);
         vm.prank(bob);
-        router.placeBetWithCHZ{value: 0.0003 ether}(address(m), 0, 2, minB, block.timestamp + 1 hours);
+        router.placeBetWithNativeToken{value: 0.0003 ether}(address(m), 0, 2, minB, block.timestamp + 1 hours);
 
         uint256 total = m.getTotalPool(0);
         vm.prank(matchAdmin);
@@ -134,13 +134,13 @@ contract BaseSepoliaForkTest is Test {
 
         uint256 minOut = _minOut(0.0002 ether);
         vm.prank(alice);
-        router.donateWithCHZ{value: 0.0002 ether}(streamer, "gm from Base", minOut, block.timestamp + 1 hours);
+        router.donateWithNativeToken{value: 0.0002 ether}(streamer, "gm from Base", minOut, block.timestamp + 1 hours);
         assertGt(StreamWallet(payable(w)).availableBalance(), 0);
         assertGt(IERC20(USDC).balanceOf(governance), 0, "platform fee to treasury");
 
         minOut = _minOut(0.0001 ether);
         vm.prank(bob);
-        router.subscribeWithCHZ{value: 0.0001 ether}(streamer, 30 days, minOut, block.timestamp + 1 hours);
+        router.subscribeWithNativeToken{value: 0.0001 ether}(streamer, 30 days, minOut, block.timestamp + 1 hours);
         assertTrue(StreamWallet(payable(w)).isSubscribed(bob));
     }
 

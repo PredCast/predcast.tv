@@ -15,7 +15,7 @@ import {BasketballPariMatch} from "./BasketballPariMatch.sol";
  * @author ChilizTV Team
  * @notice Factory for pari-mutuel match proxies.
  *
- * @dev Governance (audit 2026-10 H-01 / L-05):
+ * @dev Governance:
  *        - Every match is a `BeaconProxy` pointing at one beacon per sport.
  *          Match contracts have NO upgrade entrypoint of their own: no match
  *          admin can swap the code under its escrow any more. The code of all
@@ -24,7 +24,7 @@ import {BasketballPariMatch} from "./BasketballPariMatch.sol";
  *          be a Safe, optionally behind a TimelockController).
  *        - Because a match's code is fixed by the beacon, `isMatch` is a
  *          trustworthy registry for the leaderboard and the router.
- *        - Keys are split (H-01 / H-04): the factory OWNER (Safe) configures
+ *        - Keys are split: the factory OWNER (Safe) configures
  *          the factory; an optional `matchOperator` (backend hot key) may
  *          also create matches; each match's `_owner` gets the ops roles
  *          (ADMIN_ROLE + PAUSER_ROLE) only, while DEFAULT_ADMIN_ROLE (role
@@ -48,7 +48,9 @@ contract PariMatchFactory is Ownable2Step {
 
     enum SportType { FOOTBALL, BASKETBALL }
 
+    /// @notice Sport id of football matches.
     uint8 public constant FOOTBALL   = uint8(SportType.FOOTBALL);
+    /// @notice Sport id of basketball matches.
     uint8 public constant BASKETBALL = uint8(SportType.BASKETBALL);
 
     /// @notice Total fee a new match starts with (PariMatchBase.DEFAULT_FEE_BPS):
@@ -59,8 +61,11 @@ contract PariMatchFactory is Ownable2Step {
     // STATE
     // ═══════════════════════════════════════════════════════════════════════
 
+    /// @notice Every match created by this factory.
     address[] public allMatches;
+    /// @notice Sport of a match.
     mapping(address => SportType) public matchSportType;
+    /// @notice Whether an address is a match created by this factory.
     mapping(address => bool)      public isMatch;
 
     /// @notice Beacon of every FootballPariMatch proxy (owned by `upgradeAdmin`).
@@ -92,7 +97,7 @@ contract PariMatchFactory is Ownable2Step {
     uint16 public leaderboardFeeBps;
 
     /// @notice Hot ops key allowed to create matches besides the owner, so
-    ///         the owner can be a Safe (H-04) while the backend keeps
+    ///         the owner can be a Safe while the backend keeps
     ///         creating matches. 0 = owner only.
     address public matchOperator;
 
@@ -102,8 +107,11 @@ contract PariMatchFactory is Ownable2Step {
 
     /// @dev Signature kept: the backend reads the proxy from topic[1].
     event MatchCreated(address indexed proxy, SportType sportType, address indexed owner);
+    /// @notice The token, fee recipient and router given to new matches changed.
     event WiringSet(address indexed usdcToken, address indexed feeRecipient, address indexed swapRouter);
+    /// @notice The leaderboard settings given to new matches changed.
     event LeaderboardWiringSet(address indexed leaderboard, uint16 leaderboardFeeBps);
+    /// @notice The ops key allowed to create matches changed.
     event MatchOperatorSet(address indexed oldOperator, address indexed newOperator);
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -114,7 +122,7 @@ contract PariMatchFactory is Ownable2Step {
     error InvalidAddress();
     error WiringNotConfigured();
     error InvalidLeaderboardBps(uint16 bps);
-    /// @notice The oracle must be a dedicated key (audit H-01).
+    /// @notice The oracle must be a dedicated key.
     error OracleMustBeDistinct(address oracle);
     error NotOwnerOrOperator(address caller);
 
@@ -146,6 +154,7 @@ contract PariMatchFactory is Ownable2Step {
     // WIRING CONFIG
     // ═══════════════════════════════════════════════════════════════════════
 
+    /// @notice Set the USDC token, fee recipient and router given to new matches. Owner only.
     function setWiring(address _usdcToken, address _feeRecipient, address _swapRouter)
         external
         onlyOwner
@@ -167,7 +176,7 @@ contract PariMatchFactory is Ownable2Step {
     ///                     leaderboard split for new matches.
     /// @param _bps         Leaderboard's share of the pool, in basis points.
     ///                     Must be <= MATCH_DEFAULT_FEE_BPS. Validated here
-    ///                     (audit L-04) so a bad value fails now, not in
+    ///                     so a bad value fails now, not in
     ///                     every later createMatch.
     function setLeaderboardWiring(address _leaderboard, uint16 _bps) external onlyOwner {
         if (_leaderboard == address(0)) {
@@ -204,7 +213,7 @@ contract PariMatchFactory is Ownable2Step {
     ///                   (market lifecycle, pause). DEFAULT_ADMIN_ROLE goes
     ///                   to governance (`upgradeAdmin()`).
     /// @param _oracle    Receives RESOLVER_ROLE. Must differ from `_owner`,
-    ///                   the factory owner and `matchOperator` (audit H-01).
+    ///                   the factory owner and `matchOperator`.
     /// @return proxy     Address of the ready-to-use match proxy.
     function createFootballMatch(
         string calldata _matchName,
@@ -275,15 +284,18 @@ contract PariMatchFactory is Ownable2Step {
         return footballBeacon.owner();
     }
 
+    /// @notice Every match created by this factory.
     function getAllMatches() external view returns (address[] memory) {
         return allMatches;
     }
 
+    /// @notice Sport of a match. Reverts for an unknown address.
     function getSportType(address matchAddress) external view returns (SportType) {
         if (!isMatch[matchAddress]) revert MatchNotFound(matchAddress);
         return matchSportType[matchAddress];
     }
 
+    /// @notice Current implementation for a sport id.
     function implementations(uint8 sport) external view returns (address) {
         if (sport == FOOTBALL)   return footballImplementation();
         if (sport == BASKETBALL) return basketballImplementation();
@@ -319,7 +331,7 @@ contract PariMatchFactory is Ownable2Step {
         m.grantRole(m.RESOLVER_ROLE(),    _oracle);
 
         // 3) Ops roles to the match owner; role management to governance,
-        //    so the ops key cannot grant itself RESOLVER_ROLE (H-01).
+        //    so the ops key cannot grant itself RESOLVER_ROLE.
         m.grantRole(m.ADMIN_ROLE(),         _owner);
         m.grantRole(m.PAUSER_ROLE(),        _owner);
         m.grantRole(m.DEFAULT_ADMIN_ROLE(), governance);

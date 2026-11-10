@@ -20,7 +20,7 @@ import {NetworkRouter} from "../src/swap/NetworkRouter.sol";
 import {LeaderboardRewards} from "../src/leaderboard/LeaderboardRewards.sol";
 
 // Base DEX adapter
-import {ConcentratedPoolAdapter} from "../src/swap/ConcentratedPoolAdapter.sol";
+import {ConcentratedPoolAdapter} from "../src/swap/uniswapV3/ConcentratedPoolAdapter.sol";
 import {BaseDexConfig}           from "./config/BaseDexConfig.sol";
 
 /**
@@ -77,9 +77,9 @@ import {BaseDexConfig}           from "./config/BaseDexConfig.sol";
  *                          acceptOwnership() on each) and moves the
  *                          leaderboard roles to it. Default: false on test
  *                          chains (Spicy 88882, Base Sepolia 84532, anvil),
- *                          TRUE everywhere else (audit H-04).
+ *                          TRUE everywhere else.
  *   UPGRADE_ADMIN       — Owner of the match beacons, i.e. the only key able
- *                          to change match code (audit H-01). Default
+ *                          to change match code. Default
  *                          SAFE_ADDRESS.
  *   MATCH_OPERATOR      — Hot ops key (backend) allowed to create matches
  *                          once the factory is owned by the Safe. Default:
@@ -177,7 +177,7 @@ contract DeployAll is Script {
         matchOperator     = _envAddressOr("MATCH_OPERATOR", msg.sender);
         timelockDelay     = _envUintOr("TIMELOCK_DELAY", 0);
 
-        // H-04: on a real network the Safe must exist on THIS chain.
+        // On a real network the Safe must exist on THIS chain.
         if (!_isTestChain()) {
             require(treasury.code.length > 0, "SAFE_ADDRESS has no code on this chain");
             require(upgradeAdmin.code.length > 0, "UPGRADE_ADMIN has no code on this chain");
@@ -209,7 +209,7 @@ contract DeployAll is Script {
     function _deployPariFactory() internal {
         console.log("[1/4] PARI MATCH FACTORY");
         console.log("========================");
-        // H-01: matches are BeaconProxies; only the beacon owner can change
+        // Matches are BeaconProxies; only the beacon owner can change
         // their code. Optionally put a timelock in front of it.
         address beaconOwner = upgradeAdmin;
         if (timelockDelay > 0) {
@@ -250,8 +250,8 @@ contract DeployAll is Script {
     }
 
     function _deploySwapRouter() internal {
-        console.log("[3/4] CHILIZ SWAP ROUTER");
-        console.log("========================");
+        console.log("[3/4] NETWORK ROUTER");
+        console.log("====================");
         swapRouter = new NetworkRouter(
             kayenMasterRouter, kayenRouter, usdcAddress, wchz, treasury, platformFeeBps
         );
@@ -281,7 +281,7 @@ contract DeployAll is Script {
     ///      which causes every `recordWin` to advance the epoch in a tight
     ///      loop — see V2 contract docs.
     ///
-    ///      ORACLE_ROLE (unused since V2) is no longer granted (audit L-08).
+    ///      ORACLE_ROLE (unused since V2) is no longer granted.
     function _deployLeaderboard() internal {
         console.log("[4/4] LEADERBOARD REWARDS");
         console.log("=========================");
@@ -290,10 +290,10 @@ contract DeployAll is Script {
             LeaderboardRewards.initialize.selector,
             usdcAddress,
             deployer,   // admin (can transfer later)
-            address(0)  // no legacy ORACLE_ROLE holder (audit L-08)
+            address(0)  // no legacy ORACLE_ROLE holder
         );
         leaderboard = LeaderboardRewards(address(new ERC1967Proxy(address(impl), initData)));
-        // initializeV2 is DEFAULT_ADMIN-only (audit L-03), so running it in a
+        // initializeV2 is DEFAULT_ADMIN-only, so running it in a
         // second transaction cannot be front-run.
         leaderboard.initializeV2();
         console.log("LeaderboardRewards   :", address(leaderboard));
@@ -336,7 +336,7 @@ contract DeployAll is Script {
         console.log("  swapRouter.setStreamWalletFactory ->", address(streamFactory));
 
         // 6. Leaderboard learns about the factory so it can authorize
-        //    `recordWin` callers via `factory.isMatch(msg.sender)`.
+        //    match callers via `factory.isMatch(msg.sender)`.
         leaderboard.setMatchFactory(address(pariFactory));
         console.log("  leaderboard.setMatchFactory      ->", address(pariFactory));
 
@@ -360,7 +360,7 @@ contract DeployAll is Script {
         console.log("==============================");
         console.log("Target Safe:", treasury);
 
-        // Ownable2Step (audit L-05): the Safe becomes pendingOwner and must
+        // Ownable2Step: the Safe becomes pendingOwner and must
         // call acceptOwnership() on each contract.
         pariFactory.transferOwnership(treasury);
         console.log("  pariFactory.transferOwnership    -> Safe (pending)");

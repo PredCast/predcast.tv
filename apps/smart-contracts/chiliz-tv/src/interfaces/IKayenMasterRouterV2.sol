@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 /**
  * @title IKayenMasterRouterV2
- * @notice Native-CHZ swap interface used by `NetworkRouter._swapCHZToUSDC`.
+ * @notice Native-token swap interface used by `NetworkRouter._swapNativeTokenToUSDC`.
  * @dev    On Chiliz Spicy testnet the routers Kayen advertises (e.g.
  *         0x4D3D…3079) do NOT implement the documented V1
  *         `swapExactETHForTokens(uint256,address[],bool,address,uint256)`
@@ -11,7 +11,7 @@ pragma solidity ^0.8.24;
  *         (0x56ba8c44) is absent from the bytecode. Every router we found
  *         on Spicy is a vanilla Uniswap-V2 fork using the standard 4-arg
  *         signature (selector 0x7ff36ab5). This interface mirrors that
- *         reality. path[0] must be WCHZ.
+ *         reality. path[0] must be the wrapped native token.
  *
  *         ⚠ MAINNET: do NOT wire Kayen's real MasterRouter (0xfAf3…2E9d)
  *         here. It shares selector 0x7ff36ab5 but always finishes with
@@ -23,7 +23,7 @@ pragma solidity ^0.8.24;
  *         NetworkRouter itself via IChilizWrapperFactory.
  */
 interface IKayenMasterRouterV2 {
-    /// @notice Swap exact native CHZ for tokens (e.g., USDC). Standard V2.
+    /// @notice Swap the exact native token sent for tokens (e.g., USDC). Standard V2.
     function swapExactETHForTokens(
         uint256 amountOutMin,
         address[] calldata path,
@@ -31,7 +31,7 @@ interface IKayenMasterRouterV2 {
         uint256 deadline
     ) external payable returns (uint256[] memory amounts);
 
-    /// @notice Swap native CHZ for exact amount of output tokens. Standard V2.
+    /// @notice Swap the native token sent for an exact amount of output tokens. Standard V2.
     function swapETHForExactTokens(
         uint256 amountOut,
         address[] calldata path,

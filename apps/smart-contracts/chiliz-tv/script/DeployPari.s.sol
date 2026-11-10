@@ -121,12 +121,12 @@ contract DeployPari is Script {
         transferOwnership = _envBoolOr("TRANSFER_OWNERSHIP", !_isTestChain());
         skipSampleMatch   = _envBoolOr("SKIP_SAMPLE_MATCH", false);
 
-        // H-01: the oracle must be a dedicated key (the factory enforces it
+        // The oracle must be a dedicated key (the factory enforces it
         // too; failing here is clearer than a revert mid-broadcast).
         require(oracle != owner_ && oracle != msg.sender, "ORACLE_ADDRESS must differ from OWNER_ADDRESS and the deployer");
         // Owner of the match beacons (the only key able to change match code).
         try vm.envAddress("UPGRADE_ADMIN") returns (address v) { upgradeAdmin = v; } catch { upgradeAdmin = feeRecip; }
-        // H-04: on a real network the receiving Safe must exist on THIS chain.
+        // On a real network the receiving Safe must exist on THIS chain.
         if (!_isTestChain()) {
             require(feeRecip.code.length > 0, "FEE_RECIPIENT has no code on this chain");
             require(upgradeAdmin.code.length > 0, "UPGRADE_ADMIN has no code on this chain");

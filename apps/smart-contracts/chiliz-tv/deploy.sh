@@ -16,7 +16,7 @@
 #
 #   ./deploy.sh --network baseMainnet    --all     # Base (8453), see .env.baseMainnet.example
 #
-# On Base, WETH stands in for WCHZ and native ETH for CHZ ("*WithCHZ"
+# On Base, WETH stands in for WCHZ and native ETH for CHZ ("*WithNativeToken"
 # entrypoints). With both KAYEN_* left empty, --all deploys a
 # ConcentratedPoolAdapter (script/config/BaseDexConfig.sol) in place of Kayen.
 #

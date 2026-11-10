@@ -60,11 +60,11 @@ contract ChilizSpicyForkTest is Test {
     function test_FullRound_NativeCHZ() public {
         uint256 qa = router.quoteTokenToUSDC(WCHZ, 5_000 ether);
         vm.prank(alice);
-        router.placeBetWithCHZ{value: 5_000 ether}(address(m), 0, 0, (qa * 98) / 100, block.timestamp + 1 hours);
+        router.placeBetWithNativeToken{value: 5_000 ether}(address(m), 0, 0, (qa * 98) / 100, block.timestamp + 1 hours);
 
         uint256 qb = router.quoteTokenToUSDC(WCHZ, 2_000 ether);
         vm.prank(bob);
-        router.placeBetWithCHZ{value: 2_000 ether}(address(m), 0, 2, (qb * 98) / 100, block.timestamp + 1 hours);
+        router.placeBetWithNativeToken{value: 2_000 ether}(address(m), 0, 2, (qb * 98) / 100, block.timestamp + 1 hours);
 
         uint256 total = m.getTotalPool(0);
         assertEq(IERC20(USDC).balanceOf(address(m)), total);

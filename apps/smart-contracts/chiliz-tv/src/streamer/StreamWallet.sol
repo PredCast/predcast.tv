@@ -16,17 +16,17 @@ import {IStreamWalletFactory} from "../interfaces/IStreamWalletFactory.sol";
  * @dev Deployed via ERC1967 UUPS proxy by StreamWalletFactory.
  *      The protocol config (treasury, platform fee, USDC, swap router) is
  *      read live from `factory` on every call, so a rotation on the factory
- *      reaches every existing wallet at once (audit 2026-10, M-04).
+ *      reaches every existing wallet at once.
  *
  *      Payments only arrive through the router: it swaps to USDC, sends the
  *      fee to the treasury and the rest here, then calls
  *      `recordDonationByRouter` / `recordSubscriptionByRouter`. The legacy
  *      fan-token paths (`recordSubscription`, `donate`, `donateFor`) were
- *      removed (audit H-05 residual / M-07): their hard-coded [token, USDC]
+ *      removed: their hard-coded [token, USDC]
  *      path reverted for every token and their fee swap had no slippage
  *      bound.
  *
- *      Subscriptions are priced on-chain by the streamer (audit H-03):
+ *      Subscriptions are priced on-chain by the streamer:
  *      `subscriptionPrice` USDC buys `subscriptionPeriod` seconds, pro rata.
  */
 contract StreamWallet is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable {
@@ -38,35 +38,42 @@ contract StreamWallet is Initializable, OwnableUpgradeable, UUPSUpgradeable, Ree
     // STORAGE LAYOUT IS APPEND-ONLY: wallets are UUPS proxies upgraded in
     // place. Never reorder, retype or remove a variable below.
 
+    /// @notice Streamer this wallet belongs to.
     address public streamer;                       // slot 0
     /// @dev Slots 1, 3, 4 and 5 (plus the uint16 packed in slot 1) held
     ///      per-wallet copies of the factory config, frozen at initialization.
-    ///      Since M-04 nothing reads or writes them: the getters `treasury()`,
+    ///      Nothing reads or writes them: the getters `treasury()`,
     ///      `platformFeeBps()`, `usdc()` and `swapRouter()` query the factory.
     ///      They stay reserved so upgraded proxies keep the same layout;
     ///      wallets upgraded in place keep their stale values.
     address private __deprecated_treasury;         // slot 1, offset 0
     uint16  private __deprecated_platformFeeBps;   // slot 1, offset 20
+    /// @notice Factory that deployed this wallet and provides its configuration.
     address public factory;                        // slot 2
     address private __deprecated_kayenRouter;      // slot 3
     address private __deprecated_usdc;             // slot 4
     address private __deprecated_swapRouter;       // slot 5
 
+    /// @notice Subscription of each subscriber.
     mapping(address => Subscription) public subscriptions;   // slot 6
+    /// @notice USDC donated by each donor, fee included.
     mapping(address => uint256) public lifetimeDonations;    // slot 7
 
+    /// @notice USDC received in total, fee included.
     uint256 public totalRevenue;                   // slot 8 — USDC
+    /// @notice USDC withdrawn by the streamer.
     uint256 public totalWithdrawn;                 // slot 9 — USDC
+    /// @notice Number of distinct subscribers.
     uint256 public totalSubscribers;               // slot 10
 
-    // ─── Audit 2026-10 lot 3 (appended) ─────────────────────────────────────
+    // ─── Streamer pricing and payout (appended) ─────────────────────────────
 
     /// @notice USDC price of one `subscriptionPeriod` (6 decimals). 0 = the
     ///         streamer has not priced subscriptions: they are refused.
     uint256 public subscriptionPrice;              // slot 11
     /// @notice Length in seconds bought by `subscriptionPrice`.
     uint64  public subscriptionPeriod;             // slot 12, offset 0
-    /// @notice Where `withdrawRevenue` sends USDC. 0 = `streamer` (audit L-06).
+    /// @notice Where `withdrawRevenue` sends USDC. 0 = `streamer`.
     address public payoutAddress;                  // slot 12, offset 8
 
     struct Subscription {
@@ -76,14 +83,16 @@ contract StreamWallet is Initializable, OwnableUpgradeable, UUPSUpgradeable, Ree
         bool active;
     }
 
-    /// @notice Bounds of `subscriptionPeriod`.
+    /// @notice Shortest allowed `subscriptionPeriod`.
     uint64 public constant MIN_SUBSCRIPTION_PERIOD = 1 days;
+    /// @notice Longest allowed `subscriptionPeriod`.
     uint64 public constant MAX_SUBSCRIPTION_PERIOD = 365 days;
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice A subscription was paid and its expiry updated.
     event SubscriptionRecorded(
         address indexed subscriber,
         uint256 amount,
@@ -91,6 +100,7 @@ contract StreamWallet is Initializable, OwnableUpgradeable, UUPSUpgradeable, Ree
         uint256 expiryTime
     );
 
+    /// @notice A donation was recorded.
     event DonationReceived(
         address indexed donor,
         uint256 amount,
@@ -99,10 +109,13 @@ contract StreamWallet is Initializable, OwnableUpgradeable, UUPSUpgradeable, Ree
         uint256 streamerAmount
     );
 
+    /// @notice USDC left the wallet towards the payout address.
     event RevenueWithdrawn(address indexed streamer, uint256 amount);
 
+    /// @notice The streamer changed the subscription price.
     event SubscriptionPricingSet(uint256 price, uint64 period);
 
+    /// @notice The streamer changed the withdrawal address.
     event PayoutAddressSet(address indexed oldPayout, address indexed newPayout);
 
     /*//////////////////////////////////////////////////////////////
@@ -159,7 +172,7 @@ contract StreamWallet is Initializable, OwnableUpgradeable, UUPSUpgradeable, Ree
      *         `msg.sender` becomes `factory`. The config arguments are kept so
      *         the selector (IStreamWalletInit) still matches the factories
      *         already deployed, but they are ignored: treasury, fee, Kayen
-     *         router and USDC are read live from the factory (M-04).
+     *         router and USDC are read live from the factory.
      * @param streamer_ The streamer address (owner/beneficiary)
      */
     function initialize(
@@ -203,7 +216,7 @@ contract StreamWallet is Initializable, OwnableUpgradeable, UUPSUpgradeable, Ree
 
     /**
      * @notice Deprecated: no effect, kept for factory compatibility.
-     * @dev    Before M-04 this stored a per-wallet copy of the router, which a
+     * @dev    This used to store a per-wallet copy of the router, which a
      *         later router rotation could not reach. The router is now read
      *         from the factory: rotate it once with
      *         `StreamWalletFactory.setSwapRouter`. Factories deployed before
@@ -223,7 +236,7 @@ contract StreamWallet is Initializable, OwnableUpgradeable, UUPSUpgradeable, Ree
 
     /**
      * @notice Price subscriptions: `price` USDC (6 decimals) buys `period`
-     *         seconds, pro rata (audit H-03). Applies to future payments only.
+     *         seconds, pro rata. Applies to future payments only.
      */
     function setSubscriptionPricing(uint256 price, uint64 period) external onlyStreamer {
         if (price == 0 || period < MIN_SUBSCRIPTION_PERIOD || period > MAX_SUBSCRIPTION_PERIOD)
@@ -242,7 +255,7 @@ contract StreamWallet is Initializable, OwnableUpgradeable, UUPSUpgradeable, Ree
     }
 
     /// @notice Send future withdrawals to `payout` instead of the streamer
-    ///         address (audit L-06). `address(0)` reverts to the streamer.
+    ///         address. `address(0)` reverts to the streamer.
     function setPayoutAddress(address payout) external onlyStreamer {
         address old = payoutAddress;
         payoutAddress = payout;
@@ -256,7 +269,7 @@ contract StreamWallet is Initializable, OwnableUpgradeable, UUPSUpgradeable, Ree
     /**
      * @notice Record a subscription from the swap router (swap already completed)
      * @dev Only callable by factory or authorized swap router. No token transfers
-     *      or swaps occur here — purely state tracking. H-03: reverts unless
+     *      or swaps occur here — purely state tracking. Reverts unless
      *      `totalUsdcAmount` covers `duration` at the streamer's price.
      * @param subscriber The subscriber address
      * @param totalUsdcAmount The total USDC amount paid (before fee split)

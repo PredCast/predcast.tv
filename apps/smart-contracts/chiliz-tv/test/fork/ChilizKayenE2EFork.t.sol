@@ -18,6 +18,17 @@ interface IKayenV2Router {
     function WETH() external view returns (address);
 }
 
+/// @dev The router live on mainnet was deployed before the native-token rename.
+interface ILiveRouter {
+    function placeBetWithCHZ(
+        address bettingMatch,
+        uint256 marketId,
+        uint64 outcome,
+        uint256 amountOutMin,
+        uint256 deadline
+    ) external payable;
+}
+
 /**
  * @title Chiliz mainnet end-to-end, real Kayen pools (fork)
  * @notice Deploys the audited stack on a fork of Chiliz mainnet, wired to the
@@ -188,7 +199,7 @@ contract ChilizKayenE2EForkTest is Test {
     function test_Bet_NativeCHZ() public {
         uint256 quote = router.quoteTokenToUSDC(WCHZ, 1_000 ether);
         vm.prank(alice);
-        router.placeBetWithCHZ{value: 1_000 ether}(address(m), 0, 0, _min(quote), _deadline());
+        router.placeBetWithNativeToken{value: 1_000 ether}(address(m), 0, 0, _min(quote), _deadline());
         assertEq(m.getUserStake(0, alice, 0), quote, "stake equals the live quote");
         assertEq(IERC20(USDC).balanceOf(address(m)), quote);
     }
@@ -220,7 +231,7 @@ contract ChilizKayenE2EForkTest is Test {
     function test_Slippage_ZeroMinOutRejected_CHZ() public {
         vm.prank(alice);
         vm.expectRevert(NetworkRouter.SlippageNotSet.selector);
-        router.placeBetWithCHZ{value: 1_000 ether}(address(m), 0, 0, 0, _deadline());
+        router.placeBetWithNativeToken{value: 1_000 ether}(address(m), 0, 0, 0, _deadline());
     }
 
     function test_Slippage_ZeroMinOutRejected_FanToken() public {
@@ -257,7 +268,7 @@ contract ChilizKayenE2EForkTest is Test {
 
         uint256 qb = router.quoteTokenToUSDC(WCHZ, 200 ether);
         vm.prank(bob);
-        router.placeBetWithCHZ{value: 200 ether}(address(m), 0, 2, _min(qb), _deadline());
+        router.placeBetWithNativeToken{value: 200 ether}(address(m), 0, 2, _min(qb), _deadline());
 
         uint256 total = m.getTotalPool(0);
         assertEq(IERC20(USDC).balanceOf(address(m)), total, "escrow covers the pool");
@@ -294,7 +305,7 @@ contract ChilizKayenE2EForkTest is Test {
         assertEq(IERC20(USDC).balanceOf(governance), fee, "5 % platform fee");
     }
 
-    function test_Stream_SubscribeWithCHZ_AfterPriceSet() public {
+    function test_Stream_SubscribeWithNativeToken_AfterPriceSet() public {
         address wallet = streamFactory.deployWalletFor(streamer);
         vm.prank(streamer);
         StreamWallet(payable(wallet)).setSubscriptionPricing(1e6, 30 days); // 1 USDC / 30 days
@@ -302,7 +313,7 @@ contract ChilizKayenE2EForkTest is Test {
         uint256 q = router.quoteTokenToUSDC(WCHZ, 200 ether);
         assertGe(_min(q), 1e6, "enough CHZ for one period");
         vm.prank(alice);
-        router.subscribeWithCHZ{value: 200 ether}(streamer, 30 days, _min(q), _deadline());
+        router.subscribeWithNativeToken{value: 200 ether}(streamer, 30 days, _min(q), _deadline());
         assertTrue(StreamWallet(payable(wallet)).isSubscribed(alice));
     }
 
@@ -322,12 +333,12 @@ contract ChilizKayenE2EForkTest is Test {
 
         FootballPariMatch live = _newLiveMatch();
         vm.prank(alice);
-        LIVE_ROUTER.placeBetWithCHZ{value: 1_000 ether}(address(live), 0, 0, _min(quote), _deadline());
+        ILiveRouter(address(LIVE_ROUTER)).placeBetWithCHZ{value: 1_000 ether}(address(live), 0, 0, _min(quote), _deadline());
         uint256 liveStake = live.getUserStake(0, alice, 0);
 
         vm.revertToState(snap);
         vm.prank(alice);
-        router.placeBetWithCHZ{value: 1_000 ether}(address(m), 0, 0, _min(quote), _deadline());
+        router.placeBetWithNativeToken{value: 1_000 ether}(address(m), 0, 0, _min(quote), _deadline());
 
         assertGt(liveStake, 0);
         assertEq(m.getUserStake(0, alice, 0), liveStake, "same CHZ gives the same stake");
@@ -356,7 +367,7 @@ contract ChilizKayenE2EForkTest is Test {
         FootballPariMatch live = _newLiveMatch();
         _betToken(LIVE_ROUTER, live, PSG, 10, _min(qa), alice);
         vm.prank(bob);
-        LIVE_ROUTER.placeBetWithCHZ{value: 200 ether}(address(live), 0, 2, _min(qb), _deadline());
+        ILiveRouter(address(LIVE_ROUTER)).placeBetWithCHZ{value: 200 ether}(address(live), 0, 2, _min(qb), _deadline());
         vm.prank(LIVE_OWNER);
         live.closeMarket(0);
         vm.prank(oracle);
@@ -369,7 +380,7 @@ contract ChilizKayenE2EForkTest is Test {
         vm.revertToState(snap);
         _betToken(router, m, PSG, 10, _min(qa), alice);
         vm.prank(bob);
-        router.placeBetWithCHZ{value: 200 ether}(address(m), 0, 2, _min(qb), _deadline());
+        router.placeBetWithNativeToken{value: 200 ether}(address(m), 0, 2, _min(qb), _deadline());
         vm.prank(matchAdmin);
         m.closeMarket(0);
         vm.prank(oracle);
@@ -387,12 +398,12 @@ contract ChilizKayenE2EForkTest is Test {
     function test_Diff_LiveRouterAcceptsZeroMinOut_AuditedDoesNot() public {
         FootballPariMatch live = _newLiveMatch();
         vm.prank(alice);
-        LIVE_ROUTER.placeBetWithCHZ{value: 1_000 ether}(address(live), 0, 0, 0, _deadline());
+        ILiveRouter(address(LIVE_ROUTER)).placeBetWithCHZ{value: 1_000 ether}(address(live), 0, 0, 0, _deadline());
         assertGt(live.getUserStake(0, alice, 0), 0, "live version swaps with no protection");
 
         vm.prank(alice);
         vm.expectRevert(NetworkRouter.SlippageNotSet.selector);
-        router.placeBetWithCHZ{value: 1_000 ether}(address(m), 0, 0, 0, _deadline());
+        router.placeBetWithNativeToken{value: 1_000 ether}(address(m), 0, 0, 0, _deadline());
     }
 
     function test_Diff_AuditedSubscriptionNeedsAPrice() public {
@@ -400,7 +411,7 @@ contract ChilizKayenE2EForkTest is Test {
         uint256 q = router.quoteTokenToUSDC(WCHZ, 200 ether);
         vm.prank(alice);
         vm.expectRevert(StreamWallet.SubscriptionPriceNotSet.selector);
-        router.subscribeWithCHZ{value: 200 ether}(streamer, 30 days, _min(q), _deadline());
+        router.subscribeWithNativeToken{value: 200 ether}(streamer, 30 days, _min(q), _deadline());
         assertFalse(StreamWallet(payable(wallet)).isSubscribed(alice));
     }
 }

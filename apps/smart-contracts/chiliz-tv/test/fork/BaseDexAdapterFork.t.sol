@@ -10,7 +10,7 @@ import {BasketballPariMatch} from "../../src/pari/BasketballPariMatch.sol";
 import {NetworkRouter}       from "../../src/swap/NetworkRouter.sol";
 import {StreamWalletFactory} from "../../src/streamer/StreamWalletFactory.sol";
 import {StreamWallet}        from "../../src/streamer/StreamWallet.sol";
-import {ConcentratedPoolAdapter} from "../../src/swap/ConcentratedPoolAdapter.sol";
+import {ConcentratedPoolAdapter} from "../../src/swap/uniswapV3/ConcentratedPoolAdapter.sol";
 import {IConcentratedPool}       from "../../src/interfaces/IConcentratedPool.sol";
 import {BaseDexConfig}           from "../../script/config/BaseDexConfig.sol";
 
@@ -186,8 +186,8 @@ abstract contract BaseDexAdapterForkTest is Test {
 
         uint256 gasBefore = gasleft();
         vm.prank(alice);
-        router.placeBetWithCHZ{value: amount}(address(m), 0, 0, quote, block.timestamp + 1 hours);
-        console2.log("placeBetWithCHZ gas", gasBefore - gasleft());
+        router.placeBetWithNativeToken{value: amount}(address(m), 0, 0, quote, block.timestamp + 1 hours);
+        console2.log("placeBetWithNativeToken gas", gasBefore - gasleft());
 
         assertEq(m.getUserStake(0, alice, 0), quote, "the stake is exactly the quote");
         assertEq(IERC20(usdc).balanceOf(address(m)), quote, "the match is the escrow");
@@ -204,7 +204,7 @@ abstract contract BaseDexAdapterForkTest is Test {
         uint256 quote = router.quoteTokenToUSDC(weth, amount);
         vm.prank(alice);
         vm.expectRevert(abi.encodeWithSelector(ConcentratedPoolAdapter.InsufficientOutput.selector, quote, quote + 1));
-        router.placeBetWithCHZ{value: amount}(address(m), 0, 0, quote + 1, block.timestamp + 1 hours);
+        router.placeBetWithNativeToken{value: amount}(address(m), 0, 0, quote + 1, block.timestamp + 1 hours);
         assertEq(m.getUserStake(0, alice, 0), 0);
     }
 
@@ -214,7 +214,7 @@ abstract contract BaseDexAdapterForkTest is Test {
         uint256 quote = router.quoteTokenToUSDC(weth, amount);
 
         vm.prank(alice);
-        router.donateWithCHZ{value: amount}(streamer, "gm from Base", quote, block.timestamp + 1 hours);
+        router.donateWithNativeToken{value: amount}(streamer, "gm from Base", quote, block.timestamp + 1 hours);
 
         uint256 fee = (quote * 500) / 10_000;
         assertEq(IERC20(usdc).balanceOf(governance), fee, "platform fee");

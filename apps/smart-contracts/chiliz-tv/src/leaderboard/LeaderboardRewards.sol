@@ -16,6 +16,7 @@ import {ILeaderboardRewards} from "../interfaces/ILeaderboardRewards.sol";
 ///      interface keeps the leaderboard contract independent of the rest of
 ///      the pari tree (no cyclic compile dependency).
 interface IPariMatchFactoryView {
+    /// @notice Whether an address is a match created by the factory.
     function isMatch(address) external view returns (bool);
 }
 
@@ -26,21 +27,20 @@ interface IPariMatchFactoryView {
  *
  * @dev Architecture overview
  * ──────────────────────────
- * Match contracts (`PariMatch{Football,Basketball}`) credit per-epoch scores
- * via `recordWin(user, payout)`. The contract holds USDC funded by the
- * 1%-of-pool leaderboard fee taken at every market resolution.
+ * Match contracts (`FootballPariMatch`, `BasketballPariMatch`) credit each
+ * winner's net profit through `recordProfit(user, profit, resolvedAt)`. The
+ * contract holds USDC funded by the leaderboard share of the fee, 1% of the
+ * pool by default, taken at every market resolution.
  *
  * Distribution model: **pro-rata, per epoch**.
  *
- *   1. `recordWin` lazily advances the epoch if the current one's window has
- *      elapsed, then increments `_epochScores[currentEpoch][user]` and the
- *      epoch's running total `_epochTotalScore[currentEpoch]`.
- *   2. The first call past `epochStartTime + epochDuration` snapshots the
- *      open prize pool into `_epochs[closedId].prizePool`, flips the epoch
- *      to closed, opens a `epochDuration`-long claim window, and rolls
+ *   1. `recordProfit` adds the profit to the score of the epoch containing the
+ *      market's resolution time, and to that epoch's running total.
+ *   2. An epoch closes SCORING_GRACE after its boundary, at the first
+ *      interaction past it or through the permissionless `advanceEpoch()`.
+ *      Closing snapshots the open prize pool into `_epochs[closedId].prizePool`,
+ *      opens a claim window of `epochDuration` from the actual close, and rolls
  *      `epochIndex` and `epochStartTime` forward by exactly one boundary.
- *      Anyone can also force-trigger this via the permissionless
- *      `advanceEpoch()` to keep the leaderboard live during quiet periods.
  *   3. `claim(epochId)` pays the caller their pro-rata share of the closed
  *      epoch's pool: `(epochScore[user] * prizePool) / totalScore`. No
  *      merkle proof — every scorer is implicitly entitled.
@@ -57,24 +57,24 @@ interface IPariMatchFactoryView {
  * `Epoch.merkleRoot` field is also preserved (slot reservation) but never
  * written or read post-V2.
  *
- * V3 changes (audit 2026-10: M-03, M-05, L-03)
- * ─────────────────────────────────────────────
+ * V3 changes
+ * ──────────
  *   - Scores are NET PROFIT (payout minus the user's total stake on the
  *     market) credited by `recordProfit` to the epoch containing the
  *     market's resolution time, not to whatever epoch is open at claim time
- *     (M-05). Self-hedging on every outcome scores nothing. The V2
+ *     . Self-hedging on every outcome scores nothing. The V2
  *     `recordWin(user, grossPayout)` entrypoint credits nothing anymore.
  *   - Fees are attributed to the epoch of the resolution that produced them
  *     (`notifyFee`), so fees arriving after an epoch boundary belong to the
- *     next epoch instead of inflating the one being closed (M-03).
+ *     next epoch instead of inflating the one being closed.
  *   - An epoch is closed SCORING_GRACE after its boundary, giving late
  *     claimers of its markets time to be credited, and its claim window
  *     runs from the actual close, never from the theoretical boundary, so
- *     a late close no longer creates an already-expired epoch (M-03).
+ *     a late close no longer creates an already-expired epoch.
  *     An epoch closed without any score keeps its pool open for the next.
  *   - `recordProfit` / `notifyFee` are not pausable: pausing used to make
- *     the credits of the whole pause period disappear (L-03).
- *     `initializeV2` is restricted to DEFAULT_ADMIN_ROLE (L-03).
+ *     the credits of the whole pause period disappear.
+ *     `initializeV2` is restricted to DEFAULT_ADMIN_ROLE.
  *   Storage: two variables appended after slot 9 (`_epochFees`,
  *   `_notifiedAhead`); the gap shrinks from 40 to 38.
  *
@@ -113,8 +113,9 @@ contract LeaderboardRewards is
 
     /// @notice Default epoch duration applied at V2 init. Admin can rotate it.
     uint64 public constant DEFAULT_EPOCH_DURATION = 30 days;
-    /// @notice Hard bounds on the admin-settable epoch duration.
+    /// @notice Lower bound of the admin-settable epoch duration.
     uint64 public constant MIN_EPOCH_DURATION = 1 days;
+    /// @notice Upper bound of the admin-settable epoch duration.
     uint64 public constant MAX_EPOCH_DURATION = 365 days;
 
     /// @notice An epoch closes this long after its boundary, so markets it
@@ -166,7 +167,7 @@ contract LeaderboardRewards is
     ///         without iterating all past epochs.
     uint256 internal _lockedInClosedEpochs;                               // slot 5
 
-    /// @notice PariMatchFactory used to authorize `recordWin` callers.
+    /// @notice PariMatchFactory used to authorize match callers.
     IPariMatchFactoryView public matchFactory;                            // slot 6
 
     // ─── V2 additions (appended; layout-safe) ──────────────────────────────
@@ -182,7 +183,7 @@ contract LeaderboardRewards is
     mapping(uint256 epochId => mapping(address user => uint256 score)) internal _epochScores; // slot 8
 
     /// @notice Sum of `_epochScores[epochId][*]` for each epoch. Updated on
-    ///         every `recordWin` and read by `claim` for the pro-rata math.
+    ///         every `recordProfit` and read by `claim` for the pro-rata math.
     mapping(uint256 epochId => uint256 totalScore) internal _epochTotalScore; // slot 9
 
     // ─── V3 additions (appended; layout-safe) ──────────────────────────────
@@ -194,7 +195,7 @@ contract LeaderboardRewards is
 
     /// @notice Sum of `_epochFees[k]` for every k > epochIndex: fees that
     ///         arrived after the open epoch's boundary and must not be swept
-    ///         into it when it closes (M-03).
+    ///         into it when it closes.
     uint256 internal _notifiedAhead;                                      // slot 11
 
     /// Reserved storage gap. V1 reserved [43]; V2 consumed 3 slots (7-9),
@@ -205,6 +206,7 @@ contract LeaderboardRewards is
     // EVENTS
     // ═══════════════════════════════════════════════════════════════════════
 
+    /// @notice The proxy was initialized.
     event Initialized(address indexed usdc, address indexed admin);
 
     /// @notice Per-epoch score for `user` in `epochId` increased by `delta`.
@@ -236,8 +238,11 @@ contract LeaderboardRewards is
     ///         into the open prize pool because the claim window expired.
     event EpochRolledOver(uint256 indexed epochId, uint256 rolledOver);
 
+    /// @notice The prize token changed.
     event USDCTokenSet(address indexed token);
+    /// @notice The factory authorizing matches changed.
     event MatchFactorySet(address indexed oldFactory, address indexed newFactory);
+    /// @notice The epoch duration changed.
     event EpochDurationSet(uint64 oldDuration, uint64 newDuration);
 
     /// @notice `amount` of fees attributed to `epochId` by `match_`.
@@ -246,7 +251,7 @@ contract LeaderboardRewards is
     /// @notice A profit could not be credited: its epoch was already closed.
     event ProfitIgnored(address indexed match_, address indexed user, uint256 profit, uint256 resolvedAt);
 
-    /// @notice A V2-style `recordWin` arrived; it no longer credits (M-05).
+    /// @notice A V2-style `recordWin` arrived; it no longer credits.
     event LegacyWinIgnored(address indexed match_, address indexed user, uint256 payout);
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -313,7 +318,7 @@ contract LeaderboardRewards is
     ///         default 30-day duration. Doesn't touch any V1 state, so
     ///         existing `_score` entries (if any) remain readable but
     ///         unreferenced by V2 logic.
-    ///         V3 (audit L-03): admin-only, so nobody can front-run it to pick
+    ///         Admin-only, so nobody can front-run it to pick
     ///         the epoch clock, and refuses to run twice.
     function initializeV2() external reinitializer(2) onlyRole(DEFAULT_ADMIN_ROLE) {
         if (epochDuration != 0) revert AlreadyInitializedV2();
@@ -338,9 +343,9 @@ contract LeaderboardRewards is
         emit USDCTokenSet(_usdc);
     }
 
-    /// @notice Register the PariMatchFactory used to authorize `recordWin`
+    /// @notice Register the PariMatchFactory used to authorize match
     ///         callers. Required before any match can credit scores.
-    /// @dev After the 2026-10 audit (H-01), point this at a beacon-based
+    /// @dev Point this at a beacon-based
     ///      PariMatchFactory only: matches of the older UUPS factory can be
     ///      upgraded by their own admin and must not be trusted to score.
     function setMatchFactory(address _factory) external onlyRole(ADMIN_ROLE) {
@@ -363,7 +368,9 @@ contract LeaderboardRewards is
         emit EpochDurationSet(old, newDuration);
     }
 
+    /// @notice Pause epoch closing, rollovers and prize claims. Score and fee credits keep working.
     function emergencyPause() external onlyRole(PAUSER_ROLE) { _pause(); }
+    /// @notice Lift the pause.
     function unpause()        external onlyRole(ADMIN_ROLE)  { _unpause(); }
 
     function _authorizeUpgrade(address) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
@@ -373,7 +380,7 @@ contract LeaderboardRewards is
     // ═══════════════════════════════════════════════════════════════════════
 
     /// @inheritdoc ILeaderboardRewards
-    /// @dev Not pausable (L-03). Unauthorized callers revert; the match side
+    /// @dev Not pausable. Unauthorized callers revert; the match side
     ///      wraps the call in try/catch.
     function notifyFee(uint256 amount) external override {
         _requireMatch();
@@ -390,8 +397,8 @@ contract LeaderboardRewards is
     }
 
     /// @inheritdoc ILeaderboardRewards
-    /// @dev Not pausable (L-03). The epoch is derived from `resolvedAt`, so
-    ///      claiming late does not move a win into a quieter epoch (M-05).
+    /// @dev Not pausable. The epoch is derived from `resolvedAt`, so
+    ///      claiming late does not move a win into a quieter epoch.
     ///      A profit whose epoch is already closed is ignored, not reverted.
     function recordProfit(address user, uint256 profit, uint256 resolvedAt) external override {
         _requireMatch();
@@ -415,7 +422,7 @@ contract LeaderboardRewards is
 
     /// @inheritdoc ILeaderboardRewards
     /// @dev V2 credited the gross payout to the epoch open at claim time,
-    ///      which made scores farmable (M-05). Now a no-op kept for ABI
+    ///      which made scores farmable. Now a no-op kept for ABI
     ///      compatibility with matches deployed before V3.
     function recordWin(address user, uint256 payout) external override {
         _requireMatch();
@@ -453,7 +460,7 @@ contract LeaderboardRewards is
     /// @notice Close the open epoch if its boundary + SCORING_GRACE passed.
     /// @dev    Single-step on purpose: after a long quiet period
     ///         `advanceEpoch()` can be called repeatedly to catch up.
-    ///         M-03: the claim window starts at the actual close, and the
+    ///         The claim window starts at the actual close, and the
     ///         snapshot excludes fees attributed to later epochs. An epoch
     ///         without any score snapshots nothing: its pool stays open for
     ///         the next epoch instead of being locked until expiry.
@@ -590,14 +597,17 @@ contract LeaderboardRewards is
         return (userScore * ep.prizePool) / totalScore;
     }
 
+    /// @notice Snapshot of an epoch.
     function epoch(uint256 epochId) external view returns (Epoch memory) {
         return _epochs[epochId];
     }
 
+    /// @notice Whether `user` already claimed an epoch.
     function hasClaimed(uint256 epochId, address user) external view returns (bool) {
         return _claimed[epochId][user];
     }
 
+    /// @notice USDC reserved for closed epochs that can still be claimed.
     function lockedInClosedEpochs() external view returns (uint256) {
         return _lockedInClosedEpochs;
     }

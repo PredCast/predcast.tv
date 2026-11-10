@@ -127,7 +127,7 @@ abstract contract BaseUniswapV3ForkTest is Test {
         uint256 quoted = _quote(0.01 ether);
         vm.prank(alice);
         vm.expectRevert();
-        router.placeBetWithCHZ{value: 0.01 ether}(address(m), 0, 0, (quoted * 99) / 100, block.timestamp + 1 hours);
+        router.placeBetWithNativeToken{value: 0.01 ether}(address(m), 0, 0, (quoted * 99) / 100, block.timestamp + 1 hours);
         assertEq(m.getUserStake(0, alice, 0), 0);
     }
 

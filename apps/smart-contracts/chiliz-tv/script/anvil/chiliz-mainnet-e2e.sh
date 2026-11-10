@@ -52,7 +52,7 @@ fail() { printf '  [FAIL] %s\n' "$*" >&2; exit 1; }
 deadline() { echo $(( $(cast block latest --field timestamp --rpc-url "$RPC") + 3600 )); }
 min98() { awk -v q="$1" 'BEGIN{printf "%.0f", q*98/100}'; }
 
-echo "== 1. Deploy the audited stack (production mode, chain 88888)"
+echo "== 1. Deploy the current stack (production mode, chain 88888)"
 cast rpc anvil_setCode "$SAFE" 0x00 --rpc-url "$RPC" >/dev/null
 cast rpc anvil_setBalance "$SAFE" 0x21E19E0C9BAB2400000 --rpc-url "$RPC" >/dev/null
 LOG=$(mktemp)
@@ -100,14 +100,14 @@ send "$ALICE" "$PSG" 'approve(address,uint256)' "$ROUTER" 5
 send "$ALICE" "$ROUTER" 'placeBetWithToken(address,uint256,address,uint256,uint64,uint256,uint256)' "$PSG" 5 "$MATCH" 0 0 "$(min98 "$Q")" "$D"
 ok "alice: 5 PSG on outcome 0, stake $(fmt "$(call "$MATCH" 'getUserStake(uint256,address,uint64)(uint256)' 0 "$ALICE" 0)")"
 Q=$(call "$ROUTER" 'quoteTokenToUSDC(address,uint256)(uint256)' "$WCHZ" 300000000000000000000)
-VALUE=300ether send "$BOB" "$ROUTER" 'placeBetWithCHZ(address,uint256,uint64,uint256,uint256)' "$MATCH" 0 2 "$(min98 "$Q")" "$D"
+VALUE=300ether send "$BOB" "$ROUTER" 'placeBetWithNativeToken(address,uint256,uint64,uint256,uint256)' "$MATCH" 0 2 "$(min98 "$Q")" "$D"
 ok "bob: 300 CHZ on outcome 2, stake $(fmt "$(call "$MATCH" 'getUserStake(uint256,address,uint64)(uint256)' 0 "$BOB" 2)")"
 send "$CAROL" "$USDC" 'approve(address,uint256)' "$ROUTER" 1000000
 send "$CAROL" "$ROUTER" 'placeBetWithUSDC(address,uint256,uint64,uint256)' "$MATCH" 0 0 1000000
 ok "carol: 1 USDC on outcome 0"
 
 echo "== 6. Slippage guard on a real transaction"
-if VALUE=10ether send "$BOB" "$ROUTER" 'placeBetWithCHZ(address,uint256,uint64,uint256,uint256)' "$MATCH" 0 2 0 "$D" 2>/dev/null; then
+if VALUE=10ether send "$BOB" "$ROUTER" 'placeBetWithNativeToken(address,uint256,uint64,uint256,uint256)' "$MATCH" 0 2 0 "$D" 2>/dev/null; then
   fail "amountOutMin = 0 was accepted"
 else ok "amountOutMin = 0 rejected"; fi
 
@@ -135,13 +135,13 @@ WALLET=$(call "$STREAMS" 'getWallet(address)(address)' "$STREAMER")
 ok "alice donated 2 PSG, wallet $WALLET"
 send "$STREAMER" "$WALLET" 'setSubscriptionPricing(uint256,uint64)' 1000000 2592000
 Q=$(call "$ROUTER" 'quoteTokenToUSDC(address,uint256)(uint256)' "$WCHZ" 200000000000000000000)
-VALUE=200ether send "$BOB" "$ROUTER" 'subscribeWithCHZ(address,uint256,uint256,uint256)' "$STREAMER" 2592000 "$(min98 "$Q")" "$D"
+VALUE=200ether send "$BOB" "$ROUTER" 'subscribeWithNativeToken(address,uint256,uint256,uint256)' "$STREAMER" 2592000 "$(min98 "$Q")" "$D"
 [ "$(call "$WALLET" 'isSubscribed(address)(bool)' "$BOB")" = "true" ] && ok "bob subscribed" || fail "bob not subscribed"
 AVAIL=$(call "$WALLET" 'availableBalance()(uint256)')
 send "$STREAMER" "$WALLET" 'withdrawRevenue(uint256)' "$AVAIL"
 ok "streamer withdrew $(fmt "$(usdc "$STREAMER")")"
 
-echo "== 9. Rehearse the live StreamWallet upgrade (audit M-04)"
+echo "== 9. Rehearse the live StreamWallet upgrade"
 LIVE_OWNER=0xdaE0c2e9C16E8eC5fc9CBE04808AE549bb80E387
 LIVE_STREAMS=0x0Ffa30b48ADc0b2B773DC01422D249aEE135a4Bb
 LIVE_ROUTER=0x72befD1186f24Cba64266995cD627B79C799292a

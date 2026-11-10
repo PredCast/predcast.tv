@@ -36,3 +36,8 @@ base_sepolia   = "https://sepolia.base.org"
 base           = "https://mainnet.base.org"
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
+
+# forge doc: API reference generated from the NatSpec
+[doc]
+out = "docs/reference"
+title = "PredCast smart contracts"

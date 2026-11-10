@@ -18,47 +18,44 @@ import {StreamWalletFactory}  from "../streamer/StreamWalletFactory.sol";
 /**
  * @title NetworkRouter
  * @author ChilizTV
- * @notice Unified swap router for the ChilizTV platform (pari-mutuel edition).
+ * @notice Single entry point to pay bets, donations and subscriptions with the
+ *         network's native token, any routable ERC20, or USDC. Everything
+ *         settles in USDC.
  *
- * @dev Handles token-to-USDC swaps for both the pari-mutuel betting module
- *      and the streaming module (donations / subscriptions). No LP vault
- *      involved — USDC flows directly into the match contract (the escrow)
- *      on the betting path, and into the streamer's `StreamWallet` (the
- *      per-streamer escrow lazily deployed by `StreamWalletFactory`) on the
- *      streaming path. This contract never holds USDC at rest.
+ * @dev The same contract runs on every network and speaks the Uniswap V2
+ *      router ABI. Only its wiring changes:
+ *        - Chiliz: `masterRouter` and `tokenRouter` are the Kayen V2 router,
+ *          and `wrapperFactory` wraps fan tokens before the swap.
+ *        - Base: `masterRouter` and `tokenRouter` are a
+ *          `ConcentratedPoolAdapter`, and `wrapperFactory` stays unset.
  *
- * Supported Payment Paths (all settle in USDC):
- * ══════════════════════════════════════════════════════════════════════════
- * BETTING (pari-mutuel):
- *   CHZ  (native) -> USDC -> PariMatch.placeBetUSDCFor  (placeBetWithCHZ)
- *   ERC20         -> USDC -> PariMatch.placeBetUSDCFor  (placeBetWithToken)
- *   USDC direct   ->         PariMatch.placeBetUSDCFor  (placeBetWithUSDC)
+ *      "Native token" is the network's gas token (CHZ on Chiliz, ETH on Base);
+ *      `wrappedNativeToken` is its ERC20 form (WCHZ, WETH).
  *
- * TOKEN ROUTING (applies to every ERC20 path, betting and streaming):
- *   Kayen liquidity is hubbed on WCHZ — no token has a direct USDC pair, so
- *   all ERC20 swaps route [token, WCHZ, USDC] (WCHZ itself goes direct).
- *   CAP-20 fan tokens (PSG, BAR, ... — sub-18 decimals) have no pools at all
- *   in their raw form: liquidity lives in Kayen's 18-decimals wrapped
- *   versions. When `wrapperFactory` is set and a wrapped token exists, the
- *   router wraps automatically and swaps [wrapped, WCHZ, USDC]. Frontends
- *   must quote via `quoteTokenToUSDC` so the quoted path always matches the
- *   executed one.
+ *      USDC goes straight into the match contract (the escrow) on the betting
+ *      path and into the streamer's `StreamWallet` on the streaming path. This
+ *      contract never holds USDC at rest.
  *
- * STREAMING (donations & subscriptions):
- *   CHZ  (native) -> USDC -> fee split -> StreamWallet escrow / treasury
- *   ERC20         -> USDC -> fee split -> StreamWallet escrow / treasury
- *   USDC direct   ->         fee split -> StreamWallet escrow / treasury
+ * Payment paths (all settle in USDC):
+ *   Betting:   placeBetWithNativeToken, placeBetWithToken, placeBetWithUSDC
+ *              -> PariMatchBase.placeBetUSDCFor
+ *   Streaming: donateWith{NativeToken,Token,USDC}, subscribeWith{NativeToken,Token,USDC}
+ *              -> fee to the treasury, the rest to the StreamWallet
  *
- * Security notes:
- *   - This contract requires SWAP_ROUTER_ROLE on each target PariMatch proxy.
- *   - USDC is forwarded immediately; this contract never holds USDC at rest.
- *   - bettingMatchFactory (PariMatchFactory) validates every match address
- *     before USDC is forwarded, preventing loss to arbitrary addresses.
- *   - Reentrancy protected via OpenZeppelin ReentrancyGuard.
- *   - SafeERC20 used for all token transfers.
- *   - Strict deadline + slippage validation on every swap: amountOutMin
- *     must be non-zero (audit M-07); compute it with quoteTokenToUSDC /
- *     the Kayen quote minus the user's tolerance.
+ * ERC20 routing:
+ *   Every ERC20 swaps along [token, wrappedNativeToken, USDC], or
+ *   [wrappedNativeToken, USDC] for the wrapped native token itself. On Chiliz,
+ *   CAP-20 fan tokens (sub-18 decimals) only have liquidity in Kayen's wrapped
+ *   version: when `wrapperFactory` is set and the wrapped route pays more, the
+ *   router wraps first. On Base the adapter reads only the two ends of the
+ *   path and follows the route its owner registered. Quote with
+ *   `quoteTokenToUSDC`, so the quoted route is the executed one.
+ *
+ * Security:
+ *   - Requires SWAP_ROUTER_ROLE on each PariMatch proxy.
+ *   - `bettingMatchFactory` validates every match before USDC is forwarded.
+ *   - Every swap needs a deadline and a non-zero `amountOutMin`.
+ *   - Reentrancy guarded; SafeERC20 on every transfer.
  */
 contract NetworkRouter is ReentrancyGuard, Ownable2Step {
     using SafeERC20 for IERC20;
@@ -67,10 +64,14 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
     // IMMUTABLES
     // ══════════════════════════════════════════════════════════════════════════
 
+    /// @notice Router for native-token swaps (Kayen V2 on Chiliz, the adapter on Base).
     IKayenMasterRouterV2 public immutable masterRouter;
+    /// @notice Router for ERC20 swaps and quotes (Kayen V2 on Chiliz, the adapter on Base).
     IKayenRouter         public immutable tokenRouter;
+    /// @notice Settlement token of every bet, donation and subscription.
     IERC20               public immutable usdc;
-    address              public immutable wchz;
+    /// @notice ERC20 form of the native token: WCHZ on Chiliz, WETH on Base.
+    address              public immutable wrappedNativeToken;
 
     // ══════════════════════════════════════════════════════════════════════════
     // MUTABLE STATE
@@ -89,25 +90,27 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
     ///         before any USDC is forwarded. Must be set before any placeBetWith* call.
     PariMatchFactory public bettingMatchFactory;
 
-    /// @notice Kayen fan-token wrapper factory (mainnet 0xAEdc…B264). When set,
+    /// @notice Kayen fan-token wrapper factory, Chiliz only (mainnet 0xAEdc…B264). When set,
     ///         sub-18-decimals tokens with an existing wrapped version are
     ///         wrapped before swapping. address(0) disables wrapping (raw
-    ///         [token, WCHZ, USDC] routing only).
+    ///         [token, wrappedNativeToken, USDC] routing only).
     IChilizWrapperFactory public wrapperFactory;
 
     // ══════════════════════════════════════════════════════════════════════════
     // EVENTS — BETTING
     // ══════════════════════════════════════════════════════════════════════════
 
-    event BetPlacedViaCHZ(
+    /// @notice A bet was paid in the native token and swapped to USDC.
+    event BetPlacedViaNativeToken(
         address indexed bettingMatch,
         address indexed user,
-        uint256 chzSpent,
+        uint256 nativeTokenSpent,
         uint256 usdcReceived,
         uint256 marketId,
         uint64  outcome
     );
 
+    /// @notice A bet was paid in an ERC20 and swapped to USDC.
     event BetPlacedViaToken(
         address indexed bettingMatch,
         address indexed user,
@@ -118,6 +121,7 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
         uint64  outcome
     );
 
+    /// @notice A bet was paid directly in USDC.
     event BetPlacedWithUSDC(
         address indexed bettingMatch,
         address indexed user,
@@ -130,15 +134,17 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
     // EVENTS — STREAMING DONATIONS
     // ══════════════════════════════════════════════════════════════════════════
 
-    event DonationWithCHZ(
+    /// @notice A donation was paid in the native token and swapped to USDC.
+    event DonationWithNativeToken(
         address indexed donor,
         address indexed streamer,
-        uint256 chzSpent,
+        uint256 nativeTokenSpent,
         uint256 usdcDonated,
         uint256 platformFee,
         string  message
     );
 
+    /// @notice A donation was paid in an ERC20 and swapped to USDC.
     event DonationWithToken(
         address indexed donor,
         address indexed streamer,
@@ -149,6 +155,7 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
         string  message
     );
 
+    /// @notice A donation was paid directly in USDC.
     event DonationWithUSDCEvent(
         address indexed donor,
         address indexed streamer,
@@ -161,15 +168,17 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
     // EVENTS — STREAMING SUBSCRIPTIONS
     // ══════════════════════════════════════════════════════════════════════════
 
-    event SubscriptionWithCHZ(
+    /// @notice A subscription was paid in the native token and swapped to USDC.
+    event SubscriptionWithNativeToken(
         address indexed subscriber,
         address indexed streamer,
-        uint256 chzSpent,
+        uint256 nativeTokenSpent,
         uint256 usdcPaid,
         uint256 platformFee,
         uint256 duration
     );
 
+    /// @notice A subscription was paid in an ERC20 and swapped to USDC.
     event SubscriptionWithToken(
         address indexed subscriber,
         address indexed streamer,
@@ -180,6 +189,7 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
         uint256 duration
     );
 
+    /// @notice A subscription was paid directly in USDC.
     event SubscriptionWithUSDCEvent(
         address indexed subscriber,
         address indexed streamer,
@@ -192,11 +202,17 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
     // EVENTS — ADMIN
     // ══════════════════════════════════════════════════════════════════════════
 
+    /// @notice The streaming fee recipient changed.
     event TreasurySet(address indexed oldTreasury, address indexed newTreasury);
+    /// @notice The streaming fee changed.
     event PlatformFeeBpsSet(uint16 oldFeeBps, uint16 newFeeBps);
+    /// @notice The factory validating match addresses changed.
     event MatchFactorySet(address indexed oldFactory, address indexed newFactory);
+    /// @notice The factory providing streamer wallets changed.
     event StreamWalletFactorySet(address indexed oldFactory, address indexed newFactory);
+    /// @notice The fan-token wrapper factory changed.
     event WrapperFactorySet(address indexed oldFactory, address indexed newFactory);
+    /// @notice A fan token was wrapped before its swap.
     event FanTokenWrapped(address indexed token, address indexed wrapped, uint256 amountIn, uint256 wrappedAmount);
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -212,7 +228,7 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
     error BettingMatchFactoryNotSet();
     error StreamWalletFactoryNotSet();
     error RouterNotConfiguredOnFactory();
-    /// @notice Every swap needs a non-zero minimum output (audit M-07):
+    /// @notice Every swap needs a non-zero minimum output:
     ///         amountOutMin = 0 lets a sandwich take the whole trade.
     error SlippageNotSet();
 
@@ -224,37 +240,37 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
         address _masterRouter,
         address _tokenRouter,
         address _usdc,
-        address _wchz,
+        address _wrappedNativeToken,
         address _treasury,
         uint16  _platformFeeBps
     ) Ownable(msg.sender) {
         if (
             _masterRouter == address(0) || _tokenRouter == address(0)
-                || _usdc == address(0) || _wchz == address(0) || _treasury == address(0)
+                || _usdc == address(0) || _wrappedNativeToken == address(0) || _treasury == address(0)
         ) revert ZeroAddress();
         if (_platformFeeBps > 10_000) revert InvalidFeeBps();
 
         masterRouter   = IKayenMasterRouterV2(_masterRouter);
         tokenRouter    = IKayenRouter(_tokenRouter);
         usdc           = IERC20(_usdc);
-        wchz           = _wchz;
+        wrappedNativeToken           = _wrappedNativeToken;
         treasury       = _treasury;
         platformFeeBps = _platformFeeBps;
     }
 
     // ══════════════════════════════════════════════════════════════════════════
-    // BETTING — NATIVE CHZ -> USDC -> PARI-MATCH POSITION
+    // BETTING — NATIVE TOKEN -> USDC -> PARI-MATCH POSITION
     // ══════════════════════════════════════════════════════════════════════════
 
     /**
-     * @notice Swap exact native CHZ for USDC and take a position in a pari-mutuel market.
+     * @notice Swap the native token sent for USDC and take a position in a pari-mutuel market.
      * @param bettingMatch  Address of the PariMatch proxy.
      * @param marketId      Market identifier.
      * @param outcome       Chosen outcome index.
      * @param amountOutMin  Minimum USDC from the swap (slippage protection).
      * @param deadline      Unix timestamp deadline for the swap.
      */
-    function placeBetWithCHZ(
+    function placeBetWithNativeToken(
         address bettingMatch,
         uint256 marketId,
         uint64  outcome,
@@ -264,10 +280,10 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
         if (msg.value == 0) revert ZeroValue();
         if (block.timestamp > deadline) revert DeadlinePassed();
 
-        uint256 usdcReceived = _swapCHZToUSDC(msg.value, amountOutMin, deadline);
+        uint256 usdcReceived = _swapNativeTokenToUSDC(msg.value, amountOutMin, deadline);
         _placeBetOnBehalf(bettingMatch, marketId, outcome, usdcReceived);
 
-        emit BetPlacedViaCHZ(bettingMatch, msg.sender, msg.value, usdcReceived, marketId, outcome);
+        emit BetPlacedViaNativeToken(bettingMatch, msg.sender, msg.value, usdcReceived, marketId, outcome);
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -302,7 +318,7 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
 
     /**
      * @notice Swap any ERC20 for USDC and take a pari-mutuel position.
-     * @param token         ERC20 to swap (fan token, WCHZ, etc.).
+     * @param token         ERC20 to swap (fan token, wrapped native token, etc.).
      * @param amount        Token amount the caller intends to spend.
      * @param bettingMatch  Address of the PariMatch proxy.
      * @param marketId      Market identifier.
@@ -332,10 +348,16 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
     }
 
     // ══════════════════════════════════════════════════════════════════════════
-    // STREAMING — NATIVE CHZ -> USDC -> DONATE / SUBSCRIBE
+    // STREAMING — NATIVE TOKEN -> USDC -> DONATE / SUBSCRIBE
     // ══════════════════════════════════════════════════════════════════════════
 
-    function donateWithCHZ(
+    /// @notice Swap the native token sent for USDC and donate it to a streamer.
+    /// @dev Creates the streamer's wallet on first use.
+    /// @param streamer Streamer receiving the donation.
+    /// @param message Message emitted with the donation.
+    /// @param amountOutMin Minimum USDC from the swap. Must be non-zero.
+    /// @param deadline Unix timestamp for swap expiry.
+    function donateWithNativeToken(
         address streamer,
         string calldata message,
         uint256 amountOutMin,
@@ -346,14 +368,20 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
         if (block.timestamp > deadline) revert DeadlinePassed();
 
         address wallet = _walletFor(streamer);
-        uint256 usdcReceived = _swapCHZToUSDC(msg.value, amountOutMin, deadline);
+        uint256 usdcReceived = _swapNativeTokenToUSDC(msg.value, amountOutMin, deadline);
         (uint256 fee, uint256 streamerAmt) = _splitAndTransfer(wallet, usdcReceived);
         _recordDonation(wallet, msg.sender, usdcReceived, fee, streamerAmt, message);
 
-        emit DonationWithCHZ(msg.sender, streamer, msg.value, usdcReceived, fee, message);
+        emit DonationWithNativeToken(msg.sender, streamer, msg.value, usdcReceived, fee, message);
     }
 
-    function subscribeWithCHZ(
+    /// @notice Swap the native token sent for USDC and subscribe to a streamer.
+    /// @dev The USDC received must cover `StreamWallet.subscriptionCost(duration)`.
+    /// @param streamer Streamer subscribed to.
+    /// @param duration Subscription length in seconds.
+    /// @param amountOutMin Minimum USDC from the swap. Must be non-zero.
+    /// @param deadline Unix timestamp for swap expiry.
+    function subscribeWithNativeToken(
         address streamer,
         uint256 duration,
         uint256 amountOutMin,
@@ -365,17 +393,21 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
         if (block.timestamp > deadline) revert DeadlinePassed();
 
         address wallet = _walletFor(streamer);
-        uint256 usdcReceived = _swapCHZToUSDC(msg.value, amountOutMin, deadline);
+        uint256 usdcReceived = _swapNativeTokenToUSDC(msg.value, amountOutMin, deadline);
         (uint256 fee,) = _splitAndTransfer(wallet, usdcReceived);
         _recordSubscription(wallet, msg.sender, usdcReceived, duration);
 
-        emit SubscriptionWithCHZ(msg.sender, streamer, msg.value, usdcReceived, fee, duration);
+        emit SubscriptionWithNativeToken(msg.sender, streamer, msg.value, usdcReceived, fee, duration);
     }
 
     // ══════════════════════════════════════════════════════════════════════════
     // STREAMING — USDC DIRECT -> DONATE / SUBSCRIBE
     // ══════════════════════════════════════════════════════════════════════════
 
+    /// @notice Donate USDC to a streamer. The caller approves this contract first.
+    /// @param streamer Streamer receiving the donation.
+    /// @param message Message emitted with the donation.
+    /// @param amount USDC amount, platform fee included.
     function donateWithUSDC(
         address streamer,
         string calldata message,
@@ -392,6 +424,11 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
         emit DonationWithUSDCEvent(msg.sender, streamer, amount, fee, message);
     }
 
+    /// @notice Subscribe to a streamer with USDC. The caller approves this contract first.
+    /// @dev `amount` must cover `StreamWallet.subscriptionCost(duration)`.
+    /// @param streamer Streamer subscribed to.
+    /// @param duration Subscription length in seconds.
+    /// @param amount USDC amount, platform fee included.
     function subscribeWithUSDC(
         address streamer,
         uint256 duration,
@@ -413,6 +450,13 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
     // STREAMING — ERC20 TOKEN -> USDC -> DONATE / SUBSCRIBE
     // ══════════════════════════════════════════════════════════════════════════
 
+    /// @notice Swap an ERC20 for USDC and donate it to a streamer. The caller approves this contract first.
+    /// @param token ERC20 to swap.
+    /// @param amount Token amount the caller intends to spend.
+    /// @param streamer Streamer receiving the donation.
+    /// @param message Message emitted with the donation.
+    /// @param amountOutMin Minimum USDC from the swap. Must be non-zero.
+    /// @param deadline Unix timestamp for swap expiry.
     function donateWithToken(
         address token,
         uint256 amount,
@@ -435,6 +479,14 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
         emit DonationWithToken(msg.sender, streamer, token, received, usdcReceived, fee, message);
     }
 
+    /// @notice Swap an ERC20 for USDC and subscribe to a streamer. The caller approves this contract first.
+    /// @dev The USDC received must cover `StreamWallet.subscriptionCost(duration)`.
+    /// @param token ERC20 to swap.
+    /// @param amount Token amount the caller intends to spend.
+    /// @param streamer Streamer subscribed to.
+    /// @param duration Subscription length in seconds.
+    /// @param amountOutMin Minimum USDC from the swap. Must be non-zero.
+    /// @param deadline Unix timestamp for swap expiry.
     function subscribeWithToken(
         address token,
         uint256 amount,
@@ -462,6 +514,7 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
     // ADMIN
     // ══════════════════════════════════════════════════════════════════════════
 
+    /// @notice Set the recipient of the streaming fee. Owner only.
     function setTreasury(address _treasury) external onlyOwner {
         if (_treasury == address(0)) revert ZeroAddress();
         address old = treasury;
@@ -469,6 +522,7 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
         emit TreasurySet(old, _treasury);
     }
 
+    /// @notice Set the streaming fee in basis points. Owner only.
     function setPlatformFeeBps(uint16 _feeBps) external onlyOwner {
         if (_feeBps > 10_000) revert InvalidFeeBps();
         uint16 old = platformFeeBps;
@@ -485,6 +539,8 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
         emit MatchFactorySet(old, _factory);
     }
 
+    /// @notice Set the streaming factory. Owner only.
+    /// @dev The factory must already list this contract as its `swapRouter`.
     function setStreamWalletFactory(address _factory) external onlyOwner {
         if (_factory == address(0)) revert ZeroAddress();
         if (StreamWalletFactory(_factory).swapRouter() != address(this))
@@ -495,7 +551,7 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
     }
 
     /// @notice Register the Kayen fan-token wrapper factory. address(0) is
-    ///         allowed and disables automatic wrapping (e.g. on networks
+    ///         allowed and disables automatic wrapping (the setup on Base,
     ///         where Kayen has no wrapper deployment).
     function setWrapperFactory(address _factory) external onlyOwner {
         address old = address(wrapperFactory);
@@ -514,7 +570,7 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
      * @return swapToken  The token actually swapped (wrapped version for fan tokens).
      * @return swapAmountPerUnit  Wrapped units minted per 1 unit of `token`
      *                            (1 when no wrapping applies).
-     * @return path        The Kayen swap path ending in USDC.
+     * @return path        The swap path ending in USDC.
      */
     function swapRouteFor(address token)
         public
@@ -526,8 +582,8 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
 
     /**
      * @notice Route and expected USDC output for swapping `amount` of `token`.
-     * @dev    L-09: when a wrapped version of `token` exists, both the raw
-     *         [token, WCHZ, USDC] path and the wrapped path are quoted for
+     * @dev    When a wrapped version of `token` exists, both the raw
+     *         [token, wrappedNativeToken, USDC] path and the wrapped path are quoted for
      *         this amount and the better one wins. Since anyone can create a
      *         wrapper, neither a poolless nor a dust-seeded wrapper can divert
      *         a token that trades raw; genuine fan tokens (no raw pool) still
@@ -578,17 +634,17 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
         if (received == 0) revert ZeroValue();
     }
 
-    function _swapCHZToUSDC(
-        uint256 chzAmount,
+    function _swapNativeTokenToUSDC(
+        uint256 nativeTokenAmount,
         uint256 amountOutMin,
         uint256 deadline
     ) internal returns (uint256 usdcReceived) {
         if (amountOutMin == 0) revert SlippageNotSet();
         address[] memory path = new address[](2);
-        path[0] = wchz;
+        path[0] = wrappedNativeToken;
         path[1] = address(usdc);
 
-        uint256[] memory amounts = masterRouter.swapExactETHForTokens{value: chzAmount}(
+        uint256[] memory amounts = masterRouter.swapExactETHForTokens{value: nativeTokenAmount}(
             amountOutMin, path, address(this), deadline
         );
         usdcReceived = amounts[amounts.length - 1];
@@ -623,16 +679,17 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
         usdcReceived = amounts[amounts.length - 1];
     }
 
-    /// @dev Kayen liquidity is hubbed on WCHZ; no token has a direct USDC pair.
+    /// @dev Kayen has no direct USDC pair for any token, so paths go through the
+    ///      wrapped native token. On Base the adapter only reads the two ends.
     function _pathFrom(address t) internal view returns (address[] memory path) {
-        if (t == wchz) {
+        if (t == wrappedNativeToken) {
             path = new address[](2);
-            path[0] = wchz;
+            path[0] = wrappedNativeToken;
             path[1] = address(usdc);
         } else {
             path = new address[](3);
             path[0] = t;
-            path[1] = wchz;
+            path[1] = wrappedNativeToken;
             path[2] = address(usdc);
         }
     }
@@ -660,7 +717,7 @@ contract NetworkRouter is ReentrancyGuard, Ownable2Step {
     /// @dev Wrapped version of `token` worth considering, with the wrapped
     ///      units minted per unit of `token`. Only when the wrapper factory is
     ///      set, the wrapped token exists and `token` has fewer than 18
-    ///      decimals; `routeFor` then compares prices (L-09).
+    ///      decimals; `routeFor` then compares prices.
     function _wrapCandidate(address token) internal view returns (address wrapped, uint256 perUnit) {
         IChilizWrapperFactory factory = wrapperFactory;
         if (address(factory) == address(0)) return (address(0), 0);

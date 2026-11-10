@@ -4,7 +4,7 @@ pragma solidity ^0.8.24;
 /**
  * @title IStreamWalletFactory
  * @notice Protocol-wide configuration that every StreamWallet reads live from
- *         the factory that deployed it (audit 2026-10, finding M-04).
+ *         the factory that deployed it.
  * @dev    These are the public getters of StreamWalletFactory. They already
  *         exist on the factories deployed before the fix (mainnet
  *         0x0ffa30b48adc0b2b773dc01422d249aee135a4bb), so wallets upgraded in

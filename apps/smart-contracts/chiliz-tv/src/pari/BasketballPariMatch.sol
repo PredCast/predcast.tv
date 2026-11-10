@@ -36,7 +36,7 @@ import {PariMatchBase} from "./PariMatchBase.sol";
  *      `resolveByScore` so the oracle can settle them manually via
  *      `resolveMarket` or the admin can `cancelMarket`.
  *
- *      Overtime (audit M-06), standard bookmaker rules:
+ *      Overtime, standard bookmaker rules:
  *        - WINNER, TOTAL_POINTS, SPREAD, POINTS_EXACT include overtime.
  *        - QUARTER_WINNER and HIGHEST_QUARTER use regulation quarters only
  *          (Q4 never includes overtime).
@@ -52,12 +52,19 @@ contract BasketballPariMatch is PariMatchBase {
     // MARKET TYPE CONSTANTS
     // ═══════════════════════════════════════════════════════════════════════
 
+    /// @notice Winner of the game, overtime included: 0 = Home, 1 = Away.
     bytes32 public constant MARKET_WINNER          = keccak256("WINNER");
+    /// @notice Total points against `line` (1/10-point units): 0 = Under, 1 = Over.
     bytes32 public constant MARKET_TOTAL_POINTS    = keccak256("TOTAL_POINTS");
+    /// @notice Home handicap `line` in 1/10-point units: 0 = Home covers, 1 = Away covers.
     bytes32 public constant MARKET_SPREAD          = keccak256("SPREAD");
+    /// @notice Winner of the quarter in `extra` (1..4): 0 = Home, 1 = Away.
     bytes32 public constant MARKET_QUARTER_WINNER  = keccak256("QUARTER_WINNER");
+    /// @notice First team to score: 0 = Home, 1 = Away.
     bytes32 public constant MARKET_FIRST_TO_SCORE  = keccak256("FIRST_TO_SCORE");
+    /// @notice Quarter with the most combined points: 0..3 = Q1..Q4.
     bytes32 public constant MARKET_HIGHEST_QUARTER = keccak256("HIGHEST_QUARTER");
+    /// @notice Bucketed total points: `min(total / step, line)`, with the step in `extra`.
     bytes32 public constant MARKET_POINTS_EXACT    = keccak256("POINTS_EXACT");
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -97,6 +104,7 @@ contract BasketballPariMatch is PariMatchBase {
     // EVENTS
     // ═══════════════════════════════════════════════════════════════════════
 
+    /// @notice A score entrypoint settled every market it could derive.
     event MatchScoreResolved(
         uint16 homeTotal,
         uint16 awayTotal,
@@ -113,6 +121,7 @@ contract BasketballPariMatch is PariMatchBase {
         _disableInitializers();
     }
 
+    /// @notice Initialize the proxy. Called once, by the factory.
     function initialize(string memory _matchName, address _owner) external initializer {
         __PariMatchBase_init(_matchName, "BASKETBALL", _owner);
     }
@@ -173,7 +182,7 @@ contract BasketballPariMatch is PariMatchBase {
     // RESOLVE-BY-SCORE
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// @notice Legacy entrypoint without overtime points. Safe since M-06:
+    /// @notice Legacy entrypoint without overtime points:
     ///         if regulation ended tied, WINNER / TOTAL_POINTS / SPREAD /
     ///         POINTS_EXACT stay Closed (use `resolveByFinalScore`).
     function resolveByScore(BasketballScore calldata s)
@@ -185,7 +194,7 @@ contract BasketballPariMatch is PariMatchBase {
     }
 
     /// @notice Settle every Closed market from the final score, overtime
-    ///         included (audit M-06).
+    ///         included.
     function resolveByFinalScore(BasketballFinalScore calldata s)
         external
         onlyRole(RESOLVER_ROLE)
@@ -194,6 +203,7 @@ contract BasketballPariMatch is PariMatchBase {
         return _resolveAll(s, true);
     }
 
+    /// @notice Same as `resolveByScore`, for the listed markets only.
     function resolveBatchByScore(uint256[] calldata marketIds, BasketballScore calldata s)
         external
         onlyRole(RESOLVER_ROLE)
@@ -202,6 +212,7 @@ contract BasketballPariMatch is PariMatchBase {
         return _resolveSome(marketIds, _fromLegacy(s), false);
     }
 
+    /// @notice Same as `resolveByFinalScore`, for the listed markets only.
     function resolveBatchByFinalScore(uint256[] calldata marketIds, BasketballFinalScore calldata s)
         external
         onlyRole(RESOLVER_ROLE)
@@ -210,6 +221,7 @@ contract BasketballPariMatch is PariMatchBase {
         return _resolveSome(marketIds, s, true);
     }
 
+    /// @notice Outcome a `BasketballScore` would give a market, without writing anything.
     function computeOutcome(uint256 marketId, BasketballScore calldata s)
         external
         view
@@ -219,6 +231,7 @@ contract BasketballPariMatch is PariMatchBase {
         return _outcomeFromScore(marketId, _fromLegacy(s), false);
     }
 
+    /// @notice Outcome a `BasketballFinalScore` would give a market, without writing anything.
     function computeOutcomeFinal(uint256 marketId, BasketballFinalScore calldata s)
         external
         view

@@ -12,14 +12,14 @@ pragma solidity 0.8.24;
 interface ILeaderboardRewards {
     /**
      * @notice Attribute `amount` USDC, already transferred to the leaderboard,
-     *         to the epoch in progress at the time of the call (audit M-03:
+     *         to the epoch in progress at the time of the call (
      *         fees belong to the epoch of the resolution that produced them).
      */
     function notifyFee(uint256 amount) external;
 
     /**
      * @notice Credit `profit` (payout minus the user's total stake on that
-     *         market, so self-hedging scores nothing — audit M-05) to the
+     *         market, so self-hedging scores nothing) to the
      *         epoch containing `resolvedAt`, the market's resolution time.
      */
     function recordProfit(address user, uint256 profit, uint256 resolvedAt) external;
@@ -27,7 +27,7 @@ interface ILeaderboardRewards {
     /**
      * @notice Legacy V2 entrypoint (gross payout credited at claim time).
      *         Kept so matches deployed before V3 do not revert, but it no
-     *         longer credits anything (audit M-05).
+     *         longer credits anything.
      */
     function recordWin(address user, uint256 payout) external;
 }

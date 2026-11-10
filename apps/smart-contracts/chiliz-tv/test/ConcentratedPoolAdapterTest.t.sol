@@ -5,8 +5,8 @@ import {Test} from "forge-std/Test.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-import {ConcentratedPoolAdapter} from "../src/swap/ConcentratedPoolAdapter.sol";
-import {ConcentratedPoolQuote}   from "../src/swap/ConcentratedPoolQuote.sol";
+import {ConcentratedPoolAdapter} from "../src/swap/uniswapV3/ConcentratedPoolAdapter.sol";
+import {ConcentratedPoolQuote}   from "../src/swap/uniswapV3/ConcentratedPoolQuote.sol";
 import {MockConcentratedPool}    from "./mocks/MockConcentratedPool.sol";
 
 contract TestToken is ERC20 {
