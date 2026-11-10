@@ -92,10 +92,12 @@ contract PariMatchResolveByScoreTest is Test {
         foot.grantRole(RESOLVER_ROLE, oracle);
         foot.setUSDCToken(address(usdc));
         foot.setFeeRecipient(feeAddr);
+        foot.grantRole(keccak256("SWAP_ROUTER_ROLE"), address(this));
 
         bball.grantRole(RESOLVER_ROLE, oracle);
         bball.setUSDCToken(address(usdc));
         bball.setFeeRecipient(feeAddr);
+        bball.grantRole(keccak256("SWAP_ROUTER_ROLE"), address(this));
         vm.stopPrank();
 
         usdc.mint(alice, 200_000e6);
@@ -125,18 +127,17 @@ contract PariMatchResolveByScoreTest is Test {
         vm.prank(owner); bball.openMarket(id);
     }
 
+    /// This contract plays NetworkRouter: USDC to the match, then placeBetUSDCFor.
     function _stakeFoot(address u, uint256 mid, uint64 outcome, uint256 amt) internal {
-        vm.startPrank(u);
-        usdc.approve(address(foot), amt);
-        foot.placeBetUSDC(mid, outcome, amt);
-        vm.stopPrank();
+        vm.prank(u);
+        usdc.transfer(address(foot), amt);
+        foot.placeBetUSDCFor(u, mid, outcome, amt);
     }
 
     function _stakeBball(address u, uint256 mid, uint64 outcome, uint256 amt) internal {
-        vm.startPrank(u);
-        usdc.approve(address(bball), amt);
-        bball.placeBetUSDC(mid, outcome, amt);
-        vm.stopPrank();
+        vm.prank(u);
+        usdc.transfer(address(bball), amt);
+        bball.placeBetUSDCFor(u, mid, outcome, amt);
     }
 
     function _footMarketResult(uint256 mid) internal view returns (uint64) {

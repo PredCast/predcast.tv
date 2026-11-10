@@ -728,28 +728,10 @@ abstract contract PariMatchBase is
     // POSITION TAKING
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// @notice Place a stake directly with USDC.
-    /// @dev    Caller must approve `amount` USDC to THIS contract.
-    function placeBetUSDC(uint256 marketId, uint64 outcome, uint256 amount)
-        external
-        nonReentrant
-        validMarket(marketId)
-        inState(marketId, MarketState.Open)
-        whenNotPaused
-    {
-        if (address(usdcToken) == address(0)) revert USDCNotConfigured();
-        if (amount == 0) revert ZeroStake();
-        if (amount < MIN_STAKE) revert StakeBelowMinimum(amount, MIN_STAKE);
-
-        _validateOutcome(marketId, outcome);
-        _requireBettingWindow(marketId);
-
-        usdcToken.safeTransferFrom(msg.sender, address(this), amount);
-        _recordStake(msg.sender, marketId, outcome, amount);
-    }
-
     /// @notice Place a stake on behalf of a user after the router has already
-    ///         transferred `amount` USDC to this contract.
+    ///         transferred `amount` USDC to this contract. This is the only
+    ///         way to stake: users pay through `NetworkRouter`, so they approve
+    ///         one contract instead of every match.
     /// @dev    Reverts unless the USDC balance covers every stake
     ///         already accounted for plus `amount`, so a SWAP_ROUTER_ROLE
     ///         holder cannot record a stake it did not fund.

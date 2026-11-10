@@ -118,22 +118,22 @@ contract PariMatchHandler is Test {
 
     // ─── user actions ───────────────────────────────────────────────────────
 
-    function bet(uint256 actorSeed, uint256 marketSeed, uint256 outcomeSeed, uint256 amount, bool viaRouter)
+    function bet(uint256 actorSeed, uint256 marketSeed, uint256 outcomeSeed, uint256 amount)
         external
         timed
     {
-        _bet(actorSeed, marketSeed, outcomeSeed, amount, viaRouter);
+        _bet(actorSeed, marketSeed, outcomeSeed, amount);
     }
 
     /// Same as `bet`: a second selector so bets are drawn twice as often.
-    function betAgain(uint256 actorSeed, uint256 marketSeed, uint256 outcomeSeed, uint256 amount, bool viaRouter)
+    function betAgain(uint256 actorSeed, uint256 marketSeed, uint256 outcomeSeed, uint256 amount)
         external
         timed
     {
-        _bet(actorSeed, marketSeed, outcomeSeed, amount, viaRouter);
+        _bet(actorSeed, marketSeed, outcomeSeed, amount);
     }
 
-    function _bet(uint256 actorSeed, uint256 marketSeed, uint256 outcomeSeed, uint256 amount, bool viaRouter)
+    function _bet(uint256 actorSeed, uint256 marketSeed, uint256 outcomeSeed, uint256 amount)
         internal
     {
         address user = _actor(actorSeed);
@@ -144,14 +144,9 @@ contract PariMatchHandler is Test {
 
         usdc.mint(user, amount);
         vm.startPrank(user);
+        usdc.approve(address(router), amount);
         bool ok;
-        if (viaRouter) {
-            usdc.approve(address(router), amount);
-            try router.placeBetWithUSDC(address(pari), id, outcome, amount) { ok = true; } catch {}
-        } else {
-            usdc.approve(address(pari), amount);
-            try pari.placeBetUSDC(id, outcome, amount) { ok = true; } catch {}
-        }
+        try router.placeBetWithUSDC(address(pari), id, outcome, amount) { ok = true; } catch {}
         vm.stopPrank();
 
         if (ok) {
@@ -160,7 +155,7 @@ contract PariMatchHandler is Test {
         } else {
             usdc.burn(user, amount);
         }
-        _expect(ok, accepting, viaRouter ? "router bet" : "direct bet");
+        _expect(ok, accepting, "bet");
     }
 
     function claim(uint256 actorSeed, uint256 marketSeed) external timed {
@@ -347,28 +342,31 @@ contract PariMatchHandler is Test {
             }
         }
         for (uint256 id; id < MARKETS; ++id) {
-            PariMatchBase.MarketCore memory c = pari.getMarketCore(id);
-            for (uint256 a; a < _actors.length; ++a) {
-                address user = _actors[a];
-                if (pari.hasClaimed(id, user)) continue;
-                uint256 before = usdc.balanceOf(user);
-                if (c.state == PariMatchBase.MarketState.Resolved && pari.getUserStake(id, user, c.result) != 0) {
-                    vm.prank(user);
-                    pari.claim(id);
-                    ghostPayouts += usdc.balanceOf(user) - before;
-                } else if (c.state == PariMatchBase.MarketState.Cancelled && pari.getUserTotalStake(id, user) != 0) {
-                    vm.prank(user);
-                    pari.claimRefund(id);
-                    uint256 got = usdc.balanceOf(user) - before;
-                    ghostRefunds += got;
-                    refundsOf[id] += got;
-                }
-            }
+            for (uint256 a; a < _actors.length; ++a) this.collect(id, _actors[a]);
             uint256 dust = pari.sweepableDust(id);
             if (dust != 0) {
                 pari.sweepDust(id);
                 ghostDust += dust;
             }
+        }
+    }
+
+    /// @dev Not a fuzz target. External so via_ir keeps settleAll's stack small.
+    ///      Claims or refunds what `user` is owed on `id`; must not revert.
+    function collect(uint256 id, address user) external {
+        if (pari.hasClaimed(id, user)) return;
+        PariMatchBase.MarketCore memory c = pari.getMarketCore(id);
+        uint256 before = usdc.balanceOf(user);
+        if (c.state == PariMatchBase.MarketState.Resolved && pari.getUserStake(id, user, c.result) != 0) {
+            vm.prank(user);
+            pari.claim(id);
+            ghostPayouts += usdc.balanceOf(user) - before;
+        } else if (c.state == PariMatchBase.MarketState.Cancelled && pari.getUserTotalStake(id, user) != 0) {
+            vm.prank(user);
+            pari.claimRefund(id);
+            uint256 got = usdc.balanceOf(user) - before;
+            ghostRefunds += got;
+            refundsOf[id] += got;
         }
     }
 
@@ -570,12 +568,12 @@ contract PariMatchInvariantTest is Test {
         usdc.mint(alice, 3e6);
         usdc.mint(bob, 1e6);
         vm.startPrank(alice);
-        usdc.approve(address(pari), 3e6);
-        pari.placeBetUSDC(1, 0, 3e6);
+        usdc.approve(address(router), 3e6);
+        router.placeBetWithUSDC(address(pari), 1, 0, 3e6);
         vm.stopPrank();
         vm.startPrank(bob);
-        usdc.approve(address(pari), 1e6);
-        pari.placeBetUSDC(1, 2, 1e6);
+        usdc.approve(address(router), 1e6);
+        router.placeBetWithUSDC(address(pari), 1, 2, 1e6);
         vm.stopPrank();
         assertEq(PariSlots.accounted(address(pari)), 4e6, "_accountedUsdc slot");
 

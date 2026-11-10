@@ -136,12 +136,23 @@ contract PariMatchTest is Test {
         vm.stopPrank();
     }
 
-    /// Approve + stake from `user`.
+    /// Stake from `user` the way NetworkRouter does: USDC to the match, then
+    /// placeBetUSDCFor from the router role.
     function _stake(address user, uint256 marketId, uint64 outcome, uint256 amount) internal {
-        vm.startPrank(user);
-        usdc.approve(address(match_), amount);
-        match_.placeBetUSDC(marketId, outcome, amount);
-        vm.stopPrank();
+        _routerBet(match_, user, marketId, outcome, amount);
+    }
+
+    function _routerBet(PariMatchBase m, address user, uint256 marketId, uint64 outcome, uint256 amount) internal {
+        _fund(m, user, amount);
+        vm.prank(swapRouter);
+        m.placeBetUSDCFor(user, marketId, outcome, amount);
+    }
+
+    /// Send `amount` USDC of `user` to the match first, so only the check
+    /// under test can make the next stake revert.
+    function _fund(PariMatchBase m, address user, uint256 amount) internal {
+        vm.prank(user);
+        usdc.transfer(address(m), amount);
     }
 
     /// Close + resolve via oracle.
@@ -264,11 +275,10 @@ contract PariMatchTest is Test {
         vm.prank(owner);
         match_.closeMarket(mid);
 
-        vm.startPrank(alice);
-        usdc.approve(address(match_), 100e6);
+        _fund(match_, alice, 100e6);
         vm.expectRevert();
-        match_.placeBetUSDC(mid, 0, 100e6);
-        vm.stopPrank();
+        vm.prank(swapRouter);
+        match_.placeBetUSDCFor(alice, mid, 0, 100e6);
     }
 
     function test_Revert_CannotBetOnCancelledMarket() public {
@@ -276,22 +286,20 @@ contract PariMatchTest is Test {
         vm.prank(owner);
         match_.cancelMarket(mid, "cancel");
 
-        vm.startPrank(alice);
-        usdc.approve(address(match_), 100e6);
+        _fund(match_, alice, 100e6);
         vm.expectRevert();
-        match_.placeBetUSDC(mid, 0, 100e6);
-        vm.stopPrank();
+        vm.prank(swapRouter);
+        match_.placeBetUSDCFor(alice, mid, 0, 100e6);
     }
 
     function test_Revert_CannotBetOnInactiveMarket() public {
         vm.prank(owner);
         match_.addMarketWithLine(MARKET_WINNER, 0);
 
-        vm.startPrank(alice);
-        usdc.approve(address(match_), 100e6);
+        _fund(match_, alice, 100e6);
         vm.expectRevert();
-        match_.placeBetUSDC(0, 0, 100e6);
-        vm.stopPrank();
+        vm.prank(swapRouter);
+        match_.placeBetUSDCFor(alice, 0, 0, 100e6);
     }
 
     function test_Revert_CannotResolveOpenMarket() public {
@@ -371,35 +379,27 @@ contract PariMatchTest is Test {
     function test_Revert_BetBelowMinStake() public {
         uint256 mid = _openWinnerMarket();
 
-        vm.startPrank(alice);
-        usdc.approve(address(match_), 1000);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                PariMatchBase.StakeBelowMinimum.selector,
-                1000,
-                PariMatchBase(address(match_)).MIN_STAKE()
-            )
-        );
-        match_.placeBetUSDC(mid, 0, 1000);
-        vm.stopPrank();
+        _fund(match_, alice, 1000);
+        uint256 minStake = PariMatchBase(address(match_)).MIN_STAKE();
+        vm.expectRevert(abi.encodeWithSelector(PariMatchBase.StakeBelowMinimum.selector, 1000, minStake));
+        vm.prank(swapRouter);
+        match_.placeBetUSDCFor(alice, mid, 0, 1000);
     }
 
     function test_Revert_BetZeroAmount() public {
         uint256 mid = _openWinnerMarket();
-        vm.startPrank(alice);
         vm.expectRevert(PariMatchBase.ZeroStake.selector);
-        match_.placeBetUSDC(mid, 0, 0);
-        vm.stopPrank();
+        vm.prank(swapRouter);
+        match_.placeBetUSDCFor(alice, mid, 0, 0);
     }
 
     function test_Revert_InvalidOutcome() public {
         uint256 mid = _openWinnerMarket();
         // WINNER market max outcome is 2 (0=Home 1=Draw 2=Away)
-        vm.startPrank(alice);
-        usdc.approve(address(match_), 100e6);
+        _fund(match_, alice, 100e6);
         vm.expectRevert();
-        match_.placeBetUSDC(mid, 3, 100e6);
-        vm.stopPrank();
+        vm.prank(swapRouter);
+        match_.placeBetUSDCFor(alice, mid, 3, 100e6);
     }
 
     function test_Revert_RouterRoleRequired() public {
@@ -991,11 +991,10 @@ contract PariMatchTest is Test {
         match_.emergencyPause();
 
         uint256 mid = _openWinnerMarket();
-        vm.startPrank(alice);
-        usdc.approve(address(match_), 100e6);
+        _fund(match_, alice, 100e6);
         vm.expectRevert();
-        match_.placeBetUSDC(mid, 0, 100e6);
-        vm.stopPrank();
+        vm.prank(swapRouter);
+        match_.placeBetUSDCFor(alice, mid, 0, 100e6);
     }
 
     function test_AdminCanUnpause() public {
@@ -1074,17 +1073,8 @@ contract PariMatchTest is Test {
         vm.prank(owner);
         bball.openMarket(0);
 
-        usdc.mint(alice, 100e6);
-        vm.startPrank(alice);
-        usdc.approve(address(bball), 500e6);
-        bball.placeBetUSDC(0, 0, 500e6); // Home
-        vm.stopPrank();
-
-        usdc.mint(bob, 100e6);
-        vm.startPrank(bob);
-        usdc.approve(address(bball), 500e6);
-        bball.placeBetUSDC(0, 1, 500e6); // Away
-        vm.stopPrank();
+        _routerBet(bball, alice, 0, 0, 500e6); // Home
+        _routerBet(bball, bob, 0, 1, 500e6);   // Away
 
         vm.prank(owner); bball.closeMarket(0);
         vm.prank(oracle); bball.resolveMarket(0, 0); // Home wins
@@ -1105,11 +1095,10 @@ contract PariMatchTest is Test {
         bball.openMarket(0);
 
         // Basketball WINNER is binary: 0=Home, 1=Away. Outcome 2 is invalid.
-        vm.startPrank(alice);
-        usdc.approve(address(bball), 100e6);
+        _fund(bball, alice, 100e6);
         vm.expectRevert();
-        bball.placeBetUSDC(0, 2, 100e6);
-        vm.stopPrank();
+        vm.prank(swapRouter);
+        bball.placeBetUSDCFor(alice, 0, 2, 100e6);
     }
 
     function test_BasketballHighestQuarterMarket() public {
