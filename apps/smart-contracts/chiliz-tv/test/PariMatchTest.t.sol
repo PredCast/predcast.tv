@@ -906,6 +906,37 @@ contract PariMatchTest is Test {
         assertEq(usdc.balanceOf(alice) - before, 600e6, "full refund from both cancelled markets");
     }
 
+    /// A cancelled market the caller never bet on is skipped, like claimBatch
+    /// skips markets without a winning stake.
+    function test_RefundBatchSkipsMarketsWithoutStake() public {
+        vm.startPrank(owner);
+        match_.addMarketWithLine(MARKET_WINNER, 0);
+        match_.addMarketWithLine(MARKET_WINNER, 0);
+        match_.openMarket(0);
+        match_.openMarket(1);
+        vm.stopPrank();
+
+        _stake(alice, 0, 0, 400e6);
+        _stake(bob, 1, 2, 100e6);
+
+        vm.startPrank(owner);
+        match_.cancelMarket(0, "cancelled");
+        match_.cancelMarket(1, "cancelled");
+        vm.stopPrank();
+
+        uint256[] memory mids = new uint256[](2);
+        mids[0] = 0; mids[1] = 1;
+        uint256 before = usdc.balanceOf(alice);
+        vm.prank(alice);
+        match_.claimRefundBatch(mids);
+
+        assertEq(usdc.balanceOf(alice) - before, 400e6, "refund of the market she bet on");
+        assertFalse(match_.hasClaimed(1, alice), "untouched market stays unclaimed");
+        vm.prank(bob);
+        match_.claimRefundBatch(mids);
+        assertEq(usdc.balanceOf(bob), 100_000e6, "bob gets his stake back");
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // 12. ACCESS CONTROL
     // ═══════════════════════════════════════════════════════════════════════

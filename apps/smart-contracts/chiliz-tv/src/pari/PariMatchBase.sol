@@ -1011,7 +1011,8 @@ abstract contract PariMatchBase is
         _processRefund(msg.sender, marketId);
     }
 
-    /// @notice Refund several Cancelled markets, skipping the others and those already refunded.
+    /// @notice Refund several Cancelled markets, skipping the others, those
+    ///         already refunded and those the caller has no stake in.
     function claimRefundBatch(uint256[] calldata marketIds)
         external
         nonReentrant
@@ -1022,6 +1023,7 @@ abstract contract PariMatchBase is
             if (mid >= marketCount) revert InvalidMarketId(mid);
             if (_marketCores[mid].state != MarketState.Cancelled) continue;
             if (_claimed[mid][msg.sender]) continue;
+            if (_userTotalStake[mid][msg.sender] == 0) continue;
             _processRefund(msg.sender, mid);
         }
     }
