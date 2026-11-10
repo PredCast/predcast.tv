@@ -235,19 +235,27 @@ Robinhood chain: CHZ `0xdAdcc903a92d2C1a97b2A5465faa12C1EBb9c7ef`, PEPPER `0x6fC
 
 ### Where the official tokens trade on Base
 
-Looked up against WETH, USDC and CHZ: Uniswap V2, Uniswap V3 (0.01, 0.05, 0.3 and 1 %), the three Aerodrome Slipstream factories and Aerodrome classic pools. Every usable pool below comes from factory `0x9CB2…7a76`. The only classic pool, CHZ/WETH, holds about 1.2 CHZ.
+Looked up against WETH, USDC and CHZ: Uniswap V2, Uniswap V3 (0.01, 0.05, 0.3 and 1 %), the Aerodrome Slipstream factories, Aerodrome classic pools and the Dromos CL factory. Every deep pool below comes from the Dromos CL factory `0x9CB2…7a76`. The only classic pool, CHZ/WETH, holds about 1.2 CHZ.
+
+**Check before mainnet (2026-11-10).** `0x9CB2…7a76` is not an Aerodrome Slipstream factory:
+- Basescan tags it "Dromos: CL Factory" (verified `CLFactory`, created about 2026-10-21).
+- It is not in Aerodrome's `FactoryRegistry` `0x5C3F…37C0`, whose approved factories are `0x420D…40Da`, `0x5e7B…809A`, `0xaDe6…716a` and `0xf8f2…61Ef`, all owned by the Aerodrome governor `0xE6A4…2075`.
+- It is owned by the Safe `0x4225…4cE0` and has its own voter `0x3824…4078`. Its position NFT is "Slipstream V3 Deposit" (AERO-CL).
+- Dromos Labs builds Aerodrome and Velodrome and is merging them into Aero, so this is likely Aero's new CL factory, but no official Aero or Aerodrome page listing the address was found.
+
+Confirm the address with Dromos Labs or the official Aero docs before routing real funds through it. The Aerodrome pools from the registry are much thinner for the fan tokens (PSG and AFC about 120–170 USDC, PEPPER/CHZ empty).
 
 The pools the deployment uses are in `script/config/BaseDexConfig.sol`.
 
 | Token | DEX | Against | Fee or tick spacing | Pool | Token held | Quote held |
 |---|---|---|---:|---|---:|---:|
-| AFC | Aerodrome Slipstream | USDC | 100 | `0x3B62856717d896b0fdBF72CacD0184e5091e5740` | 245,355.90 | 10,943.95 |
+| AFC | Dromos CL | USDC | 100 | `0x3B62856717d896b0fdBF72CacD0184e5091e5740` | 245,355.90 | 10,943.95 |
 | AFC | Aerodrome Slipstream | USDC | 200 | `0xb4580451325C61344712E811392C881a634151d8` | 1,961.44 | 171.94 |
-| CHZ | Aerodrome Slipstream | USDC | 50 | `0xF97dc64314813De750169Ce924C92564bc9fF411` | 11,665,869.09 | 69,430.38 |
+| CHZ | Dromos CL | USDC | 50 | `0xF97dc64314813De750169Ce924C92564bc9fF411` | 11,665,869.09 | 69,430.38 |
 | CHZ | Aerodrome Slipstream | USDC | 50 | `0xa11fBd0f7112f2fad10F92f09B4A8d85E8ddD401` | 105,843.13 | 1,229.55 |
-| PEPPER | Aerodrome Slipstream | CHZ | 50 | `0x125B160e0De44156F48f61990FAcf14A5328B972` | 48,923,470,755,431.20 | 3,183,676.19 |
+| PEPPER | Dromos CL | CHZ | 50 | `0x125B160e0De44156F48f61990FAcf14A5328B972` | 48,923,470,755,431.20 | 3,183,676.19 |
 | PEPPER | Aerodrome Slipstream | CHZ | 200 | `0x703e5C210155DB356887c74EC967C6Fc56671F01` | 0.00 | 0.00 |
-| PSG | Aerodrome Slipstream | USDC | 100 | `0xce9d679f6451EC5B6B9ECbE49A59e59Ce24bbe2B` | 88,609.54 | 10,611.43 |
+| PSG | Dromos CL | USDC | 100 | `0xce9d679f6451EC5B6B9ECbE49A59e59Ce24bbe2B` | 88,609.54 | 10,611.43 |
 | PSG | Aerodrome Slipstream | USDC | 200 | `0x76F9AeFA6aBcbcEb10CC149e071209366f64Ce9D` | 373.48 | 116.66 |
 
 Tokens held by the Uniswap V4 `PoolManager`, so at least one V4 position or transfer exists (the pool key was not recovered): CHZ (2,520.14), PEPPER (5,251,087,088.63), PSG (10.69).
@@ -296,12 +304,12 @@ Fan tokens (0 dp). Every WCHZ pool has zero reserves, so no fan-token swap can r
 | Uniswap V4 Quoter | `0xE1A6C5803e3c44368b171BD680c7D32dfc92CA47` |
 | Uniswap V4 StateView | `0xA3c0c9b65baD0b08107Aa264b0f3dB444b867A71` |
 | Permit2 | `0x000000000022D473030F116dDEE9F6B43aC78BA3` |
-| Aerodrome Slipstream factory | `0x9CB220581b91b0C83223012FE69688b92aD07a76` |
-| Aerodrome Slipstream factory (second) | `0xf8f2eB4940CFE7d13603DDDD87f123820Fc061Ef` |
+| Dromos CL factory (not in Aerodrome's registry, see above) | `0x9CB220581b91b0C83223012FE69688b92aD07a76` |
+| Aerodrome Slipstream factory (Gauges V3) | `0xf8f2eB4940CFE7d13603DDDD87f123820Fc061Ef` |
 | Aerodrome Slipstream factory (original, no fan-token pool) | `0x5e7BB104d84c7CB9B682AaC2F3d509f5F406809A` |
 | Aerodrome Slipstream SwapRouter (original factory's pools only) | `0xBE6D8f0d05cC4be24d5167a3eF062215bE6D18a5` |
 | Aerodrome classic pool factory | `0x420DD381b31aEf6683db6B902084cB0FFECe40Da` |
-| WETH/USDC Slipstream pool, tick spacing 50 (3,288 WETH / 3.39M USDC) | `0x4A7af46bC8aBc00048c6c7920a1488DAF568366c` |
+| WETH/USDC Dromos CL pool, tick spacing 50 (4,006 WETH / 3.13M USDC on 2026-11-10) | `0x4A7af46bC8aBc00048c6c7920a1488DAF568366c` |
 
 ## Base Sepolia (84532)
 

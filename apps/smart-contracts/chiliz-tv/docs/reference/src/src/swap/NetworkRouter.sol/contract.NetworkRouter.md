@@ -20,7 +20,8 @@ and `wrapperFactory` wraps fan tokens before the swap.
 `wrappedNativeToken` is its ERC20 form (WCHZ, WETH).
 USDC goes straight into the match contract (the escrow) on the betting
 path and into the streamer's `StreamWallet` on the streaming path. This
-contract never holds USDC at rest.
+contract never holds USDC at rest, and it refuses native tokens sent
+outside a payment.
 Payment paths (all settle in USDC):
 Betting:   placeBetWithNativeToken, placeBetWithToken, placeBetWithUSDC
 -> PariMatchBase.placeBetUSDCFor
@@ -37,7 +38,9 @@ path and follows the route its owner registered. Quote with
 Security:
 - Requires SWAP_ROUTER_ROLE on each PariMatch proxy.
 - `bettingMatchFactory` validates every match before USDC is forwarded.
-- Every swap needs a deadline and a non-zero `amountOutMin`.
+- Every swap needs a deadline and a non-zero `amountOutMin`, checked
+against the USDC that actually arrived.
+- Subscriptions are priced by the wallet and checked here too.
 - Reentrancy guarded; SafeERC20 on every transfer.*
 
 
@@ -404,6 +407,18 @@ where Kayen has no wrapper deployment).
 function setWrapperFactory(address _factory) external onlyOwner;
 ```
 
+### rescueTokens
+
+Send ERC20 tokens sent to this contract by mistake to `to`. Owner only.
+
+*Payments never leave funds here between calls, so this cannot reach
+anything a user is owed.*
+
+
+```solidity
+function rescueTokens(IERC20 token, address to, uint256 amount) external onlyOwner;
+```
+
 ### swapRouteFor
 
 Route `_swapTokensToUSDC` takes for one whole unit of `token`
@@ -476,13 +491,24 @@ function _swapNativeTokenToUSDC(uint256 nativeTokenAmount, uint256 amountOutMin,
 
 *Swap `amount` of `token` for USDC, wrapping fan tokens first.
 Routing is `routeFor(token, amount)`; `amountOutMin` always
-applies to the final USDC amount.*
+applies to the final USDC amount. Without a wrap candidate (always
+the case on Base) there is nothing to compare, so the quote is skipped.*
 
 
 ```solidity
 function _swapTokensToUSDC(address token, uint256 amount, uint256 amountOutMin, uint256 deadline)
     internal
     returns (uint256 usdcReceived);
+```
+
+### _receivedSince
+
+*USDC that actually arrived since `before`, at least `amountOutMin`.
+The amounts a DEX reports are not trusted.*
+
+
+```solidity
+function _receivedSince(uint256 before, uint256 amountOutMin) internal view returns (uint256 received);
 ```
 
 ### _pathFrom
@@ -561,6 +587,10 @@ function _splitAndTransfer(address wallet, uint256 totalAmount)
 
 ### _recordSubscription
 
+*The price is checked here as well as in the wallet, so a wallet
+still on an implementation without pricing cannot be subscribed to
+below cost: the call reverts.*
+
 
 ```solidity
 function _recordSubscription(address wallet, address subscriber, uint256 usdcAmount, uint256 duration) internal;
@@ -578,13 +608,6 @@ function _recordDonation(
     uint256 streamerAmount,
     string calldata message
 ) internal;
-```
-
-### receive
-
-
-```solidity
-receive() external payable;
 ```
 
 ## Events
@@ -759,6 +782,14 @@ A fan token was wrapped before its swap.
 event FanTokenWrapped(address indexed token, address indexed wrapped, uint256 amountIn, uint256 wrappedAmount);
 ```
 
+### TokensRescued
+Tokens sent to this contract by mistake were sent on to `to`.
+
+
+```solidity
+event TokensRescued(address indexed token, address indexed to, uint256 amount);
+```
+
 ## Errors
 ### ZeroAddress
 
@@ -821,5 +852,21 @@ amountOutMin = 0 lets a sandwich take the whole trade.
 
 ```solidity
 error SlippageNotSet();
+```
+
+### InsufficientOutput
+The swap delivered less USDC than `amountOutMin`.
+
+
+```solidity
+error InsufficientOutput(uint256 received, uint256 amountOutMin);
+```
+
+### SubscriptionUnderpaid
+The USDC paid does not cover the streamer's price for `duration`.
+
+
+```solidity
+error SubscriptionUnderpaid(uint256 paid, uint256 cost);
 ```
 

@@ -27,7 +27,7 @@ Foundry project: Solidity 0.8.24, OpenZeppelin 5, `via_ir`, EVM `shanghai` (requ
 | `src/streamer/StreamWalletFactory.sol` | Creates and upgrades streamer wallets, holds their configuration |
 | `src/leaderboard/LeaderboardRewards.sol` | Prize pool shared per epoch, based on net profit |
 
-`src/swap/uniswapV3/` also serves Aerodrome Slipstream, which uses the same pool interface and swap callback.
+`src/swap/uniswapV3/` also serves Slipstream-style pools (Aerodrome, Dromos CL), which use the same pool interface and swap callback.
 
 ## Networks
 
@@ -35,7 +35,7 @@ Foundry project: Solidity 0.8.24, OpenZeppelin 5, `via_ir`, EVM `shanghai` (requ
 |---|---|---|---|
 | Chiliz mainnet | 88888 | Kayen V2 | CHZ |
 | Chiliz Spicy | 88882 | Kayen V2 | CHZ |
-| Base mainnet | 8453 | Aerodrome Slipstream | ETH |
+| Base mainnet | 8453 | Dromos CL pools (Slipstream interface), see `docs/TEST_ADDRESSES.md` | ETH |
 | Base Sepolia | 84532 | Uniswap V3 | ETH |
 
 Addresses of the deployed contracts are in `deployments/<network>.json`. Each DEX address used on Base is in `script/config/BaseDexConfig.sol`.
@@ -50,7 +50,7 @@ forge build
 forge test
 ```
 
-The Base mainnet suite needs Cancun, because Aerodrome's fee hooks use its opcodes. The project default must stay `shanghai`:
+The Base mainnet suite needs Cancun, because the Dromos CL pools' fee hooks use its opcodes. The project default must stay `shanghai`:
 
 ```bash
 forge test --evm-version cancun --match-contract BaseMainnetDexAdapterForkTest

@@ -746,7 +746,8 @@ function claimRefund(uint256 marketId)
 
 ### claimRefundBatch
 
-Refund several Cancelled markets, skipping the others and those already refunded.
+Refund several Cancelled markets, skipping the others, those
+already refunded and those the caller has no stake in.
 
 
 ```solidity

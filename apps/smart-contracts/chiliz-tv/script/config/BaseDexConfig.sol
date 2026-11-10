@@ -72,6 +72,8 @@ library BaseDexConfig {
     address private constant BASE_AFC    = 0x580edA966a8129C3c01D149871B47feFcC599D28;
     address private constant BASE_PEPPER = 0x5e985E4BCa4664E985f3FaF8140EbA25b10E28C2;
 
+    // Dromos CL factory (Basescan "Dromos: CL Factory"), Slipstream interface. It is
+    // not in Aerodrome's FactoryRegistry: confirm it before mainnet, see docs/TEST_ADDRESSES.md.
     address private constant SLIPSTREAM_FACTORY = 0x9CB220581b91b0C83223012FE69688b92aD07a76;
     address private constant POOL_WETH_USDC   = 0x4A7af46bC8aBc00048c6c7920a1488DAF568366c;
     address private constant POOL_CHZ_USDC    = 0xF97dc64314813De750169Ce924C92564bc9fF411;

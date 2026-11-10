@@ -30,7 +30,7 @@ Function names, parameters and call order are the same on both networks. These p
 |---|---|---|
 | Native token sent to `*WithNativeToken` | CHZ | ETH |
 | `router.wrappedNativeToken()` | WCHZ | WETH |
-| DEX behind the router | Kayen V2 router, called directly | `adapter`, on Aerodrome Slipstream (mainnet) or Uniswap V3 (Sepolia) |
+| DEX behind the router | Kayen V2 router, called directly | `adapter`, on Dromos CL pools (mainnet, Slipstream interface) or Uniswap V3 (Sepolia) |
 | `router.wrapperFactory()` | Kayen wrapper factory on mainnet | `address(0)` |
 | Tokens accepted by `*WithToken` | Any token with a pool against WCHZ, see [FAN_TOKENS_MAINNET.md](FAN_TOKENS_MAINNET.md) | Only tokens with a registered route. Mainnet: WETH, CHZ, PSG, AFC, PEPPER. Sepolia: WETH |
 | Fan token decimals | 0 for CAP-20 tokens | 18 |

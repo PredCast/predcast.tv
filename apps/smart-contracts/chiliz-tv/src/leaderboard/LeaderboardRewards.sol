@@ -368,7 +368,9 @@ contract LeaderboardRewards is
         emit EpochDurationSet(old, newDuration);
     }
 
-    /// @notice Pause epoch closing, rollovers and prize claims. Score and fee credits keep working.
+    /// @notice Pause `advanceEpoch`, rollovers and prize claims. Score and fee
+    ///         credits keep working, and a credit still closes an epoch that is
+    ///         due. Claim windows keep running during a pause.
     function emergencyPause() external onlyRole(PAUSER_ROLE) { _pause(); }
     /// @notice Lift the pause.
     function unpause()        external onlyRole(ADMIN_ROLE)  { _unpause(); }

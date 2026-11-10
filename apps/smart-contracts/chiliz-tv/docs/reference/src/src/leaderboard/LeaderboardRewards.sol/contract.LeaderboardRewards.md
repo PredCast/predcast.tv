@@ -356,7 +356,9 @@ function setEpochDuration(uint64 newDuration) external onlyRole(ADMIN_ROLE);
 
 ### emergencyPause
 
-Pause epoch closing, rollovers and prize claims. Score and fee credits keep working.
+Pause `advanceEpoch`, rollovers and prize claims. Score and fee
+credits keep working, and a credit still closes an epoch that is
+due. Claim windows keep running during a pause.
 
 
 ```solidity

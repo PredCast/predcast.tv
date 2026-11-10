@@ -18,7 +18,10 @@ only the two ends of `path`: the router always asks for
 [token, WETH, USDC], while fan tokens on Base trade against USDC or
 CHZ. `amounts` therefore has one entry per registered hop plus one;
 its first entry is the input and its last the output, as in V2.
-Tokens only pass through this contract within a transaction.*
+Tokens only pass through this contract within a transaction.
+Inputs and outputs are measured by balance, and a pool can only
+be paid the input of its own hop, so a pool that misreports its
+amounts cannot make a swap look better than it was.*
 
 
 ## State Variables
@@ -48,12 +51,26 @@ mapping(address tokenIn => mapping(address tokenOut => Hop[])) private _routes;
 
 
 ### _activePool
-*The only address `uniswapV3SwapCallback` accepts, set for the
-duration of each `pool.swap`.*
+*The only address `uniswapV3SwapCallback` accepts, with the token
+and the most it may be paid, set for the duration of each `pool.swap`.*
 
 
 ```solidity
 address private _activePool;
+```
+
+
+### _activeToken
+
+```solidity
+address private _activeToken;
+```
+
+
+### _activeAmount
+
+```solidity
+uint256 private _activeAmount;
 ```
 
 
@@ -75,6 +92,17 @@ checks here catch a wrong order or token, not a malicious pool.*
 
 ```solidity
 function setRoute(address tokenIn, address tokenOut, address[] calldata pools) external onlyOwner;
+```
+
+### rescueTokens
+
+Send ERC20 tokens sent to this contract by mistake to `to`. Owner only.
+
+*Swaps never leave tokens here, so this cannot reach a user's funds.*
+
+
+```solidity
+function rescueTokens(IERC20 token, address to, uint256 amount) external onlyOwner;
 ```
 
 ### getRoute
@@ -103,7 +131,8 @@ function swapExactETHForTokens(uint256 amountOutMin, address[] calldata path, ad
 
 Swap an exact ERC20 input along the route from `path[0]` to the last token.
 
-*The caller approves this contract first.*
+*The caller approves this contract first. `amounts[0]` is what
+arrived, which is less than `amountIn` for a fee-on-transfer token.*
 
 
 ```solidity
@@ -132,9 +161,12 @@ function getAmountsOut(uint256 amountIn, address[] calldata path) external view 
 
 Pays the pool during `pool.swap`. Both DEXes use this selector.
 
+*The token and the cap come from this contract's own state, not
+from `data`, which the pool hands back.*
+
 
 ```solidity
-function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external;
+function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata) external;
 ```
 
 ### _openSwap
@@ -162,6 +194,8 @@ function _swap(Hop[] storage hops, address tokenIn, uint256 amountIn, uint256 am
 
 ### _swapOnPool
 
+*The output is what reached `recipient`, not what the pool reports.*
+
 
 ```solidity
 function _swapOnPool(Hop memory hop, address tokenIn, uint256 amountIn, address recipient)
@@ -176,6 +210,14 @@ The route from `tokenIn` to `tokenOut` was registered, replaced or removed.
 
 ```solidity
 event RouteSet(address indexed tokenIn, address indexed tokenOut, address[] pools);
+```
+
+### TokensRescued
+Tokens sent to this contract by mistake were sent on to `to`.
+
+
+```solidity
+event TokensRescued(address indexed token, address indexed to, uint256 amount);
 ```
 
 ## Errors
@@ -239,6 +281,14 @@ error PartialFill(address pool, uint256 consumed, uint256 amountIn);
 
 ```solidity
 error UnauthorizedCallback(address caller);
+```
+
+### ExcessivePayment
+The pool asked for more than the input of its hop.
+
+
+```solidity
+error ExcessivePayment(uint256 requested, uint256 allowed);
 ```
 
 ## Structs

@@ -394,7 +394,11 @@ contract DeployAll is Script {
         console.log("  swapRouter.{setMatchFactory, setStreamWalletFactory, setTreasury, setPlatformFeeBps}");
         console.log("  leaderboard.{setMatchFactory, setEpochDuration, setUSDCToken, grantRole, revokeRole, upgradeToAndCall, pause}");
         console.log("Any such call must now come from the Safe, once it has called");
-        console.log("acceptOwnership() on pariFactory, streamFactory and swapRouter.");
+        if (address(dexAdapter) != address(0)) {
+            console.log("acceptOwnership() on pariFactory, streamFactory, swapRouter and dexAdapter.");
+        } else {
+            console.log("acceptOwnership() on pariFactory, streamFactory and swapRouter.");
+        }
         console.log("");
     }
 
