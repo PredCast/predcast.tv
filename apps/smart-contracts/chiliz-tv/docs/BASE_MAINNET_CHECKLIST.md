@@ -7,8 +7,8 @@ Run this list top to bottom. Every broadcast to Base mainnet is done by a person
 | Topic | Why it matters | Where |
 |---|---|---|
 | External audit | No human audit covers the current code. | Section 7 |
-| DEX pools | The deep pools in `script/config/BaseDexConfig.sol` come from the Dromos CL factory `0x9CB2…7a76`. It is not in Aerodrome's `FactoryRegistry`, is 20 days old (2026-11-10) and is governed by its own Safe. Either confirm it with Dromos Labs / the Aero docs, or switch to the registry's Aerodrome pools, which are much thinner for PSG and AFC and have no PEPPER/CHZ liquidity. | `docs/TEST_ADDRESSES.md`, Base section |
-| Streaming fee cap | `NetworkRouter.setPlatformFeeBps` accepts up to 100 %. A lower cap protects streamers against a compromised owner. | `src/swap/NetworkRouter.sol` |
+| DEX pools | **Decided 2026-11-11: keep the Aero pools.** They come from the Aero Slipstream V3 factory `0x9CB2…7a76` (Basescan "Dromos: CL Factory"), which holds the Base liquidity since the Aerodrome and Velodrome merger. Still to do: find the address in Aero's official contract list. | `docs/TEST_ADDRESSES.md`, Base section |
+| Streaming fee cap | **Decided 2026-11-10: no lower cap.** `NetworkRouter.setPlatformFeeBps` accepts up to 100 %, only the router owner (the Safe) can move it, and it stays at 5 % by default. | `src/swap/NetworkRouter.sol` |
 | Timelock | `TIMELOCK_DELAY=0` gives the Safe instant control over match code (beacons). A delay gives users time to leave before an upgrade. | `.env.baseMainnet` |
 
 ## 2. Keys and Safe
@@ -103,6 +103,6 @@ The rehearsal of 2026-11-10 is recorded in section 8.
 
 **Fork-only flags:**
 - On an anvil fork of Base mainnet, `forge script` needs `--with-gas-price` because the fork does not answer the EIP-1559 fee query.
-- Any script that quotes or swaps through the Dromos pools needs `--evm-version cancun`, because their swap hook uses Cancun opcodes. Without it, the local simulation sees the quote as 0. The real chain is not affected. On mainnet, run the smoke test with `--evm-version cancun --out out-cancun --cache-path cache-cancun`.
+- Any script that quotes or swaps through the Aero pools needs `--evm-version cancun`, because their swap hook uses Cancun opcodes. Without it, the local simulation sees the quote as 0. The real chain is not affected. On mainnet, run the smoke test with `--evm-version cancun --out out-cancun --cache-path cache-cancun`.
 
-**Dromos pools: the fee comes from a hook.** Each Dromos pool reads its fee from a swap hook (`getPoolSwapHook`). The hook takes the swapper and the swap parameters, so its owner can change the fee for any swap. The adapter's quote replays the fee the hook returns for an empty swap. If the hook charges more on a real swap, the swap reverts on `amountOutMin`: funds are safe, the payment fails.
+**Aero pools: the fee comes from a hook.** Each Aero pool reads its fee from a swap hook (`getPoolSwapHook`). The hook takes the swapper and the swap parameters, so its owner can change the fee for any swap. The adapter's quote replays the fee the hook returns for an empty swap. If the hook charges more on a real swap, the swap reverts on `amountOutMin`: funds are safe, the payment fails.

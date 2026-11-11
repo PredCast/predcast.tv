@@ -237,13 +237,13 @@ Robinhood chain: CHZ `0xdAdcc903a92d2C1a97b2A5465faa12C1EBb9c7ef`, PEPPER `0x6fC
 
 Looked up against WETH, USDC and CHZ: Uniswap V2, Uniswap V3 (0.01, 0.05, 0.3 and 1 %), the Aerodrome Slipstream factories, Aerodrome classic pools and the Dromos CL factory. Every deep pool below comes from the Dromos CL factory `0x9CB2…7a76`. The only classic pool, CHZ/WETH, holds about 1.2 CHZ.
 
-**Check before mainnet (2026-11-10).** `0x9CB2…7a76` is not an Aerodrome Slipstream factory:
+**Provenance.** `0x9CB2…7a76` is the Slipstream V3 factory of Aero, not one of the older Aerodrome factories:
 - Basescan tags it "Dromos: CL Factory" (verified `CLFactory`, created about 2026-10-21).
 - It is not in Aerodrome's `FactoryRegistry` `0x5C3F…37C0`, whose approved factories are `0x420D…40Da`, `0x5e7B…809A`, `0xaDe6…716a` and `0xf8f2…61Ef`, all owned by the Aerodrome governor `0xE6A4…2075`.
 - It is owned by the Safe `0x4225…4cE0` and has its own voter `0x3824…4078`. Its position NFT is "Slipstream V3 Deposit" (AERO-CL).
-- Dromos Labs builds Aerodrome and Velodrome and is merging them into Aero, so this is likely Aero's new CL factory, but no official Aero or Aerodrome page listing the address was found.
+- Dromos Labs, which builds Aerodrome and Velodrome, merged them into Aero on 2026-10-21; Aero introduced Slipstream V3 pools with dynamic fees, which matches this factory.
 
-Confirm the address with Dromos Labs or the official Aero docs before routing real funds through it. The Aerodrome pools from the registry are much thinner for the fan tokens (PSG and AFC about 120–170 USDC, PEPPER/CHZ empty).
+Decided on 2026-11-11: the Base deployment keeps these pools. Before mainnet, find the address in Aero's official contract list. The Aerodrome pools from the registry are much thinner for the fan tokens (PSG and AFC about 120–170 USDC, PEPPER/CHZ empty).
 
 The pools the deployment uses are in `script/config/BaseDexConfig.sol`.
 

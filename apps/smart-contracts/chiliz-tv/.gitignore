@@ -56,3 +56,5 @@ __pycache__/
 *.py[cod]
 
 # Keep remappings and foundry.toml tracked; do not ignore remappings.txt or foundry.toml
+# Generated guide PDFs (node docs/guide/build-pdf.mjs)
+docs/guide/pdf/
