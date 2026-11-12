@@ -22,8 +22,18 @@
 #
 # Add `--dry-run` to simulate via forge without broadcasting — no on-chain tx,
 # no deployments/<network>.json update. Useful to preview gas + address layout.
-# A dry run always simulates on chain: `--skip-simulation` is dropped from
-# FORGE_FLAGS for it, since the simulation is what gives the gas estimate.
+#
+# `--skip-simulation` in FORGE_FLAGS is dropped unless ALLOW_SKIP_SIMULATION=true.
+# Without the simulation, forge asks the RPC for a gas estimate right before
+# each transaction, and a load-balanced RPC (Chiliz Spicy) can answer from a
+# node that does not see the previous transaction yet: the deployment stops
+# halfway, e.g. with ERC1967InvalidImplementation when the leaderboard proxy
+# is created just after its implementation.
+#
+# Add `--resume` after a broadcast that stopped halfway: forge sends the
+# transactions of the last run that were not sent, with the same addresses.
+# Run it with the same --network and deploy type, and only while the deployer
+# has sent nothing else since (the nonces must match).
 #
 # Before compiling, the script checks the deployer (address derived from
 # PRIVATE_KEY) and its balance and, on mainnets, that SAFE_ADDRESS and
@@ -62,6 +72,7 @@ NC='\033[0m'
 NETWORK=""
 DEPLOY_TYPE=""
 DRY_RUN=false
+RESUME=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -81,27 +92,33 @@ while [[ $# -gt 0 ]]; do
             DEPLOY_TYPE="upgrade-leaderboard"; shift ;;
         --dry-run)
             DRY_RUN=true; shift ;;
+        --resume)
+            RESUME=true; shift ;;
         --match|--pool)
             echo -e "${RED}'$1' is no longer supported (LiquidityPool + BettingMatchFactory were removed).${NC}"
             echo -e "${RED}  Use --all for the full pari-mutuel platform, or --pari for pari-only.${NC}"
             exit 1 ;;
         *)
             echo -e "${RED}Unknown argument: $1${NC}"
-            echo "Usage: ./deploy.sh --network <chilizTestnet|chilizMainnet|baseSepolia|baseMainnet> <--all|--pari|--stream|--swap|--redeploy-swap|--upgrade-leaderboard> [--dry-run]"
+            echo "Usage: ./deploy.sh --network <chilizTestnet|chilizMainnet|baseSepolia|baseMainnet> <--all|--pari|--stream|--swap|--redeploy-swap|--upgrade-leaderboard> [--dry-run|--resume]"
             exit 1 ;;
     esac
 done
 
 if [ -z "$NETWORK" ] || [ -z "$DEPLOY_TYPE" ]; then
     echo -e "${RED}Missing required arguments.${NC}"
-    echo "Usage: ./deploy.sh --network <chilizTestnet|chilizMainnet|baseSepolia|baseMainnet> <--all|--pari|--stream|--swap|--redeploy-swap|--upgrade-leaderboard> [--dry-run]"
+    echo "Usage: ./deploy.sh --network <chilizTestnet|chilizMainnet|baseSepolia|baseMainnet> <--all|--pari|--stream|--swap|--redeploy-swap|--upgrade-leaderboard> [--dry-run|--resume]"
+    exit 1
+fi
+if [ "$DRY_RUN" = true ] && [ "$RESUME" = true ]; then
+    echo -e "${RED}--dry-run and --resume cannot be combined.${NC}"
     exit 1
 fi
 
 # ── Log file + timestamps ────────────────────────────────────────────────────
 # Everything printed from here on also goes to the log file, colours removed.
 mkdir -p deployments/logs
-MODE_TAG=$([ "$DRY_RUN" = true ] && echo "dry-run" || echo "broadcast")
+MODE_TAG=$([ "$DRY_RUN" = true ] && echo "dry-run" || { [ "$RESUME" = true ] && echo "resume" || echo "broadcast"; })
 LOG_FILE="deployments/logs/${NETWORK}-${DEPLOY_TYPE}-${MODE_TAG}-$(date +%Y%m%d-%H%M%S).log"
 exec > >(tee >(sed -u -E 's/\x1b\[[0-9;]*m//g' >> "$LOG_FILE")) 2>&1
 START_SECONDS=$SECONDS
@@ -401,7 +418,8 @@ echo ""
 if [ "$DRY_RUN" = true ]; then
     echo -e "${CYAN}Dry-run mode: skipping confirmation prompt (no broadcast will happen).${NC}"
 else
-    read -p "Deploy to $NETWORK? (yes/no): " CONFIRM
+    PROMPT_VERB=$([ "$RESUME" = true ] && echo "Resume the deployment on" || echo "Deploy to")
+    read -p "$PROMPT_VERB $NETWORK? (yes/no): " CONFIRM
     if [ "$CONFIRM" != "yes" ]; then
         echo -e "${RED}Deployment cancelled${NC}"
         exit 0
@@ -432,16 +450,15 @@ mkdir -p deployments
 read -ra RAW_FLAGS <<< "$FORGE_FLAGS"
 FLAGS=()
 for FLAG in "${RAW_FLAGS[@]}"; do
-    if [ "$FLAG" = "--skip-simulation" ]; then
-        if [ "$DRY_RUN" = true ]; then
-            echo -e "${YELLOW}Dry run: ignoring --skip-simulation from FORGE_FLAGS (the on-chain simulation is the point of a dry run).${NC}"
-            continue
-        fi
-        echo -e "${YELLOW}Warning: --skip-simulation in FORGE_FLAGS, transactions are sent without an on-chain simulation first.${NC}"
+    if [ "$FLAG" = "--skip-simulation" ] && [ "$ALLOW_SKIP_SIMULATION" != "true" ]; then
+        echo -e "${YELLOW}Ignoring --skip-simulation from FORGE_FLAGS: the simulation gives every transaction its gas up front,${NC}"
+        echo -e "${YELLOW}  so forge does not ask a possibly lagging RPC before each one (set ALLOW_SKIP_SIMULATION=true to keep it).${NC}"
+        continue
     fi
     FLAGS+=("$FLAG")
 done
 [ "$DRY_RUN" != true ] && FLAGS+=("--broadcast")
+[ "$RESUME" = true ] && FLAGS+=("--resume")
 VERBOSITY="${VERBOSITY:--vvv}"
 FORGE_ARGS=(script "$SCRIPT" --rpc-url "$RPC_URL" --slow "${FLAGS[@]}" "$VERBOSITY")
 
@@ -473,6 +490,16 @@ echo ""
 if [ "$FORGE_STATUS" -ne 0 ]; then
     step "forge failed (exit $FORGE_STATUS)."
     echo -e "${RED}The reason is on the last 'Error:' line above. Full output: $LOG_FILE${NC}"
+    RUN_FILE="broadcast/$(basename "$SCRIPT")/${CHAIN_ID}/run-latest.json"
+    if [ "$DRY_RUN" != true ] && [ -f "$RUN_FILE" ] && command -v jq &> /dev/null; then
+        SENT=$(jq '[.transactions[] | select(.hash != null)] | length' "$RUN_FILE" 2>/dev/null || echo "?")
+        TOTAL=$(jq '.transactions | length' "$RUN_FILE" 2>/dev/null || echo "?")
+        echo -e "${YELLOW}$SENT of $TOTAL transactions were sent before the failure.${NC}"
+    fi
+    if [ "$DRY_RUN" != true ]; then
+        echo -e "${YELLOW}If some were sent, finish with the same command plus --resume (same addresses).${NC}"
+        echo -e "${YELLOW}Running it again without --resume deploys everything again at new addresses.${NC}"
+    fi
     echo -e "${YELLOW}For the trace of every call, run again with VERBOSITY=-vvvv.${NC}"
     exit "$FORGE_STATUS"
 fi
