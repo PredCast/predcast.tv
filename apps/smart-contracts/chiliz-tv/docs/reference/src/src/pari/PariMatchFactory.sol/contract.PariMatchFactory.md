@@ -62,6 +62,16 @@ uint16 public constant MATCH_DEFAULT_FEE_BPS = 200;
 ```
 
 
+### DEFAULT_LEADERBOARD_FEE_BPS
+Leaderboard share a new factory starts with: 0.5% of the pool,
+leaving 1.5% to `feeRecipient` out of the 2% default fee.
+
+
+```solidity
+uint16 public constant DEFAULT_LEADERBOARD_FEE_BPS = 50;
+```
+
+
 ### allMatches
 Every match created by this factory.
 
@@ -148,7 +158,7 @@ address public leaderboardRewards;
 
 ### leaderboardFeeBps
 Leaderboard's share of the total fee, in basis points OF THE
-POOL. Default 100 (1%). The factory writes this into every
+POOL. Default 50 (0.5%). The factory writes this into every
 new match alongside `leaderboardRewards`.
 
 

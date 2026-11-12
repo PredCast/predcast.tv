@@ -197,12 +197,18 @@ before submitting the resolution tx.
 ## 5. Pari-mutuel payout math
 
 ```
-leaderboardFee = totalPool * leaderboardFeeBps / BPS_DENOM   // 1% by default
-companyFee     = totalPool * (feeBps - leaderboardFeeBps) / BPS_DENOM
+leaderboardFee = totalPool * leaderboardFeeBps / BPS_DENOM   // 0.5% by default
+companyFee     = totalPool * (feeBps - leaderboardFeeBps) / BPS_DENOM   // 1.5% by default
 netPool        = totalPool - leaderboardFee - companyFee     // snapshotted at resolve time
-payout(user)   = userStake[winningOutcome]
+share(user)    = userStake[winningOutcome]
                * netPool
-               / outcomePool[winningOutcome]
+               / outcomePool[winningOutcome]                 // exact, not an integer
+
+// Cumulative rounding, per claim:
+claimedStake  += userStake[winningOutcome]
+paidAfter      = claimedStake * netPool / outcomePool[winningOutcome]   // floor
+payout(user)   = paidAfter - paidOut
+paidOut        = paidAfter
 ```
 
 * `feeBps` is 2% by default and capped at `MAX_FEE_BPS` = 5%.
@@ -210,8 +216,12 @@ payout(user)   = userStake[winningOutcome]
   markets opened afterwards.
 * When every stake is on the winning outcome, no fee is taken.
 * Fees are sent at resolution, to `feeRecipient` and `leaderboardRecipient`.
-* Floor division can leave a little dust once every winner has claimed. Anyone
-  can send it to `feeRecipient` with `sweepDust`. The system never overpays.
+* No rounding dust: each payout is `share(user)` rounded down or up by one
+  unit at most, and when the whole winning stake is claimed `paidOut` equals
+  `netPool`, whatever the claim order. `paidOut` is always the floor of the
+  claimed stake's share, so the system never overpays.
+* Fee rounding favours the winners: both fees are floored and `netPool` is
+  what remains.
 
 ---
 

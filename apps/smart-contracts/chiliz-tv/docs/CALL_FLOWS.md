@@ -152,7 +152,7 @@ Never send tokens directly to the router: only `approve`, then call.
 
 At resolution:
 
-- The fee is sent to `feeRecipient` and to the leaderboard. It is 2% of the pool by default, half of it for the leaderboard.
+- The fee is sent to `feeRecipient` and to the leaderboard. It is 2% of the pool by default: 1.5% to `feeRecipient`, 0.5% to the leaderboard.
 - With no stake on the winning outcome, the market becomes Cancelled and everyone refunds.
 - With stakes only on the winning outcome, no fee is taken.
 
@@ -164,9 +164,9 @@ At resolution:
 | Several markets | User | `match.claimBatch(ids)`, which skips what cannot be claimed |
 | Market Cancelled | User | `match.claimRefund(marketId)` or `match.claimRefundBatch(ids)` |
 | Oracle never resolved | Anyone, after `match.staleAt(marketId)` | `match.cancelStaleMarket(marketId)`, then users refund |
-| Every winner claimed | Anyone | `match.sweepDust(marketId)`, when `match.sweepableDust(marketId)` is above 0 |
 
-- Payout: `userStake on the winning outcome * resolvedNetPool / pool of the winning outcome`.
+- Payout: `userStake on the winning outcome * resolvedNetPool / pool of the winning outcome`, rounded on the running total: a claim pays `floor(claimedStake * resolvedNetPool / winningPool) - paidOut`, where `claimedStake` includes the claimer. Payouts add up to `resolvedNetPool` exactly, and each is the exact share rounded down or up by one unit at most.
+- An off-chain preview can use the plain formula: it is at most 1 unit (0.000001 USDC) off.
 - A pause freezes claims for at most 7 days. Refunds keep working during a pause.
 - Winners are paid in USDC on both networks. There is no swap on the way out.
 
@@ -225,7 +225,7 @@ Fees and scores arrive automatically: fees at resolution, scores when a winner c
 |---|---|---|
 | Read the open epoch | Anyone | `leaderboard.currentEpoch()`, `leaderboard.epochScore(id, user)`, `leaderboard.openPrizePool()` |
 | Close the epoch | Anyone, after `leaderboard.nextCloseTime()` | `leaderboard.advanceEpoch()` |
-| Preview a prize | Anyone | `leaderboard.pendingClaim(id, user)` |
+| Preview a prize | Anyone | `leaderboard.pendingClaim(id, user)`. Prizes are rounded on the running total like payouts, so they add up to the epoch's pool |
 | Claim a prize | User, until `leaderboard.claimDeadline(id)` | `leaderboard.claim(id)` |
 | Recycle what was not claimed | Anyone, after `claimDeadline(id)` | `leaderboard.rolloverEpoch(id)` |
 

@@ -27,7 +27,7 @@ Foundry project: Solidity 0.8.24, OpenZeppelin 5, `via_ir`, EVM `shanghai` (requ
 | `src/streamer/StreamWalletFactory.sol` | Creates and upgrades streamer wallets, holds their configuration |
 | `src/leaderboard/LeaderboardRewards.sol` | Prize pool shared per epoch, based on net profit |
 
-`src/swap/uniswapV3/` also serves Slipstream-style pools (Aerodrome, Dromos CL), which use the same pool interface and swap callback.
+`src/swap/uniswapV3/` also serves Slipstream-style pools (Aerodrome, Aero Slipstream V3), which use the same pool interface and swap callback.
 
 ## Networks
 
@@ -35,7 +35,7 @@ Foundry project: Solidity 0.8.24, OpenZeppelin 5, `via_ir`, EVM `shanghai` (requ
 |---|---|---|---|
 | Chiliz mainnet | 88888 | Kayen V2 | CHZ |
 | Chiliz Spicy | 88882 | Kayen V2 | CHZ |
-| Base mainnet | 8453 | Dromos CL pools (Slipstream interface), see `docs/TEST_ADDRESSES.md` | ETH |
+| Base mainnet | 8453 | Aero Slipstream V3 pools (factory tagged "Dromos: CL Factory"), see `docs/TEST_ADDRESSES.md` | ETH |
 | Base Sepolia | 84532 | Uniswap V3 | ETH |
 
 Addresses of the deployed contracts are in `deployments/<network>.json`. Each DEX address used on Base is in `script/config/BaseDexConfig.sol`.
@@ -50,7 +50,7 @@ forge build
 forge test
 ```
 
-The Base mainnet suite needs Cancun, because the Dromos CL pools' fee hooks use its opcodes. The project default must stay `shanghai`:
+The Base mainnet suite needs Cancun, because the Aero pools' fee hooks use its opcodes. The project default must stay `shanghai`:
 
 ```bash
 forge test --evm-version cancun --match-contract BaseMainnetDexAdapterForkTest
@@ -79,6 +79,7 @@ Then run the same command without `--dry-run`. Networks: `chilizTestnet`, `chili
 
 | Document | Content |
 |---|---|
+| [docs/guide](../../guide/README.md) | Team and developer guides in French, with diagrams, exported to PDF |
 | [docs/CALL_FLOWS.md](../../CALL_FLOWS.md) | Calls to make per scenario, and Chiliz and Base differences |
 | [docs/PARI_MUTUEL.md](../../PARI_MUTUEL.md) | Markets, lifecycle, resolution, payout math, roles |
 | [docs/reference](../../reference/src/SUMMARY.md) | API reference generated from the NatSpec |

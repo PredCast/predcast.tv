@@ -26,8 +26,8 @@ flowchart LR
   R -->|mise| M[(Match<br/>coffre des mises)]
   R -->|don ou abonnement| W[(Wallet du streamer)]
   R -->|5 % du streaming| T[Trésorerie PredCast]
-  M -->|1 % des cagnottes| T
-  M -->|1 % des cagnottes| L[(Leaderboard)]
+  M -->|1,5 % des cagnottes| T
+  M -->|0,5 % des cagnottes| L[(Leaderboard)]
   M -->|gains| P
   L -->|prix mensuels| P
   W -->|retraits| S([Streamer])
@@ -53,7 +53,7 @@ Il n'y a pas de bookmaker et pas de cote fixée à l'avance. Toutes les mises su
 
 Le PSG gagne :
 
-1. Les frais de 2 % sont prélevés : 20 USDC, dont 10 pour PredCast et 10 pour le leaderboard.
+1. Les frais de 2 % sont prélevés : 20 USDC, dont 15 pour PredCast et 5 pour le leaderboard.
 2. Il reste 980 USDC pour les gagnants.
 3. Alice avait misé 60 USDC sur le PSG. Elle reçoit 60 × 980 / 600 = **98 USDC**, soit 38 USDC de gain.
 
@@ -61,8 +61,8 @@ Le PSG gagne :
 flowchart LR
   C[(Cagnotte<br/>1 000 USDC)] --> F[Frais 2 %<br/>20 USDC]
   C --> N[Pour les gagnants<br/>980 USDC]
-  F --> T[PredCast<br/>10 USDC]
-  F --> L[Leaderboard<br/>10 USDC]
+  F --> T[PredCast<br/>15 USDC]
+  F --> L[Leaderboard<br/>5 USDC]
   N --> A[Alice : 60 misés sur le PSG<br/>reçoit 98 USDC]
   N --> O[Autres parieurs du PSG<br/>540 misés, reçoivent 882 USDC]
 ```
@@ -77,9 +77,13 @@ La « cote » n'est connue qu'à la fermeture du marché : ici, 980 / 600 ≈ 1,
 | Tout le monde a misé sur le bon résultat | Aucun frais, chacun récupère sa mise |
 | Le résultat ne vient jamais (oracle en panne) | 7 jours après l'heure limite, n'importe qui peut annuler le marché, puis chacun se fait rembourser |
 | Mise trop petite | Minimum 0,01 USDC |
-| Restes d'arrondis | Quelques centimes peuvent rester une fois tout le monde payé. N'importe qui peut les envoyer à la trésorerie |
+| Arrondis | Aucun reste : une fois tous les gagnants payés, la cagnotte est vide (voir ci-dessous) |
 
-**Les frais.** 2 % par défaut, partagés à parts égales entre PredCast et le leaderboard. Ils ne peuvent jamais dépasser 5 %. Le taux d'un marché est figé à son ouverture : un changement ne touche que les marchés ouverts ensuite.
+**Aucun reste d'arrondi.** Un USDC se divise en un million d'unités, et une part de cagnotte tombe rarement juste. Le contrat ne calcule donc pas chaque gain isolément : il garde le total déjà versé aux gagnants et verse à chacun ce qui manque pour atteindre la part de tous ceux qui ont réclamé, lui compris.
+
+Exemple : 100 USDC à partager entre trois gagnants qui ont misé autant. Les deux premiers à réclamer reçoivent 33,333333 USDC, le dernier 33,333334. La cagnotte est vidée exactement, quel que soit l'ordre des réclamations, et chaque gain s'écarte au plus d'un millionième d'USDC de la part exacte.
+
+**Les frais.** 2 % par défaut : 1,5 % pour PredCast et 0,5 % pour le leaderboard. Ils ne peuvent jamais dépasser 5 %. Le taux d'un marché est figé à son ouverture : un changement ne touche que les marchés ouverts ensuite.
 
 ## Les marchés proposés
 
@@ -143,7 +147,7 @@ stateDiagram-v2
 
 ## Le leaderboard
 
-Chaque résolution de marché envoie 1 % de la cagnotte au leaderboard. Ces fonds sont redistribués par **périodes de 30 jours**.
+Chaque résolution de marché envoie 0,5 % de la cagnotte au leaderboard. Ces fonds sont redistribués par **périodes de 30 jours**.
 
 - **Le score** d'un parieur sur une période est son **bénéfice net** : ce qu'il a gagné moins ce qu'il avait misé sur ces marchés. Miser sur toutes les issues pour gonfler son score ne rapporte rien.
 - **La répartition** est proportionnelle : un parieur qui a fait 30 % des bénéfices de la période reçoit 30 % de la cagnotte du leaderboard.
@@ -164,7 +168,7 @@ gantt
   Paris et bénéfices comptés : b1, 2026-12-01, 30d
 ```
 
-**Exemple.** La cagnotte de la période est de 300 USDC. Alice a fait 600 USDC de bénéfice, Bob 300 et Carol 100, soit 1 000 au total. Alice reçoit 180 USDC, Bob 90 et Carol 30.
+**Exemple.** La cagnotte de la période est de 300 USDC. Alice a fait 600 USDC de bénéfice, Bob 300 et Carol 100, soit 1 000 au total. Alice reçoit 180 USDC, Bob 90 et Carol 30. Les prix sont arrondis comme les gains : quand tout le monde a réclamé, la cagnotte de la période est distribuée exactement.
 
 Un bénéfice compte quand le gagnant **réclame** ses gains, pour la période où le marché a été résolu. Le délai de grâce de 3 jours laisse aux gagnants des derniers matchs le temps de le faire avant la clôture. Un gain réclamé après la clôture de sa période est payé normalement, mais ne compte plus pour le leaderboard. L'application peut le rappeler aux parieurs.
 
@@ -219,7 +223,7 @@ Le détail des rôles et des procédures est dans le document « Exploitation et
 
 | Vérification | État |
 |---|---|
-| Tests automatisés | 335 tests, plus 18 sur une copie du réseau Base. Tous passent |
+| Tests automatisés | 341 tests, tous passent. Plus 18 tests sur une copie du réseau Base, passés le 10/11/2026 |
 | Tests de propriétés | 18 règles vérifiées sur plus de 2 millions d'appels aléatoires (« l'argent est toujours couvert », « personne n'est payé deux fois »…) |
 | Couverture du code par les tests | Environ 90 % des lignes |
 | Analyse automatique (Slither, Aderyn) | Aucun problème réel ouvert |

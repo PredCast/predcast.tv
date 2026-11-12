@@ -57,6 +57,10 @@ contract PariMatchFactory is Ownable2Step {
     ///         the leaderboard share written into new matches cannot exceed it.
     uint16 public constant MATCH_DEFAULT_FEE_BPS = 200;
 
+    /// @notice Leaderboard share a new factory starts with: 0.5% of the pool,
+    ///         leaving 1.5% to `feeRecipient` out of the 2% default fee.
+    uint16 public constant DEFAULT_LEADERBOARD_FEE_BPS = 50;
+
     // ═══════════════════════════════════════════════════════════════════════
     // STATE
     // ═══════════════════════════════════════════════════════════════════════
@@ -92,7 +96,7 @@ contract PariMatchFactory is Ownable2Step {
     address public leaderboardRewards;
 
     /// @notice Leaderboard's share of the total fee, in basis points OF THE
-    ///         POOL. Default 100 (1%). The factory writes this into every
+    ///         POOL. Default 50 (0.5%). The factory writes this into every
     ///         new match alongside `leaderboardRewards`.
     uint16 public leaderboardFeeBps;
 
@@ -145,9 +149,9 @@ contract PariMatchFactory is Ownable2Step {
         if (_upgradeAdmin == address(0)) revert InvalidAddress();
         footballBeacon   = new UpgradeableBeacon(_footballImpl, _upgradeAdmin);
         basketballBeacon = new UpgradeableBeacon(_basketballImpl, _upgradeAdmin);
-        // Default to 1% of pool to the leaderboard (matches the 1% / 1%
-        // distribution baseline). Owner can override via setLeaderboardWiring.
-        leaderboardFeeBps = 100;
+        // 0.5% of the pool to the leaderboard, 1.5% to the company.
+        // Owner can override via setLeaderboardWiring.
+        leaderboardFeeBps = DEFAULT_LEADERBOARD_FEE_BPS;
     }
 
     // ═══════════════════════════════════════════════════════════════════════

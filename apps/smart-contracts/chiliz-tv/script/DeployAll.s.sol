@@ -31,7 +31,7 @@ import {BaseDexConfig}           from "./config/BaseDexConfig.sol";
  *           1. PariMatchFactory     — Deploys FootballPariMatch / BasketballPariMatch proxies.
  *           2. StreamWalletFactory  — Deploys StreamWallet proxies.
  *           3. NetworkRouter        — Token-to-USDC swap adapter for both modules.
- *           4. LeaderboardRewards   — UUPS proxy. Receives 1% of every pool
+ *           4. LeaderboardRewards   — UUPS proxy. Receives 0.5% of every pool
  *                                      and distributes pro-rata per epoch.
  *                                      Init runs both V1 `initialize(...)` and
  *                                      V2 `initializeV2()` so fresh deploys
@@ -40,7 +40,7 @@ import {BaseDexConfig}           from "./config/BaseDexConfig.sol";
  *
  *         Plus all the wiring required to leave the system bet-ready in a single run:
  *           - factory.setWiring(usdc, feeRecipient, swapRouter)
- *           - factory.setLeaderboardWiring(leaderboard, 100)
+ *           - factory.setLeaderboardWiring(leaderboard, 50)
  *           - swapRouter.setMatchFactory(factory)
  *           - streamFactory.setSwapRouter(swapRouter)
  *           - swapRouter.setStreamWalletFactory(streamFactory)
@@ -318,10 +318,12 @@ contract DeployAll is Script {
         console.log("  pariFactory.setMatchOperator     ->", matchOperator);
         console.log("  pariFactory.setWiring            -> usdc/feeRecipient/router");
 
-        // 2. Factory learns about the leaderboard (1% of pool by default).
-        //    The factory stamps this on every match it creates from now on.
-        pariFactory.setLeaderboardWiring(address(leaderboard), 100);
-        console.log("  pariFactory.setLeaderboardWiring -> leaderboard / 100 bps");
+        // 2. Factory learns about the leaderboard: 0.5% of the pool, the
+        //    company keeping 1.5% of the 2% fee. The factory stamps this on
+        //    every match it creates from now on.
+        uint16 lbBps = pariFactory.DEFAULT_LEADERBOARD_FEE_BPS();
+        pariFactory.setLeaderboardWiring(address(leaderboard), lbBps);
+        console.log("  pariFactory.setLeaderboardWiring -> leaderboard / bps", uint256(lbBps));
 
         // 3. Swap router learns about the pari match factory (validates match addrs).
         swapRouter.setMatchFactory(address(pariFactory));

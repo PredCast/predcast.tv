@@ -104,7 +104,7 @@ contract ChilizKayenE2EForkTest is Test {
         leaderboard.initializeV2();
 
         factory.setWiring(USDC, governance, address(router));
-        factory.setLeaderboardWiring(address(leaderboard), 100);
+        factory.setLeaderboardWiring(address(leaderboard), factory.DEFAULT_LEADERBOARD_FEE_BPS());
         router.setMatchFactory(address(factory));
         streamFactory.setSwapRouter(address(router));
         router.setStreamWalletFactory(address(streamFactory));
@@ -283,7 +283,7 @@ contract ChilizKayenE2EForkTest is Test {
         m.claim(0);
         uint256 payout = IERC20(USDC).balanceOf(alice) - before;
 
-        assertEq(payout, total - (total * 100) / 10_000 - (total * 100) / 10_000, "net pool after the 2 % fee");
+        assertEq(payout, total - (total * 150) / 10_000 - (total * 50) / 10_000, "net pool after the 2 % fee");
         assertGt(IERC20(USDC).balanceOf(governance), 0, "company fee paid");
         assertGt(leaderboard.epochFees(0), 0, "leaderboard fee notified");
         assertGt(leaderboard.epochScore(0, alice), 0, "net profit scored");

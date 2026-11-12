@@ -78,7 +78,6 @@ contract PariMatchHandler is Test {
     uint256 public ghostPayouts;
     uint256 public ghostRefunds;
     uint256 public ghostFees;
-    uint256 public ghostDust;
     mapping(uint256 => uint256) public refundsOf;
     mapping(uint256 => uint256) public feesOf;
 
@@ -170,7 +169,9 @@ contract PariMatchHandler is Test {
         bool ok;
         try pari.claim(id) { ok = true; } catch {}
         if (ok) {
-            ghostPayouts += usdc.balanceOf(user) - before;
+            uint256 got = usdc.balanceOf(user) - before;
+            ghostPayouts += got;
+            _checkShare(id, user, got);
             ++calls["claim"];
         }
         _expect(ok, claimable, "claim");
@@ -230,18 +231,6 @@ contract PariMatchHandler is Test {
             ++calls["refundBatch"];
         }
         _expect(ok, true, "refundBatch");
-    }
-
-    function sweep(uint256 marketSeed) external timed {
-        uint256 id = marketSeed % MARKETS;
-        uint256 dust = pari.sweepableDust(id);
-        bool ok;
-        try pari.sweepDust(id) { ok = true; } catch {}
-        if (ok) {
-            ghostDust += dust;
-            ++calls["sweep"];
-        }
-        _expect(ok, dust != 0, "sweepDust");
     }
 
     function closeExpired(uint256 marketSeed) external timed {
@@ -343,11 +332,6 @@ contract PariMatchHandler is Test {
         }
         for (uint256 id; id < MARKETS; ++id) {
             for (uint256 a; a < _actors.length; ++a) this.collect(id, _actors[a]);
-            uint256 dust = pari.sweepableDust(id);
-            if (dust != 0) {
-                pari.sweepDust(id);
-                ghostDust += dust;
-            }
         }
     }
 
@@ -360,7 +344,9 @@ contract PariMatchHandler is Test {
         if (c.state == PariMatchBase.MarketState.Resolved && pari.getUserStake(id, user, c.result) != 0) {
             vm.prank(user);
             pari.claim(id);
-            ghostPayouts += usdc.balanceOf(user) - before;
+            uint256 got = usdc.balanceOf(user) - before;
+            ghostPayouts += got;
+            _checkShare(id, user, got);
         } else if (c.state == PariMatchBase.MarketState.Cancelled && pari.getUserTotalStake(id, user) != 0) {
             vm.prank(user);
             pari.claimRefund(id);
@@ -371,6 +357,16 @@ contract PariMatchHandler is Test {
     }
 
     // ─── helpers ────────────────────────────────────────────────────────────
+
+    /// A payout is the exact pro-rata share rounded down or up, never further.
+    function _checkShare(uint256 id, address user, uint256 got) internal {
+        PariMatchBase.MarketCore memory c = pari.getMarketCore(id);
+        uint256 winningPool = pari.getOutcomePool(id, c.result);
+        uint256 scaled = pari.getUserStake(id, user, c.result) * c.resolvedNetPool;
+        uint256 low = scaled / winningPool;
+        uint256 high = (scaled + winningPool - 1) / winningPool;
+        if (got < low || got > high) _fail("payout further than one unit from the exact share");
+    }
 
     function _resolve(uint256 id, uint64 outcome) internal returns (bool ok) {
         uint256 before = usdc.balanceOf(feeRecipient) + usdc.balanceOf(leaderboard);
@@ -456,7 +452,7 @@ contract PariMatchInvariantTest is Test {
 
         factory = PariFactoryDeployer.deploy();
         factory.setWiring(address(usdc), feeRecipient, address(router));
-        factory.setLeaderboardWiring(address(leaderboard), 100);
+        factory.setLeaderboardWiring(address(leaderboard), factory.DEFAULT_LEADERBOARD_FEE_BPS());
         router.setMatchFactory(address(factory));
         leaderboard.setMatchFactory(address(factory));
 
@@ -467,26 +463,25 @@ contract PariMatchInvariantTest is Test {
 
         handler = new PariMatchHandler(pari, usdc, router, admin, oracle, feeRecipient, address(leaderboard));
 
-        bytes4[] memory selectors = new bytes4[](19);
+        bytes4[] memory selectors = new bytes4[](18);
         selectors[0]  = PariMatchHandler.bet.selector;
         selectors[1]  = PariMatchHandler.betAgain.selector; // bets weigh double
         selectors[2]  = PariMatchHandler.claim.selector;
         selectors[3]  = PariMatchHandler.claimAll.selector;
         selectors[4]  = PariMatchHandler.refund.selector;
         selectors[5]  = PariMatchHandler.refundAll.selector;
-        selectors[6]  = PariMatchHandler.sweep.selector;
-        selectors[7]  = PariMatchHandler.closeExpired.selector;
-        selectors[8]  = PariMatchHandler.cancelStale.selector;
-        selectors[9]  = PariMatchHandler.stray.selector;
-        selectors[10] = PariMatchHandler.warp.selector;
-        selectors[11] = PariMatchHandler.open.selector;
-        selectors[12] = PariMatchHandler.suspend.selector;
-        selectors[13] = PariMatchHandler.close.selector;
-        selectors[14] = PariMatchHandler.setCloseTime.selector;
-        selectors[15] = PariMatchHandler.cancel.selector;
-        selectors[16] = PariMatchHandler.pause.selector;
-        selectors[17] = PariMatchHandler.unpause.selector;
-        selectors[18] = PariMatchHandler.resolve.selector;
+        selectors[6]  = PariMatchHandler.closeExpired.selector;
+        selectors[7]  = PariMatchHandler.cancelStale.selector;
+        selectors[8]  = PariMatchHandler.stray.selector;
+        selectors[9]  = PariMatchHandler.warp.selector;
+        selectors[10] = PariMatchHandler.open.selector;
+        selectors[11] = PariMatchHandler.suspend.selector;
+        selectors[12] = PariMatchHandler.close.selector;
+        selectors[13] = PariMatchHandler.setCloseTime.selector;
+        selectors[14] = PariMatchHandler.cancel.selector;
+        selectors[15] = PariMatchHandler.pause.selector;
+        selectors[16] = PariMatchHandler.unpause.selector;
+        selectors[17] = PariMatchHandler.resolve.selector;
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
         targetContract(address(handler));
     }
@@ -503,7 +498,7 @@ contract PariMatchInvariantTest is Test {
 
     function invariant_MoneyIsConserved() public view {
         uint256 expected = handler.ghostIn() + handler.ghostStray() - handler.ghostPayouts()
-            - handler.ghostRefunds() - handler.ghostFees() - handler.ghostDust();
+            - handler.ghostRefunds() - handler.ghostFees();
         assertEq(usdc.balanceOf(address(pari)), expected);
     }
 
@@ -518,7 +513,15 @@ contract PariMatchInvariantTest is Test {
                 uint256 winningPool = pari.getOutcomePool(id, c.result);
                 assertEq(c.resolvedNetPool + handler.feesOf(id), total, "net pool + fee = total pool");
                 assertLe(PariSlots.paidOut(address(pari), id), c.resolvedNetPool, "never pays more than the net pool");
-                assertLe(PariSlots.claimedWinStake(address(pari), id), winningPool);
+                uint256 claimedStake = PariSlots.claimedWinStake(address(pari), id);
+                assertLe(claimedStake, winningPool);
+                // Cumulative rounding: what was paid is the floor of the
+                // claimed stake's share, so a fully claimed pool is paid exactly.
+                assertEq(
+                    PariSlots.paidOut(address(pari), id),
+                    (claimedStake * c.resolvedNetPool) / winningPool,
+                    "paid out = floor(claimed stake share)"
+                );
                 if (winningPool == total) assertEq(handler.feesOf(id), 0, "no fee when nobody lost");
             } else {
                 assertEq(handler.feesOf(id), 0, "fees only on resolution");
@@ -544,7 +547,8 @@ contract PariMatchInvariantTest is Test {
         assertEq(handler.unexpected(), 0, handler.lastUnexpected());
     }
 
-    /// Close everything, let everyone collect: only the stray USDC may stay.
+    /// Close everything, let everyone collect: only the stray USDC may stay,
+    /// with no rounding dust.
     function afterInvariant() external {
         handler.settleAll();
         assertEq(handler.unexpected(), 0, handler.lastUnexpected());

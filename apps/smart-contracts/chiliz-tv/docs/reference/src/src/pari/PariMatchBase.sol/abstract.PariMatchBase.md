@@ -19,10 +19,14 @@ On resolution the protocol fee is sent immediately to `feeRecipient`.
 Winners claim their proportional share of the net pool.
 Cancelled markets allow all stakers to withdraw their original stake.
 Payout formula (per winner):
-netPool        = totalPool[M] * (BPS_DENOM - feeBps) / BPS_DENOM
-userPayout     = userStake[M][user][winningOutcome]
+netPool        = totalPool[M] - fee
+exact share    = userStake[M][user][winningOutcome]
 netPool
 / outcomePool[M][winningOutcome]
+Payouts are rounded on the running total of claimed winning stake, so
+each winner gets the exact share rounded down or up to one USDC unit,
+and the last claim empties the net pool exactly: no rounding dust is
+left in the match.
 Special case — void market (winning outcome pool == 0):
 Market transitions to Cancelled automatically at resolution time.
 No fee is taken. Every staker reclaims their full _userTotalStake.
@@ -300,8 +304,8 @@ address public leaderboardRecipient;
 
 ### leaderboardFeeBps
 Leaderboard's share of the total fee, in basis points OF THE
-POOL. E.g. feeBps=200, leaderboardFeeBps=100 → 1% of pool to
-leaderboard, 1% of pool to company. Must satisfy
+POOL. E.g. feeBps=200, leaderboardFeeBps=50 → 0.5% of pool to
+leaderboard, 1.5% of pool to company. Must satisfy
 `leaderboardFeeBps <= feeBps`.
 
 
@@ -322,7 +326,7 @@ uint40 public pausedAt;
 
 ### _accountedUsdc
 *USDC this contract owes (stakes in, minus fees, payouts,
-refunds and swept dust out). `placeBetUSDCFor` requires the
+refunds out). `placeBetUSDCFor` requires the
 balance to cover it plus the new stake. Starts at 0
 on proxies upgraded from an older implementation, so there it only
 tracks stakes taken after the upgrade; decrements saturate at 0
@@ -747,28 +751,6 @@ function claimRefundBatch(uint256[] calldata marketIds) external nonReentrant;
 function _processRefund(address user, uint256 marketId) internal;
 ```
 
-### sweepableDust
-
-USDC left in a resolved market once every winner has claimed:
-the floor-division remainder of the payouts. Zero until the
-last winning stake is claimed, so unclaimed winnings are never
-counted as dust.
-
-
-```solidity
-function sweepableDust(uint256 marketId) public view validMarket(marketId) returns (uint256);
-```
-
-### sweepDust
-
-Send a fully claimed market's rounding dust to `feeRecipient`.
-Permissionless; reverts when there is nothing to sweep.
-
-
-```solidity
-function sweepDust(uint256 marketId) external nonReentrant validMarket(marketId);
-```
-
 ### _validateOutcome
 
 
@@ -1077,14 +1059,6 @@ An unresolved market past its deadline was cancelled.
 event StaleMarketCancelled(uint256 indexed marketId, address indexed caller);
 ```
 
-### DustSwept
-The rounding dust of a fully claimed market was sent to the fee recipient.
-
-
-```solidity
-event DustSwept(uint256 indexed marketId, address indexed to, uint256 amount);
-```
-
 ## Errors
 ### InvalidMarketId
 
@@ -1222,12 +1196,6 @@ error USDCAlreadyConfigured();
 
 ```solidity
 error UnbackedStake(uint256 required, uint256 balance);
-```
-
-### DustNotSweepable
-
-```solidity
-error DustNotSweepable(uint256 marketId);
 ```
 
 ### ClaimsPaused

@@ -63,7 +63,7 @@ contract BaseSepoliaForkTest is Test {
         leaderboard.initializeV2();
 
         factory.setWiring(USDC, governance, address(router));
-        factory.setLeaderboardWiring(address(leaderboard), 100);
+        factory.setLeaderboardWiring(address(leaderboard), factory.DEFAULT_LEADERBOARD_FEE_BPS());
         router.setMatchFactory(address(factory));
         streamFactory.setSwapRouter(address(router));
         router.setStreamWalletFactory(address(streamFactory));
@@ -120,11 +120,11 @@ contract BaseSepoliaForkTest is Test {
         vm.prank(alice);
         m.claim(0);
         uint256 payout = IERC20(USDC).balanceOf(alice) - before;
-        // Alice is the only winner: she takes the whole net pool (1 % company
-        // + 1 % leaderboard, each floored).
-        assertEq(payout, total - (total * 100) / 10_000 - (total * 100) / 10_000, "net pool after the 2 % fee");
+        // Alice is the only winner: she takes the whole net pool (1.5 % company
+        // + 0.5 % leaderboard, each floored).
+        assertEq(payout, total - (total * 150) / 10_000 - (total * 50) / 10_000, "net pool after the 2 % fee");
         assertGt(leaderboard.epochScore(0, alice), 0, "net profit scored");
-        assertGt(leaderboard.epochFees(0), 0, "1 % fee notified to the leaderboard");
+        assertGt(leaderboard.epochFees(0), 0, "0.5 % fee notified to the leaderboard");
     }
 
     function test_Fork_Base_DonateAndSubscribeWithNativeEth() public {

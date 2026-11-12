@@ -50,8 +50,9 @@ La liste des fan tokens et de leurs pools est dans `docs/FAN_TOKENS_MAINNET.md` 
 | Création d'un match | 4 transactions | `factory.createFootballMatchWithMarkets` : 1 transaction, environ 11 % de gas en moins |
 | Heure limite des paris | Aucune on-chain : il faut fermer le marché à temps | `closesAt` par marché : toute mise après est refusée, n'importe qui peut fermer |
 | Oracle en panne | Fonds bloqués jusqu'à une action admin | `cancelStaleMarket` par n'importe qui, 7 jours après `closesAt` |
-| Restes d'arrondis | Restent dans le match | `sweepDust` les envoie à la trésorerie |
-| Leaderboard | V2 | V4, mis à jour **sur place** (même adresse) : score = bénéfice net, `claimDeadline` prolongé par les pauses |
+| Partage des frais (2 % au total) | 1 % PredCast, 1 % leaderboard | 1,5 % PredCast, 0,5 % leaderboard pour les nouveaux matchs. Applicable dès maintenant à la prod, voir plus bas |
+| Arrondis des gains | Chaque gain arrondi vers le bas : quelques unités restent dans le match | Gains arrondis sur le cumul : le dernier gagnant vide la cagnotte, rien ne reste |
+| Leaderboard | V2 | V5, mis à jour **sur place** (même adresse) : score = bénéfice net, `claimDeadline` prolongé par les pauses, prix arrondis sur le cumul |
 | Wallets streamers | Version actuelle | Mis à jour **sur place** via la factory des wallets |
 | Oracle | Aucune règle : l'oracle peut être la clé admin | Clé séparée obligatoire (`RESOLVER_ROLE`), refusée si identique au propriétaire ou à l'opérateur |
 
@@ -215,9 +216,9 @@ struct FootballScore {
 | Plusieurs marchés | Utilisateur | `match.claimBatch(ids)` : ignore ce qui n'est pas réclamable |
 | Marché annulé | Utilisateur | `match.claimRefund(marketId)` ou `claimRefundBatch(ids)` |
 | Oracle muet | N'importe qui, après `match.staleAt(marketId)` | `match.cancelStaleMarket(marketId)`, puis remboursements |
-| Tous les gagnants ont réclamé | N'importe qui | `match.sweepDust(marketId)` si `sweepableDust(marketId) > 0` |
 
-- Gain = mise sur l'issue gagnante × `resolvedNetPool` / total misé sur l'issue gagnante.
+- Gain = mise sur l'issue gagnante × `resolvedNetPool` / total misé sur l'issue gagnante, arrondi sur le cumul : le contrat verse `floor((mise déjà réclamée + mise) × resolvedNetPool / total gagnant)` moins ce qu'il a déjà versé. La somme des gains égale `resolvedNetPool` à l'unité près, et chaque gain est la part exacte arrondie vers le bas ou vers le haut.
+- Pour afficher un gain avant la réclamation, la formule simple suffit : elle peut différer d'une unité (0,000001 USDC) de ce qui sera versé.
 - Les gains sont versés en USDC, sans échange en sortie.
 - `claim` enregistre aussi le bénéfice net du gagnant dans le leaderboard (`recordProfit`).
 - Une pause bloque les réclamations 7 jours au maximum. Les remboursements restent possibles pendant une pause.
@@ -280,7 +281,7 @@ Paramètres : périodes de 30 jours, clôture 3 jours après la fin de période 
 | Contrat | Événements principaux |
 |---|---|
 | Factory | `MatchCreated(proxy, sportType, owner)` |
-| Match | `MarketCreated`, `MarketStateChanged`, `MarketCloseTimeSet`, `MarketFeesFrozen`, `PositionTaken`, `MarketResolved`, `PositionClaimed`, `StakeRefunded`, `MarketCancelled`, `StaleMarketCancelled`, `DustSwept` |
+| Match | `MarketCreated`, `MarketStateChanged`, `MarketCloseTimeSet`, `MarketFeesFrozen`, `PositionTaken`, `MarketResolved`, `PositionClaimed`, `StakeRefunded`, `MarketCancelled`, `StaleMarketCancelled` |
 | Router | `BetPlacedWithUSDC`, `BetPlacedViaNativeToken`, `BetPlacedViaToken`, `DonationWithUSDCEvent`, `DonationWithNativeToken`, `DonationWithToken`, `SubscriptionWithUSDCEvent`, `SubscriptionWithNativeToken`, `SubscriptionWithToken`, `FanTokenWrapped` |
 | Wallet streamer | `DonationReceived`, `SubscriptionRecorded`, `RevenueWithdrawn`, `SubscriptionPricingSet` |
 | Leaderboard | `FeeNotified`, `WinRecorded`, `EpochAdvanced`, `PrizeClaimed`, `EpochRolledOver`, `ProfitIgnored` |
@@ -351,7 +352,7 @@ Deux stratégies possibles, à choisir par l'équipe. Dans les deux cas, les 58 
 | | A. Tout redéployer | B. Garder le leaderboard et les wallets |
 |---|---|---|
 | Matchs et router | Nouvelle factory, nouveau router | Nouvelle factory, nouveau router |
-| Leaderboard | Nouveau contrat, nouvelle adresse | Mis à jour sur place de V2 à V4 (`script/UpgradeLeaderboard.s.sol` avec `MATCH_FACTORY`) |
+| Leaderboard | Nouveau contrat, nouvelle adresse | Mis à jour sur place de V2 à V5 (`script/UpgradeLeaderboard.s.sol` avec `MATCH_FACTORY`) |
 | Wallets streamers | Nouvelle factory des wallets | Mis à jour sur place (`script/UpgradeStreaming.s.sol`), puis `streams.setSwapRouter(router)` et `router.setStreamWalletFactory(streams)` |
 | Outil | `./deploy.sh --network chilizMainnet --all` (`script/DeployAll.s.sol`) | Scripts séparés, plus le câblage à la main |
 | Répétition sur fork | Faite (`script/anvil/chiliz-mainnet-e2e.sh`) | La compatibilité du leaderboard et du wallet est prouvée par `test/fork/ChilizUpgradeCompatFork.t.sol`. L'enchaînement complet reste à répéter |
@@ -364,3 +365,10 @@ Dans les deux cas :
 3. Mettre à jour le frontend, le backend et l'indexeur au même moment (section précédente).
 
 > Gouvernance : le passage au Safe et la clé oracle séparée se font au moment de ce déploiement. Voir « Exploitation et sécurité ».
+
+**Passer la prod actuelle à 1,5 % / 0,5 % sans attendre la PR.** Les contrats en production ont déjà les réglages nécessaires (vérifié on-chain le 12/11/2026 : factory et matchs à 200 / 100) :
+
+1. Pour les futurs matchs, le propriétaire de la factory appelle `factory.setLeaderboardWiring(leaderboard, 50)`.
+2. Pour chaque match existant, un compte `DEFAULT_ADMIN_ROLE` appelle `match.setLeaderboardFeeBps(50)`.
+
+Les matchs en production lisent le partage au moment de la résolution, donc le changement touche aussi leurs marchés déjà ouverts. Les parieurs n'y voient aucune différence : le total reste 2 %, seule la répartition entre PredCast et le leaderboard change.

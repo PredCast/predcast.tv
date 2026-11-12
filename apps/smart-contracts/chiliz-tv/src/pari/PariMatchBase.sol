@@ -27,10 +27,14 @@ import {ILeaderboardRewards}        from "../interfaces/ILeaderboardRewards.sol"
  *   Cancelled markets allow all stakers to withdraw their original stake.
  *
  * Payout formula (per winner):
- *   netPool        = totalPool[M] * (BPS_DENOM - feeBps) / BPS_DENOM
- *   userPayout     = userStake[M][user][winningOutcome]
+ *   netPool        = totalPool[M] - fee
+ *   exact share    = userStake[M][user][winningOutcome]
  *                      * netPool
  *                      / outcomePool[M][winningOutcome]
+ *   Payouts are rounded on the running total of claimed winning stake, so
+ *   each winner gets the exact share rounded down or up to one USDC unit,
+ *   and the last claim empties the net pool exactly: no rounding dust is
+ *   left in the match.
  *
  * Special case — void market (winning outcome pool == 0):
  *   Market transitions to Cancelled automatically at resolution time.
@@ -166,8 +170,8 @@ abstract contract PariMatchBase is
         uint16      leaderboardFeeBps;  // leaderboard share frozen when the market opened
         bool        feesFrozen;
         uint256     resolvedNetPool;
-        uint256     paidOut;            // dust accounting
-        uint256     claimedWinStake;    // dust accounting
+        uint256     paidOut;            // USDC paid to winners so far
+        uint256     claimedWinStake;    // winning stake already claimed
     }
 
     /// @notice Generic per-market metadata. Two slots.
@@ -245,8 +249,8 @@ abstract contract PariMatchBase is
     address public leaderboardRecipient;                              // slot 12 (with leaderboardFeeBps)
 
     /// @notice Leaderboard's share of the total fee, in basis points OF THE
-    ///         POOL. E.g. feeBps=200, leaderboardFeeBps=100 → 1% of pool to
-    ///         leaderboard, 1% of pool to company. Must satisfy
+    ///         POOL. E.g. feeBps=200, leaderboardFeeBps=50 → 0.5% of pool to
+    ///         leaderboard, 1.5% of pool to company. Must satisfy
     ///         `leaderboardFeeBps <= feeBps`.
     uint16 public leaderboardFeeBps;                                  // slot 12 (packed with leaderboardRecipient)
 
@@ -255,7 +259,7 @@ abstract contract PariMatchBase is
     uint40 public pausedAt;                                           // slot 12 (packed, bytes 22-26)
 
     /// @dev USDC this contract owes (stakes in, minus fees, payouts,
-    ///      refunds and swept dust out). `placeBetUSDCFor` requires the
+    ///      refunds out). `placeBetUSDCFor` requires the
     ///      balance to cover it plus the new stake. Starts at 0
     ///      on proxies upgraded from an older implementation, so there it only
     ///      tracks stakes taken after the upgrade; decrements saturate at 0
@@ -332,8 +336,6 @@ abstract contract PariMatchBase is
     event MarketFeesFrozen(uint256 indexed marketId, uint16 feeBps, uint16 leaderboardFeeBps);
     /// @notice An unresolved market past its deadline was cancelled.
     event StaleMarketCancelled(uint256 indexed marketId, address indexed caller);
-    /// @notice The rounding dust of a fully claimed market was sent to the fee recipient.
-    event DustSwept(uint256 indexed marketId, address indexed to, uint256 amount);
 
     // ═══════════════════════════════════════════════════════════════════════
     // ERRORS
@@ -362,7 +364,6 @@ abstract contract PariMatchBase is
     error MarketNotExpired(uint256 marketId);
     error USDCAlreadyConfigured();
     error UnbackedStake(uint256 required, uint256 balance);
-    error DustNotSweepable(uint256 marketId);
     error ClaimsPaused(uint256 reopensAt);
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -946,14 +947,23 @@ abstract contract PariMatchBase is
 
         if (userWinStake == 0) revert NothingToClaim(marketId, user);
 
-        uint256 winningPool = _outcomePool[marketId][winningOutcome];
-        uint256 netPool     = core.resolvedNetPool;
+        uint256 winningPool  = _outcomePool[marketId][winningOutcome];
+        uint256 claimedAfter = core.claimedWinStake + userWinStake;
 
-        uint256 payout = (userWinStake * netPool) / winningPool;
+        // Cumulative rounding: the winners who claimed so far, this one
+        // included, are owed floor(claimedAfter * netPool / winningPool) in
+        // total, and this claim pays what is missing. Each payout is the
+        // exact share rounded down or up by at most one unit, and once the
+        // whole winning stake is claimed the payouts add up to netPool
+        // exactly. paidOut never exceeds the floor for the stake it covers,
+        // so the subtraction cannot underflow, including on proxies upgraded
+        // from versions that did not track these two fields.
+        uint256 paidAfter = (claimedAfter * core.resolvedNetPool) / winningPool;
+        uint256 payout    = paidAfter - core.paidOut;
 
         _claimed[marketId][user] = true;
-        core.paidOut         += payout;
-        core.claimedWinStake += userWinStake;
+        core.paidOut         = paidAfter;
+        core.claimedWinStake = claimedAfter;
         _decreaseAccounted(payout);
 
         usdcToken.safeTransfer(user, payout);
@@ -1021,35 +1031,6 @@ abstract contract PariMatchBase is
 
         usdcToken.safeTransfer(user, refund);
         emit StakeRefunded(marketId, user, refund);
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // ROUNDING DUST
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// @notice USDC left in a resolved market once every winner has claimed:
-    ///         the floor-division remainder of the payouts. Zero until the
-    ///         last winning stake is claimed, so unclaimed winnings are never
-    ///         counted as dust.
-    function sweepableDust(uint256 marketId) public view validMarket(marketId) returns (uint256) {
-        MarketCoreData storage core = _marketCores[marketId];
-        if (core.state != MarketState.Resolved) return 0;
-        if (core.claimedWinStake != _outcomePool[marketId][core.result]) return 0;
-        return core.resolvedNetPool - core.paidOut;
-    }
-
-    /// @notice Send a fully claimed market's rounding dust to `feeRecipient`.
-    ///         Permissionless; reverts when there is nothing to sweep.
-    function sweepDust(uint256 marketId) external nonReentrant validMarket(marketId) {
-        uint256 dust = sweepableDust(marketId);
-        if (dust == 0) revert DustNotSweepable(marketId);
-        address to = feeRecipient;
-        if (to == address(0)) revert FeeRecipientNotConfigured();
-
-        _marketCores[marketId].paidOut += dust; // nothing left to sweep twice
-        _decreaseAccounted(dust);
-        usdcToken.safeTransfer(to, dust);
-        emit DustSwept(marketId, to, dust);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

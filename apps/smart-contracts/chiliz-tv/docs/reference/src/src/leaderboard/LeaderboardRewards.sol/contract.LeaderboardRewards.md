@@ -12,7 +12,7 @@ Fully on-chain epoch-based leaderboard for pari-mutuel winners.
 ──────────────────────────
 Match contracts (`FootballPariMatch`, `BasketballPariMatch`) credit each
 winner's net profit through `recordProfit(user, profit, resolvedAt)`. The
-contract holds USDC funded by the leaderboard share of the fee, 1% of the
+contract holds USDC funded by the leaderboard share of the fee, 0.5% of the
 pool by default, taken at every market resolution.
 Distribution model: **pro-rata, per epoch**.
 1. `recordProfit` adds the profit to the score of the epoch containing the
@@ -23,8 +23,9 @@ Closing snapshots the open prize pool into `_epochs[closedId].prizePool`,
 opens a claim window of `epochDuration` from the actual close, and rolls
 `epochIndex` and `epochStartTime` forward by exactly one boundary.
 3. `claim(epochId)` pays the caller their pro-rata share of the closed
-epoch's pool: `(epochScore[user] * prizePool) / totalScore`. No
-merkle proof — every scorer is implicitly entitled.
+epoch's pool, `(epochScore[user] * prizePool) / totalScore`, rounded
+on the running total of claimed score so that the claims add up to
+the pool exactly. No merkle proof — every scorer is implicitly entitled.
 4. After the claim window expires, any unclaimed remainder rolls back
 into the open prize pool via permissionless `rolloverEpoch(epochId)`.
 Time spent paused does not count: `claimDeadline` adds it to the window.
@@ -65,6 +66,14 @@ extended by the time spent paused after the epoch closed
 (`claimDeadline`).
 Storage: slot 12 packs the pause clock, slot 13 maps each epoch to the
 clock at its close; the gap shrinks from 38 to 36.
+V5 changes
+──────────
+- Prizes are rounded on the running total of claimed score: each one is
+the exact share rounded down or up by at most one unit, and once every
+scorer has claimed the pool is paid out exactly, with no rounding dust.
+Storage: slot 14 maps each epoch to its claimed score; the gap shrinks
+from 36 to 35. Epochs closed before the upgrade start that count at 0,
+which can only round their remaining claims down, never overpay.
 Trust model
 ────────────
 - Match proxies are authorized via `matchFactory.isMatch(msg.sender)` —
@@ -299,13 +308,23 @@ mapping(uint256 epochId => uint256 pausedClock) internal _pausedClockAtClose;
 ```
 
 
-### __gap
-Reserved storage gap. V1 reserved [43]; V2 consumed 3 slots (7-9),
-V3 consumed 2 (10-11), V4 consumes 2 (12-13), leaving 36.
+### _epochClaimedScore
+Sum of the scores already claimed in each epoch, for the
+cumulative rounding of `claim`.
 
 
 ```solidity
-uint256[36] private __gap;
+mapping(uint256 epochId => uint256 claimedScore) internal _epochClaimedScore;
+```
+
+
+### __gap
+Reserved storage gap. V1 reserved [43]; V2 consumed 3 slots (7-9),
+V3 consumed 2 (10-11), V4 2 (12-13), V5 1 (14), leaving 35.
+
+
+```solidity
+uint256[35] private __gap;
 ```
 
 
@@ -521,8 +540,9 @@ function rolloverEpoch(uint256 epochId) external whenNotPaused returns (uint256 
 
 ### claim
 
-Claim the caller's pro-rata share of `epochId`'s prize pool.
-Amount = `epochScore[user] * prizePool / totalScore`.
+Claim the caller's pro-rata share of `epochId`'s prize pool:
+`epochScore[user] * prizePool / totalScore`, rounded down or up
+by at most one unit so that the claims add up to the pool.
 
 
 ```solidity
@@ -557,6 +577,15 @@ live running total; for a closed epoch it's frozen.
 function epochTotalScore(uint256 epochId) external view returns (uint256);
 ```
 
+### epochClaimedScore
+
+Sum of the scores already claimed in `epochId` (since V5).
+
+
+```solidity
+function epochClaimedScore(uint256 epochId) external view returns (uint256);
+```
+
 ### pendingClaim
 
 Preview of what `claim(epochId)` would pay `user`. Returns 0
@@ -566,6 +595,24 @@ and zero-score callers.
 
 ```solidity
 function pendingClaim(uint256 epochId, address user) external view returns (uint256);
+```
+
+### _prizeAt
+
+*Prize of a claimer of `userScore` that brings the epoch's claimed
+score to `claimedAfter`. Cumulative rounding: everyone who claimed
+so far, this claimer included, is owed
+floor(claimedAfter * prizePool / totalScore), and this claim pays
+that minus the same floor before it. The prizes telescope to the
+pool exactly once the whole score is claimed, and each is the exact
+share rounded down or up by at most one unit.*
+
+
+```solidity
+function _prizeAt(uint256 epochId, uint256 prizePool, uint256 claimedAfter, uint256 userScore)
+    internal
+    view
+    returns (uint256);
 ```
 
 ### claimDeadline

@@ -253,6 +253,12 @@ contract LeaderboardInvariantTest is Test {
                 assertEq(ep.totalClaimed, ep.prizePool, "rolled over: remainder released");
             } else {
                 assertEq(ep.totalClaimed, handler.claimedOf(id), "totalClaimed = USDC actually paid");
+                // Cumulative rounding: what was paid is the floor of the
+                // claimed score's share, so a fully claimed epoch pays its
+                // whole pool.
+                uint256 totalScore = lb.epochTotalScore(id);
+                uint256 floorShare = totalScore == 0 ? 0 : (lb.epochClaimedScore(id) * ep.prizePool) / totalScore;
+                assertEq(ep.totalClaimed, floorShare, "paid = floor(claimed score share)");
             }
             locked += ep.prizePool - ep.totalClaimed;
         }
@@ -265,9 +271,18 @@ contract LeaderboardInvariantTest is Test {
         uint256 closed = lb.epochIndex();
         for (uint256 id; id < closed; ++id) {
             LeaderboardRewards.Epoch memory ep = lb.epoch(id);
+            // Each pending claim is the share rounded on the running total,
+            // so it can be one unit above the floor share; the floor shares
+            // of everyone still to claim must fit in what is left.
+            uint256 totalScore = lb.epochTotalScore(id);
+            if (totalScore == 0) continue;
             uint256 owed;
             for (uint256 a; a < actors.length; ++a) {
-                if (!lb.hasClaimed(id, actors[a])) owed += lb.pendingClaim(id, actors[a]);
+                if (lb.hasClaimed(id, actors[a])) continue;
+                uint256 share = (lb.epochScore(id, actors[a]) * ep.prizePool) / totalScore;
+                owed += share;
+                uint256 pending = lb.pendingClaim(id, actors[a]);
+                if (pending != 0) assertLe(pending, share + 1, "pending within one unit of the share");
             }
             assertLe(handler.claimedOf(id) + owed, ep.prizePool, "all shares fit in the pool");
         }
