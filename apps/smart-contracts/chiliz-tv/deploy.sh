@@ -22,10 +22,23 @@
 #
 # Add `--dry-run` to simulate via forge without broadcasting — no on-chain tx,
 # no deployments/<network>.json update. Useful to preview gas + address layout.
+# A dry run always simulates on chain: `--skip-simulation` is dropped from
+# FORGE_FLAGS for it, since the simulation is what gives the gas estimate.
 #
-# Set TRANSFER_OWNERSHIP=true in your env file to transfer Ownable.owner of
-# the deployed factories + router to SAFE_ADDRESS at the end of the run.
-# Defaults to false so testnet iteration keeps the deployer EOA as owner.
+# Before compiling, the script checks the deployer (address derived from
+# PRIVATE_KEY) and its balance and, on mainnets, that SAFE_ADDRESS and
+# UPGRADE_ADMIN are contracts on this chain, so a wrong env file fails in
+# seconds instead of after the compilation.
+#
+# Output: each step is timestamped, an elapsed-time line is printed while
+# forge runs (Git Bash shows no forge progress bar), and everything is also
+# written to deployments/logs/<network>-<type>-<date>.log. The private key is
+# never printed. Forge verbosity defaults to -vvv (traces only when something
+# fails); set VERBOSITY=-vvvv for the trace of every call.
+#
+# TRANSFER_OWNERSHIP in your env file: when true, the run starts the
+# ownership transfer of the factories, router and adapter to SAFE_ADDRESS.
+# Defaults to true on mainnets and false on testnets (see DeployAll).
 #
 # The --network flag is a safety label only: it picks the mainnet warning
 # and is used for output paths (deployments/<network>.json). The actual
@@ -85,6 +98,21 @@ if [ -z "$NETWORK" ] || [ -z "$DEPLOY_TYPE" ]; then
     exit 1
 fi
 
+# ── Log file + timestamps ────────────────────────────────────────────────────
+# Everything printed from here on also goes to the log file, colours removed.
+mkdir -p deployments/logs
+MODE_TAG=$([ "$DRY_RUN" = true ] && echo "dry-run" || echo "broadcast")
+LOG_FILE="deployments/logs/${NETWORK}-${DEPLOY_TYPE}-${MODE_TAG}-$(date +%Y%m%d-%H%M%S).log"
+exec > >(tee >(sed -u -E 's/\x1b\[[0-9;]*m//g' >> "$LOG_FILE")) 2>&1
+START_SECONDS=$SECONDS
+
+# step "message": timestamped step header with the time elapsed so far.
+step() {
+    local elapsed=$((SECONDS - START_SECONDS))
+    echo -e "${CYAN}[$(date +%H:%M:%S) +$((elapsed / 60))m$((elapsed % 60))s] $*${NC}"
+}
+step "Log file: $LOG_FILE"
+
 # ── Load .env ────────────────────────────────────────────────────────────────
 # Prefer .env.<network> when present, otherwise .env.
 ENV_FILE=".env"
@@ -138,8 +166,78 @@ if [ -n "$EXPECTED_CHAIN_ID" ] && [ "$CHAIN_ID" != "$EXPECTED_CHAIN_ID" ]; then
     echo -e "  --network $NETWORK expects CHAIN_ID=$EXPECTED_CHAIN_ID"
     echo -e "  but $ENV_FILE has CHAIN_ID=$CHAIN_ID"
     echo -e "  Fix $ENV_FILE or pass the correct --network."
+    echo -e "  For a second network, keep a separate .env.${NETWORK}: it is read instead of .env."
     exit 1
 fi
+
+# ── Preflight: RPC, deployer, Safe ───────────────────────────────────────────
+# Cheap on-chain checks, so a wrong env file fails in seconds rather than
+# after the compilation.
+step "Preflight checks on $RPC_URL"
+if ! command -v cast &> /dev/null; then
+    echo -e "${RED}cast (Foundry) not found in PATH.${NC}"
+    exit 1
+fi
+RPC_CHAIN_ID=$(cast chain-id --rpc-url "$RPC_URL" 2>/dev/null || true)
+if [ -z "$RPC_CHAIN_ID" ]; then
+    echo -e "${RED}RPC_URL $RPC_URL does not answer.${NC}"
+    exit 1
+fi
+if [ "$RPC_CHAIN_ID" != "$CHAIN_ID" ]; then
+    echo -e "${RED}RPC_URL is chain $RPC_CHAIN_ID but $ENV_FILE says CHAIN_ID=$CHAIN_ID.${NC}"
+    exit 1
+fi
+
+DEPLOYER=$(cast wallet address --private-key "$PRIVATE_KEY" 2>/dev/null || true)
+if [ -z "$DEPLOYER" ]; then
+    echo -e "${RED}PRIVATE_KEY in $ENV_FILE is not a valid private key.${NC}"
+    exit 1
+fi
+DEPLOYER_WEI=$(cast balance "$DEPLOYER" --rpc-url "$RPC_URL" 2>/dev/null || echo "?")
+DEPLOYER_BALANCE=$(cast balance "$DEPLOYER" --rpc-url "$RPC_URL" --ether 2>/dev/null || echo "?")
+echo -e "  Deployer (from PRIVATE_KEY): ${YELLOW}$DEPLOYER${NC}, balance ${YELLOW}$DEPLOYER_BALANCE${NC}"
+if [ -n "$ADMIN_ADDRESS" ] && [ "${ADMIN_ADDRESS,,}" != "${DEPLOYER,,}" ]; then
+    echo -e "  ${YELLOW}Note: ADMIN_ADDRESS ($ADMIN_ADDRESS) is not the address of PRIVATE_KEY.${NC}"
+fi
+if [ "$DEPLOYER_WEI" = "0" ]; then
+    if [ "$DRY_RUN" = true ]; then
+        echo -e "  ${YELLOW}The deployer has no funds on this chain: the real deployment would fail.${NC}"
+    else
+        echo -e "${RED}The deployer $DEPLOYER has no funds on chain $CHAIN_ID. Fund it first.${NC}"
+        exit 1
+    fi
+fi
+
+# Same rule as DeployAll: outside test chains the Safe (and the upgrade admin)
+# must be a contract on this chain.
+case "$CHAIN_ID" in
+    88882|84532|31337) TEST_CHAIN=true ;;
+    *)                 TEST_CHAIN=false ;;
+esac
+has_code() {
+    local code
+    code=$(cast code "$1" --rpc-url "$RPC_URL" 2>/dev/null || echo "")
+    [ -n "$code" ] && [ "$code" != "0x" ]
+}
+if has_code "$SAFE_ADDRESS"; then
+    echo -e "  SAFE_ADDRESS: ${YELLOW}$SAFE_ADDRESS${NC} (contract on this chain)"
+else
+    echo -e "  SAFE_ADDRESS: ${YELLOW}$SAFE_ADDRESS${NC} (no code on this chain)"
+fi
+if [ "$TEST_CHAIN" = false ] && [ "$DEPLOY_TYPE" = "all" ]; then
+    for VAR in SAFE_ADDRESS UPGRADE_ADMIN; do
+        ADDR="${!VAR}"
+        [ -z "$ADDR" ] && continue
+        if ! has_code "$ADDR"; then
+            echo -e "${RED}$VAR $ADDR has no code on chain $CHAIN_ID.${NC}"
+            echo -e "${RED}  DeployAll requires the Safe to exist on this chain (it would revert with${NC}"
+            echo -e "${RED}  \"$VAR has no code on this chain\"). Create the Safe on this network, or${NC}"
+            echo -e "${RED}  check that $ENV_FILE holds this network's addresses.${NC}"
+            exit 1
+        fi
+    done
+fi
+echo ""
 
 # ── Deploy type → script mapping ─────────────────────────────────────────────
 REQUIRES_KAYEN=false
@@ -262,7 +360,7 @@ if [ -n "$GAS_PRICE_OVERRIDE" ] && command -v curl &> /dev/null; then
             echo -e "${RED}FORGE_FLAGS --with-gas-price: ${CFG_GWEI} gwei${NC}"
             echo -e "${RED}Network eth_gasPrice:         ${NET_GWEI} gwei${NC}"
             echo -e "${YELLOW}Broadcasting underpriced would leave the first tx pending forever${NC}"
-            echo -e "${YELLOW}and lock nonce $(printf '%s' "$ADMIN_ADDRESS")'s sequence until cancelled.${NC}"
+            echo -e "${YELLOW}and lock nonce ${DEPLOYER}'s sequence until cancelled.${NC}"
             echo -e "${YELLOW}Bump --with-gas-price above ${NET_GWEI} gwei in $ENV_FILE.${NC}"
             exit 1
         fi
@@ -292,6 +390,7 @@ echo -e "Deploy Type:  ${YELLOW}$DEPLOY_TYPE${NC}"
 [ "$DRY_RUN" = true ] && echo -e "Mode:         ${YELLOW}DRY-RUN (no --broadcast)${NC}"
 echo -e "Script:       ${YELLOW}$SCRIPT${NC}"
 echo -e "RPC URL:      ${YELLOW}$RPC_URL${NC}"
+echo -e "Deployer:     ${YELLOW}$DEPLOYER${NC} ($DEPLOYER_BALANCE)"
 echo -e "Safe Address: ${YELLOW}$SAFE_ADDRESS${NC}"
 echo -e "Env File:     ${YELLOW}$ENV_FILE${NC}"
 [ -n "$FORGE_FLAGS" ] && echo -e "Forge Flags:  ${YELLOW}$FORGE_FLAGS${NC}"
@@ -327,22 +426,57 @@ mkdir -p deployments
 # to detect the chain, and --legacy signing does not require chain id.
 # In --dry-run mode we drop --broadcast; forge runs the script locally
 # against a fork of $RPC_URL, simulating every tx without emitting one.
-if [ "$DRY_RUN" = true ]; then
-    BROADCAST_FLAG=""
-else
-    BROADCAST_FLAG="--broadcast"
-fi
-FORGE_CMD="forge script $SCRIPT \
-    --rpc-url $RPC_URL \
-    --private-key $PRIVATE_KEY \
-    $BROADCAST_FLAG \
-    --slow \
-    $FORGE_FLAGS \
-    -vvvv"
+#
+# The arguments are an array (no eval), and the private key is passed to
+# forge but never printed.
+read -ra RAW_FLAGS <<< "$FORGE_FLAGS"
+FLAGS=()
+for FLAG in "${RAW_FLAGS[@]}"; do
+    if [ "$FLAG" = "--skip-simulation" ]; then
+        if [ "$DRY_RUN" = true ]; then
+            echo -e "${YELLOW}Dry run: ignoring --skip-simulation from FORGE_FLAGS (the on-chain simulation is the point of a dry run).${NC}"
+            continue
+        fi
+        echo -e "${YELLOW}Warning: --skip-simulation in FORGE_FLAGS, transactions are sent without an on-chain simulation first.${NC}"
+    fi
+    FLAGS+=("$FLAG")
+done
+[ "$DRY_RUN" != true ] && FLAGS+=("--broadcast")
+VERBOSITY="${VERBOSITY:--vvv}"
+FORGE_ARGS=(script "$SCRIPT" --rpc-url "$RPC_URL" --slow "${FLAGS[@]}" "$VERBOSITY")
 
-echo -e "${CYAN}$FORGE_CMD${NC}"
+# Runs a command in the background and prints a timestamped line every 20 s
+# while it runs: forge shows no progress bar in Git Bash, and the
+# compilation alone can take minutes with via_ir.
+run_with_heartbeat() {
+    "$@" &
+    local pid=$! last=$SECONDS status=0
+    trap 'kill "$pid" 2>/dev/null; exit 130' INT TERM
+    while kill -0 "$pid" 2>/dev/null; do
+        sleep 1
+        if [ $((SECONDS - last)) -ge 20 ] && kill -0 "$pid" 2>/dev/null; then
+            step "... forge is still running (compiling, then executing the script)"
+            last=$SECONDS
+        fi
+    done
+    wait "$pid" || status=$?
+    trap - INT TERM
+    return $status
+}
+
+echo -e "${CYAN}forge ${FORGE_ARGS[*]} --private-key ***${NC}"
 echo ""
-eval $FORGE_CMD
+step "forge started: compilation first (about 1-2 min for a deploy script with via_ir), then the script"
+FORGE_STATUS=0
+run_with_heartbeat forge "${FORGE_ARGS[@]}" --private-key "$PRIVATE_KEY" || FORGE_STATUS=$?
+echo ""
+if [ "$FORGE_STATUS" -ne 0 ]; then
+    step "forge failed (exit $FORGE_STATUS)."
+    echo -e "${RED}The reason is on the last 'Error:' line above. Full output: $LOG_FILE${NC}"
+    echo -e "${YELLOW}For the trace of every call, run again with VERBOSITY=-vvvv.${NC}"
+    exit "$FORGE_STATUS"
+fi
+step "forge finished"
 
 # In dry-run we never wrote a broadcast file, so skip the address extraction
 # and post-deploy guidance — there is nothing to record or follow up on.
@@ -350,6 +484,7 @@ if [ "$DRY_RUN" = true ]; then
     echo ""
     echo -e "${GREEN}Dry-run complete. No on-chain transactions were sent.${NC}"
     echo -e "${YELLOW}Re-run without --dry-run to actually deploy.${NC}"
+    echo -e "Full output: ${YELLOW}$LOG_FILE${NC}"
     exit 0
 fi
 
@@ -389,7 +524,7 @@ echo -e "${GREEN}Deployment Complete!${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
 echo -e "${YELLOW}Next steps:${NC}"
-echo "1. Check deployed addresses in $DEPLOY_OUT"
+echo "1. Check deployed addresses in $DEPLOY_OUT (full log: $LOG_FILE)"
 echo "2. Verify ownership transferred to Safe"
 echo "3. Verify contracts: $EXPLORER_URL"
 echo ""
