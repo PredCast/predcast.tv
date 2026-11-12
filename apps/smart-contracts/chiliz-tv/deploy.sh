@@ -288,6 +288,26 @@ case "$DEPLOY_TYPE" in
         REQUIRES_LEADERBOARD_PROXY=true ;;
 esac
 
+# ── Resume guard ─────────────────────────────────────────────────────────────
+# forge --resume sends the remaining transactions to the RPC saved by the
+# interrupted run (in cache/), NOT to --rpc-url. Refuse when they differ, so
+# a resume never goes to another network than the one checked above.
+if [ "$RESUME" = true ]; then
+    RESUME_RUN="broadcast/$(basename "$SCRIPT")/${CHAIN_ID}/run-latest.json"
+    RESUME_SENSITIVE="cache/$(basename "$SCRIPT")/${CHAIN_ID}/run-latest.json"
+    if [ ! -f "$RESUME_RUN" ] || [ ! -f "$RESUME_SENSITIVE" ]; then
+        echo -e "${RED}Nothing to resume: $RESUME_RUN or $RESUME_SENSITIVE is missing.${NC}"
+        exit 1
+    fi
+    SAVED_RPCS=$(grep -oE '"rpc": *"[^"]*"' "$RESUME_SENSITIVE" | sed -E 's/"rpc": *"([^"]*)"/\1/' | sort -u)
+    if [ "$SAVED_RPCS" != "$RPC_URL" ]; then
+        echo -e "${RED}Refusing to resume: forge would send to the RPC saved by the interrupted run,${NC}"
+        echo -e "${RED}  $(echo "$SAVED_RPCS" | tr '\n' ' '), not to RPC_URL ($RPC_URL).${NC}"
+        exit 1
+    fi
+    echo -e "${CYAN}Resuming $RESUME_RUN, sent to $SAVED_RPCS${NC}"
+fi
+
 # ── USDC / Kayen validation ──────────────────────────────────────────────────
 if [ "$REQUIRES_USDC" = true ] && [ -z "$USDC_ADDRESS" ]; then
     echo -e "${RED}Missing USDC_ADDRESS in $ENV_FILE${NC}"
@@ -459,6 +479,14 @@ for FLAG in "${RAW_FLAGS[@]}"; do
 done
 [ "$DRY_RUN" != true ] && FLAGS+=("--broadcast")
 [ "$RESUME" = true ] && FLAGS+=("--resume")
+# Resume never simulates again. Transactions saved by a run without the
+# simulation carry no gas limit, so forge must estimate each one through the
+# RPC, which is what --skip-simulation turns on (otherwise: "missing keys:
+# gas_limit").
+if [ "$RESUME" = true ] && [[ ! " ${FLAGS[*]} " =~ " --skip-simulation " ]]; then
+    FLAGS+=("--skip-simulation")
+    echo -e "${CYAN}Resume: forge estimates the gas of each remaining transaction through the RPC.${NC}"
+fi
 VERBOSITY="${VERBOSITY:--vvv}"
 FORGE_ARGS=(script "$SCRIPT" --rpc-url "$RPC_URL" --slow "${FLAGS[@]}" "$VERBOSITY")
 
@@ -530,7 +558,7 @@ if [ -f "$LATEST_RUN" ] && command -v jq &> /dev/null; then
             .transactions[]
             | select(.transactionType == "CREATE")
             | {
-                name: .contractName,
+                name: (.contractName | split("\\") | last | split("/") | last | split(":") | last),
                 address: .contractAddress
             }
         ]
