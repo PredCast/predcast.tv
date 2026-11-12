@@ -92,7 +92,7 @@ contract DeployStreaming is Script {
         try vm.envBool("TRANSFER_OWNERSHIP") returns (bool v) {
             transferOwnership = v;
         } catch {
-            transferOwnership = false;
+            transferOwnership = !_isTestChain(); // default on outside test chains
         }
 
         vm.startBroadcast();
@@ -106,6 +106,8 @@ contract DeployStreaming is Script {
         // ...but if you're handling step 2 via the Safe anyway, you can flip
         // TRANSFER_OWNERSHIP=true and skip the manual transfer.
         if (transferOwnership) {
+            require(treasury.code.length > 0, "SAFE_ADDRESS has no code on this chain");
+            // Ownable2Step: the Safe must call acceptOwnership().
             factory.transferOwnership(treasury);
             console.log("factory.transferOwnership ->", treasury);
             console.log("");
@@ -187,11 +189,17 @@ contract DeployStreaming is Script {
         console.log("  <STREAMER_ADDRESS>");
         console.log("");
         
-        console.log("SUBSCRIBE TO STREAM:");
-        console.log("-------------------");
-        console.log("cast send", address(factory), "--value 1ether");
-        console.log("  'subscribeToStream(address,uint256,uint256,address)'");
-        console.log("  <STREAMER_ADDRESS> <DURATION_SECONDS> <AMOUNT> <TOKEN_ADDRESS>");
+        console.log("PRICE SUBSCRIPTIONS (streamer, required before any subscription):");
+        console.log("-----------------------------------------------------------------");
+        console.log("cast send <STREAM_WALLET> 'setSubscriptionPricing(uint256,uint64)'");
+        console.log("  <USDC_PRICE_6DP> <PERIOD_SECONDS>");
         console.log("");
+        console.log("SUBSCRIBE / DONATE: through NetworkRouter (subscribeWith*, donateWith*).");
+        console.log("");
+    }
+
+    /// @dev Chains where a deployer-owned setup is acceptable by default.
+    function _isTestChain() internal view returns (bool) {
+        return block.chainid == 88882 || block.chainid == 84532 || block.chainid == 31337;
     }
 }

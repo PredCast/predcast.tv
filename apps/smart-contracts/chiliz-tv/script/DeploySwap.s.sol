@@ -2,12 +2,12 @@
 pragma solidity ^0.8.24;
 
 import {Script, console} from "forge-std/Script.sol";
-import {ChilizSwapRouter} from "../src/swap/ChilizSwapRouter.sol";
+import {NetworkRouter} from "../src/swap/NetworkRouter.sol";
 
 /**
  * @title DeploySwap
  * @author ChilizTV
- * @notice Deployment script for the unified ChilizSwapRouter
+ * @notice Deployment script for the unified NetworkRouter
  *
  * @dev Deploys a single swap router that handles both betting and streaming swaps.
  *
@@ -64,7 +64,7 @@ import {ChilizSwapRouter} from "../src/swap/ChilizSwapRouter.sol";
  *     --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY -vvvv
  */
 contract DeploySwap is Script {
-    ChilizSwapRouter public swapRouter;
+    NetworkRouter public swapRouter;
 
     address public deployer;
     address public kayenMasterRouter;
@@ -95,7 +95,7 @@ contract DeploySwap is Script {
         try vm.envBool("TRANSFER_OWNERSHIP") returns (bool v) {
             transferOwnership = v;
         } catch {
-            transferOwnership = false;
+            transferOwnership = !_isTestChain(); // default on outside test chains
         }
         // Fan-token wrapper factory (optional — enables PSG/BAR/etc. swaps).
         // Mainnet: 0xAEdcF2bf41891777c5F638A098bbdE1eDBa7B264
@@ -126,6 +126,8 @@ contract DeploySwap is Script {
         _printHeader();
         _deploySwapRouter();
         if (transferOwnership) {
+            require(treasury.code.length > 0, "SAFE_ADDRESS has no code on this chain");
+            // Ownable2Step: the Safe must call acceptOwnership().
             swapRouter.transferOwnership(treasury);
             console.log("swapRouter.transferOwnership ->", treasury);
             console.log("");
@@ -136,10 +138,10 @@ contract DeploySwap is Script {
     }
 
     function _deploySwapRouter() internal {
-        console.log("Deploying ChilizSwapRouter (unified)");
+        console.log("Deploying NetworkRouter (unified)");
         console.log("------------------------------------");
 
-        swapRouter = new ChilizSwapRouter(
+        swapRouter = new NetworkRouter(
             kayenMasterRouter,  // masterRouter (native CHZ swaps)
             kayenRouter,        // tokenRouter (ERC20-to-ERC20 swaps)
             usdcAddress,
@@ -148,7 +150,7 @@ contract DeploySwap is Script {
             platformFeeBps
         );
 
-        console.log("ChilizSwapRouter:", address(swapRouter));
+        console.log("NetworkRouter:", address(swapRouter));
         console.log("  Kayen Master Router:", kayenMasterRouter);
         console.log("  Kayen Token Router:", kayenRouter);
         console.log("  USDC:", usdcAddress);
@@ -186,7 +188,7 @@ contract DeploySwap is Script {
         console.log("=========================================");
         console.log("");
         console.log("DEPLOYED:");
-        console.log("  ChilizSwapRouter:", address(swapRouter));
+        console.log("  NetworkRouter:", address(swapRouter));
         console.log("  Owner           :", transferOwnership ? treasury : deployer);
         console.log("");
         console.log("=========================================");
@@ -219,7 +221,7 @@ contract DeploySwap is Script {
         console.log("  cast send <MATCH>  'grantRole(bytes32,address)' \\");
         console.log("    $(cast keccak 'SWAP_ROUTER_ROLE')  <NEW_ROUTER>");
         console.log("");
-        console.log("Until those run, placeBetWithCHZ/Token via the NEW router reverts with");
+        console.log("Until those run, placeBetWithNativeToken/Token via the NEW router reverts with");
         console.log("AccessControlUnauthorizedAccount. Direct placeBetUSDC keeps working.");
         console.log("(RedeploySwapRouter.s.sol prints these commands per match automatically.)");
         console.log("");
@@ -227,12 +229,17 @@ contract DeploySwap is Script {
         console.log("ROUTER ENTRYPOINTS:");
         console.log("=========================================");
         console.log("  Betting:");
-        console.log("    placeBetWithCHZ{value:X}(matchAddr, marketId, outcome, minUSDCOut, deadline)");
+        console.log("    placeBetWithNativeToken{value:X}(matchAddr, marketId, outcome, minUSDCOut, deadline)");
         console.log("    placeBetWithToken(token, amount, matchAddr, marketId, outcome, minUSDCOut, deadline)");
         console.log("    placeBetWithUSDC(matchAddr, marketId, outcome, amount)");
         console.log("  Streaming (revert until setStreamWalletFactory is set):");
         console.log("    donateWith{CHZ,Token,USDC}(...)");
         console.log("    subscribeWith{CHZ,Token,USDC}(...)");
         console.log("=========================================");
+    }
+
+    /// @dev Chains where a deployer-owned setup is acceptable by default.
+    function _isTestChain() internal view returns (bool) {
+        return block.chainid == 88882 || block.chainid == 84532 || block.chainid == 31337;
     }
 }

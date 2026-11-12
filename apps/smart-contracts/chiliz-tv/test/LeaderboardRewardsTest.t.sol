@@ -3,42 +3,32 @@ pragma solidity 0.8.24;
 
 import {Test}            from "forge-std/Test.sol";
 import {ERC1967Proxy}    from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
 import {LeaderboardRewards} from "../src/leaderboard/LeaderboardRewards.sol";
 import {MockUSDC}           from "./mocks/MockUSDC.sol";
 
 /**
  * @title LeaderboardRewardsTest
- * @notice V2 coverage:
- *           1.  Initialization (V1 then V2 reinitializer)
- *           2.  recordWin auth (factory.isMatch)
- *           3.  Per-epoch score accumulation + isolation across epochs
- *           4.  Auto-advance on the first interaction past the boundary
- *           5.  Permissionless advanceEpoch + AdvanceNotReady revert
- *           6.  Pro-rata claim payout (60/40 fixture)
- *           7.  claim rejects: not closed, expired, already claimed, no score
- *           8.  rolloverEpoch releases unclaimed remainder
- *           9.  setEpochDuration admin-only + bounded
- *          10.  Pause blocks recordWin + claim + advance
- *          11.  Storage-layout sanity (V1 _score slot 2 stays cold)
- *          12.  pendingClaim view
+ * @notice V3 coverage (audit 2026-10 lot 3: M-03, M-05, L-03):
+ *           1.  Initialization; initializeV2 admin-only and single-use (L-03)
+ *           2.  Match authorization on notifyFee / recordProfit / recordWin
+ *           3.  Profit credited to the epoch of the resolution (M-05)
+ *           4.  Fees attributed to the epoch of the resolution (M-03)
+ *           5.  Close after boundary + SCORING_GRACE; claim window from the
+ *               actual close (M-03); empty epochs keep their pool open
+ *           6.  Pro-rata claim, claim rejections, rollover
+ *           7.  Pause no longer drops credits (L-03), still blocks payouts
+ *           8.  Admin setters
+ *           9.  Storage sanity (V1 `_score` slot stays cold)
  */
 contract LeaderboardRewardsTest is Test {
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // ACTORS
-    // ═══════════════════════════════════════════════════════════════════════
-
     address public admin    = makeAddr("admin");
-    address public oracle   = makeAddr("oracle");
     address public alice    = makeAddr("alice");
     address public bob      = makeAddr("bob");
     address public carol    = makeAddr("carol");
     address public stranger = makeAddr("stranger");
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // CONTRACTS
-    // ═══════════════════════════════════════════════════════════════════════
 
     MockUSDC public usdc;
     LeaderboardRewards public lb;
@@ -51,24 +41,16 @@ contract LeaderboardRewardsTest is Test {
     bytes32 constant PAUSER_ROLE   = keccak256("PAUSER_ROLE");
     bytes32 constant DEFAULT_ADMIN = 0x00;
 
-    uint64 constant EPOCH_DURATION = 30 days;
+    uint64 constant D     = 30 days;
+    uint64 constant GRACE = 3 days;
+    uint256 T0;
 
     function setUp() public {
         usdc = new MockUSDC();
-
-        LeaderboardRewards impl = new LeaderboardRewards();
-        bytes memory init = abi.encodeWithSelector(
-            LeaderboardRewards.initialize.selector,
-            address(usdc),
-            admin,
-            oracle
-        );
-        lb = LeaderboardRewards(address(new ERC1967Proxy(address(impl), init)));
-
-        // V2 init advances the reinitializer marker to 2 and anchors the
-        // epoch clock at the test's block timestamp. In production this is
-        // performed atomically inside `upgradeToAndCall`.
+        lb = _newProxy();
+        vm.prank(admin);
         lb.initializeV2();
+        T0 = block.timestamp;
 
         mockFactory = new MockMatchFactory();
         matchA = makeAddr("matchA");
@@ -80,402 +62,461 @@ contract LeaderboardRewardsTest is Test {
         lb.setMatchFactory(address(mockFactory));
     }
 
+    // ─── helpers ────────────────────────────────────────────────────────────
+
+    function _newProxy() internal returns (LeaderboardRewards p) {
+        LeaderboardRewards impl = new LeaderboardRewards();
+        bytes memory init = abi.encodeWithSelector(
+            LeaderboardRewards.initialize.selector, address(usdc), admin, address(0)
+        );
+        p = LeaderboardRewards(address(new ERC1967Proxy(address(impl), init)));
+    }
+
+    /// Simulates a match resolution: USDC sent, then notified.
+    function _fee(address m, uint256 amount) internal {
+        usdc.mint(address(lb), amount);
+        vm.prank(m);
+        lb.notifyFee(amount);
+    }
+
+    function _profit(address m, address user, uint256 profit, uint256 resolvedAt) internal {
+        vm.prank(m);
+        lb.recordProfit(user, profit, resolvedAt);
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // 1. INITIALIZATION
     // ═══════════════════════════════════════════════════════════════════════
 
-    function test_Initialize_RolesGranted() public view {
-        assertTrue(lb.hasRole(DEFAULT_ADMIN, admin),  "admin gets DEFAULT_ADMIN");
-        assertTrue(lb.hasRole(ADMIN_ROLE,    admin),  "admin gets ADMIN_ROLE");
-        assertTrue(lb.hasRole(PAUSER_ROLE,   admin),  "admin gets PAUSER_ROLE");
-        assertTrue(lb.hasRole(ORACLE_ROLE,   oracle), "oracle still has ORACLE_ROLE (backwards compat)");
+    function test_Initialize_RolesAndClock() public view {
+        assertTrue(lb.hasRole(DEFAULT_ADMIN, admin));
+        assertTrue(lb.hasRole(ADMIN_ROLE,    admin));
+        assertTrue(lb.hasRole(PAUSER_ROLE,   admin));
         assertEq(address(lb.usdcToken()), address(usdc));
         assertEq(lb.epochIndex(), 0);
-        assertEq(uint256(lb.epochDuration()), EPOCH_DURATION);
-        assertEq(uint256(lb.epochStartTime()), block.timestamp);
+        assertEq(uint256(lb.epochDuration()), D);
+        assertEq(uint256(lb.epochStartTime()), T0);
+        assertEq(lb.nextCloseTime(), T0 + D + GRACE);
     }
 
     function test_Revert_InitializeTwice() public {
         vm.expectRevert();
-        lb.initialize(address(usdc), admin, oracle);
+        lb.initialize(address(usdc), admin, address(0));
     }
 
-    function test_Revert_InitializeV2Twice() public {
-        vm.expectRevert();
-        lb.initializeV2();
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // 2. recordWin AUTH
-    // ═══════════════════════════════════════════════════════════════════════
-
-    function test_RecordWin_AuthorizedMatch() public {
-        vm.prank(matchA);
-        lb.recordWin(alice, 100e6);
-        assertEq(lb.epochScore(0, alice), 100e6);
-        assertEq(lb.epochTotalScore(0), 100e6);
-    }
-
-    function test_Revert_RecordWin_UnauthorizedMatch() public {
+    function test_L03_InitializeV2_AdminOnly_AndSingleUse() public {
+        LeaderboardRewards fresh = _newProxy();
         vm.prank(stranger);
         vm.expectRevert(abi.encodeWithSelector(
-            LeaderboardRewards.UnauthorizedMatch.selector, stranger
+            IAccessControl.AccessControlUnauthorizedAccount.selector, stranger, DEFAULT_ADMIN
         ));
-        lb.recordWin(alice, 100e6);
+        fresh.initializeV2();
+
+        vm.prank(admin);
+        fresh.initializeV2();
+        assertEq(uint256(fresh.epochDuration()), D);
+
+        vm.prank(admin);
+        vm.expectRevert();
+        fresh.initializeV2();
     }
 
-    function test_Revert_RecordWin_MatchFactoryNotSet() public {
-        // Deploy a fresh proxy WITHOUT calling setMatchFactory.
-        LeaderboardRewards impl2 = new LeaderboardRewards();
-        bytes memory init = abi.encodeWithSelector(
-            LeaderboardRewards.initialize.selector, address(usdc), admin, oracle
-        );
-        LeaderboardRewards lb2 = LeaderboardRewards(address(new ERC1967Proxy(address(impl2), init)));
-        lb2.initializeV2();
+    // ═══════════════════════════════════════════════════════════════════════
+    // 2. AUTHORIZATION
+    // ═══════════════════════════════════════════════════════════════════════
 
+    function test_Revert_UnauthorizedMatch() public {
+        vm.startPrank(stranger);
+        vm.expectRevert(abi.encodeWithSelector(LeaderboardRewards.UnauthorizedMatch.selector, stranger));
+        lb.recordProfit(alice, 1e6, block.timestamp);
+        vm.expectRevert(abi.encodeWithSelector(LeaderboardRewards.UnauthorizedMatch.selector, stranger));
+        lb.notifyFee(1e6);
+        vm.expectRevert(abi.encodeWithSelector(LeaderboardRewards.UnauthorizedMatch.selector, stranger));
+        lb.recordWin(alice, 1e6);
+        vm.stopPrank();
+    }
+
+    function test_Revert_MatchFactoryNotSet() public {
+        LeaderboardRewards fresh = _newProxy();
+        vm.prank(admin);
+        fresh.initializeV2();
         vm.prank(matchA);
         vm.expectRevert(LeaderboardRewards.MatchFactoryNotSet.selector);
-        lb2.recordWin(alice, 100e6);
+        fresh.recordProfit(alice, 1e6, block.timestamp);
     }
 
-    function test_RecordWin_ZeroPayout_NoOp() public {
+    function test_Revert_ClockNotStarted() public {
+        LeaderboardRewards fresh = _newProxy();
+        vm.prank(admin);
+        fresh.setMatchFactory(address(mockFactory));
         vm.prank(matchA);
-        lb.recordWin(alice, 0);
+        vm.expectRevert(LeaderboardRewards.EpochClockNotStarted.selector);
+        fresh.notifyFee(1e6);
+    }
+
+    function test_Revert_ZeroUser() public {
+        vm.prank(matchA);
+        vm.expectRevert(LeaderboardRewards.ZeroAddress.selector);
+        lb.recordProfit(address(0), 1e6, block.timestamp);
+    }
+
+    function test_ZeroProfitAndZeroFee_NoOp() public {
+        _profit(matchA, alice, 0, block.timestamp);
+        _fee(matchA, 0);
+        assertEq(lb.epochTotalScore(0), 0);
+        assertEq(lb.epochFees(0), 0);
+    }
+
+    function test_M05_LegacyRecordWinCreditsNothing() public {
+        vm.prank(matchA);
+        vm.expectEmit(true, true, false, true);
+        emit LeaderboardRewards.LegacyWinIgnored(matchA, alice, 100e6);
+        lb.recordWin(alice, 100e6);
         assertEq(lb.epochScore(0, alice), 0);
         assertEq(lb.epochTotalScore(0), 0);
     }
 
-    function test_Revert_RecordWin_ZeroUser() public {
-        vm.prank(matchA);
-        vm.expectRevert(LeaderboardRewards.ZeroAddress.selector);
-        lb.recordWin(address(0), 100e6);
-    }
-
     // ═══════════════════════════════════════════════════════════════════════
-    // 3. PER-EPOCH SCORE ACCUMULATION
+    // 3. PROFIT → EPOCH OF RESOLUTION  (M-05)
     // ═══════════════════════════════════════════════════════════════════════
 
-    function test_RecordWin_Accumulates_SameEpoch() public {
-        vm.startPrank(matchA);
-        lb.recordWin(alice, 30e6);
-        lb.recordWin(alice, 20e6);
-        lb.recordWin(bob,   50e6);
-        vm.stopPrank();
-
+    function test_M05_ProfitAccumulatesInResolutionEpoch() public {
+        _profit(matchA, alice, 30e6, block.timestamp);
+        _profit(matchB, alice, 20e6, block.timestamp);
+        _profit(matchA, bob,   50e6, block.timestamp);
         assertEq(lb.epochScore(0, alice), 50e6);
         assertEq(lb.epochScore(0, bob),   50e6);
         assertEq(lb.epochTotalScore(0),  100e6);
     }
 
-    function test_RecordWin_MultipleMatches() public {
-        vm.prank(matchA);
-        lb.recordWin(alice, 40e6);
-        vm.prank(matchB);
-        lb.recordWin(alice, 60e6);
-        assertEq(lb.epochScore(0, alice), 100e6);
-        assertEq(lb.epochTotalScore(0),   100e6);
+    function test_M05_LateClaimStillScoresInResolutionEpoch() public {
+        uint256 resolvedAt = T0 + 10 days;            // epoch 0
+        vm.warp(T0 + D + 1 days);                     // claim during epoch 1, inside the grace
+        _profit(matchA, alice, 40e6, resolvedAt);
+        assertEq(lb.epochScore(0, alice), 40e6, "scored where the market resolved");
+        assertEq(lb.epochScore(1, alice), 0, "not moved to the quieter epoch");
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // 4. AUTO-ADVANCE
-    // ═══════════════════════════════════════════════════════════════════════
-
-    function test_AutoAdvance_OnFirstInteractionPastBoundary() public {
-        // Score in epoch 0.
+    function test_M05_ProfitForClosedEpochIgnored() public {
+        uint256 resolvedAt = T0 + 10 days;
+        vm.warp(T0 + D + GRACE);                      // epoch 0 closes on the next interaction
         vm.prank(matchA);
-        lb.recordWin(alice, 100e6);
-        // Fund the contract so the snapshot is non-zero.
-        usdc.mint(address(lb), 1_000e6);
-
-        // Move past the boundary.
-        vm.warp(block.timestamp + EPOCH_DURATION + 1);
-
-        // Next recordWin advances epoch 0 → 1 and credits to epoch 1.
-        vm.prank(matchB);
-        lb.recordWin(bob, 200e6);
-
-        assertEq(lb.epochIndex(), 1, "should have advanced");
-        // Epoch 0 frozen.
-        assertEq(lb.epochScore(0, alice), 100e6);
-        assertEq(lb.epochTotalScore(0),   100e6);
-        // Epoch 1 contains the new score.
-        assertEq(lb.epochScore(1, bob),   200e6);
-        assertEq(lb.epochTotalScore(1),   200e6);
-
-        LeaderboardRewards.Epoch memory ep0 = lb.epoch(0);
-        assertTrue(ep0.closed, "epoch 0 closed");
-        assertEq(uint256(ep0.prizePool), 1_000e6, "pool snapshotted");
-    }
-
-    function test_RecordWin_PreBoundary_NoAdvance() public {
-        vm.prank(matchA);
-        lb.recordWin(alice, 100e6);
-
-        // Right at the boundary minus 1 second.
-        vm.warp(block.timestamp + EPOCH_DURATION - 1);
-
-        vm.prank(matchA);
-        lb.recordWin(alice, 50e6);
-
-        assertEq(lb.epochIndex(), 0, "no advance");
-        assertEq(lb.epochScore(0, alice), 150e6);
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // 5. advanceEpoch (PERMISSIONLESS)
-    // ═══════════════════════════════════════════════════════════════════════
-
-    function test_AdvanceEpoch_Permissionless() public {
-        usdc.mint(address(lb), 500e6);
-        vm.prank(matchA);
-        lb.recordWin(alice, 100e6);
-
-        vm.warp(block.timestamp + EPOCH_DURATION + 1);
-        vm.prank(stranger);
-        uint256 closedId = lb.advanceEpoch();
-        assertEq(closedId, 0);
+        vm.expectEmit(true, true, false, true);
+        emit LeaderboardRewards.ProfitIgnored(matchA, alice, 40e6, resolvedAt);
+        lb.recordProfit(alice, 40e6, resolvedAt);
         assertEq(lb.epochIndex(), 1);
+        assertEq(lb.epochScore(0, alice), 0);
+        assertEq(lb.epochTotalScore(0), 0);
     }
 
-    function test_Revert_AdvanceEpoch_NotReady() public {
-        vm.prank(stranger);
-        vm.expectRevert(); // AdvanceNotReady
+    function test_M05_ProfitAheadOfOpenEpoch() public {
+        vm.warp(T0 + D + 1 days);                     // boundary passed, epoch 0 still open (grace)
+        _profit(matchA, alice, 10e6, block.timestamp);
+        assertEq(lb.epochIndex(), 0);
+        assertEq(lb.epochScore(1, alice), 10e6, "credited to the epoch it resolved in");
+        assertEq(lb.epochAt(block.timestamp), 1);
+    }
+
+    function test_M05_FutureResolvedAtClamped() public {
+        _profit(matchA, alice, 10e6, block.timestamp + 365 days);
+        assertEq(lb.epochScore(0, alice), 10e6);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 4. FEES → EPOCH OF RESOLUTION  (M-03)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    function test_M03_FeesAfterBoundaryBelongToNextEpoch() public {
+        _profit(matchA, alice, 10e6, block.timestamp);
+        _fee(matchA, 100e6);                          // epoch 0
+
+        vm.warp(T0 + D + 1 days);                     // inside the grace
+        _profit(matchA, bob, 10e6, block.timestamp);  // epoch 1
+        _fee(matchA, 40e6);                           // epoch 1 → ahead
+        assertEq(lb.epochFees(0), 100e6);
+        assertEq(lb.epochFees(1), 40e6);
+        assertEq(lb.notifiedAhead(), 40e6);
+        assertEq(lb.openPrizePool(), 100e6, "epoch-1 fee excluded from epoch 0");
+
+        vm.warp(T0 + D + GRACE);
+        lb.advanceEpoch();
+        assertEq(lb.epoch(0).prizePool, 100e6, "epoch 0 snapshot = its own fees only");
+        assertEq(lb.notifiedAhead(), 0);
+        assertEq(lb.openPrizePool(), 40e6, "epoch-1 fee now in the open pool");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 5. CLOSE TIMING  (M-03)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    function test_Revert_AdvanceBeforeGrace() public {
+        vm.warp(T0 + D + GRACE - 1);
+        vm.expectRevert(abi.encodeWithSelector(
+            LeaderboardRewards.AdvanceNotReady.selector, block.timestamp, T0 + D + GRACE
+        ));
         lb.advanceEpoch();
     }
 
+    function test_AdvanceIsPermissionless() public {
+        _profit(matchA, alice, 10e6, block.timestamp);
+        vm.warp(T0 + D + GRACE);
+        vm.prank(stranger);
+        assertEq(lb.advanceEpoch(), 0);
+        assertEq(lb.epochIndex(), 1);
+        assertEq(uint256(lb.epochStartTime()), T0 + D, "next epoch starts at the boundary");
+    }
+
+    function test_M03_LateCloseStillLeavesFullClaimWindow() public {
+        _profit(matchA, alice, 20e6, block.timestamp);
+        _fee(matchA, 20e6);
+
+        // Nobody touches the leaderboard for two whole epochs.
+        vm.warp(T0 + 3 * D);
+        lb.advanceEpoch();
+        LeaderboardRewards.Epoch memory e0 = lb.epoch(0);
+        assertEq(uint256(e0.closedAt), block.timestamp);
+        assertEq(uint256(e0.claimExpiry), block.timestamp + D, "window counted from the actual close");
+
+        vm.prank(alice);
+        assertEq(lb.claim(0), 20e6, "V2 would have closed it already expired");
+    }
+
+    function test_M03_EmptyEpochKeepsPoolOpen() public {
+        _fee(matchA, 50e6);                           // fees but no scorer
+        vm.warp(T0 + D + GRACE);
+        lb.advanceEpoch();
+        assertEq(lb.epoch(0).prizePool, 0);
+        assertEq(lb.lockedInClosedEpochs(), 0);
+        assertEq(lb.openPrizePool(), 50e6, "rolls into the next epoch at once");
+
+        _profit(matchA, bob, 1e6, block.timestamp);   // epoch 1 scorer
+        vm.warp(T0 + 2 * D + GRACE);
+        lb.advanceEpoch();
+        vm.prank(bob);
+        assertEq(lb.claim(1), 50e6);
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
-    // 6. PRO-RATA CLAIM
+    // 6. CLAIMS & ROLLOVER
     // ═══════════════════════════════════════════════════════════════════════
+
+    function _closedEpoch0_60_40() internal {
+        _profit(matchA, alice, 60e6, block.timestamp);
+        _profit(matchA, bob,   40e6, block.timestamp);
+        _fee(matchA, 1_000e6);
+        vm.warp(T0 + D + GRACE);
+        lb.advanceEpoch();
+    }
 
     function test_Claim_ProRata_60_40() public {
-        // Set up: alice has 60% of total, bob has 40%.
-        vm.startPrank(matchA);
-        lb.recordWin(alice, 60e6);
-        lb.recordWin(bob,   40e6);
-        vm.stopPrank();
-
-        // Fund the pool, advance the epoch.
-        usdc.mint(address(lb), 100e6);
-        vm.warp(block.timestamp + EPOCH_DURATION + 1);
-        vm.prank(stranger);
-        lb.advanceEpoch();
-
-        // Alice claims first.
+        _closedEpoch0_60_40();
+        assertEq(lb.pendingClaim(0, alice), 600e6);
         vm.prank(alice);
-        uint256 aliceAmount = lb.claim(0);
-        assertEq(aliceAmount, 60e6, "alice gets 60% of pool");
-        assertEq(usdc.balanceOf(alice), 60e6);
-
-        // Bob claims.
+        assertEq(lb.claim(0), 600e6);
         vm.prank(bob);
-        uint256 bobAmount = lb.claim(0);
-        assertEq(bobAmount, 40e6, "bob gets 40% of pool");
-        assertEq(usdc.balanceOf(bob), 40e6);
-    }
-
-    function test_PendingClaim_ReflectsPreview() public {
-        vm.prank(matchA);
-        lb.recordWin(alice, 50e6);
-        // Pre-close: nothing pending.
-        assertEq(lb.pendingClaim(0, alice), 0);
-
-        usdc.mint(address(lb), 100e6);
-        vm.warp(block.timestamp + EPOCH_DURATION + 1);
-        vm.prank(stranger);
-        lb.advanceEpoch();
-
-        // Single scorer takes the whole pool.
-        assertEq(lb.pendingClaim(0, alice), 100e6);
-        assertEq(lb.pendingClaim(0, bob),     0);
-
-        vm.prank(alice);
-        lb.claim(0);
-        // Post-claim preview drops to zero.
-        assertEq(lb.pendingClaim(0, alice), 0);
+        assertEq(lb.claim(0), 400e6);
+        assertEq(usdc.balanceOf(address(lb)), 0);
+        assertEq(lb.lockedInClosedEpochs(), 0);
     }
 
     function test_Revert_Claim_EpochNotClosed() public {
-        vm.prank(matchA);
-        lb.recordWin(alice, 50e6);
-        usdc.mint(address(lb), 100e6);
-
+        _profit(matchA, alice, 10e6, block.timestamp);
         vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSelector(
-            LeaderboardRewards.EpochNotClosed.selector, 0
-        ));
+        vm.expectRevert(abi.encodeWithSelector(LeaderboardRewards.EpochNotClosed.selector, 0));
         lb.claim(0);
     }
 
     function test_Revert_Claim_AlreadyClaimed() public {
-        vm.prank(matchA);
-        lb.recordWin(alice, 50e6);
-        usdc.mint(address(lb), 100e6);
-        vm.warp(block.timestamp + EPOCH_DURATION + 1);
-        vm.prank(stranger);
-        lb.advanceEpoch();
-
-        vm.prank(alice);
+        _closedEpoch0_60_40();
+        vm.startPrank(alice);
         lb.claim(0);
-
-        vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSelector(
-            LeaderboardRewards.AlreadyClaimed.selector, 0, alice
-        ));
+        vm.expectRevert(abi.encodeWithSelector(LeaderboardRewards.AlreadyClaimed.selector, 0, alice));
         lb.claim(0);
+        vm.stopPrank();
     }
 
     function test_Revert_Claim_NoScore() public {
-        vm.prank(matchA);
-        lb.recordWin(alice, 50e6);
-        usdc.mint(address(lb), 100e6);
-        vm.warp(block.timestamp + EPOCH_DURATION + 1);
-        vm.prank(stranger);
-        lb.advanceEpoch();
-
-        vm.prank(bob);
-        vm.expectRevert(abi.encodeWithSelector(
-            LeaderboardRewards.NothingToClaim.selector, 0, bob
-        ));
+        _closedEpoch0_60_40();
+        vm.prank(carol);
+        vm.expectRevert(abi.encodeWithSelector(LeaderboardRewards.NothingToClaim.selector, 0, carol));
         lb.claim(0);
     }
 
     function test_Revert_Claim_Expired() public {
-        vm.prank(matchA);
-        lb.recordWin(alice, 50e6);
-        usdc.mint(address(lb), 100e6);
-        // Advance past close.
-        vm.warp(block.timestamp + EPOCH_DURATION + 1);
-        vm.prank(stranger);
-        lb.advanceEpoch();
-        // Past the claim window too.
-        vm.warp(block.timestamp + EPOCH_DURATION + 1);
-
+        _closedEpoch0_60_40();
+        uint64 expiry = lb.epoch(0).claimExpiry;
+        vm.warp(uint256(expiry) + 1);
         vm.prank(alice);
-        vm.expectRevert(); // EpochClaimWindowExpired
+        vm.expectRevert(abi.encodeWithSelector(
+            LeaderboardRewards.EpochClaimWindowExpired.selector, 0, expiry, uint256(expiry) + 1
+        ));
         lb.claim(0);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // 7. rolloverEpoch
-    // ═══════════════════════════════════════════════════════════════════════
-
-    function test_RolloverEpoch_ReleasesUnclaimed() public {
-        // Single scorer doesn't claim → entire pool rolls over.
-        vm.prank(matchA);
-        lb.recordWin(alice, 100e6);
-        usdc.mint(address(lb), 200e6);
-        vm.warp(block.timestamp + EPOCH_DURATION + 1);
-        vm.prank(stranger);
-        lb.advanceEpoch();
-
-        // Open pool now equals: balance(200) - locked(200) = 0.
-        assertEq(lb.openPrizePool(), 0);
-
-        // Wait past claim window without claiming.
-        vm.warp(block.timestamp + EPOCH_DURATION + 1);
-        vm.prank(stranger);
-        uint256 rolled = lb.rolloverEpoch(0);
-        assertEq(rolled, 200e6);
-        // Open pool restored.
-        assertEq(lb.openPrizePool(), 200e6);
+    function test_Rollover_ReleasesUnclaimed() public {
+        _closedEpoch0_60_40();
+        vm.prank(alice);
+        lb.claim(0);
+        vm.warp(uint256(lb.epoch(0).claimExpiry) + 1);
+        assertEq(lb.rolloverEpoch(0), 400e6);
+        assertEq(lb.lockedInClosedEpochs(), 0);
+        assertEq(lb.openPrizePool(), 400e6);
     }
 
-    function test_RolloverEpoch_RevertsBeforeExpiry() public {
-        vm.prank(matchA);
-        lb.recordWin(alice, 100e6);
-        usdc.mint(address(lb), 200e6);
-        vm.warp(block.timestamp + EPOCH_DURATION + 1);
-        vm.prank(stranger);
-        lb.advanceEpoch();
-
-        // Claim window still open.
-        vm.prank(stranger);
-        vm.expectRevert(); // EpochClaimWindowNotExpired
+    function test_Revert_RolloverBeforeExpiry() public {
+        _closedEpoch0_60_40();
+        vm.expectRevert();
         lb.rolloverEpoch(0);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 8. setEpochDuration
+    // 7. PAUSE  (L-03)
     // ═══════════════════════════════════════════════════════════════════════
 
-    function test_SetEpochDuration_Admin() public {
-        vm.prank(admin);
-        lb.setEpochDuration(7 days);
-        assertEq(uint256(lb.epochDuration()), 7 days);
-    }
-
-    function test_Revert_SetEpochDuration_NonAdmin() public {
-        vm.prank(stranger);
-        vm.expectRevert();
-        lb.setEpochDuration(7 days);
-    }
-
-    function test_Revert_SetEpochDuration_BelowMin() public {
-        vm.prank(admin);
-        vm.expectRevert(); // InvalidEpochDuration
-        lb.setEpochDuration(0);
-    }
-
-    function test_Revert_SetEpochDuration_AboveMax() public {
-        vm.prank(admin);
-        vm.expectRevert(); // InvalidEpochDuration
-        lb.setEpochDuration(366 days);
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // 9. PAUSE
-    // ═══════════════════════════════════════════════════════════════════════
-
-    function test_Pause_BlocksRecordWin_AndAdvance() public {
+    function test_L03_PauseKeepsCreditsButBlocksPayouts() public {
         vm.prank(admin);
         lb.emergencyPause();
 
-        vm.prank(matchA);
-        vm.expectRevert();
-        lb.recordWin(alice, 50e6);
+        _profit(matchA, alice, 10e6, block.timestamp); // not lost any more
+        _fee(matchA, 5e6);
+        assertEq(lb.epochScore(0, alice), 10e6);
+        assertEq(lb.epochFees(0), 5e6);
 
-        vm.warp(block.timestamp + EPOCH_DURATION + 1);
-        vm.prank(stranger);
+        vm.warp(T0 + D + GRACE);
         vm.expectRevert();
-        lb.advanceEpoch();
-    }
-
-    function test_Pause_BlocksClaim() public {
-        vm.prank(matchA);
-        lb.recordWin(alice, 50e6);
-        usdc.mint(address(lb), 100e6);
-        vm.warp(block.timestamp + EPOCH_DURATION + 1);
-        vm.prank(stranger);
         lb.advanceEpoch();
 
         vm.prank(admin);
+        lb.unpause();
+        lb.advanceEpoch();
+        vm.prank(admin);
         lb.emergencyPause();
-
         vm.prank(alice);
         vm.expectRevert();
         lb.claim(0);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 10. STORAGE-LAYOUT SANITY  (V1 _score slot stays cold)
+    // 8. ADMIN
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// @dev Storage slot 2 holds the legacy `_score` mapping pointer. The V2
-    ///      contract must not touch it. We write a sentinel into the slot
-    ///      derived from `keccak256(abi.encode(alice, 2))` (V1 mapping layout)
-    ///      and confirm that `recordWin` in V2 doesn't overwrite it — its
-    ///      new state lives at the V2 mappings at slots 8 / 9.
+    function test_SetEpochDuration_AdminAndBounds() public {
+        vm.prank(admin);
+        lb.setEpochDuration(7 days);
+        assertEq(uint256(lb.epochDuration()), 7 days);
+
+        vm.prank(stranger);
+        vm.expectRevert();
+        lb.setEpochDuration(7 days);
+
+        vm.startPrank(admin);
+        vm.expectRevert();
+        lb.setEpochDuration(1 hours);
+        vm.expectRevert();
+        lb.setEpochDuration(400 days);
+        vm.stopPrank();
+    }
+
+    function test_SetUSDCToken_RefusedWithBalance() public {
+        _fee(matchA, 1e6);
+        vm.prank(admin);
+        vm.expectRevert(abi.encodeWithSelector(LeaderboardRewards.BalanceNotEmpty.selector, 1e6));
+        lb.setUSDCToken(makeAddr("otherUsdc"));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 9. STORAGE SANITY
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// @dev Slot 2 holds the legacy V1 `_score` mapping. V3 must not touch it.
     function test_StorageLayout_LegacyScoreSlotUntouched() public {
         bytes32 legacyScoreSlot = keccak256(abi.encode(alice, uint256(2)));
         vm.store(address(lb), legacyScoreSlot, bytes32(uint256(0xdeadbeef)));
 
-        vm.prank(matchA);
-        lb.recordWin(alice, 100e6);
+        _profit(matchA, alice, 100e6, block.timestamp);
 
-        // V1 sentinel still there — V2 didn't reuse the slot.
         assertEq(uint256(vm.load(address(lb), legacyScoreSlot)), 0xdeadbeef);
-        // V2 score recorded in the new mapping (slot 8).
         assertEq(lb.epochScore(0, alice), 100e6);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 10. PAUSES EXTEND CLAIM WINDOWS (V4)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// Epoch 0 closed with a 50 USDC prize, alice its only scorer.
+    function _closedEpochWithPrize() internal returns (uint64 claimExpiry) {
+        _profit(matchA, alice, 100e6, block.timestamp);
+        _fee(matchA, 50e6);
+        vm.warp(T0 + D + GRACE);
+        lb.advanceEpoch();
+        claimExpiry = lb.epoch(0).claimExpiry;
+        assertEq(lb.claimDeadline(0), claimExpiry, "no pause yet");
+    }
+
+    function test_V4_PauseExtendsTheClaimWindow() public {
+        uint64 expiry = _closedEpochWithPrize();
+
+        vm.warp(uint256(expiry) - 1 days);
+        vm.prank(admin);
+        lb.emergencyPause();
+        assertEq(uint64(uint256(vm.load(address(lb), bytes32(uint256(12))))), block.timestamp, "pause clock slot");
+
+        vm.warp(uint256(expiry) + 9 days); // paused for 10 days
+        assertEq(lb.claimDeadline(0), uint256(expiry) + 10 days, "the ongoing pause counts");
+        vm.prank(admin);
+        lb.unpause();
+        assertEq(lb.claimDeadline(0), uint256(expiry) + 10 days);
+
+        // Past the stored expiry, but the window is still open.
+        vm.expectRevert(abi.encodeWithSelector(
+            LeaderboardRewards.EpochClaimWindowNotExpired.selector, 0, uint64(expiry) + 10 days, block.timestamp
+        ));
+        lb.rolloverEpoch(0);
+        assertEq(lb.pendingClaim(0, alice), 50e6);
+        vm.prank(alice);
+        assertEq(lb.claim(0), 50e6);
+    }
+
+    function test_V4_RolloverWaitsForTheExtendedDeadline() public {
+        uint64 expiry = _closedEpochWithPrize();
+        vm.prank(admin);
+        lb.emergencyPause();
+        vm.warp(block.timestamp + 4 days);
+        vm.prank(admin);
+        lb.unpause();
+
+        vm.warp(uint256(expiry) + 4 days);
+        vm.expectRevert();
+        lb.rolloverEpoch(0);
+        vm.warp(uint256(expiry) + 4 days + 1);
+        assertEq(lb.rolloverEpoch(0), 50e6);
+        assertEq(lb.lockedInClosedEpochs(), 0);
+    }
+
+    function test_V4_PauseBeforeTheCloseDoesNotExtend() public {
+        vm.prank(admin);
+        lb.emergencyPause();
+        vm.warp(block.timestamp + 5 days);
+        vm.prank(admin);
+        lb.unpause();
+
+        uint64 expiry = _closedEpochWithPrize();
+        vm.warp(uint256(expiry) + 1);
+        assertEq(lb.pendingClaim(0, alice), 0, "window closed on time");
+        assertEq(lb.rolloverEpoch(0), 50e6);
+    }
+
+    /// A pause that began before the V4 upgrade has no start time: its
+    /// length is not counted, and nothing overflows.
+    function test_V4_PauseFromBeforeTheUpgradeIsIgnored() public {
+        uint64 expiry = _closedEpochWithPrize();
+        vm.prank(admin);
+        lb.emergencyPause();
+        vm.store(address(lb), bytes32(uint256(12)), bytes32(0)); // as left by V3
+        vm.warp(block.timestamp + 5 days);
+        vm.prank(admin);
+        lb.unpause();
+        assertEq(lb.claimDeadline(0), expiry);
     }
 }
 

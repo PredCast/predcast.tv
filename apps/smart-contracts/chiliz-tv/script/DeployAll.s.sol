@@ -3,18 +3,25 @@ pragma solidity ^0.8.24;
 
 import {Script, console} from "forge-std/Script.sol";
 import {ERC1967Proxy}    from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
 
 // Pari-mutuel betting system
 import {PariMatchFactory}  from "../src/pari/PariMatchFactory.sol";
+import {FootballPariMatch}   from "../src/pari/FootballPariMatch.sol";
+import {BasketballPariMatch} from "../src/pari/BasketballPariMatch.sol";
 
 // Streaming system
 import {StreamWalletFactory} from "../src/streamer/StreamWalletFactory.sol";
 
 // Unified swap router
-import {ChilizSwapRouter} from "../src/swap/ChilizSwapRouter.sol";
+import {NetworkRouter} from "../src/swap/NetworkRouter.sol";
 
 // Leaderboard
 import {LeaderboardRewards} from "../src/leaderboard/LeaderboardRewards.sol";
+
+// Base DEX adapter
+import {ConcentratedPoolAdapter} from "../src/swap/uniswapV3/ConcentratedPoolAdapter.sol";
+import {BaseDexConfig}           from "./config/BaseDexConfig.sol";
 
 /**
  * @title DeployAll
@@ -23,8 +30,8 @@ import {LeaderboardRewards} from "../src/leaderboard/LeaderboardRewards.sol";
  *
  *           1. PariMatchFactory     — Deploys FootballPariMatch / BasketballPariMatch proxies.
  *           2. StreamWalletFactory  — Deploys StreamWallet proxies.
- *           3. ChilizSwapRouter     — Token-to-USDC swap adapter for both modules.
- *           4. LeaderboardRewards   — UUPS proxy. Receives 1% of every pool
+ *           3. NetworkRouter        — Token-to-USDC swap adapter for both modules.
+ *           4. LeaderboardRewards   — UUPS proxy. Receives 0.5% of every pool
  *                                      and distributes pro-rata per epoch.
  *                                      Init runs both V1 `initialize(...)` and
  *                                      V2 `initializeV2()` so fresh deploys
@@ -33,7 +40,7 @@ import {LeaderboardRewards} from "../src/leaderboard/LeaderboardRewards.sol";
  *
  *         Plus all the wiring required to leave the system bet-ready in a single run:
  *           - factory.setWiring(usdc, feeRecipient, swapRouter)
- *           - factory.setLeaderboardWiring(leaderboard, 100)
+ *           - factory.setLeaderboardWiring(leaderboard, 50)
  *           - swapRouter.setMatchFactory(factory)
  *           - streamFactory.setSwapRouter(swapRouter)
  *           - swapRouter.setStreamWalletFactory(streamFactory)
@@ -53,18 +60,37 @@ import {LeaderboardRewards} from "../src/leaderboard/LeaderboardRewards.sol";
  *                           serves as feeRecipient for match protocol fees.
  *   KAYEN_MASTER_ROUTER  — Kayen MasterRouterV2 (CHZ → USDC path).
  *   KAYEN_ROUTER         — Kayen standard router (ERC20 → USDC path).
- *   WCHZ_ADDRESS         — Wrapped CHZ address.
+ *   WCHZ_ADDRESS         — Wrapped CHZ address (WETH on Base).
  *   USDC_ADDRESS         — USDC token address.
+ *
+ *   On Base (8453, 84532), leave both KAYEN_* empty: the run deploys a
+ *   ConcentratedPoolAdapter from script/config/BaseDexConfig.sol and uses it
+ *   as both routers. Setting them skips the adapter.
  *
  * OPTIONAL:
  * =========
  *   PLATFORM_FEE_BPS    — Streaming platform fee bps (default 500 = 5%)
- *   TRANSFER_OWNERSHIP  — When "true", transfers Ownable.owner of
- *                          PariMatchFactory, StreamWalletFactory, and
- *                          ChilizSwapRouter to SAFE_ADDRESS at the end of
- *                          the run. Defaults to false so testnet iteration
- *                          keeps the deployer EOA as owner. Set to "true"
- *                          for production deployments.
+ *   TRANSFER_OWNERSHIP  — When "true", starts the transfer of
+ *                          PariMatchFactory, StreamWalletFactory and
+ *                          NetworkRouter ownership to SAFE_ADDRESS
+ *                          (Ownable2Step: the Safe must then call
+ *                          acceptOwnership() on each) and moves the
+ *                          leaderboard roles to it. Default: false on test
+ *                          chains (Spicy 88882, Base Sepolia 84532, anvil),
+ *                          TRUE everywhere else.
+ *   UPGRADE_ADMIN       — Owner of the match beacons, i.e. the only key able
+ *                          to change match code. Default
+ *                          SAFE_ADDRESS.
+ *   MATCH_OPERATOR      — Hot ops key (backend) allowed to create matches
+ *                          once the factory is owned by the Safe. Default:
+ *                          the deployer. Must differ from the oracle.
+ *   TIMELOCK_DELAY      — Seconds. When > 0, a TimelockController with this
+ *                          delay (proposer + executor = UPGRADE_ADMIN) owns
+ *                          the beacons instead of UPGRADE_ADMIN directly.
+ *                          Default 0: the team chose no timelock at launch.
+ *
+ *   Outside test chains SAFE_ADDRESS and UPGRADE_ADMIN must be contracts on
+ *   this chain (a Safe address copied from another chain has no code here).
  *
  * USAGE:
  * ======
@@ -74,8 +100,9 @@ contract DeployAll is Script {
 
     PariMatchFactory    public pariFactory;
     StreamWalletFactory public streamFactory;
-    ChilizSwapRouter    public swapRouter;
+    NetworkRouter       public swapRouter;
     LeaderboardRewards  public leaderboard;
+    ConcentratedPoolAdapter public dexAdapter; // Base only
 
     address public deployer;
     address public treasury;   // SAFE_ADDRESS — fee recipient for both modules
@@ -86,6 +113,11 @@ contract DeployAll is Script {
     address public wrapperFactory;
     uint16  public platformFeeBps;
     bool    public transferOwnership;
+    address public upgradeAdmin;  // Safe (or timelock) owning the match beacons
+    address public matchOperator; // backend hot key allowed to create matches
+    uint256 public timelockDelay;
+    TimelockController public timelock;
+    bool    public deployDexAdapter;
 
     function run() external {
         deployer = msg.sender;
@@ -94,6 +126,9 @@ contract DeployAll is Script {
         vm.startBroadcast();
 
         _printHeader();
+        if (deployDexAdapter) {
+            _deployDexAdapter();
+        }
         _deployPariFactory();
         _deployStreamingFactory();
         _deploySwapRouter();
@@ -114,19 +149,39 @@ contract DeployAll is Script {
 
     function _loadConfig() internal {
         treasury          = vm.envAddress("SAFE_ADDRESS");
-        kayenMasterRouter = vm.envAddress("KAYEN_MASTER_ROUTER");
-        kayenRouter       = vm.envAddress("KAYEN_ROUTER");
+        kayenMasterRouter = _envAddressOr("KAYEN_MASTER_ROUTER", address(0));
+        kayenRouter       = _envAddressOr("KAYEN_ROUTER", address(0));
         wchz              = vm.envAddress("WCHZ_ADDRESS");
         usdcAddress       = vm.envAddress("USDC_ADDRESS");
 
         require(treasury          != address(0), "SAFE_ADDRESS required");
-        require(kayenMasterRouter != address(0), "KAYEN_MASTER_ROUTER required");
-        require(kayenRouter       != address(0), "KAYEN_ROUTER required");
         require(wchz              != address(0), "WCHZ_ADDRESS required");
         require(usdcAddress       != address(0), "USDC_ADDRESS required");
 
+        deployDexAdapter = BaseDexConfig.isSupported(block.chainid)
+            && kayenMasterRouter == address(0) && kayenRouter == address(0);
+        if (deployDexAdapter) {
+            // Checked before the broadcast starts, so a wrong address costs nothing.
+            BaseDexConfig.Network memory net = BaseDexConfig.forChain(block.chainid);
+            require(usdcAddress == net.usdc, "USDC_ADDRESS differs from BaseDexConfig");
+            require(wchz == net.weth, "WCHZ_ADDRESS differs from BaseDexConfig");
+            BaseDexConfig.verify(net);
+        } else {
+            require(kayenMasterRouter != address(0), "KAYEN_MASTER_ROUTER required");
+            require(kayenRouter       != address(0), "KAYEN_ROUTER required");
+        }
+
         platformFeeBps    = uint16(_envUintOr("PLATFORM_FEE_BPS", 500));
-        transferOwnership = _envBoolOr("TRANSFER_OWNERSHIP", false);
+        transferOwnership = _envBoolOr("TRANSFER_OWNERSHIP", !_isTestChain());
+        upgradeAdmin      = _envAddressOr("UPGRADE_ADMIN", treasury);
+        matchOperator     = _envAddressOr("MATCH_OPERATOR", msg.sender);
+        timelockDelay     = _envUintOr("TIMELOCK_DELAY", 0);
+
+        // On a real network the Safe must exist on THIS chain.
+        if (!_isTestChain()) {
+            require(treasury.code.length > 0, "SAFE_ADDRESS has no code on this chain");
+            require(upgradeAdmin.code.length > 0, "UPGRADE_ADMIN has no code on this chain");
+        }
 
         // Kayen fan-token wrapper factory. Optional: when unset, fan-token
         // (sub-18-decimals) bets/donations are not wrapped and will revert
@@ -139,11 +194,43 @@ contract DeployAll is Script {
     // DEPLOYMENT
     // ══════════════════════════════════════════════════════════════════════════
 
+    /// @dev Must run first: the streaming factory and the swap router both
+    ///      take the router addresses in their constructors.
+    function _deployDexAdapter() internal {
+        console.log("BASE DEX ADAPTER");
+        console.log("================");
+        dexAdapter = BaseDexConfig.deployAdapter(BaseDexConfig.forChain(block.chainid));
+        kayenMasterRouter = address(dexAdapter);
+        kayenRouter       = address(dexAdapter);
+        console.log("ConcentratedPoolAdapter :", address(dexAdapter));
+        console.log("");
+    }
+
     function _deployPariFactory() internal {
         console.log("[1/4] PARI MATCH FACTORY");
         console.log("========================");
-        pariFactory = new PariMatchFactory();
+        // Matches are BeaconProxies; only the beacon owner can change
+        // their code. Optionally put a timelock in front of it.
+        address beaconOwner = upgradeAdmin;
+        if (timelockDelay > 0) {
+            address[] memory roles = new address[](1);
+            roles[0] = upgradeAdmin;
+            timelock = new TimelockController(timelockDelay, roles, roles, address(0));
+            beaconOwner = address(timelock);
+            console.log("TimelockController  :", address(timelock));
+            console.log("  delay (s)         :", timelockDelay);
+        }
+        // Implementations are deployed separately (initcode size, see
+        // PariMatchFactory constructor).
+        pariFactory = new PariMatchFactory(
+            address(new FootballPariMatch()),
+            address(new BasketballPariMatch()),
+            beaconOwner
+        );
         console.log("PariMatchFactory    :", address(pariFactory));
+        console.log("  Football beacon   :", address(pariFactory.footballBeacon()));
+        console.log("  Basketball beacon :", address(pariFactory.basketballBeacon()));
+        console.log("  Beacon owner      :", beaconOwner);
         console.log("  Football impl     :", pariFactory.footballImplementation());
         console.log("  Basketball impl   :", pariFactory.basketballImplementation());
         console.log("");
@@ -163,12 +250,12 @@ contract DeployAll is Script {
     }
 
     function _deploySwapRouter() internal {
-        console.log("[3/4] CHILIZ SWAP ROUTER");
-        console.log("========================");
-        swapRouter = new ChilizSwapRouter(
+        console.log("[3/4] NETWORK ROUTER");
+        console.log("====================");
+        swapRouter = new NetworkRouter(
             kayenMasterRouter, kayenRouter, usdcAddress, wchz, treasury, platformFeeBps
         );
-        console.log("ChilizSwapRouter    :", address(swapRouter));
+        console.log("NetworkRouter       :", address(swapRouter));
         console.log("  Treasury          :", treasury);
         console.log("  Master router     :", kayenMasterRouter);
         console.log("  Token router      :", kayenRouter);
@@ -194,8 +281,7 @@ contract DeployAll is Script {
     ///      which causes every `recordWin` to advance the epoch in a tight
     ///      loop — see V2 contract docs.
     ///
-    ///      ORACLE_ROLE is still granted to the treasury for V1 compatibility
-    ///      (no entry point uses it in V2); admin can revoke it post-deploy.
+    ///      ORACLE_ROLE (unused since V2) is no longer granted.
     function _deployLeaderboard() internal {
         console.log("[4/4] LEADERBOARD REWARDS");
         console.log("=========================");
@@ -204,14 +290,15 @@ contract DeployAll is Script {
             LeaderboardRewards.initialize.selector,
             usdcAddress,
             deployer,   // admin (can transfer later)
-            treasury    // legacy ORACLE_ROLE recipient; unused in V2
+            address(0)  // no legacy ORACLE_ROLE holder
         );
         leaderboard = LeaderboardRewards(address(new ERC1967Proxy(address(impl), initData)));
+        // initializeV2 is DEFAULT_ADMIN-only, so running it in a
+        // second transaction cannot be front-run.
         leaderboard.initializeV2();
         console.log("LeaderboardRewards   :", address(leaderboard));
         console.log("  Implementation     :", address(impl));
         console.log("  Admin              :", deployer);
-        console.log("  ORACLE_ROLE (V1 compat, unused in V2) :", treasury);
         console.log("  Epoch duration     :", uint256(leaderboard.epochDuration()), "seconds");
         console.log("");
     }
@@ -224,14 +311,19 @@ contract DeployAll is Script {
         console.log("WIRING PLATFORM");
         console.log("===============");
 
-        // 1. Factory learns about USDC + fee recipient + swap router.
+        // 1. Factory learns about USDC + fee recipient + swap router, and the
+        //    ops key that keeps creating matches once the Safe owns it.
         pariFactory.setWiring(usdcAddress, treasury, address(swapRouter));
+        pariFactory.setMatchOperator(matchOperator);
+        console.log("  pariFactory.setMatchOperator     ->", matchOperator);
         console.log("  pariFactory.setWiring            -> usdc/feeRecipient/router");
 
-        // 2. Factory learns about the leaderboard (1% of pool by default).
-        //    The factory stamps this on every match it creates from now on.
-        pariFactory.setLeaderboardWiring(address(leaderboard), 100);
-        console.log("  pariFactory.setLeaderboardWiring -> leaderboard / 100 bps");
+        // 2. Factory learns about the leaderboard: 0.5% of the pool, the
+        //    company keeping 1.5% of the 2% fee. The factory stamps this on
+        //    every match it creates from now on.
+        uint16 lbBps = pariFactory.DEFAULT_LEADERBOARD_FEE_BPS();
+        pariFactory.setLeaderboardWiring(address(leaderboard), lbBps);
+        console.log("  pariFactory.setLeaderboardWiring -> leaderboard / bps", uint256(lbBps));
 
         // 3. Swap router learns about the pari match factory (validates match addrs).
         swapRouter.setMatchFactory(address(pariFactory));
@@ -246,7 +338,7 @@ contract DeployAll is Script {
         console.log("  swapRouter.setStreamWalletFactory ->", address(streamFactory));
 
         // 6. Leaderboard learns about the factory so it can authorize
-        //    `recordWin` callers via `factory.isMatch(msg.sender)`.
+        //    match callers via `factory.isMatch(msg.sender)`.
         leaderboard.setMatchFactory(address(pariFactory));
         console.log("  leaderboard.setMatchFactory      ->", address(pariFactory));
 
@@ -260,26 +352,31 @@ contract DeployAll is Script {
     /// @dev Transfers admin authority on all top-level contracts to the
     ///      Safe. Skipped by default — set TRANSFER_OWNERSHIP=true to enable.
     ///
-    ///      - PariMatchFactory / StreamWalletFactory / ChilizSwapRouter use
+    ///      - PariMatchFactory / StreamWalletFactory / NetworkRouter use
     ///        Ownable → simple transferOwnership.
     ///      - LeaderboardRewards uses AccessControl (UUPS, no Ownable) →
     ///        grant the Safe DEFAULT_ADMIN_ROLE + ADMIN_ROLE + PAUSER_ROLE,
-    ///        then renounce the deployer's roles. Note ORACLE_ROLE stays on
-    ///        the initial holder (treasury by default) — admin can rotate
-    ///        it post-deploy via grant/revoke.
+    ///        then renounce the deployer's roles.
     function _transferOwnershipToSafe() internal {
         console.log("TRANSFERRING OWNERSHIP TO SAFE");
         console.log("==============================");
         console.log("Target Safe:", treasury);
 
+        // Ownable2Step: the Safe becomes pendingOwner and must
+        // call acceptOwnership() on each contract.
         pariFactory.transferOwnership(treasury);
-        console.log("  pariFactory.transferOwnership    -> Safe");
+        console.log("  pariFactory.transferOwnership    -> Safe (pending)");
 
         streamFactory.transferOwnership(treasury);
-        console.log("  streamFactory.transferOwnership  -> Safe");
+        console.log("  streamFactory.transferOwnership  -> Safe (pending)");
 
         swapRouter.transferOwnership(treasury);
-        console.log("  swapRouter.transferOwnership     -> Safe");
+        console.log("  swapRouter.transferOwnership     -> Safe (pending)");
+
+        if (address(dexAdapter) != address(0)) {
+            dexAdapter.transferOwnership(treasury);
+            console.log("  dexAdapter.transferOwnership     -> Safe (pending)");
+        }
 
         // LeaderboardRewards uses AccessControl. Grant the Safe every role
         // the deployer currently holds, then renounce from the deployer.
@@ -294,11 +391,16 @@ contract DeployAll is Script {
 
         console.log("");
         console.log("WARNING: the deployer EOA can no longer call:");
-        console.log("  pariFactory.{createFootballMatch, createBasketballMatch, setWiring, setImplementation, setLeaderboardWiring}");
+        console.log("  pariFactory.{createFootballMatch, createBasketballMatch, setWiring, setLeaderboardWiring}");
         console.log("  streamFactory.{setSwapRouter, setImplementation, upgradeWallet, ...}");
         console.log("  swapRouter.{setMatchFactory, setStreamWalletFactory, setTreasury, setPlatformFeeBps}");
         console.log("  leaderboard.{setMatchFactory, setEpochDuration, setUSDCToken, grantRole, revokeRole, upgradeToAndCall, pause}");
-        console.log("Any such call must now come from the Safe.");
+        console.log("Any such call must now come from the Safe, once it has called");
+        if (address(dexAdapter) != address(0)) {
+            console.log("acceptOwnership() on pariFactory, streamFactory, swapRouter and dexAdapter.");
+        } else {
+            console.log("acceptOwnership() on pariFactory, streamFactory and swapRouter.");
+        }
         console.log("");
     }
 
@@ -325,10 +427,11 @@ contract DeployAll is Script {
         console.log("==============================================");
         console.log("PariMatchFactory    :", address(pariFactory));
         console.log("StreamWalletFactory :", address(streamFactory));
-        console.log("ChilizSwapRouter    :", address(swapRouter));
+        console.log("NetworkRouter       :", address(swapRouter));
         console.log("LeaderboardRewards  :", address(leaderboard));
         console.log("Treasury (Safe)     :", treasury);
         console.log("Owner of contracts  :", transferOwnership ? treasury : deployer);
+        console.log("Match beacon owner  :", pariFactory.upgradeAdmin());
         if (!transferOwnership) {
             console.log("");
             console.log("Ownership held by deployer EOA -- set TRANSFER_OWNERSHIP=true");
@@ -362,6 +465,11 @@ contract DeployAll is Script {
         console.log("");
         console.log("5. Winners call claim(marketId) to receive their payout.");
         console.log("==============================================");
+    }
+
+    /// @dev Chains where a deployer-owned setup is acceptable by default.
+    function _isTestChain() internal view returns (bool) {
+        return block.chainid == 88882 || block.chainid == 84532 || block.chainid == 31337;
     }
 
     function _envUintOr(string memory key, uint256 defaultVal)

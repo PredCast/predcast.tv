@@ -7,12 +7,27 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IKayenRouter} from "../interfaces/IKayenRouter.sol";
+import {IStreamWalletFactory} from "../interfaces/IStreamWalletFactory.sol";
 
 /**
  * @title StreamWallet
- * @notice Smart wallet for managing streaming revenue (subscriptions and donations)
- * @dev Deployed via ERC1967 UUPS proxy by StreamWalletFactory
+ * @notice USDC escrow of one streamer: records donations and subscriptions
+ *         paid through the NetworkRouter and lets the streamer withdraw.
+ * @dev Deployed via ERC1967 UUPS proxy by StreamWalletFactory.
+ *      The protocol config (treasury, platform fee, USDC, swap router) is
+ *      read live from `factory` on every call, so a rotation on the factory
+ *      reaches every existing wallet at once.
+ *
+ *      Payments only arrive through the router: it swaps to USDC, sends the
+ *      fee to the treasury and the rest here, then calls
+ *      `recordDonationByRouter` / `recordSubscriptionByRouter`. The legacy
+ *      fan-token paths (`recordSubscription`, `donate`, `donateFor`) were
+ *      removed: their hard-coded [token, USDC]
+ *      path reverted for every token and their fee swap had no slippage
+ *      bound.
+ *
+ *      Subscriptions are priced on-chain by the streamer:
+ *      `subscriptionPrice` USDC buys `subscriptionPeriod` seconds, pro rata.
  */
 contract StreamWallet is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable {
 
@@ -20,32 +35,64 @@ contract StreamWallet is Initializable, OwnableUpgradeable, UUPSUpgradeable, Ree
                                  STATE
     //////////////////////////////////////////////////////////////*/
 
-    address public streamer;
-    address public treasury;
-    uint16 public platformFeeBps; // basis points (e.g., 500 = 5%)
-    address public factory;
-    address public kayenRouter;
-    address public usdc;
-    address public swapRouter;
+    // STORAGE LAYOUT IS APPEND-ONLY: wallets are UUPS proxies upgraded in
+    // place. Never reorder, retype or remove a variable below.
 
-    mapping(address => Subscription) public subscriptions;
-    mapping(address => uint256) public lifetimeDonations;
+    /// @notice Streamer this wallet belongs to.
+    address public streamer;                       // slot 0
+    /// @dev Slots 1, 3, 4 and 5 (plus the uint16 packed in slot 1) held
+    ///      per-wallet copies of the factory config, frozen at initialization.
+    ///      Nothing reads or writes them: the getters `treasury()`,
+    ///      `platformFeeBps()`, `usdc()` and `swapRouter()` query the factory.
+    ///      They stay reserved so upgraded proxies keep the same layout;
+    ///      wallets upgraded in place keep their stale values.
+    address private __deprecated_treasury;         // slot 1, offset 0
+    uint16  private __deprecated_platformFeeBps;   // slot 1, offset 20
+    /// @notice Factory that deployed this wallet and provides its configuration.
+    address public factory;                        // slot 2
+    address private __deprecated_kayenRouter;      // slot 3
+    address private __deprecated_usdc;             // slot 4
+    address private __deprecated_swapRouter;       // slot 5
 
-    uint256 public totalRevenue;
-    uint256 public totalWithdrawn;
-    uint256 public totalSubscribers;
+    /// @notice Subscription of each subscriber.
+    mapping(address => Subscription) public subscriptions;   // slot 6
+    /// @notice USDC donated by each donor, fee included.
+    mapping(address => uint256) public lifetimeDonations;    // slot 7
+
+    /// @notice USDC received in total, fee included.
+    uint256 public totalRevenue;                   // slot 8 — USDC
+    /// @notice USDC withdrawn by the streamer.
+    uint256 public totalWithdrawn;                 // slot 9 — USDC
+    /// @notice Number of distinct subscribers.
+    uint256 public totalSubscribers;               // slot 10
+
+    // ─── Streamer pricing and payout (appended) ─────────────────────────────
+
+    /// @notice USDC price of one `subscriptionPeriod` (6 decimals). 0 = the
+    ///         streamer has not priced subscriptions: they are refused.
+    uint256 public subscriptionPrice;              // slot 11
+    /// @notice Length in seconds bought by `subscriptionPrice`.
+    uint64  public subscriptionPeriod;             // slot 12, offset 0
+    /// @notice Where `withdrawRevenue` sends USDC. 0 = `streamer`.
+    address public payoutAddress;                  // slot 12, offset 8
 
     struct Subscription {
-        uint256 amount;
+        uint256 amount;      // USDC paid in total
         uint256 startTime;
         uint256 expiryTime;
         bool active;
     }
 
+    /// @notice Shortest allowed `subscriptionPeriod`.
+    uint64 public constant MIN_SUBSCRIPTION_PERIOD = 1 days;
+    /// @notice Longest allowed `subscriptionPeriod`.
+    uint64 public constant MAX_SUBSCRIPTION_PERIOD = 365 days;
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice A subscription was paid and its expiry updated.
     event SubscriptionRecorded(
         address indexed subscriber,
         uint256 amount,
@@ -53,6 +100,7 @@ contract StreamWallet is Initializable, OwnableUpgradeable, UUPSUpgradeable, Ree
         uint256 expiryTime
     );
 
+    /// @notice A donation was recorded.
     event DonationReceived(
         address indexed donor,
         uint256 amount,
@@ -61,11 +109,14 @@ contract StreamWallet is Initializable, OwnableUpgradeable, UUPSUpgradeable, Ree
         uint256 streamerAmount
     );
 
+    /// @notice USDC left the wallet towards the payout address.
     event RevenueWithdrawn(address indexed streamer, uint256 amount);
 
-    event PlatformFeeCollected(uint256 amount, address indexed treasury);
+    /// @notice The streamer changed the subscription price.
+    event SubscriptionPricingSet(uint256 price, uint64 period);
 
-    event SwapRouterUpdated(address indexed oldRouter, address indexed newRouter);
+    /// @notice The streamer changed the withdrawal address.
+    event PayoutAddressSet(address indexed oldPayout, address indexed newPayout);
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -77,19 +128,14 @@ contract StreamWallet is Initializable, OwnableUpgradeable, UUPSUpgradeable, Ree
     error InvalidAmount();
     error InvalidAddress();
     error InvalidDuration();
-    error InvalidFeeBps();
     error InsufficientBalance();
-    error SwapSlippageExceeded();
-    error DeadlinePassed();
+    error SubscriptionPriceNotSet();
+    error InvalidSubscriptionPricing(uint256 price, uint64 period);
+    error InsufficientSubscriptionPayment(uint256 required, uint256 paid);
 
     /*//////////////////////////////////////////////////////////////
                               MODIFIERS
     //////////////////////////////////////////////////////////////*/
-
-    modifier onlyFactory() {
-        _onlyFactory();
-        _;
-    }
 
     modifier onlyStreamer() {
         _onlyStreamer();
@@ -101,16 +147,14 @@ contract StreamWallet is Initializable, OwnableUpgradeable, UUPSUpgradeable, Ree
         _;
     }
 
-    function _onlyFactory() internal view {
-        if (msg.sender != factory) revert OnlyFactory();
-    }
-
     function _onlyStreamer() internal view {
         if (msg.sender != streamer) revert OnlyStreamer();
     }
 
     function _onlyAuthorized() internal view {
-        if (msg.sender != factory && msg.sender != swapRouter) revert OnlyAuthorized();
+        // swapRouter() is read from the factory, so rotating the router with
+        // StreamWalletFactory.setSwapRouter takes effect here immediately.
+        if (msg.sender != factory && msg.sender != swapRouter()) revert OnlyAuthorized();
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -124,158 +168,98 @@ contract StreamWallet is Initializable, OwnableUpgradeable, UUPSUpgradeable, Ree
 
     /**
      * @notice Initialize the StreamWallet
+     * @dev    Called by the factory through the proxy constructor, so
+     *         `msg.sender` becomes `factory`. The config arguments are kept so
+     *         the selector (IStreamWalletInit) still matches the factories
+     *         already deployed, but they are ignored: treasury, fee, Kayen
+     *         router and USDC are read live from the factory.
      * @param streamer_ The streamer address (owner/beneficiary)
-     * @param treasury_ The platform treasury address
-     * @param platformFeeBps_ Platform fee in basis points
-     * @param kayenRouter_ The Kayen DEX router address
-     * @param usdc_ The USDC token address
      */
     function initialize(
         address streamer_,
-        address treasury_,
-        uint16 platformFeeBps_,
-        address kayenRouter_,
-        address usdc_
+        address /* treasury_ */,
+        uint16  /* platformFeeBps_ */,
+        address /* kayenRouter_ */,
+        address /* usdc_ */
     ) external initializer {
         __Ownable_init(streamer_);
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
 
-        if (platformFeeBps_ > 10_000) revert InvalidFeeBps();
-
         streamer = streamer_;
-        treasury = treasury_;
-        platformFeeBps = platformFeeBps_;
         factory = msg.sender;
-        kayenRouter = kayenRouter_;
-        usdc = usdc_;
     }
 
     /*//////////////////////////////////////////////////////////////
-                          SWAP ROUTER CONFIG
+                    PROTOCOL CONFIG (READ FROM FACTORY)
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Platform treasury receiving the fee portion (factory config).
+    function treasury() public view returns (address) {
+        return IStreamWalletFactory(factory).treasury();
+    }
+
+    /// @notice Platform fee in basis points (factory `defaultPlatformFeeBps`).
+    function platformFeeBps() public view returns (uint16) {
+        return IStreamWalletFactory(factory).defaultPlatformFeeBps();
+    }
+
+    /// @notice USDC token escrowed by this wallet (factory config).
+    function usdc() public view returns (address) {
+        return IStreamWalletFactory(factory).usdc();
+    }
+
+    /// @notice NetworkRouter allowed to record donations and subscriptions (factory config).
+    function swapRouter() public view returns (address) {
+        return IStreamWalletFactory(factory).swapRouter();
+    }
+
     /**
-     * @notice Set the authorized swap router address.
-     * @dev    Factory-only. Previously the streamer (owner) could also rotate
-     *         this, which let a rogue streamer redirect `recordDonationByRouter`
-     *         / `recordSubscriptionByRouter` to a contract they control and
-     *         fabricate revenue events. Router rotation is a protocol-wide
-     *         concern and must stay with the factory.
-     * @param _swapRouter The ChilizSwapRouter address
+     * @notice Deprecated: no effect, kept for factory compatibility.
+     * @dev    This used to store a per-wallet copy of the router, which a
+     *         later router rotation could not reach. The router is now read
+     *         from the factory: rotate it once with
+     *         `StreamWalletFactory.setSwapRouter`. Factories deployed before
+     *         the fix call this right after creating a wallet, so it must keep
+     *         succeeding for them. Same checks as before: factory-only (a
+     *         streamer must never pick the router) and non-zero argument.
+     * @param _swapRouter Ignored once validated.
      */
-    function setSwapRouter(address _swapRouter) external {
+    function setSwapRouter(address _swapRouter) external view {
         if (msg.sender != factory) revert OnlyAuthorized();
         if (_swapRouter == address(0)) revert InvalidAddress();
-        address old = swapRouter;
-        swapRouter = _swapRouter;
-        emit SwapRouterUpdated(old, _swapRouter);
     }
 
     /*//////////////////////////////////////////////////////////////
-                           SUBSCRIPTION LOGIC
+                         STREAMER CONFIGURATION
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Record a subscription and distribute funds. Streamer portion
-     *         is swapped to USDC and escrowed in this contract; streamer
-     *         withdraws via `withdrawRevenue`. Fee portion is swapped to
-     *         USDC and forwarded directly to `treasury`.
-     * @param subscriber   The subscriber address
-     * @param amount       The subscription amount in fan tokens
-     * @param duration     The subscription duration in seconds
-     * @param amountOutMin Minimum USDC to receive from the streamer-portion
-     *                     swap (slippage protection). Set to 0 to disable.
-     * @param deadline     UNIX timestamp deadline forwarded to the Kayen
-     *                     router; reverts with `DeadlinePassed` after.
-     * @param token        The fan token address to pull and swap
-     * @return platformFee The fee portion of the input, denominated in fan
-     *                     tokens (pre-swap).
-     * @return streamerAmount The streamer portion of the input, denominated
-     *                     in fan tokens (pre-swap). The USDC actually
-     *                     escrowed is logged in `SubscriptionRecorded`.
+     * @notice Price subscriptions: `price` USDC (6 decimals) buys `period`
+     *         seconds, pro rata. Applies to future payments only.
      */
-    function recordSubscription(
-        address subscriber,
-        uint256 amount,
-        uint256 duration,
-        uint256 amountOutMin,
-        uint256 deadline,
-        address token
-    )
-        external
-        onlyFactory
-        nonReentrant
-        returns (uint256 platformFee, uint256 streamerAmount)
-    {
-        if (amount == 0) revert InvalidAmount();
-        if (duration == 0) revert InvalidDuration();
-        if (block.timestamp > deadline) revert DeadlinePassed();
+    function setSubscriptionPricing(uint256 price, uint64 period) external onlyStreamer {
+        if (price == 0 || period < MIN_SUBSCRIPTION_PERIOD || period > MAX_SUBSCRIPTION_PERIOD)
+            revert InvalidSubscriptionPricing(price, period);
+        subscriptionPrice  = price;
+        subscriptionPeriod = period;
+        emit SubscriptionPricingSet(price, period);
+    }
 
-        // Pull fan tokens from factory
-        SafeERC20.safeTransferFrom(IERC20(token), msg.sender, address(this), amount);
+    /// @notice USDC needed to subscribe for `duration` seconds (rounded up).
+    function subscriptionCost(uint256 duration) public view returns (uint256) {
+        uint256 price = subscriptionPrice;
+        if (price == 0) revert SubscriptionPriceNotSet();
+        uint256 period = subscriptionPeriod;
+        return (price * duration + period - 1) / period;
+    }
 
-        // Update subscription
-        Subscription storage sub = subscriptions[subscriber];
-        uint256 expiryTime;
-        if (sub.active && sub.expiryTime > block.timestamp) {
-            // Extend from current expiry (don't lose remaining time)
-            expiryTime = sub.expiryTime + duration;
-        } else {
-            // New subscription or expired — start from now
-            expiryTime = block.timestamp + duration;
-        }
-
-        if (!sub.active) {
-            totalSubscribers++;
-        }
-
-        sub.startTime = sub.active ? sub.startTime : block.timestamp;
-        sub.expiryTime = expiryTime;
-        sub.active = true;
-
-        // Compute fee split
-        platformFee    = (amount * platformFeeBps) / 10_000;
-        streamerAmount = amount - platformFee;
-
-        // Track total amount paid (consistent with router path)
-        totalRevenue += amount;
-        sub.amount   += amount;
-
-        // Approve router if needed
-        _ensureRouterApproval(token, amount);
-
-        address[] memory path = new address[](2);
-        path[0] = token;
-        path[1] = usdc;
-
-        // Swap platform fee portion to USDC and send to treasury
-        if (platformFee > 0) {
-            IKayenRouter(kayenRouter).swapExactTokensForTokens(
-                platformFee,
-                0,
-                path,
-                treasury,
-                deadline
-            );
-            emit PlatformFeeCollected(platformFee, treasury);
-        }
-
-        // Swap streamer portion to USDC into this contract's escrow;
-        // streamer releases it via withdrawRevenue().
-        uint256[] memory amounts = IKayenRouter(kayenRouter).swapExactTokensForTokens(
-            streamerAmount,
-            0,
-            path,
-            address(this),
-            deadline
-        );
-
-        // Verify slippage on streamer's USDC output
-        uint256 streamerUsdcOut = amounts[amounts.length - 1];
-        if (amountOutMin > 0 && streamerUsdcOut < amountOutMin) revert SwapSlippageExceeded();
-
-        emit SubscriptionRecorded(subscriber, streamerUsdcOut, duration, expiryTime);
+    /// @notice Send future withdrawals to `payout` instead of the streamer
+    ///         address. `address(0)` reverts to the streamer.
+    function setPayoutAddress(address payout) external onlyStreamer {
+        address old = payoutAddress;
+        payoutAddress = payout;
+        emit PayoutAddressSet(old, payout);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -285,9 +269,10 @@ contract StreamWallet is Initializable, OwnableUpgradeable, UUPSUpgradeable, Ree
     /**
      * @notice Record a subscription from the swap router (swap already completed)
      * @dev Only callable by factory or authorized swap router. No token transfers
-     *      or swaps occur here — purely state tracking.
+     *      or swaps occur here — purely state tracking. Reverts unless
+     *      `totalUsdcAmount` covers `duration` at the streamer's price.
      * @param subscriber The subscriber address
-     * @param totalUsdcAmount The total USDC amount (before fee split, for metrics)
+     * @param totalUsdcAmount The total USDC amount paid (before fee split)
      * @param duration The subscription duration in seconds
      */
     function recordSubscriptionByRouter(
@@ -297,6 +282,8 @@ contract StreamWallet is Initializable, OwnableUpgradeable, UUPSUpgradeable, Ree
     ) external onlyAuthorized nonReentrant {
         if (totalUsdcAmount == 0) revert InvalidAmount();
         if (duration == 0) revert InvalidDuration();
+        uint256 required = subscriptionCost(duration);
+        if (totalUsdcAmount < required) revert InsufficientSubscriptionPayment(required, totalUsdcAmount);
 
         Subscription storage sub = subscriptions[subscriber];
         uint256 expiryTime;
@@ -350,133 +337,12 @@ contract StreamWallet is Initializable, OwnableUpgradeable, UUPSUpgradeable, Ree
     }
 
     /*//////////////////////////////////////////////////////////////
-                            DONATION LOGIC
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Accept a donation with an optional message. The entire input
-     *         is swapped to USDC up-front; the fee portion of the USDC is
-     *         forwarded to `treasury`, the streamer portion stays escrowed
-     *         in this contract and is released via `withdrawRevenue`.
-     * @param amount       The donation amount in fan tokens
-     * @param message      Optional message from donor
-     * @param amountOutMin Minimum USDC to receive from the swap (slippage
-     *                     protection). Applied to the whole-pool swap, not
-     *                     to each post-split leg.
-     * @param deadline     UNIX timestamp deadline forwarded to the Kayen
-     *                     router; reverts with `DeadlinePassed` after.
-     * @param token        The fan token address to pull and swap.
-     * @return platformFee The fee portion of the swap output, in USDC.
-     * @return streamerAmount The streamer portion of the swap output, in
-     *                     USDC. Stays in this contract until withdrawn.
-     */
-    function donate(
-        uint256 amount,
-        string calldata message,
-        uint256 amountOutMin,
-        uint256 deadline,
-        address token
-    )
-        external
-        nonReentrant
-        returns (uint256 platformFee, uint256 streamerAmount)
-    {
-        return _donateInternal(msg.sender, amount, message, amountOutMin, deadline, token);
-    }
-
-    /**
-     * @notice Accept a donation on behalf of a specific donor (called by
-     *         factory). Same USDC-side semantics as `donate`: the swap output
-     *         is split, the fee portion goes to `treasury`, the streamer
-     *         portion is escrowed for `withdrawRevenue`.
-     * @param donor        The actual donor address (for correct attribution
-     *                     in `lifetimeDonations` and the emitted event).
-     * @param amount       The donation amount in fan tokens.
-     * @param message      Optional message from donor.
-     * @param amountOutMin Minimum USDC to receive from the swap (slippage).
-     * @param deadline     UNIX timestamp deadline forwarded to the Kayen
-     *                     router; reverts with `DeadlinePassed` after.
-     * @param token        The fan token address to pull and swap.
-     * @return platformFee The fee portion of the swap output, in USDC.
-     * @return streamerAmount The streamer portion of the swap output, in
-     *                     USDC. Stays in this contract until withdrawn.
-     */
-    function donateFor(
-        address donor,
-        uint256 amount,
-        string calldata message,
-        uint256 amountOutMin,
-        uint256 deadline,
-        address token
-    )
-        external
-        onlyFactory
-        nonReentrant
-        returns (uint256 platformFee, uint256 streamerAmount)
-    {
-        return _donateInternal(donor, amount, message, amountOutMin, deadline, token);
-    }
-
-    function _donateInternal(
-        address donor,
-        uint256 amount,
-        string calldata message,
-        uint256 amountOutMin,
-        uint256 deadline,
-        address token
-    ) internal returns (uint256 platformFee, uint256 streamerAmount) {
-        if (amount == 0) revert InvalidAmount();
-        if (block.timestamp > deadline) revert DeadlinePassed();
-
-        // Pull fan tokens from caller
-        SafeERC20.safeTransferFrom(IERC20(token), msg.sender, address(this), amount);
-
-        // Approve router if needed
-        _ensureRouterApproval(token, amount);
-
-        address[] memory path = new address[](2);
-        path[0] = token;
-        path[1] = usdc;
-
-        // Swap ALL fan tokens → USDC → this contract (single swap, minimal price impact)
-        uint256 totalUsdc;
-        {
-            uint256[] memory r = IKayenRouter(kayenRouter).swapExactTokensForTokens(
-                amount, amountOutMin, path, address(this), deadline
-            );
-            totalUsdc = r[r.length - 1];
-        }
-
-        // Split USDC — consistent with ChilizSwapRouter fee ratio
-        platformFee    = (totalUsdc * platformFeeBps) / 10_000;
-        streamerAmount = totalUsdc - platformFee;
-
-        // Update accounting (denominated in USDC)
-        lifetimeDonations[donor] += totalUsdc;
-        totalRevenue             += totalUsdc;
-
-        // Platform fee → treasury immediately; streamer portion stays escrowed
-        // in this contract and is released via withdrawRevenue().
-        if (platformFee > 0) {
-            SafeERC20.safeTransfer(IERC20(usdc), treasury, platformFee);
-            emit PlatformFeeCollected(platformFee, treasury);
-        }
-
-        emit DonationReceived(
-            donor,
-            platformFee + streamerAmount,
-            message,
-            platformFee,
-            streamerAmount
-        );
-    }
-
-    /*//////////////////////////////////////////////////////////////
                            WITHDRAWAL LOGIC
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Streamer withdraws accumulated revenue
+     * @notice Streamer withdraws accumulated revenue to the payout address
+     *         (the streamer itself unless `setPayoutAddress` was used).
      * @param amount The amount to withdraw
      */
     function withdrawRevenue(uint256 amount) external onlyStreamer nonReentrant {
@@ -485,10 +351,11 @@ contract StreamWallet is Initializable, OwnableUpgradeable, UUPSUpgradeable, Ree
         uint256 available = availableBalance();
         if (amount > available) revert InsufficientBalance();
 
+        address to = payoutAddress == address(0) ? streamer : payoutAddress;
         totalWithdrawn += amount;
-        SafeERC20.safeTransfer(IERC20(usdc), streamer, amount);
+        SafeERC20.safeTransfer(IERC20(usdc()), to, amount);
 
-        emit RevenueWithdrawn(streamer, amount);
+        emit RevenueWithdrawn(to, amount);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -510,7 +377,7 @@ contract StreamWallet is Initializable, OwnableUpgradeable, UUPSUpgradeable, Ree
      * @return uint256 The available balance
      */
     function availableBalance() public view returns (uint256) {
-        return IERC20(usdc).balanceOf(address(this));
+        return IERC20(usdc()).balanceOf(address(this));
     }
 
     /**
@@ -531,23 +398,6 @@ contract StreamWallet is Initializable, OwnableUpgradeable, UUPSUpgradeable, Ree
      */
     function getDonationAmount(address donor) external view returns (uint256) {
         return lifetimeDonations[donor];
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                             INTERNAL HELPERS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Approve the Kayen router for an exact amount of a given fan token.
-     * @dev    Approves only `amount` (not type(uint256).max) so a compromised or
-     *         buggy router cannot drain the wallet beyond the swap currently being
-     *         executed. The router consumes the full allowance during
-     *         `swapExactTokensForTokens`, leaving residual allowance at zero.
-     * @param token  The fan token to approve
-     * @param amount The exact approval needed for this swap
-     */
-    function _ensureRouterApproval(address token, uint256 amount) internal {
-        SafeERC20.forceApprove(IERC20(token), kayenRouter, amount);
     }
 
     /*//////////////////////////////////////////////////////////////

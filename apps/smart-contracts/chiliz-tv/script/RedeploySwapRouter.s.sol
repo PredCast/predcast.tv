@@ -2,13 +2,13 @@
 pragma solidity ^0.8.24;
 
 import {Script, console}     from "forge-std/Script.sol";
-import {ChilizSwapRouter}    from "../src/swap/ChilizSwapRouter.sol";
+import {NetworkRouter}       from "../src/swap/NetworkRouter.sol";
 import {PariMatchFactory}    from "../src/pari/PariMatchFactory.sol";
 import {StreamWalletFactory} from "../src/streamer/StreamWalletFactory.sol";
 
 /**
  * @title  RedeploySwapRouter
- * @notice Redeploys ONLY the ChilizSwapRouter and re-wires the existing
+ * @notice Redeploys ONLY the NetworkRouter and re-wires the existing
  *         PariMatchFactory + StreamWalletFactory to point at the new one.
  *
  * ⚠ EXISTING-MATCH MIGRATION REQUIRED ⚠
@@ -22,7 +22,7 @@ import {StreamWalletFactory} from "../src/streamer/StreamWalletFactory.sol";
  *   cast send <MATCH>  'revokeRole(bytes32,address)'  $SWAP_ROUTER_ROLE  <OLD_ROUTER>
  *   cast send <MATCH>  'grantRole(bytes32,address)'   $SWAP_ROUTER_ROLE  <NEW_ROUTER>
  *
- * Until they do, multi-asset bets (placeBetWithCHZ / placeBetWithToken) via
+ * Until they do, multi-asset bets (placeBetWithNativeToken / placeBetWithToken) via
  * the NEW router will revert with `AccessControlUnauthorizedAccount` on
  * placeBetUSDCFor. Direct `placeBetUSDC` from the user keeps working.
  *
@@ -43,7 +43,7 @@ contract RedeploySwapRouter is Script {
 
     PariMatchFactory    public pariFactory;
     StreamWalletFactory public streamFactory;
-    ChilizSwapRouter    public newRouter;
+    NetworkRouter       public newRouter;
     address             public oldRouter;
 
     address public usdcAddress;
@@ -70,10 +70,10 @@ contract RedeploySwapRouter is Script {
         vm.startBroadcast();
 
         // 1. Deploy new router.
-        newRouter = new ChilizSwapRouter(
+        newRouter = new NetworkRouter(
             masterRouter, tokenRouter, usdcAddress, wchz, treasury, platformFeeBps
         );
-        console.log("New ChilizSwapRouter:", address(newRouter));
+        console.log("New NetworkRouter:", address(newRouter));
 
         // 1b. Fan-token wrapper factory (optional — enables PSG/BAR/etc. bets).
         if (wrapperFactory != address(0)) {
@@ -102,6 +102,8 @@ contract RedeploySwapRouter is Script {
 
         // 6. Optional: hand ownership to Safe.
         if (transferOwnership) {
+            require(treasury.code.length > 0, "SAFE_ADDRESS has no code on this chain");
+            // Ownable2Step: the Safe must call acceptOwnership().
             newRouter.transferOwnership(treasury);
             console.log("  newRouter.transferOwnership ->", treasury);
         }
@@ -123,7 +125,7 @@ contract RedeploySwapRouter is Script {
         tokenRouter       = vm.envAddress("KAYEN_ROUTER");
         wrapperFactory    = _envAddressOr("WRAPPER_FACTORY", address(0));
         platformFeeBps    = uint16(_envUintOr("PLATFORM_FEE_BPS", 500));
-        transferOwnership = _envBoolOr("TRANSFER_OWNERSHIP", false);
+        transferOwnership = _envBoolOr("TRANSFER_OWNERSHIP", !_isTestChain());
 
         // Distinctness is preferred but not required. On Chiliz Spicy testnet
         // only one usable Kayen-fork router is deployed at present, so the
@@ -197,5 +199,10 @@ contract RedeploySwapRouter is Script {
 
     function _envAddressOr(string memory key, address def) internal view returns (address) {
         try vm.envAddress(key) returns (address v) { return v; } catch { return def; }
+    }
+
+    /// @dev Chains where a deployer-owned setup is acceptable by default.
+    function _isTestChain() internal view returns (bool) {
+        return block.chainid == 88882 || block.chainid == 84532 || block.chainid == 31337;
     }
 }

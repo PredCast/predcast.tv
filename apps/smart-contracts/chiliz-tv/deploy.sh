@@ -1,24 +1,54 @@
 #!/bin/bash
 #
-# ChilizTV Deployment Script (Chiliz-only)
+# ChilizTV Deployment Script (Chiliz Chain + Base)
 #
 # All configuration is loaded from .env (see .env.example).
 #
 # Usage:
-#   ./deploy.sh --network chilizTestnet --all     # full platform (PariMatchFactory + StreamWalletFactory + ChilizSwapRouter, fully wired)
+#   ./deploy.sh --network chilizTestnet --all     # full platform (PariMatchFactory + StreamWalletFactory + NetworkRouter, fully wired)
 #   ./deploy.sh --network chilizTestnet --pari    # PariMatchFactory + router + sample match (no streaming)
 #   ./deploy.sh --network chilizTestnet --stream  # StreamWalletFactory only
-#   ./deploy.sh --network chilizTestnet --swap          # ChilizSwapRouter only (wire it post-deploy)
-#   ./deploy.sh --network chilizTestnet --redeploy-swap      # ChilizSwapRouter redeploy + auto-wire to existing factories
+#   ./deploy.sh --network chilizTestnet --swap          # NetworkRouter only (wire it post-deploy)
+#   ./deploy.sh --network chilizTestnet --redeploy-swap      # NetworkRouter redeploy + auto-wire to existing factories
 #   ./deploy.sh --network chilizTestnet --upgrade-leaderboard # LeaderboardRewards V2 (UUPS upgradeToAndCall + initializeV2)
 #   ./deploy.sh --network chilizMainnet  --all
+#   ./deploy.sh --network baseSepolia    --all     # Base Sepolia (84532), see .env.baseSepolia.example
+#
+#   ./deploy.sh --network baseMainnet    --all     # Base (8453), see .env.baseMainnet.example
+#
+# On Base, WETH stands in for WCHZ and native ETH for CHZ ("*WithNativeToken"
+# entrypoints). With both KAYEN_* left empty, --all deploys a
+# ConcentratedPoolAdapter (script/config/BaseDexConfig.sol) in place of Kayen.
 #
 # Add `--dry-run` to simulate via forge without broadcasting — no on-chain tx,
 # no deployments/<network>.json update. Useful to preview gas + address layout.
 #
-# Set TRANSFER_OWNERSHIP=true in your env file to transfer Ownable.owner of
-# the deployed factories + router to SAFE_ADDRESS at the end of the run.
-# Defaults to false so testnet iteration keeps the deployer EOA as owner.
+# `--skip-simulation` in FORGE_FLAGS is dropped unless ALLOW_SKIP_SIMULATION=true.
+# Without the simulation, forge asks the RPC for a gas estimate right before
+# each transaction, and a load-balanced RPC (Chiliz Spicy) can answer from a
+# node that does not see the previous transaction yet: the deployment stops
+# halfway, e.g. with ERC1967InvalidImplementation when the leaderboard proxy
+# is created just after its implementation.
+#
+# Add `--resume` after a broadcast that stopped halfway: forge sends the
+# transactions of the last run that were not sent, with the same addresses.
+# Run it with the same --network and deploy type, and only while the deployer
+# has sent nothing else since (the nonces must match).
+#
+# Before compiling, the script checks the deployer (address derived from
+# PRIVATE_KEY) and its balance and, on mainnets, that SAFE_ADDRESS and
+# UPGRADE_ADMIN are contracts on this chain, so a wrong env file fails in
+# seconds instead of after the compilation.
+#
+# Output: each step is timestamped, an elapsed-time line is printed while
+# forge runs (Git Bash shows no forge progress bar), and everything is also
+# written to deployments/logs/<network>-<type>-<date>.log. The private key is
+# never printed. Forge verbosity defaults to -vvv (traces only when something
+# fails); set VERBOSITY=-vvvv for the trace of every call.
+#
+# TRANSFER_OWNERSHIP in your env file: when true, the run starts the
+# ownership transfer of the factories, router and adapter to SAFE_ADDRESS.
+# Defaults to true on mainnets and false on testnets (see DeployAll).
 #
 # The --network flag is a safety label only: it picks the mainnet warning
 # and is used for output paths (deployments/<network>.json). The actual
@@ -42,6 +72,7 @@ NC='\033[0m'
 NETWORK=""
 DEPLOY_TYPE=""
 DRY_RUN=false
+RESUME=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -61,22 +92,43 @@ while [[ $# -gt 0 ]]; do
             DEPLOY_TYPE="upgrade-leaderboard"; shift ;;
         --dry-run)
             DRY_RUN=true; shift ;;
+        --resume)
+            RESUME=true; shift ;;
         --match|--pool)
             echo -e "${RED}'$1' is no longer supported (LiquidityPool + BettingMatchFactory were removed).${NC}"
             echo -e "${RED}  Use --all for the full pari-mutuel platform, or --pari for pari-only.${NC}"
             exit 1 ;;
         *)
             echo -e "${RED}Unknown argument: $1${NC}"
-            echo "Usage: ./deploy.sh --network <chilizTestnet|chilizMainnet> <--all|--pari|--stream|--swap|--redeploy-swap|--upgrade-leaderboard> [--dry-run]"
+            echo "Usage: ./deploy.sh --network <chilizTestnet|chilizMainnet|baseSepolia|baseMainnet> <--all|--pari|--stream|--swap|--redeploy-swap|--upgrade-leaderboard> [--dry-run|--resume]"
             exit 1 ;;
     esac
 done
 
 if [ -z "$NETWORK" ] || [ -z "$DEPLOY_TYPE" ]; then
     echo -e "${RED}Missing required arguments.${NC}"
-    echo "Usage: ./deploy.sh --network <chilizTestnet|chilizMainnet> <--all|--pari|--stream|--swap|--redeploy-swap|--upgrade-leaderboard> [--dry-run]"
+    echo "Usage: ./deploy.sh --network <chilizTestnet|chilizMainnet|baseSepolia|baseMainnet> <--all|--pari|--stream|--swap|--redeploy-swap|--upgrade-leaderboard> [--dry-run|--resume]"
     exit 1
 fi
+if [ "$DRY_RUN" = true ] && [ "$RESUME" = true ]; then
+    echo -e "${RED}--dry-run and --resume cannot be combined.${NC}"
+    exit 1
+fi
+
+# ── Log file + timestamps ────────────────────────────────────────────────────
+# Everything printed from here on also goes to the log file, colours removed.
+mkdir -p deployments/logs
+MODE_TAG=$([ "$DRY_RUN" = true ] && echo "dry-run" || { [ "$RESUME" = true ] && echo "resume" || echo "broadcast"; })
+LOG_FILE="deployments/logs/${NETWORK}-${DEPLOY_TYPE}-${MODE_TAG}-$(date +%Y%m%d-%H%M%S).log"
+exec > >(tee >(sed -u -E 's/\x1b\[[0-9;]*m//g' >> "$LOG_FILE")) 2>&1
+START_SECONDS=$SECONDS
+
+# step "message": timestamped step header with the time elapsed so far.
+step() {
+    local elapsed=$((SECONDS - START_SECONDS))
+    echo -e "${CYAN}[$(date +%H:%M:%S) +$((elapsed / 60))m$((elapsed % 60))s] $*${NC}"
+}
+step "Log file: $LOG_FILE"
 
 # ── Load .env ────────────────────────────────────────────────────────────────
 # Prefer .env.<network> when present, otherwise .env.
@@ -118,6 +170,10 @@ case "$NETWORK" in
         EXPECTED_CHAIN_ID=88882 ;;
     chilizMainnet)
         EXPECTED_CHAIN_ID=88888 ;;
+    baseSepolia)
+        EXPECTED_CHAIN_ID=84532 ;;
+    baseMainnet)
+        EXPECTED_CHAIN_ID=8453 ;;
     *)
         echo -e "${YELLOW}Warning: unknown --network '$NETWORK' (skipping chain-id sanity check)${NC}"
         EXPECTED_CHAIN_ID="" ;;
@@ -127,8 +183,78 @@ if [ -n "$EXPECTED_CHAIN_ID" ] && [ "$CHAIN_ID" != "$EXPECTED_CHAIN_ID" ]; then
     echo -e "  --network $NETWORK expects CHAIN_ID=$EXPECTED_CHAIN_ID"
     echo -e "  but $ENV_FILE has CHAIN_ID=$CHAIN_ID"
     echo -e "  Fix $ENV_FILE or pass the correct --network."
+    echo -e "  For a second network, keep a separate .env.${NETWORK}: it is read instead of .env."
     exit 1
 fi
+
+# ── Preflight: RPC, deployer, Safe ───────────────────────────────────────────
+# Cheap on-chain checks, so a wrong env file fails in seconds rather than
+# after the compilation.
+step "Preflight checks on $RPC_URL"
+if ! command -v cast &> /dev/null; then
+    echo -e "${RED}cast (Foundry) not found in PATH.${NC}"
+    exit 1
+fi
+RPC_CHAIN_ID=$(cast chain-id --rpc-url "$RPC_URL" 2>/dev/null || true)
+if [ -z "$RPC_CHAIN_ID" ]; then
+    echo -e "${RED}RPC_URL $RPC_URL does not answer.${NC}"
+    exit 1
+fi
+if [ "$RPC_CHAIN_ID" != "$CHAIN_ID" ]; then
+    echo -e "${RED}RPC_URL is chain $RPC_CHAIN_ID but $ENV_FILE says CHAIN_ID=$CHAIN_ID.${NC}"
+    exit 1
+fi
+
+DEPLOYER=$(cast wallet address --private-key "$PRIVATE_KEY" 2>/dev/null || true)
+if [ -z "$DEPLOYER" ]; then
+    echo -e "${RED}PRIVATE_KEY in $ENV_FILE is not a valid private key.${NC}"
+    exit 1
+fi
+DEPLOYER_WEI=$(cast balance "$DEPLOYER" --rpc-url "$RPC_URL" 2>/dev/null || echo "?")
+DEPLOYER_BALANCE=$(cast balance "$DEPLOYER" --rpc-url "$RPC_URL" --ether 2>/dev/null || echo "?")
+echo -e "  Deployer (from PRIVATE_KEY): ${YELLOW}$DEPLOYER${NC}, balance ${YELLOW}$DEPLOYER_BALANCE${NC}"
+if [ -n "$ADMIN_ADDRESS" ] && [ "${ADMIN_ADDRESS,,}" != "${DEPLOYER,,}" ]; then
+    echo -e "  ${YELLOW}Note: ADMIN_ADDRESS ($ADMIN_ADDRESS) is not the address of PRIVATE_KEY.${NC}"
+fi
+if [ "$DEPLOYER_WEI" = "0" ]; then
+    if [ "$DRY_RUN" = true ]; then
+        echo -e "  ${YELLOW}The deployer has no funds on this chain: the real deployment would fail.${NC}"
+    else
+        echo -e "${RED}The deployer $DEPLOYER has no funds on chain $CHAIN_ID. Fund it first.${NC}"
+        exit 1
+    fi
+fi
+
+# Same rule as DeployAll: outside test chains the Safe (and the upgrade admin)
+# must be a contract on this chain.
+case "$CHAIN_ID" in
+    88882|84532|31337) TEST_CHAIN=true ;;
+    *)                 TEST_CHAIN=false ;;
+esac
+has_code() {
+    local code
+    code=$(cast code "$1" --rpc-url "$RPC_URL" 2>/dev/null || echo "")
+    [ -n "$code" ] && [ "$code" != "0x" ]
+}
+if has_code "$SAFE_ADDRESS"; then
+    echo -e "  SAFE_ADDRESS: ${YELLOW}$SAFE_ADDRESS${NC} (contract on this chain)"
+else
+    echo -e "  SAFE_ADDRESS: ${YELLOW}$SAFE_ADDRESS${NC} (no code on this chain)"
+fi
+if [ "$TEST_CHAIN" = false ] && [ "$DEPLOY_TYPE" = "all" ]; then
+    for VAR in SAFE_ADDRESS UPGRADE_ADMIN; do
+        ADDR="${!VAR}"
+        [ -z "$ADDR" ] && continue
+        if ! has_code "$ADDR"; then
+            echo -e "${RED}$VAR $ADDR has no code on chain $CHAIN_ID.${NC}"
+            echo -e "${RED}  DeployAll requires the Safe to exist on this chain (it would revert with${NC}"
+            echo -e "${RED}  \"$VAR has no code on this chain\"). Create the Safe on this network, or${NC}"
+            echo -e "${RED}  check that $ENV_FILE holds this network's addresses.${NC}"
+            exit 1
+        fi
+    done
+fi
+echo ""
 
 # ── Deploy type → script mapping ─────────────────────────────────────────────
 REQUIRES_KAYEN=false
@@ -162,6 +288,26 @@ case "$DEPLOY_TYPE" in
         REQUIRES_LEADERBOARD_PROXY=true ;;
 esac
 
+# ── Resume guard ─────────────────────────────────────────────────────────────
+# forge --resume sends the remaining transactions to the RPC saved by the
+# interrupted run (in cache/), NOT to --rpc-url. Refuse when they differ, so
+# a resume never goes to another network than the one checked above.
+if [ "$RESUME" = true ]; then
+    RESUME_RUN="broadcast/$(basename "$SCRIPT")/${CHAIN_ID}/run-latest.json"
+    RESUME_SENSITIVE="cache/$(basename "$SCRIPT")/${CHAIN_ID}/run-latest.json"
+    if [ ! -f "$RESUME_RUN" ] || [ ! -f "$RESUME_SENSITIVE" ]; then
+        echo -e "${RED}Nothing to resume: $RESUME_RUN or $RESUME_SENSITIVE is missing.${NC}"
+        exit 1
+    fi
+    SAVED_RPCS=$(grep -oE '"rpc": *"[^"]*"' "$RESUME_SENSITIVE" | sed -E 's/"rpc": *"([^"]*)"/\1/' | sort -u)
+    if [ "$SAVED_RPCS" != "$RPC_URL" ]; then
+        echo -e "${RED}Refusing to resume: forge would send to the RPC saved by the interrupted run,${NC}"
+        echo -e "${RED}  $(echo "$SAVED_RPCS" | tr '\n' ' '), not to RPC_URL ($RPC_URL).${NC}"
+        exit 1
+    fi
+    echo -e "${CYAN}Resuming $RESUME_RUN, sent to $SAVED_RPCS${NC}"
+fi
+
 # ── USDC / Kayen validation ──────────────────────────────────────────────────
 if [ "$REQUIRES_USDC" = true ] && [ -z "$USDC_ADDRESS" ]; then
     echo -e "${RED}Missing USDC_ADDRESS in $ENV_FILE${NC}"
@@ -171,14 +317,17 @@ fi
 if [ "$REQUIRES_KAYEN" = true ]; then
     echo -e "${CYAN}Resolving Kayen DEX addresses...${NC}"
     MISSING=""
-    [ -z "$KAYEN_MASTER_ROUTER" ] && MISSING="${MISSING}\n  - KAYEN_MASTER_ROUTER"
-    [ -z "$KAYEN_ROUTER" ]        && MISSING="${MISSING}\n  - KAYEN_ROUTER"
+    # DeployAll deploys the adapter on Base when both routers are empty.
+    if [[ "$NETWORK" != base* ]] || [ "$DEPLOY_TYPE" != "all" ] || [ -n "$KAYEN_MASTER_ROUTER$KAYEN_ROUTER" ]; then
+        [ -z "$KAYEN_MASTER_ROUTER" ] && MISSING="${MISSING}\n  - KAYEN_MASTER_ROUTER"
+        [ -z "$KAYEN_ROUTER" ]        && MISSING="${MISSING}\n  - KAYEN_ROUTER"
+    fi
     [ -z "$WCHZ_ADDRESS" ]        && MISSING="${MISSING}\n  - WCHZ_ADDRESS"
     if [ -n "$MISSING" ]; then
         echo -e "${RED}Missing in $ENV_FILE:${MISSING}${NC}"
         exit 1
     fi
-    if [ "${KAYEN_MASTER_ROUTER,,}" = "${KAYEN_ROUTER,,}" ]; then
+    if [ "${KAYEN_MASTER_ROUTER,,}" = "${KAYEN_ROUTER,,}" ] && [[ "$NETWORK" == chiliz* ]]; then
         echo -e "${YELLOW}WARNING: KAYEN_MASTER_ROUTER == KAYEN_ROUTER.${NC}"
         echo -e "${YELLOW}  Master Router V2 (CHZ-native, Kayen-specific signature) and the basic"
         echo -e "${YELLOW}  Kayen Router (Uniswap V2 fork, standard signature) are documented as"
@@ -248,7 +397,7 @@ if [ -n "$GAS_PRICE_OVERRIDE" ] && command -v curl &> /dev/null; then
             echo -e "${RED}FORGE_FLAGS --with-gas-price: ${CFG_GWEI} gwei${NC}"
             echo -e "${RED}Network eth_gasPrice:         ${NET_GWEI} gwei${NC}"
             echo -e "${YELLOW}Broadcasting underpriced would leave the first tx pending forever${NC}"
-            echo -e "${YELLOW}and lock nonce $(printf '%s' "$ADMIN_ADDRESS")'s sequence until cancelled.${NC}"
+            echo -e "${YELLOW}and lock nonce ${DEPLOYER}'s sequence until cancelled.${NC}"
             echo -e "${YELLOW}Bump --with-gas-price above ${NET_GWEI} gwei in $ENV_FILE.${NC}"
             exit 1
         fi
@@ -258,7 +407,7 @@ if [ -n "$GAS_PRICE_OVERRIDE" ] && command -v curl &> /dev/null; then
 fi
 
 # ── Mainnet safety warning ───────────────────────────────────────────────────
-if [ "$NETWORK" = "chilizMainnet" ]; then
+if [ "$NETWORK" = "chilizMainnet" ] || [ "$NETWORK" = "baseMainnet" ]; then
     echo -e "${RED}╔══════════════════════════════════════════════╗${NC}"
     echo -e "${RED}║        ⚠  MAINNET DEPLOYMENT WARNING  ⚠     ║${NC}"
     echo -e "${RED}║  Real funds are at risk. Double-check:       ║${NC}"
@@ -278,6 +427,7 @@ echo -e "Deploy Type:  ${YELLOW}$DEPLOY_TYPE${NC}"
 [ "$DRY_RUN" = true ] && echo -e "Mode:         ${YELLOW}DRY-RUN (no --broadcast)${NC}"
 echo -e "Script:       ${YELLOW}$SCRIPT${NC}"
 echo -e "RPC URL:      ${YELLOW}$RPC_URL${NC}"
+echo -e "Deployer:     ${YELLOW}$DEPLOYER${NC} ($DEPLOYER_BALANCE)"
 echo -e "Safe Address: ${YELLOW}$SAFE_ADDRESS${NC}"
 echo -e "Env File:     ${YELLOW}$ENV_FILE${NC}"
 [ -n "$FORGE_FLAGS" ] && echo -e "Forge Flags:  ${YELLOW}$FORGE_FLAGS${NC}"
@@ -288,7 +438,8 @@ echo ""
 if [ "$DRY_RUN" = true ]; then
     echo -e "${CYAN}Dry-run mode: skipping confirmation prompt (no broadcast will happen).${NC}"
 else
-    read -p "Deploy to $NETWORK? (yes/no): " CONFIRM
+    PROMPT_VERB=$([ "$RESUME" = true ] && echo "Resume the deployment on" || echo "Deploy to")
+    read -p "$PROMPT_VERB $NETWORK? (yes/no): " CONFIRM
     if [ "$CONFIRM" != "yes" ]; then
         echo -e "${RED}Deployment cancelled${NC}"
         exit 0
@@ -313,22 +464,74 @@ mkdir -p deployments
 # to detect the chain, and --legacy signing does not require chain id.
 # In --dry-run mode we drop --broadcast; forge runs the script locally
 # against a fork of $RPC_URL, simulating every tx without emitting one.
-if [ "$DRY_RUN" = true ]; then
-    BROADCAST_FLAG=""
-else
-    BROADCAST_FLAG="--broadcast"
+#
+# The arguments are an array (no eval), and the private key is passed to
+# forge but never printed.
+read -ra RAW_FLAGS <<< "$FORGE_FLAGS"
+FLAGS=()
+for FLAG in "${RAW_FLAGS[@]}"; do
+    if [ "$FLAG" = "--skip-simulation" ] && [ "$ALLOW_SKIP_SIMULATION" != "true" ]; then
+        echo -e "${YELLOW}Ignoring --skip-simulation from FORGE_FLAGS: the simulation gives every transaction its gas up front,${NC}"
+        echo -e "${YELLOW}  so forge does not ask a possibly lagging RPC before each one (set ALLOW_SKIP_SIMULATION=true to keep it).${NC}"
+        continue
+    fi
+    FLAGS+=("$FLAG")
+done
+[ "$DRY_RUN" != true ] && FLAGS+=("--broadcast")
+[ "$RESUME" = true ] && FLAGS+=("--resume")
+# Resume never simulates again. Transactions saved by a run without the
+# simulation carry no gas limit, so forge must estimate each one through the
+# RPC, which is what --skip-simulation turns on (otherwise: "missing keys:
+# gas_limit").
+if [ "$RESUME" = true ] && [[ ! " ${FLAGS[*]} " =~ " --skip-simulation " ]]; then
+    FLAGS+=("--skip-simulation")
+    echo -e "${CYAN}Resume: forge estimates the gas of each remaining transaction through the RPC.${NC}"
 fi
-FORGE_CMD="forge script $SCRIPT \
-    --rpc-url $RPC_URL \
-    --private-key $PRIVATE_KEY \
-    $BROADCAST_FLAG \
-    --slow \
-    $FORGE_FLAGS \
-    -vvvv"
+VERBOSITY="${VERBOSITY:--vvv}"
+FORGE_ARGS=(script "$SCRIPT" --rpc-url "$RPC_URL" --slow "${FLAGS[@]}" "$VERBOSITY")
 
-echo -e "${CYAN}$FORGE_CMD${NC}"
+# Runs a command in the background and prints a timestamped line every 20 s
+# while it runs: forge shows no progress bar in Git Bash, and the
+# compilation alone can take minutes with via_ir.
+run_with_heartbeat() {
+    "$@" &
+    local pid=$! last=$SECONDS status=0
+    trap 'kill "$pid" 2>/dev/null; exit 130' INT TERM
+    while kill -0 "$pid" 2>/dev/null; do
+        sleep 1
+        if [ $((SECONDS - last)) -ge 20 ] && kill -0 "$pid" 2>/dev/null; then
+            step "... forge is still running (compiling, then executing the script)"
+            last=$SECONDS
+        fi
+    done
+    wait "$pid" || status=$?
+    trap - INT TERM
+    return $status
+}
+
+echo -e "${CYAN}forge ${FORGE_ARGS[*]} --private-key ***${NC}"
 echo ""
-eval $FORGE_CMD
+step "forge started: compilation first (about 1-2 min for a deploy script with via_ir), then the script"
+FORGE_STATUS=0
+run_with_heartbeat forge "${FORGE_ARGS[@]}" --private-key "$PRIVATE_KEY" || FORGE_STATUS=$?
+echo ""
+if [ "$FORGE_STATUS" -ne 0 ]; then
+    step "forge failed (exit $FORGE_STATUS)."
+    echo -e "${RED}The reason is on the last 'Error:' line above. Full output: $LOG_FILE${NC}"
+    RUN_FILE="broadcast/$(basename "$SCRIPT")/${CHAIN_ID}/run-latest.json"
+    if [ "$DRY_RUN" != true ] && [ -f "$RUN_FILE" ] && command -v jq &> /dev/null; then
+        SENT=$(jq '[.transactions[] | select(.hash != null)] | length' "$RUN_FILE" 2>/dev/null || echo "?")
+        TOTAL=$(jq '.transactions | length' "$RUN_FILE" 2>/dev/null || echo "?")
+        echo -e "${YELLOW}$SENT of $TOTAL transactions were sent before the failure.${NC}"
+    fi
+    if [ "$DRY_RUN" != true ]; then
+        echo -e "${YELLOW}If some were sent, finish with the same command plus --resume (same addresses).${NC}"
+        echo -e "${YELLOW}Running it again without --resume deploys everything again at new addresses.${NC}"
+    fi
+    echo -e "${YELLOW}For the trace of every call, run again with VERBOSITY=-vvvv.${NC}"
+    exit "$FORGE_STATUS"
+fi
+step "forge finished"
 
 # In dry-run we never wrote a broadcast file, so skip the address extraction
 # and post-deploy guidance — there is nothing to record or follow up on.
@@ -336,6 +539,7 @@ if [ "$DRY_RUN" = true ]; then
     echo ""
     echo -e "${GREEN}Dry-run complete. No on-chain transactions were sent.${NC}"
     echo -e "${YELLOW}Re-run without --dry-run to actually deploy.${NC}"
+    echo -e "Full output: ${YELLOW}$LOG_FILE${NC}"
     exit 0
 fi
 
@@ -354,7 +558,7 @@ if [ -f "$LATEST_RUN" ] && command -v jq &> /dev/null; then
             .transactions[]
             | select(.transactionType == "CREATE")
             | {
-                name: .contractName,
+                name: (.contractName | split("\\") | last | split("/") | last | split(":") | last),
                 address: .contractAddress
             }
         ]
@@ -375,7 +579,7 @@ echo -e "${GREEN}Deployment Complete!${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
 echo -e "${YELLOW}Next steps:${NC}"
-echo "1. Check deployed addresses in $DEPLOY_OUT"
+echo "1. Check deployed addresses in $DEPLOY_OUT (full log: $LOG_FILE)"
 echo "2. Verify ownership transferred to Safe"
 echo "3. Verify contracts: $EXPLORER_URL"
 echo ""
@@ -448,12 +652,12 @@ if [ "$DEPLOY_TYPE" = "redeploy-swap" ]; then
     echo "Remaining manual steps:"
     echo "  1. Match admin (SAFE_ADDRESS) runs the printed cast commands"
     echo "     per match to rotate SWAP_ROUTER_ROLE from OLD to NEW router."
-    echo "  2. Update env files with the new ChilizSwapRouter address:"
+    echo "  2. Update env files with the new NetworkRouter address:"
     echo "       apps/frontend/.env       NEXT_PUBLIC_CHILIZ_SWAP_ROUTER_ADDRESS"
     echo "       apps/frontend/.env.example  (same key)"
     echo "       apps/backend/.env        CHILIZ_SWAP_ROUTER_ADDRESS"
     echo "       apps/backend/.env.example   (same key)"
-    echo "  3. The ChilizSwapRouter entry in $DEPLOY_OUT is the new address."
+    echo "  3. The NetworkRouter entry in $DEPLOY_OUT is the new address."
     echo "  4. Restart backend so ChilizSwapRouterIndexer re-targets the new addr."
     echo ""
     echo "Known limitation: existing StreamWallets cache the OLD router in their"
