@@ -274,9 +274,9 @@ The fee actually charged on donations and subscriptions is the router's. `stream
 
 ## 11. Names on contracts already deployed
 
-Contracts deployed on Chiliz mainnet and Spicy before the rename keep their original ABI:
+The Chiliz mainnet contracts, deployed before the rename, keep their original ABI. The Spicy deployment of 12 November 2026 already uses the current names (addresses in `deployments/chilizTestnet.json`).
 
-| Deployed | Current source |
+| On Chiliz mainnet | Current source |
 |---|---|
 | `ChilizSwapRouter` | `NetworkRouter` |
 | `placeBetWithCHZ` | `placeBetWithNativeToken` |

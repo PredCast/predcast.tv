@@ -15,16 +15,21 @@ Référence complète des fonctions, générée depuis le code : `docs/reference
 
 ## Adresses
 
-### Contrats PredCast en production
+### Contrats PredCast déployés
 
 | Contrat | Chiliz mainnet (88888) | Spicy testnet (88882) |
 |---|---|---|
-| Factory des matchs | `0x1e7F73d14D3E87205A766A14eC5847C12FEBfFd7` | `0x5c6433b9a03feb15e1e6cd0745a3013cea4879ac` |
-| Router (`ChilizSwapRouter`) | `0x72befD1186f24Cba64266995cD627B79C799292a` | `0xed417f0b94455e114e05a1ce54c0fdb858fe21ad` |
-| Factory des wallets streamers | `0x0Ffa30b48ADc0b2B773DC01422D249aEE135a4Bb` | `0xeb92b6620556cbbc0bdb57371c501b1794961fd3` |
-| Leaderboard (proxy) | `0x3210326343f4C682FF3D9d29727BB61785deF55b` | `0x1d12428243f842de0449ed6f3e8ae6dce03ace14` |
+| Code déployé | Code d'avant la PR #43 | Code de la PR #43, déployé le 12/11/2026 |
+| Factory des matchs | `0x1e7F73d14D3E87205A766A14eC5847C12FEBfFd7` | `0x78Fe2af11C2AAEA2648c66a327117C987aD9B18d` |
+| Router | `ChilizSwapRouter` : `0x72befD1186f24Cba64266995cD627B79C799292a` | `NetworkRouter` : `0x7495b33E8380Ce0B760E9D9bb0Af4306f55F5680` |
+| Factory des wallets streamers | `0x0Ffa30b48ADc0b2B773DC01422D249aEE135a4Bb` | `0x7a0BE706772186eE84fB69f630b23E5af2e515f2` |
+| Leaderboard (proxy) | `0x3210326343f4C682FF3D9d29727BB61785deF55b` | `0x861B2170816c1725913528087398C691420581ea` |
 
 Source de vérité : `deployments/chilizMainnet.json` et `deployments/chilizTestnet.json`.
+
+Spicy tourne donc déjà sur la nouvelle version : nouveaux noms de fonctions et d'événements du router, création des matchs en une transaction, frais 1,5 % / 0,5 %, leaderboard V5. C'est là que le frontend, le backend et l'indexeur peuvent tester la bascule avant le mainnet. Sur Spicy, les contrats appartiennent au compte qui les a déployés : il n'y a pas de Safe sur le testnet.
+
+L'ancien déploiement Spicy de juin 2026 (factory `0x5c6433b9a03feb15e1e6cd0745a3013cea4879ac`, router `0xed417f0b94455e114e05a1ce54c0fdb858fe21ad`) existe toujours sur la chaîne mais n'est plus suivi. Les fichiers `.env` qui pointent encore vers lui doivent passer aux adresses ci-dessus.
 
 ### Infrastructure Chiliz mainnet
 
