@@ -286,9 +286,18 @@ jobs:
             ~/.foundry/cache
             apps/smart-contracts/chiliz-tv/cache
             apps/smart-contracts/chiliz-tv/out
+            apps/smart-contracts/chiliz-tv/cache-cancun
+            apps/smart-contracts/chiliz-tv/out-cancun
           key: foundry-${{ runner.os }}-${{ hashFiles('apps/smart-contracts/chiliz-tv/foundry.toml', 'apps/smart-contracts/chiliz-tv/src/**/*.sol') }}
           restore-keys: foundry-${{ runner.os }}-
 
       - name: Run tests
         working-directory: apps/smart-contracts/chiliz-tv
-        run: forge test -vvv
+        run: forge test -vvv --no-match-contract BaseMainnetDexAdapterForkTest
+
+      # Aerodrome's fee hooks use Cancun opcodes, which the shanghai default
+      # (required by Chiliz) cannot run. Separate output paths keep the two EVM
+      # builds from overwriting each other in the cache.
+      - name: Run Base mainnet fork tests (Cancun)
+        working-directory: apps/smart-contracts/chiliz-tv
+        run: forge test -vvv --evm-version cancun --match-contract BaseMainnetDexAdapterForkTest --out out-cancun --cache-path cache-cancun

@@ -35,6 +35,16 @@ import {PariMatchBase} from "./PariMatchBase.sol";
  *      HIGHEST_QUARTER, misconfigured quarter) are left in Closed state by
  *      `resolveByScore` so the oracle can settle them manually via
  *      `resolveMarket` or the admin can `cancelMarket`.
+ *
+ *      Overtime, standard bookmaker rules:
+ *        - WINNER, TOTAL_POINTS, SPREAD, POINTS_EXACT include overtime.
+ *        - QUARTER_WINNER and HIGHEST_QUARTER use regulation quarters only
+ *          (Q4 never includes overtime).
+ *      `resolveByFinalScore` takes the overtime points. The legacy
+ *      `resolveByScore` has no overtime field: when regulation ends tied
+ *      (which is exactly when overtime was played) it leaves the four
+ *      overtime-sensitive markets Closed instead of settling them on
+ *      regulation points.
  */
 contract BasketballPariMatch is PariMatchBase {
 
@@ -42,12 +52,19 @@ contract BasketballPariMatch is PariMatchBase {
     // MARKET TYPE CONSTANTS
     // ═══════════════════════════════════════════════════════════════════════
 
+    /// @notice Winner of the game, overtime included: 0 = Home, 1 = Away.
     bytes32 public constant MARKET_WINNER          = keccak256("WINNER");
+    /// @notice Total points against `line` (1/10-point units): 0 = Under, 1 = Over.
     bytes32 public constant MARKET_TOTAL_POINTS    = keccak256("TOTAL_POINTS");
+    /// @notice Home handicap `line` in 1/10-point units: 0 = Home covers, 1 = Away covers.
     bytes32 public constant MARKET_SPREAD          = keccak256("SPREAD");
+    /// @notice Winner of the quarter in `extra` (1..4): 0 = Home, 1 = Away.
     bytes32 public constant MARKET_QUARTER_WINNER  = keccak256("QUARTER_WINNER");
+    /// @notice First team to score: 0 = Home, 1 = Away.
     bytes32 public constant MARKET_FIRST_TO_SCORE  = keccak256("FIRST_TO_SCORE");
+    /// @notice Quarter with the most combined points: 0..3 = Q1..Q4.
     bytes32 public constant MARKET_HIGHEST_QUARTER = keccak256("HIGHEST_QUARTER");
+    /// @notice Bucketed total points: `min(total / step, line)`, with the step in `extra`.
     bytes32 public constant MARKET_POINTS_EXACT    = keccak256("POINTS_EXACT");
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -65,6 +82,18 @@ contract BasketballPariMatch is PariMatchBase {
         uint8 firstToScore;
     }
 
+    /// @notice Final score including overtime, used by `resolveByFinalScore`.
+    /// @dev    `homeOT` / `awayOT` are the points of ALL overtime periods
+    ///         summed (0 when the game ended in regulation).
+    struct BasketballFinalScore {
+        uint8 homeQ1; uint8 awayQ1;
+        uint8 homeQ2; uint8 awayQ2;
+        uint8 homeQ3; uint8 awayQ3;
+        uint8 homeQ4; uint8 awayQ4;
+        uint8 homeOT; uint8 awayOT;
+        uint8 firstToScore;
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // ERRORS
     // ═══════════════════════════════════════════════════════════════════════
@@ -75,6 +104,7 @@ contract BasketballPariMatch is PariMatchBase {
     // EVENTS
     // ═══════════════════════════════════════════════════════════════════════
 
+    /// @notice A score entrypoint settled every market it could derive.
     event MatchScoreResolved(
         uint16 homeTotal,
         uint16 awayTotal,
@@ -91,6 +121,7 @@ contract BasketballPariMatch is PariMatchBase {
         _disableInitializers();
     }
 
+    /// @notice Initialize the proxy. Called once, by the factory.
     function initialize(string memory _matchName, address _owner) external initializer {
         __PariMatchBase_init(_matchName, "BASKETBALL", _owner);
     }
@@ -151,15 +182,73 @@ contract BasketballPariMatch is PariMatchBase {
     // RESOLVE-BY-SCORE
     // ═══════════════════════════════════════════════════════════════════════
 
+    /// @notice Legacy entrypoint without overtime points:
+    ///         if regulation ended tied, WINNER / TOTAL_POINTS / SPREAD /
+    ///         POINTS_EXACT stay Closed (use `resolveByFinalScore`).
     function resolveByScore(BasketballScore calldata s)
         external
         onlyRole(RESOLVER_ROLE)
         returns (uint256 marketsResolved)
     {
+        return _resolveAll(_fromLegacy(s), false);
+    }
+
+    /// @notice Settle every Closed market from the final score, overtime
+    ///         included.
+    function resolveByFinalScore(BasketballFinalScore calldata s)
+        external
+        onlyRole(RESOLVER_ROLE)
+        returns (uint256 marketsResolved)
+    {
+        return _resolveAll(s, true);
+    }
+
+    /// @notice Same as `resolveByScore`, for the listed markets only.
+    function resolveBatchByScore(uint256[] calldata marketIds, BasketballScore calldata s)
+        external
+        onlyRole(RESOLVER_ROLE)
+        returns (uint256 marketsResolved)
+    {
+        return _resolveSome(marketIds, _fromLegacy(s), false);
+    }
+
+    /// @notice Same as `resolveByFinalScore`, for the listed markets only.
+    function resolveBatchByFinalScore(uint256[] calldata marketIds, BasketballFinalScore calldata s)
+        external
+        onlyRole(RESOLVER_ROLE)
+        returns (uint256 marketsResolved)
+    {
+        return _resolveSome(marketIds, s, true);
+    }
+
+    /// @notice Outcome a `BasketballScore` would give a market, without writing anything.
+    function computeOutcome(uint256 marketId, BasketballScore calldata s)
+        external
+        view
+        validMarket(marketId)
+        returns (uint64 outcome, bool resolvable)
+    {
+        return _outcomeFromScore(marketId, _fromLegacy(s), false);
+    }
+
+    /// @notice Outcome a `BasketballFinalScore` would give a market, without writing anything.
+    function computeOutcomeFinal(uint256 marketId, BasketballFinalScore calldata s)
+        external
+        view
+        validMarket(marketId)
+        returns (uint64 outcome, bool resolvable)
+    {
+        return _outcomeFromScore(marketId, s, true);
+    }
+
+    function _resolveAll(BasketballFinalScore memory s, bool overtimeKnown)
+        internal
+        returns (uint256 marketsResolved)
+    {
         uint256 n = marketCount;
         for (uint256 i; i < n; ++i) {
             if (_marketCores[i].state != PariMatchBase.MarketState.Closed) continue;
-            (uint64 outcome, bool ok) = _outcomeFromScore(i, s);
+            (uint64 outcome, bool ok) = _outcomeFromScore(i, s, overtimeKnown);
             if (!ok) continue;
             _resolveMarketInternal(i, outcome);
             unchecked { ++marketsResolved; }
@@ -169,9 +258,8 @@ contract BasketballPariMatch is PariMatchBase {
         );
     }
 
-    function resolveBatchByScore(uint256[] calldata marketIds, BasketballScore calldata s)
-        external
-        onlyRole(RESOLVER_ROLE)
+    function _resolveSome(uint256[] calldata marketIds, BasketballFinalScore memory s, bool overtimeKnown)
+        internal
         returns (uint256 marketsResolved)
     {
         uint256 n = marketIds.length;
@@ -179,23 +267,26 @@ contract BasketballPariMatch is PariMatchBase {
             uint256 mid = marketIds[i];
             if (mid >= marketCount) revert InvalidMarketId(mid);
             if (_marketCores[mid].state != PariMatchBase.MarketState.Closed) continue;
-            (uint64 outcome, bool ok) = _outcomeFromScore(mid, s);
+            (uint64 outcome, bool ok) = _outcomeFromScore(mid, s, overtimeKnown);
             if (!ok) continue;
             _resolveMarketInternal(mid, outcome);
             unchecked { ++marketsResolved; }
         }
     }
 
-    function computeOutcome(uint256 marketId, BasketballScore calldata s)
-        external
-        view
-        validMarket(marketId)
-        returns (uint64 outcome, bool resolvable)
-    {
-        return _outcomeFromScore(marketId, s);
+    function _fromLegacy(BasketballScore calldata s) private pure returns (BasketballFinalScore memory f) {
+        f.homeQ1 = s.homeQ1; f.awayQ1 = s.awayQ1;
+        f.homeQ2 = s.homeQ2; f.awayQ2 = s.awayQ2;
+        f.homeQ3 = s.homeQ3; f.awayQ3 = s.awayQ3;
+        f.homeQ4 = s.homeQ4; f.awayQ4 = s.awayQ4;
+        f.firstToScore = s.firstToScore;
+        // homeOT / awayOT = 0: unknown for the legacy struct.
     }
 
-    function _outcomeFromScore(uint256 marketId, BasketballScore calldata s)
+    /// @param overtimeKnown false for the legacy struct: a regulation tie then
+    ///        means overtime was played but its points are missing, so the
+    ///        markets that count overtime are not resolvable.
+    function _outcomeFromScore(uint256 marketId, BasketballFinalScore memory s, bool overtimeKnown)
         internal
         view
         returns (uint64 outcome, bool resolvable)
@@ -203,11 +294,16 @@ contract BasketballPariMatch is PariMatchBase {
         MarketSpec storage spec = _marketSpec[marketId];
         bytes32 t = spec.marketType;
 
+        bool overtimeMissing = !overtimeKnown && _regulationTied(s);
+        if (overtimeMissing && (
+            t == MARKET_WINNER || t == MARKET_TOTAL_POINTS || t == MARKET_SPREAD || t == MARKET_POINTS_EXACT
+        )) return (0, false);
+
         if (t == MARKET_WINNER) {
             uint16 h = _homeTotal(s); uint16 a = _awayTotal(s);
             if (h > a) return (0, true);
             if (a > h) return (1, true);
-            return (0, false); // tie — basketball winner is binary; let oracle decide
+            return (0, false); // still tied (bad input) — let the oracle decide
         }
 
         if (t == MARKET_TOTAL_POINTS) {
@@ -270,19 +366,37 @@ contract BasketballPariMatch is PariMatchBase {
     // INTERNAL HELPERS
     // ═══════════════════════════════════════════════════════════════════════
 
-    function _homeTotal(BasketballScore calldata s) private pure returns (uint16) {
+    /// @dev Final total, overtime included.
+    function _homeTotal(BasketballFinalScore memory s) private pure returns (uint16) {
+        unchecked {
+            return _homeRegulation(s) + uint16(s.homeOT);
+        }
+    }
+
+    /// @dev Final total, overtime included.
+    function _awayTotal(BasketballFinalScore memory s) private pure returns (uint16) {
+        unchecked {
+            return _awayRegulation(s) + uint16(s.awayOT);
+        }
+    }
+
+    function _homeRegulation(BasketballFinalScore memory s) private pure returns (uint16) {
         unchecked {
             return uint16(s.homeQ1) + uint16(s.homeQ2) + uint16(s.homeQ3) + uint16(s.homeQ4);
         }
     }
 
-    function _awayTotal(BasketballScore calldata s) private pure returns (uint16) {
+    function _awayRegulation(BasketballFinalScore memory s) private pure returns (uint16) {
         unchecked {
             return uint16(s.awayQ1) + uint16(s.awayQ2) + uint16(s.awayQ3) + uint16(s.awayQ4);
         }
     }
 
-    function _quarterScores(BasketballScore calldata s, uint8 q)
+    function _regulationTied(BasketballFinalScore memory s) private pure returns (bool) {
+        return _homeRegulation(s) == _awayRegulation(s);
+    }
+
+    function _quarterScores(BasketballFinalScore memory s, uint8 q)
         private pure returns (uint8 h, uint8 a)
     {
         if (q == 1) return (s.homeQ1, s.awayQ1);

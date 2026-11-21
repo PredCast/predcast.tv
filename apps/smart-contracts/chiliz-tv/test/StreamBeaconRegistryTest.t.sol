@@ -4,791 +4,456 @@ pragma solidity ^0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {StreamWalletFactory} from "../src/streamer/StreamWalletFactory.sol";
 import {StreamWallet} from "../src/streamer/StreamWallet.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IKayenRouter} from "../src/interfaces/IKayenRouter.sol";
-
-/// @dev Simple ERC20 mock for fan token and USDC
-contract MockERC20 is IERC20 {
-    string public name;
-    string public symbol;
-    uint8 public decimals;
-    uint256 public override totalSupply;
-    mapping(address => uint256) public override balanceOf;
-    mapping(address => mapping(address => uint256)) public override allowance;
-
-    constructor(string memory name_, string memory symbol_, uint8 decimals_) {
-        name = name_;
-        symbol = symbol_;
-        decimals = decimals_;
-    }
-
-    function mint(address to, uint256 amount) external {
-        balanceOf[to] += amount;
-        totalSupply += amount;
-    }
-
-    function transfer(address to, uint256 amount) external override returns (bool) {
-        require(balanceOf[msg.sender] >= amount, "Insufficient balance");
-        balanceOf[msg.sender] -= amount;
-        balanceOf[to] += amount;
-        return true;
-    }
-
-    function approve(address spender, uint256 amount) external override returns (bool) {
-        allowance[msg.sender][spender] = amount;
-        return true;
-    }
-
-    function transferFrom(address from, address to, uint256 amount) external override returns (bool) {
-        require(balanceOf[from] >= amount, "Insufficient balance");
-        require(allowance[from][msg.sender] >= amount, "Insufficient allowance");
-        allowance[from][msg.sender] -= amount;
-        balanceOf[from] -= amount;
-        balanceOf[to] += amount;
-        return true;
-    }
-}
+import {MockUSDC} from "./mocks/MockUSDC.sol";
 
 /**
- * @dev Mock Kayen router for token-to-token swaps (IKayenRouter interface)
- * Note: This is different from test/mocks/MockKayenRouter.sol which implements
- * IKayenMasterRouterV2 for native CHZ swaps. Both are needed:
- * - IKayenRouter: Fan Token â†’ USDC (used by StreamWallet)
- * - IKayenMasterRouterV2: CHZ (native) â†’ USDC (used by ChilizSwapRouter)
+ * @title StreamWallet / StreamWalletFactory unit tests
+ * @notice Covers the wallet as it stands after the 2026-10 audit:
+ *         router-only payments, on-chain subscription pricing (H-03),
+ *         payout address (L-06), removed fan-token paths (H-05 residual),
+ *         config read live from the factory (M-04), factory-only upgrades.
+ *         End-to-end flows through the real NetworkRouter live in
+ *         StreamSwapRouterTest / FanTokenSwapRouterTest.
+ * @dev    Historical file name: the beacon design it was named after never
+ *         shipped (see README).
  */
-contract MockKayenRouterTokenSwap is IKayenRouter {
-    function swapExactTokensForTokens(
-        uint256 amountIn,
-        uint256 /* amountOutMin */,
-        address[] calldata path,
-        address to,
-        uint256 /* deadline */
-    ) external override returns (uint256[] memory amounts) {
-        require(path.length >= 2, "Invalid path");
-
-        address tokenIn = path[0];
-        address tokenOut = path[path.length - 1];
-
-        // Pull input tokens from caller
-        IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
-
-        // Mint output tokens 1:1 and send to recipient
-        MockERC20(tokenOut).mint(to, amountIn);
-
-        amounts = new uint256[](path.length);
-        amounts[0] = amountIn;
-        amounts[path.length - 1] = amountIn;
-    }
-
-    function getAmountsOut(
-        uint256 amountIn,
-        address[] calldata path
-    ) external pure override returns (uint256[] memory amounts) {
-        amounts = new uint256[](path.length);
-        amounts[0] = amountIn;
-        amounts[path.length - 1] = amountIn; // 1:1 swap
-    }
-}
-
 contract StreamBeaconRegistryTest is Test {
     StreamWalletFactory public factory;
-    MockERC20 public fanToken;
-    MockERC20 public usdcToken;
-    MockKayenRouterTokenSwap public router;
+    MockUSDC public usdc;
 
-    address public admin = address(0x1);
-    address public gnosisSafe = address(0x2);
-    address public treasury = address(0x3);
+    address public admin     = address(0x1);
+    address public treasury  = address(0x3);
     address public streamer1 = address(0x4);
     address public streamer2 = address(0x5);
-    address public viewer1 = address(0x6);
-    address public viewer2 = address(0x7);
+    address public viewer1   = address(0x6);
+    address public viewer2   = address(0x7);
+    address public router    = makeAddr("swapRouter");
+    address public kayen     = makeAddr("kayenRouter");
 
     uint16 public constant PLATFORM_FEE_BPS = 500; // 5%
-    uint256 public constant INITIAL_BALANCE = 1000 ether;
-
-    event StreamWalletCreated(address indexed streamer, address indexed wallet);
-    event SubscriptionProcessed(
-        address indexed streamer,
-        address indexed subscriber,
-        uint256 amount
-    );
-    event DonationProcessed(
-        address indexed streamer,
-        address indexed donor,
-        uint256 amount,
-        string message
-    );
+    uint256 public constant PRICE  = 10e6;         // 10 USDC
+    uint64  public constant PERIOD = 30 days;
 
     function setUp() public {
-        // Deploy mock tokens and router
-        fanToken = new MockERC20("Fan Token", "FAN", 18);
-        usdcToken = new MockERC20("USD Coin", "USDC", 6);
-        router = new MockKayenRouterTokenSwap();
-
-        // Deploy factory
+        usdc = new MockUSDC();
         vm.startPrank(admin);
-        factory = new StreamWalletFactory(
-            admin,
-            treasury,
-            PLATFORM_FEE_BPS,
-            address(router),
-            address(usdcToken)
-        );
-
+        factory = new StreamWalletFactory(admin, treasury, PLATFORM_FEE_BPS, kayen, address(usdc));
+        factory.setSwapRouter(router);
         vm.stopPrank();
-
-        // Mint fan tokens to viewers and streamers
-        fanToken.mint(viewer1, INITIAL_BALANCE);
-        fanToken.mint(viewer2, INITIAL_BALANCE);
-        fanToken.mint(streamer1, INITIAL_BALANCE);
-        fanToken.mint(streamer2, INITIAL_BALANCE);
-
-        // Approve factory to spend fan tokens on behalf of viewers
-        vm.prank(viewer1);
-        fanToken.approve(address(factory), type(uint256).max);
-        vm.prank(viewer2);
-        fanToken.approve(address(factory), type(uint256).max);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        DEPLOYMENT & SETUP TESTS
-    //////////////////////////////////////////////////////////////*/
+    // ─── helpers ────────────────────────────────────────────────────────────
+
+    function _wallet(address streamer) internal returns (StreamWallet w) {
+        vm.prank(admin);
+        w = StreamWallet(payable(factory.deployWalletFor(streamer)));
+    }
+
+    function _pricedWallet(address streamer) internal returns (StreamWallet w) {
+        w = _wallet(streamer);
+        vm.prank(streamer);
+        w.setSubscriptionPricing(PRICE, PERIOD);
+    }
+
+    /// Mimics NetworkRouter: fee already sent to the treasury, the rest to
+    /// the wallet, then the wallet records the payment.
+    function _routerDonate(StreamWallet w, address donor, uint256 total) internal {
+        uint256 fee = (total * PLATFORM_FEE_BPS) / 10_000;
+        usdc.mint(address(w), total - fee);
+        vm.prank(router);
+        w.recordDonationByRouter(donor, total, fee, total - fee, "gg");
+    }
+
+    function _routerSubscribe(StreamWallet w, address sub, uint256 total, uint256 duration) internal {
+        uint256 fee = (total * PLATFORM_FEE_BPS) / 10_000;
+        usdc.mint(address(w), total - fee);
+        vm.prank(router);
+        w.recordSubscriptionByRouter(sub, total, duration);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // FACTORY
+    // ═══════════════════════════════════════════════════════════════════════
 
     function testFactoryDeployment() public view {
         assertEq(factory.owner(), admin);
         assertEq(factory.treasury(), treasury);
         assertEq(factory.defaultPlatformFeeBps(), PLATFORM_FEE_BPS);
         assertTrue(factory.implementation() != address(0));
-        assertEq(factory.kayenRouter(), address(router));
-        assertEq(factory.usdc(), address(usdcToken));
+        assertEq(factory.kayenRouter(), kayen);
+        assertEq(factory.usdc(), address(usdc));
+        assertEq(factory.swapRouter(), router);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        SUBSCRIPTION TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    function testFirstSubscription() public {
-        uint256 subscriptionAmount = 100 ether;
-        uint256 duration = 30 days;
-
-        // Check wallet doesn't exist yet
-        assertFalse(factory.hasWallet(streamer1));
-
-        // Subscribe with fan tokens
-        vm.prank(viewer1);
-        address wallet = factory.subscribeToStream(streamer1, duration, subscriptionAmount, 0, block.timestamp + 1 hours, address(fanToken));
-
-        // Verify wallet created
+    function testManualWalletDeployment() public {
+        StreamWallet w = _wallet(streamer1);
         assertTrue(factory.hasWallet(streamer1));
-        assertEq(factory.getWallet(streamer1), wallet);
+        assertEq(factory.getWallet(streamer1), address(w));
+        assertEq(w.streamer(), streamer1);
+        assertEq(w.owner(), streamer1);
+        assertEq(w.factory(), address(factory));
 
-        // Check balances (USDC after swap, 1:1 mock)
-        StreamWallet streamWallet = StreamWallet(payable(wallet));
-        uint256 expectedFee = (subscriptionAmount * PLATFORM_FEE_BPS) / 10_000;
-        uint256 expectedStreamerAmount = subscriptionAmount - expectedFee;
-
-        // Treasury should have received USDC platform fee
-        assertEq(usdcToken.balanceOf(treasury), expectedFee);
-
-        // Streamer's wallet (escrow) should hold the USDC payment
-        assertEq(usdcToken.balanceOf(wallet), expectedStreamerAmount);
-
-        // Verify subscription data
-        assertTrue(streamWallet.isSubscribed(viewer1));
-        assertEq(streamWallet.totalRevenue(), subscriptionAmount);
-        assertEq(streamWallet.totalSubscribers(), 1);
-
-        // Viewer fan token balance should be reduced
-        assertEq(fanToken.balanceOf(viewer1), INITIAL_BALANCE - subscriptionAmount);
+        vm.prank(admin);
+        vm.expectRevert(StreamWalletFactory.WalletAlreadyExists.selector);
+        factory.deployWalletFor(streamer1);
     }
 
-    function testMultipleSubscriptions() public {
-        uint256 amount1 = 100 ether;
-        uint256 amount2 = 200 ether;
-        uint256 duration = 30 days;
+    function testGetOrCreateWallet_RouterOrOwnerOnly() public {
+        vm.prank(router);
+        address w = factory.getOrCreateWallet(streamer1);
+        vm.prank(admin);
+        assertEq(factory.getOrCreateWallet(streamer1), w, "idempotent");
 
-        // First subscription from viewer1
         vm.prank(viewer1);
-        address wallet = factory.subscribeToStream(streamer1, duration, amount1, 0, block.timestamp + 1 hours, address(fanToken));
-
-        // Second subscription from viewer2 to same streamer
-        vm.prank(viewer2);
-        address wallet2 = factory.subscribeToStream(streamer1, duration, amount2, 0, block.timestamp + 1 hours, address(fanToken));
-
-        // Should use same wallet
-        assertEq(wallet, wallet2);
-
-        StreamWallet streamWallet = StreamWallet(payable(wallet));
-
-        // Both should be subscribed
-        assertTrue(streamWallet.isSubscribed(viewer1));
-        assertTrue(streamWallet.isSubscribed(viewer2));
-
-        // Total subscribers should be 2
-        assertEq(streamWallet.totalSubscribers(), 2);
-
-        // Total revenue should be sum
-        assertEq(streamWallet.totalRevenue(), amount1 + amount2);
-
-        // Check total USDC fees to treasury
-        uint256 totalFees = ((amount1 + amount2) * PLATFORM_FEE_BPS) / 10_000;
-        assertEq(usdcToken.balanceOf(treasury), totalFees);
+        vm.expectRevert(StreamWalletFactory.Unauthorized.selector);
+        factory.getOrCreateWallet(streamer2);
     }
 
-    function testSubscriptionToMultipleStreamers() public {
-        uint256 amount = 100 ether;
-        uint256 duration = 30 days;
-
-        // Subscribe to streamer1
-        vm.prank(viewer1);
-        address wallet1 = factory.subscribeToStream(streamer1, duration, amount, 0, block.timestamp + 1 hours, address(fanToken));
-
-        // Subscribe to streamer2
-        vm.prank(viewer1);
-        address wallet2 = factory.subscribeToStream(streamer2, duration, amount, 0, block.timestamp + 1 hours, address(fanToken));
-
-        // Different wallets for different streamers
-        assertTrue(wallet1 != wallet2);
-
-        // Both wallets should exist
-        assertTrue(factory.hasWallet(streamer1));
-        assertTrue(factory.hasWallet(streamer2));
-
-        // Each streamer's wallet (escrow) should hold the USDC payment
-        uint256 expectedStreamerAmount = amount - ((amount * PLATFORM_FEE_BPS) / 10_000);
-        assertEq(usdcToken.balanceOf(wallet1), expectedStreamerAmount);
-        assertEq(usdcToken.balanceOf(wallet2), expectedStreamerAmount);
+    function test_H05_LegacyFanTokenEntrypointsRemoved() public {
+        StreamWallet w = _wallet(streamer1);
+        (bool ok,) = address(factory).call(abi.encodeWithSignature(
+            "subscribeToStream(address,uint256,uint256,uint256,uint256,address)",
+            streamer1, 30 days, 1e6, 0, block.timestamp, address(usdc)
+        ));
+        assertFalse(ok, "factory.subscribeToStream gone");
+        (ok,) = address(factory).call(abi.encodeWithSignature(
+            "donateToStream(address,string,uint256,uint256,uint256,address)",
+            streamer1, "x", 1e6, 0, block.timestamp, address(usdc)
+        ));
+        assertFalse(ok, "factory.donateToStream gone");
+        (ok,) = address(w).call(abi.encodeWithSignature(
+            "donate(uint256,string,uint256,uint256,address)", 1e6, "x", 0, block.timestamp, address(usdc)
+        ));
+        assertFalse(ok, "wallet.donate gone");
     }
 
-    function testSubscriptionExpiry() public {
-        uint256 amount = 100 ether;
-        uint256 duration = 30 days;
+    // ═══════════════════════════════════════════════════════════════════════
+    // DONATIONS (router path)
+    // ═══════════════════════════════════════════════════════════════════════
 
-        vm.prank(viewer1);
-        address wallet = factory.subscribeToStream(streamer1, duration, amount, 0, block.timestamp + 1 hours, address(fanToken));
-
-        StreamWallet streamWallet = StreamWallet(payable(wallet));
-
-        // Should be subscribed immediately
-        assertTrue(streamWallet.isSubscribed(viewer1));
-
-        // Fast forward to just before expiry
-        vm.warp(block.timestamp + duration - 1);
-        assertTrue(streamWallet.isSubscribed(viewer1));
-
-        // Fast forward past expiry
-        vm.warp(block.timestamp + 2);
-        assertFalse(streamWallet.isSubscribed(viewer1));
+    function testDonationRecorded() public {
+        StreamWallet w = _wallet(streamer1);
+        _routerDonate(w, viewer1, 20e6);
+        _routerDonate(w, viewer1, 5e6);
+        assertEq(w.lifetimeDonations(viewer1), 25e6);
+        assertEq(w.getDonationAmount(viewer1), 25e6);
+        assertEq(w.totalRevenue(), 25e6, "USDC only (L-06)");
+        assertEq(w.availableBalance(), 25e6 - (25e6 * uint256(PLATFORM_FEE_BPS)) / 10_000);
     }
 
-    function testSubscriptionRenewal() public {
-        uint256 amount = 100 ether;
-        uint256 duration = 30 days;
-
-        // Use `type(uint256).max` for the deadline — `block.timestamp + 1 hours`
-        // is mis-hoisted by solc 0.8.24's `via_ir = true` pipeline (the
-        // optimizer treats `block.timestamp` as side-effect-free and reuses
-        // the pre-`vm.warp` value across two calls in the same function),
-        // which made the renewal revert with `DeadlinePassed` in CI. The test
-        // is checking renewal flow, not deadline-expiry semantics, so an
-        // infinite deadline keeps the assertion meaningful without fighting
-        // the IR optimizer.
-        uint256 deadline = type(uint256).max;
-
-        // First subscription
+    function testRevertDonationUnauthorizedOrZero() public {
+        StreamWallet w = _wallet(streamer1);
         vm.prank(viewer1);
-        address wallet = factory.subscribeToStream(streamer1, duration, amount, 0, deadline, address(fanToken));
+        vm.expectRevert(StreamWallet.OnlyAuthorized.selector);
+        w.recordDonationByRouter(viewer1, 1e6, 0, 1e6, "x");
 
-        StreamWallet streamWallet = StreamWallet(payable(wallet));
+        vm.prank(streamer1); // the streamer cannot fabricate revenue either
+        vm.expectRevert(StreamWallet.OnlyAuthorized.selector);
+        w.recordDonationByRouter(viewer1, 1e6, 0, 1e6, "x");
 
-        // Fast forward past expiry
-        vm.warp(block.timestamp + duration + 1);
-        assertFalse(streamWallet.isSubscribed(viewer1));
-
-        // Renew subscription
-        vm.prank(viewer1);
-        factory.subscribeToStream(streamer1, duration, amount, 0, deadline, address(fanToken));
-
-        // Should be subscribed again
-        assertTrue(streamWallet.isSubscribed(viewer1));
+        vm.prank(router);
+        vm.expectRevert(StreamWallet.InvalidAmount.selector);
+        w.recordDonationByRouter(viewer1, 0, 0, 0, "x");
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        DONATION TESTS
-    //////////////////////////////////////////////////////////////*/
+    // ═══════════════════════════════════════════════════════════════════════
+    // SUBSCRIPTION PRICING  (audit H-03)
+    // ═══════════════════════════════════════════════════════════════════════
 
-    function testDonation() public {
-        uint256 subscriptionAmount = 100 ether;
-        uint256 donationAmount = 50 ether;
-        string memory message = "Great stream!";
-
-        // First create a wallet via subscription
-        vm.prank(viewer1);
-        address wallet = factory.subscribeToStream(streamer1, 30 days, subscriptionAmount, 0, block.timestamp + 1 hours, address(fanToken));
-
-        uint256 walletUsdcBefore = usdcToken.balanceOf(wallet);
-        uint256 treasuryUsdcBefore = usdcToken.balanceOf(treasury);
-
-        StreamWallet streamWallet = StreamWallet(payable(wallet));
-
-        // Approve StreamWallet to pull fan tokens for donation
-        vm.prank(viewer2);
-        fanToken.approve(address(streamWallet), donationAmount);
-
-        // Donate directly to wallet
-        vm.prank(viewer2);
-        streamWallet.donate(donationAmount, message, 0, block.timestamp + 1 hours, address(fanToken));
-
-        // Check donation recorded
-        assertEq(streamWallet.getDonationAmount(viewer2), donationAmount);
-
-        // Check USDC balances — streamer portion is escrowed in the wallet.
-        uint256 expectedFee = (donationAmount * PLATFORM_FEE_BPS) / 10_000;
-        uint256 expectedStreamerAmount = donationAmount - expectedFee;
-
-        assertEq(
-            usdcToken.balanceOf(treasury),
-            treasuryUsdcBefore + expectedFee
-        );
-        assertEq(
-            usdcToken.balanceOf(wallet),
-            walletUsdcBefore + expectedStreamerAmount
-        );
-    }
-
-    function testDonationCreatesWallet() public {
-        uint256 donationAmount = 50 ether;
-        string memory message = "First donation!";
-
-        // Use factory to create wallet via donation
-        vm.expectEmit(true, true, false, true);
-        emit DonationProcessed(streamer1, viewer1, donationAmount, message);
-
-        vm.prank(viewer1);
-        address wallet = factory.donateToStream(streamer1, message, donationAmount, 0, block.timestamp + 1 hours, address(fanToken));
-
-        // Wallet should now exist
-        assertTrue(factory.hasWallet(streamer1));
-        assertEq(factory.getWallet(streamer1), wallet);
-
-        StreamWallet streamWallet = StreamWallet(payable(wallet));
-
-        // Verify revenue was recorded
-        assertEq(streamWallet.totalRevenue(), donationAmount);
-    }
-
-    function testMultipleDonationsAccumulate() public {
-        uint256 donation1 = 50 ether;
-        uint256 donation2 = 75 ether;
-
-        // First create wallet via subscription
-        vm.prank(viewer1);
-        address wallet = factory.subscribeToStream(streamer1, 30 days, 100 ether, 0, block.timestamp + 1 hours, address(fanToken));
-
-        StreamWallet streamWallet = StreamWallet(payable(wallet));
-
-        // Approve StreamWallet to pull fan tokens for donations
-        vm.prank(viewer1);
-        fanToken.approve(address(streamWallet), donation1 + donation2);
-
-        // First donation
-        vm.prank(viewer1);
-        streamWallet.donate(donation1, "First!", 0, block.timestamp + 1 hours, address(fanToken));
-
-        // Second donation from same viewer
-        vm.prank(viewer1);
-        streamWallet.donate(donation2, "Second!", 0, block.timestamp + 1 hours, address(fanToken));
-
-        // Should accumulate
-        assertEq(streamWallet.getDonationAmount(viewer1), donation1 + donation2);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                        WITHDRAWAL TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    function testStreamerWithdrawal() public {
-        // Subscribe — streamer portion is escrowed in the wallet.
-        uint256 subscriptionAmount = 100 ether;
-        vm.prank(viewer1);
-        address wallet = factory.subscribeToStream(streamer1, 30 days, subscriptionAmount, 0, block.timestamp + 1 hours, address(fanToken));
-
-        StreamWallet streamWallet = StreamWallet(payable(wallet));
-
-        uint256 expectedFee = (subscriptionAmount * PLATFORM_FEE_BPS) / 10_000;
-        uint256 expectedEscrow = subscriptionAmount - expectedFee;
-
-        // Available balance reflects the escrowed USDC.
-        assertEq(streamWallet.availableBalance(), expectedEscrow);
-
-        uint256 streamerUsdcBefore = usdcToken.balanceOf(streamer1);
-
-        vm.prank(streamer1);
-        streamWallet.withdrawRevenue(expectedEscrow);
-
-        // Streamer EOA receives the USDC; escrow drained.
-        assertEq(usdcToken.balanceOf(streamer1), streamerUsdcBefore + expectedEscrow);
-        assertEq(streamWallet.availableBalance(), 0);
-        assertEq(streamWallet.totalWithdrawn(), expectedEscrow);
-    }
-
-    function testOnlyStreamerCanWithdraw() public {
-        // Create wallet
-        vm.prank(viewer1);
-        address wallet = factory.subscribeToStream(streamer1, 30 days, 100 ether, 0, block.timestamp + 1 hours, address(fanToken));
-
-        StreamWallet streamWallet = StreamWallet(payable(wallet));
-
-        // Fund wallet with USDC
-        usdcToken.mint(wallet, 1 ether);
-
-        // Try to withdraw as non-streamer
+    function test_H03_PricingStreamerOnlyAndBounded() public {
+        StreamWallet w = _wallet(streamer1);
         vm.prank(viewer1);
         vm.expectRevert(StreamWallet.OnlyStreamer.selector);
-        streamWallet.withdrawRevenue(1 ether);
-    }
+        w.setSubscriptionPricing(PRICE, PERIOD);
 
-    /*//////////////////////////////////////////////////////////////
-                        FEE CALCULATION TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    function testFeeCalculations() public {
-        uint256[] memory amounts = new uint256[](5);
-        amounts[0] = 100 ether;
-        amounts[1] = 1000 ether;
-        amounts[2] = 10000 ether;
-        amounts[3] = 1 ether;
-        amounts[4] = 999 ether;
-
-        uint256 totalFees = 0;
-        uint256 totalStreamerPayments = 0;
-        address wallet;
-
-        for (uint256 i = 0; i < amounts.length; i++) {
-            // Create new viewer for each test
-            // casting to 'uint160' is safe because 1000 + i is always within uint160 range in tests
-            // forge-lint: disable-next-line(unsafe-typecast)
-            address viewer = address(uint160(1000 + i));
-            fanToken.mint(viewer, amounts[i]);
-            vm.prank(viewer);
-            fanToken.approve(address(factory), amounts[i]);
-
-            vm.prank(viewer);
-            wallet = factory.subscribeToStream(streamer1, 30 days, amounts[i], 0, block.timestamp + 1 hours, address(fanToken));
-
-            uint256 expectedFee = (amounts[i] * PLATFORM_FEE_BPS) / 10_000;
-            uint256 expectedStreamerAmount = amounts[i] - expectedFee;
-
-            totalFees += expectedFee;
-            totalStreamerPayments += expectedStreamerAmount;
-        }
-
-        // Verify total USDC fees collected by treasury
-        assertEq(usdcToken.balanceOf(treasury), totalFees);
-
-        // Streamer portions are escrowed in streamer1's wallet.
-        assertEq(
-            usdcToken.balanceOf(wallet),
-            totalStreamerPayments
-        );
-    }
-
-    function testZeroFeeEdgeCase() public {
-        // Deploy new factory with 0% fee
-        vm.startPrank(admin);
-        StreamWalletFactory zeroFeeFactory = new StreamWalletFactory(
-            admin,
-            treasury,
-            0, // 0% fee
-            address(router),
-            address(usdcToken)
-        );
-
+        vm.startPrank(streamer1);
+        vm.expectRevert(abi.encodeWithSelector(StreamWallet.InvalidSubscriptionPricing.selector, 0, PERIOD));
+        w.setSubscriptionPricing(0, PERIOD);
+        vm.expectRevert(abi.encodeWithSelector(StreamWallet.InvalidSubscriptionPricing.selector, PRICE, uint64(1 hours)));
+        w.setSubscriptionPricing(PRICE, 1 hours);
+        vm.expectRevert(abi.encodeWithSelector(StreamWallet.InvalidSubscriptionPricing.selector, PRICE, uint64(400 days)));
+        w.setSubscriptionPricing(PRICE, 400 days);
+        w.setSubscriptionPricing(PRICE, PERIOD);
         vm.stopPrank();
-
-        uint256 amount = 100 ether;
-
-        // Approve zero-fee factory
-        vm.prank(viewer1);
-        fanToken.approve(address(zeroFeeFactory), amount);
-
-        uint256 treasuryBefore = usdcToken.balanceOf(treasury);
-
-        vm.prank(viewer1);
-        address zeroFeeWallet = zeroFeeFactory.subscribeToStream(streamer2, 30 days, amount, 0, block.timestamp + 1 hours, address(fanToken));
-
-        // Streamer's wallet (escrow) holds the full USDC amount
-        assertEq(usdcToken.balanceOf(zeroFeeWallet), amount);
-
-        // Treasury should receive nothing
-        assertEq(usdcToken.balanceOf(treasury), treasuryBefore);
+        assertEq(w.subscriptionPrice(), PRICE);
+        assertEq(w.subscriptionPeriod(), PERIOD);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        UPGRADE TESTS (UUPS)
-    //////////////////////////////////////////////////////////////*/
+    function test_H03_NoPriceNoSubscription() public {
+        StreamWallet w = _wallet(streamer1);
+        vm.prank(router);
+        vm.expectRevert(StreamWallet.SubscriptionPriceNotSet.selector);
+        w.recordSubscriptionByRouter(viewer1, 1_000e6, 30 days);
+    }
+
+    function test_H03_HundredYearsForOneMicroUsdcRejected() public {
+        StreamWallet w = _pricedWallet(streamer1);
+        uint256 duration = 100 * 365 days;
+        uint256 required = w.subscriptionCost(duration);
+        vm.prank(router);
+        vm.expectRevert(abi.encodeWithSelector(StreamWallet.InsufficientSubscriptionPayment.selector, required, 1));
+        w.recordSubscriptionByRouter(viewer1, 1, duration);
+    }
+
+    function test_H03_ExactAndProRataPayments() public {
+        StreamWallet w = _pricedWallet(streamer1);
+        assertEq(w.subscriptionCost(PERIOD), PRICE);
+        assertEq(w.subscriptionCost(PERIOD / 2), PRICE / 2);
+        assertEq(w.subscriptionCost(1), 4, "1 s = 3.86 micro-USDC, rounded up: never free");
+
+        _routerSubscribe(w, viewer1, PRICE, PERIOD);
+        assertTrue(w.isSubscribed(viewer1));
+        assertEq(w.getSubscription(viewer1).expiryTime, block.timestamp + PERIOD);
+
+        _routerSubscribe(w, viewer2, PRICE / 2, PERIOD / 2);
+        assertEq(w.getSubscription(viewer2).expiryTime, block.timestamp + PERIOD / 2);
+        assertEq(w.totalSubscribers(), 2);
+        assertEq(w.totalRevenue(), PRICE + PRICE / 2);
+    }
+
+    function testSubscriptionExtendsFromCurrentExpiry() public {
+        StreamWallet w = _pricedWallet(streamer1);
+        _routerSubscribe(w, viewer1, PRICE, PERIOD);
+        uint256 firstExpiry = w.getSubscription(viewer1).expiryTime;
+        vm.warp(block.timestamp + 10 days);
+        _routerSubscribe(w, viewer1, PRICE, PERIOD);
+        assertEq(w.getSubscription(viewer1).expiryTime, firstExpiry + PERIOD, "no time lost");
+        assertEq(w.totalSubscribers(), 1);
+        assertEq(w.getSubscription(viewer1).amount, 2 * PRICE);
+    }
+
+    function testSubscriptionExpiresAndRestartsFromNow() public {
+        StreamWallet w = _pricedWallet(streamer1);
+        _routerSubscribe(w, viewer1, PRICE, PERIOD);
+        vm.warp(block.timestamp + PERIOD);
+        assertFalse(w.isSubscribed(viewer1));
+        _routerSubscribe(w, viewer1, PRICE, PERIOD);
+        assertEq(w.getSubscription(viewer1).expiryTime, block.timestamp + PERIOD);
+    }
+
+    function testRevertSubscriptionZeroValues() public {
+        StreamWallet w = _pricedWallet(streamer1);
+        vm.startPrank(router);
+        vm.expectRevert(StreamWallet.InvalidAmount.selector);
+        w.recordSubscriptionByRouter(viewer1, 0, PERIOD);
+        vm.expectRevert(StreamWallet.InvalidDuration.selector);
+        w.recordSubscriptionByRouter(viewer1, PRICE, 0);
+        vm.stopPrank();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // WITHDRAWALS & PAYOUT ADDRESS  (audit L-06)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    function testStreamerWithdrawal() public {
+        StreamWallet w = _wallet(streamer1);
+        _routerDonate(w, viewer1, 100e6);
+        uint256 bal = w.availableBalance();
+        vm.prank(streamer1);
+        w.withdrawRevenue(bal);
+        assertEq(usdc.balanceOf(streamer1), bal);
+        assertEq(w.totalWithdrawn(), bal);
+        assertEq(w.availableBalance(), 0);
+    }
+
+    function testRevertWithdrawal() public {
+        StreamWallet w = _wallet(streamer1);
+        _routerDonate(w, viewer1, 10e6);
+        vm.prank(viewer1);
+        vm.expectRevert(StreamWallet.OnlyStreamer.selector);
+        w.withdrawRevenue(1);
+
+        vm.startPrank(streamer1);
+        vm.expectRevert(StreamWallet.InvalidAmount.selector);
+        w.withdrawRevenue(0);
+        vm.expectRevert(StreamWallet.InsufficientBalance.selector);
+        w.withdrawRevenue(10e6); // only 9.5 escrowed
+        vm.stopPrank();
+    }
+
+    function test_L06_PayoutAddress() public {
+        StreamWallet w = _wallet(streamer1);
+        _routerDonate(w, viewer1, 100e6);
+        address cold = makeAddr("coldWallet");
+
+        vm.prank(viewer1);
+        vm.expectRevert(StreamWallet.OnlyStreamer.selector);
+        w.setPayoutAddress(viewer1);
+
+        vm.startPrank(streamer1);
+        w.setPayoutAddress(cold);
+        w.withdrawRevenue(50e6);
+        assertEq(usdc.balanceOf(cold), 50e6);
+
+        w.setPayoutAddress(address(0)); // back to the streamer
+        w.withdrawRevenue(45e6);
+        assertEq(usdc.balanceOf(streamer1), 45e6);
+        vm.stopPrank();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // UPGRADES (UUPS, factory-only)
+    // ═══════════════════════════════════════════════════════════════════════
 
     function testUpgradeImplementation() public {
-        // Create a wallet with first implementation
-        vm.prank(viewer1);
-        address wallet = factory.subscribeToStream(streamer1, 30 days, 100 ether, 0, block.timestamp + 1 hours, address(fanToken));
+        StreamWallet w = _pricedWallet(streamer1);
+        _routerSubscribe(w, viewer1, PRICE, PERIOD);
 
-        // Deploy new implementation
         StreamWallet newImplementation = new StreamWallet();
-
-        // Upgrade via factory owner (platform admin) — NOT the streamer
         vm.prank(admin);
         factory.upgradeWallet(streamer1, address(newImplementation));
 
-        // Existing proxy should still work with new implementation
-        StreamWallet streamWallet = StreamWallet(payable(wallet));
-        assertTrue(streamWallet.isSubscribed(viewer1));
+        assertTrue(w.isSubscribed(viewer1));
+        assertEq(w.subscriptionPrice(), PRICE, "pricing survives the upgrade");
     }
 
     function testOnlyOwnerCanUpgrade() public {
-        // Create a wallet
-        vm.prank(viewer1);
-        address wallet = factory.subscribeToStream(streamer1, 30 days, 100 ether, 0, block.timestamp + 1 hours, address(fanToken));
-
+        StreamWallet w = _wallet(streamer1);
         StreamWallet newImplementation = new StreamWallet();
 
-        // Viewer cannot upgrade directly
         vm.prank(viewer1);
         vm.expectRevert();
-        StreamWallet(payable(wallet)).upgradeToAndCall(address(newImplementation), "");
+        w.upgradeToAndCall(address(newImplementation), "");
 
-        // Streamer cannot upgrade their own wallet (prevented by OnlyFactory guard)
         vm.prank(streamer1);
-        vm.expectRevert();
-        StreamWallet(payable(wallet)).upgradeToAndCall(address(newImplementation), "");
+        vm.expectRevert(); // OnlyFactory
+        w.upgradeToAndCall(address(newImplementation), "");
 
-        // Non-owner cannot call factory.upgradeWallet
         vm.prank(viewer1);
         vm.expectRevert();
         factory.upgradeWallet(streamer1, address(newImplementation));
 
-        // Platform admin CAN upgrade via factory
         vm.prank(admin);
         factory.upgradeWallet(streamer1, address(newImplementation));
-        assertTrue(StreamWallet(payable(wallet)).isSubscribed(viewer1));
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        REVERT TESTS
-    //////////////////////////////////////////////////////////////*/
+    // ═══════════════════════════════════════════════════════════════════════
+    // FACTORY ADMIN SETTERS
+    // ═══════════════════════════════════════════════════════════════════════
 
-    function testRevertZeroAmount() public {
-        vm.prank(viewer1);
-        vm.expectRevert(StreamWalletFactory.InvalidAmount.selector);
-        factory.subscribeToStream(streamer1, 30 days, 0, 0, block.timestamp + 1 hours, address(fanToken));
+    function testAdminSetters() public {
+        vm.startPrank(admin);
+        factory.setTreasury(address(0x999));
+        factory.setPlatformFee(1000);
+        factory.setKayenRouter(address(0xABC));
+        factory.setUsdc(address(0xFED));
+        vm.stopPrank();
+        assertEq(factory.treasury(), address(0x999));
+        assertEq(factory.defaultPlatformFeeBps(), 1000);
+        assertEq(factory.kayenRouter(), address(0xABC));
+        assertEq(factory.usdc(), address(0xFED));
     }
 
-    function testRevertZeroDuration() public {
-        vm.prank(viewer1);
-        vm.expectRevert(StreamWalletFactory.InvalidDuration.selector);
-        factory.subscribeToStream(streamer1, 0, 100 ether, 0, block.timestamp + 1 hours, address(fanToken));
-    }
-
-    function testRevertInsufficientBalance() public {
-        vm.prank(viewer1);
-        vm.expectRevert(StreamWalletFactory.InvalidAmount.selector);
-        factory.subscribeToStream(streamer1, 30 days, 0, 0, block.timestamp + 1 hours, address(fanToken));
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                        INTEGRATION TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    function testCompleteFlow() public {
-        // Step 1: First subscription
-        uint256 sub1Amount = 100 ether;
-        vm.prank(viewer1);
-        address wallet = factory.subscribeToStream(streamer1, 30 days, sub1Amount, 0, block.timestamp + 1 hours, address(fanToken));
-
-        StreamWallet streamWallet = StreamWallet(payable(wallet));
-
-        // Step 2: Another viewer subscribes
-        uint256 sub2Amount = 200 ether;
-        vm.prank(viewer2);
-        factory.subscribeToStream(streamer1, 60 days, sub2Amount, 0, block.timestamp + 1 hours, address(fanToken));
-
-        // Step 3: First viewer donates directly to wallet
-        uint256 donationAmount = 50 ether;
-        vm.prank(viewer1);
-        fanToken.approve(address(streamWallet), donationAmount);
-        vm.prank(viewer1);
-        streamWallet.donate(donationAmount, "Love your content!", 0, block.timestamp + 1 hours, address(fanToken));
-
-        // Calculate expected totals
-        uint256 totalRevenue = sub1Amount + sub2Amount + donationAmount;
-        uint256 totalFees = (totalRevenue * PLATFORM_FEE_BPS) / 10_000;
-        uint256 totalStreamerPayment = totalRevenue - totalFees;
-
-        // Verify wallet state
-        assertEq(streamWallet.totalRevenue(), totalRevenue);
-        assertEq(streamWallet.totalSubscribers(), 2);
-        assertEq(streamWallet.getDonationAmount(viewer1), donationAmount);
-
-        // Verify USDC balances — streamer portion is escrowed in the wallet.
-        assertEq(usdcToken.balanceOf(treasury), totalFees);
-        assertEq(usdcToken.balanceOf(wallet), totalStreamerPayment);
-
-        // Verify subscriptions
-        assertTrue(streamWallet.isSubscribed(viewer1));
-        assertTrue(streamWallet.isSubscribed(viewer2));
-
-        // Step 4: Fast forward past first subscription expiry
-        vm.warp(block.timestamp + 31 days);
-        assertFalse(streamWallet.isSubscribed(viewer1));
-        assertTrue(streamWallet.isSubscribed(viewer2)); // Still active
-
-        // Step 5: Viewer1 resubscribes
-        vm.prank(viewer1);
-        factory.subscribeToStream(streamer1, 30 days, sub1Amount, 0, block.timestamp + 1 hours, address(fanToken));
-
-        // Should be subscribed again
-        assertTrue(streamWallet.isSubscribed(viewer1));
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                        ADMIN FUNCTION TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    function testManualWalletDeployment() public {
-        // Admin can deploy wallet manually
-        vm.prank(admin);
-        address wallet = factory.deployWalletFor(streamer1);
-
-        assertTrue(factory.hasWallet(streamer1));
-        assertEq(factory.getWallet(streamer1), wallet);
-    }
-
-    function testUpdateTreasury() public {
-        address newTreasury = address(0x999);
-        uint256 subscriptionAmount = 100 ether;
-
-        // Update treasury BEFORE creating any wallets
-        vm.prank(admin);
-        factory.setTreasury(newTreasury);
-
-        // Verify treasury was updated
-        assertEq(factory.treasury(), newTreasury);
-
-        // Subscribe
-        vm.prank(viewer1);
-        factory.subscribeToStream(streamer1, 30 days, subscriptionAmount, 0, block.timestamp + 1 hours, address(fanToken));
-
-        // Calculate expected fee
-        uint256 expectedFee = (subscriptionAmount * PLATFORM_FEE_BPS) / 10_000;
-
-        // Check new treasury received the USDC fee
-        assertEq(usdcToken.balanceOf(newTreasury), expectedFee, "New treasury should have received fee");
-    }
-
-    function testUpdatePlatformFee() public {
-        uint16 newFee = 1000; // 10%
-
-        vm.prank(admin);
-        factory.setPlatformFee(newFee);
-
-        assertEq(factory.defaultPlatformFeeBps(), newFee);
-    }
-
-    function testRevertUpdateTreasuryNonOwner() public {
+    function testRevertAdminSetters() public {
         vm.prank(viewer1);
         vm.expectRevert();
         factory.setTreasury(address(0x999));
-    }
 
-    function testRevertInvalidFeeBps() public {
-        vm.prank(admin);
+        vm.startPrank(admin);
         vm.expectRevert(StreamWalletFactory.InvalidFeeBps.selector);
-        factory.setPlatformFee(10001); // > 100%
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                        ADMIN SETTER TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    function testSetKayenRouter() public {
-        address newRouter = address(0xABC);
-
-        vm.prank(admin);
-        factory.setKayenRouter(newRouter);
-
-        assertEq(factory.kayenRouter(), newRouter);
-    }
-
-    function testSetUsdc() public {
-        address newUsdc = address(0xFED);
-
-        vm.prank(admin);
-        factory.setUsdc(newUsdc);
-
-        assertEq(factory.usdc(), newUsdc);
-    }
-
-    function testRevertSetKayenRouterNonOwner() public {
-        vm.prank(viewer1);
-        vm.expectRevert();
-        factory.setKayenRouter(address(0xABC));
-    }
-
-    function testRevertSetKayenRouterZeroAddress() public {
-        vm.prank(admin);
+        factory.setPlatformFee(10001);
         vm.expectRevert(StreamWalletFactory.InvalidAddress.selector);
         factory.setKayenRouter(address(0));
+        vm.expectRevert(StreamWalletFactory.InvalidAddress.selector);
+        factory.setTreasury(address(0));
+        vm.stopPrank();
     }
 
-    /*//////////////////////////////////////////////////////////////
-                    L-03: StreamWallet.setSwapRouter
-    //////////////////////////////////////////////////////////////*/
+    // ═══════════════════════════════════════════════════════════════════════
+    // L-03: StreamWallet.setSwapRouter (no-op since M-04)
+    // ═══════════════════════════════════════════════════════════════════════
 
     function test_L03_SetSwapRouter_ZeroReverts() public {
-        // Deploy a wallet for streamer1 using admin (factory owner)
-        vm.prank(admin);
-        address walletAddr = factory.deployWalletFor(streamer1);
-        StreamWallet wallet = StreamWallet(payable(walletAddr));
-
-        // Only the factory can rotate the swap router (H-1). Factory passes a
-        // zero address → InvalidAddress.
+        StreamWallet w = _wallet(streamer1);
         vm.prank(address(factory));
         vm.expectRevert(StreamWallet.InvalidAddress.selector);
-        wallet.setSwapRouter(address(0));
+        w.setSwapRouter(address(0));
     }
 
-    function test_L03_SetSwapRouter_EmitsEvent() public {
-        vm.prank(admin);
-        address walletAddr = factory.deployWalletFor(streamer1);
-        StreamWallet wallet = StreamWallet(payable(walletAddr));
-
-        address newRouter = address(0xABC);
-
-        vm.expectEmit(true, true, false, false);
-        emit StreamWallet.SwapRouterUpdated(address(0), newRouter);
-
-        // Factory-only after H-1 (previously streamer/owner could also call).
+    function test_L03_SetSwapRouter_IsNoOpRouterComesFromFactory() public {
+        StreamWallet w = _wallet(streamer1);
+        // Factories deployed before M-04 still call setSwapRouter on new
+        // wallets: it must succeed for them but change nothing.
         vm.prank(address(factory));
-        wallet.setSwapRouter(newRouter);
+        w.setSwapRouter(address(0xABC));
+        assertEq(w.swapRouter(), router);
 
-        assertEq(wallet.swapRouter(), newRouter);
+        vm.prank(admin);
+        factory.setSwapRouter(address(0xDEF));
+        assertEq(w.swapRouter(), address(0xDEF));
     }
 
     function test_L03_SetSwapRouter_OnlyFactory() public {
-        vm.prank(admin);
-        address walletAddr = factory.deployWalletFor(streamer1);
-        StreamWallet wallet = StreamWallet(payable(walletAddr));
-
-        // viewer1 is not the factory — must revert.
+        StreamWallet w = _wallet(streamer1);
         vm.prank(viewer1);
         vm.expectRevert(StreamWallet.OnlyAuthorized.selector);
-        wallet.setSwapRouter(address(0x1));
-
-        // H-1 regression: the streamer (wallet owner) must NOT be able to swap
-        // the router — that was the vector for fabricating revenue events.
+        w.setSwapRouter(address(0x1));
         vm.prank(streamer1);
         vm.expectRevert(StreamWallet.OnlyAuthorized.selector);
-        wallet.setSwapRouter(address(0x1));
+        w.setSwapRouter(address(0x1));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // M-04 (audit 2026-10): config is read from the factory
+    // ═══════════════════════════════════════════════════════════════════════
+
+    function test_M04_FactoryConfigRotationReachesExistingWallet() public {
+        StreamWallet w = _wallet(streamer1);
+        _routerDonate(w, viewer1, 10e6);
+        assertEq(w.treasury(), treasury);
+        assertEq(w.platformFeeBps(), PLATFORM_FEE_BPS);
+
+        address newTreasury = makeAddr("newTreasury");
+        address newRouter = makeAddr("newRouter");
+        vm.startPrank(admin);
+        factory.setTreasury(newTreasury);
+        factory.setPlatformFee(1_000);
+        factory.setSwapRouter(newRouter);
+        vm.stopPrank();
+
+        assertEq(w.treasury(), newTreasury);
+        assertEq(w.platformFeeBps(), 1_000);
+        assertEq(w.usdc(), address(usdc));
+        assertEq(w.swapRouter(), newRouter);
+
+        vm.prank(newRouter); // the rotated router is authorized at once
+        w.recordDonationByRouter(viewer2, 1e6, 0, 1e6, "via new router");
+        assertEq(w.lifetimeDonations(viewer2), 1e6);
+
+        vm.prank(router); // the retired one is not
+        vm.expectRevert(StreamWallet.OnlyAuthorized.selector);
+        w.recordDonationByRouter(viewer2, 1e6, 0, 1e6, "stale");
+    }
+
+    function test_M04_UpgradeKeepsStorageAndIgnoresStaleSlots() public {
+        StreamWallet w = _pricedWallet(streamer1);
+        _routerSubscribe(w, viewer1, PRICE, PERIOD);
+        uint256 revenue = w.totalRevenue();
+        uint256 escrow = w.availableBalance();
+
+        StreamWallet newImpl = new StreamWallet();
+        vm.prank(admin);
+        factory.upgradeWallet(streamer1, address(newImpl));
+
+        // Wallets upgraded in place keep stale copies in the deprecated slots
+        // (1, 3, 4, 5). Simulate that and check nothing reads them.
+        vm.store(address(w), bytes32(uint256(1)), bytes32(uint256(uint160(address(0xDEAD1)))));
+        vm.store(address(w), bytes32(uint256(3)), bytes32(uint256(uint160(address(0xDEAD3)))));
+        vm.store(address(w), bytes32(uint256(4)), bytes32(uint256(uint160(address(0xDEAD4)))));
+        vm.store(address(w), bytes32(uint256(5)), bytes32(uint256(uint160(address(0xDEAD5)))));
+
+        assertEq(w.streamer(), streamer1);
+        assertEq(w.factory(), address(factory));
+        assertEq(w.totalRevenue(), revenue);
+        assertEq(w.availableBalance(), escrow);
+        assertTrue(w.isSubscribed(viewer1));
+        assertEq(w.treasury(), treasury);
+        assertEq(w.platformFeeBps(), PLATFORM_FEE_BPS);
+        assertEq(w.usdc(), address(usdc));
+        assertEq(w.swapRouter(), router);
+
+        vm.prank(address(0xDEAD5)); // stale router copy grants nothing
+        vm.expectRevert(StreamWallet.OnlyAuthorized.selector);
+        w.recordDonationByRouter(viewer2, 1e6, 0, 1e6, "stale");
     }
 }

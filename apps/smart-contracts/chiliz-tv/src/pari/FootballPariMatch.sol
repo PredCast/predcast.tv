@@ -45,12 +45,19 @@ contract FootballPariMatch is PariMatchBase {
     // MARKET TYPE CONSTANTS
     // ═══════════════════════════════════════════════════════════════════════
 
+    /// @notice Winner at 90 minutes: 0 = Home, 1 = Draw, 2 = Away.
     bytes32 public constant MARKET_WINNER        = keccak256("WINNER");
+    /// @notice Total goals against `line` (1/10-goal units): 0 = Under, 1 = Over.
     bytes32 public constant MARKET_GOALS_TOTAL   = keccak256("GOALS_TOTAL");
+    /// @notice Both teams score: 0 = No, 1 = Yes.
     bytes32 public constant MARKET_BOTH_SCORE    = keccak256("BOTH_SCORE");
+    /// @notice Half-time result: 0 = Home, 1 = Draw, 2 = Away.
     bytes32 public constant MARKET_HALFTIME      = keccak256("HALFTIME");
+    /// @notice Score at 90 minutes, encoded as `min(home, 9) * 10 + min(away, 9)`.
     bytes32 public constant MARKET_CORRECT_SCORE = keccak256("CORRECT_SCORE");
+    /// @notice Player id of the first scorer, 1..255.
     bytes32 public constant MARKET_FIRST_SCORER  = keccak256("FIRST_SCORER");
+    /// @notice Bucketed total goals: `min(home + away, line)`.
     bytes32 public constant MARKET_GOALS_EXACT   = keccak256("GOALS_EXACT");
     /// @notice Double-chance market: bettor picks one of the three 2-of-3
     ///         WINNER unions encoded in `line` (0=1X, 1=12, 2=2X). Each
@@ -107,6 +114,7 @@ contract FootballPariMatch is PariMatchBase {
     // EVENTS
     // ═══════════════════════════════════════════════════════════════════════
 
+    /// @notice `resolveByScore` settled every market it could derive from the score.
     event MatchScoreResolved(
         uint8 homeGoals,
         uint8 awayGoals,
@@ -128,6 +136,7 @@ contract FootballPariMatch is PariMatchBase {
         _disableInitializers();
     }
 
+    /// @notice Initialize the proxy. Called once, by the factory.
     function initialize(string memory _matchName, address _owner) external initializer {
         __PariMatchBase_init(_matchName, "FOOTBALL", _owner);
     }

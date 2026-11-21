@@ -73,10 +73,12 @@ contract PariMatchScalarTest is Test {
         foot.grantRole(RESOLVER_ROLE, oracle);
         foot.setUSDCToken(address(usdc));
         foot.setFeeRecipient(feeAddr);
+        foot.grantRole(keccak256("SWAP_ROUTER_ROLE"), address(this));
 
         bball.grantRole(RESOLVER_ROLE, oracle);
         bball.setUSDCToken(address(usdc));
         bball.setFeeRecipient(feeAddr);
+        bball.grantRole(keccak256("SWAP_ROUTER_ROLE"), address(this));
         vm.stopPrank();
 
         usdc.mint(alice, 100_000e6);
@@ -89,18 +91,21 @@ contract PariMatchScalarTest is Test {
     // HELPERS
     // ───────────────────────────────────────────────────────────────────────
 
+    /// This contract plays NetworkRouter: USDC to the match, then placeBetUSDCFor.
     function _stakeFoot(address u, uint256 mid, uint64 outcome, uint256 amt) internal {
-        vm.startPrank(u);
-        usdc.approve(address(foot), amt);
-        foot.placeBetUSDC(mid, outcome, amt);
-        vm.stopPrank();
+        this.routerStake(address(foot), u, mid, outcome, amt);
+    }
+
+    /// External on purpose: via_ir would inline it into tests that are
+    /// already close to the stack limit.
+    function routerStake(address m, address u, uint256 mid, uint64 outcome, uint256 amt) external {
+        vm.prank(u);
+        usdc.transfer(m, amt);
+        PariMatchBase(payable(m)).placeBetUSDCFor(u, mid, outcome, amt);
     }
 
     function _stakeBball(address u, uint256 mid, uint64 outcome, uint256 amt) internal {
-        vm.startPrank(u);
-        usdc.approve(address(bball), amt);
-        bball.placeBetUSDC(mid, outcome, amt);
-        vm.stopPrank();
+        this.routerStake(address(bball), u, mid, outcome, amt);
     }
 
     // ───────────────────────────────────────────────────────────────────────

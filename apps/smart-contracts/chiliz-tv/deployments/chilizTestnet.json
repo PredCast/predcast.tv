@@ -1,27 +1,35 @@
 {
   "network": "chilizTestnet",
   "chainId": 88882,
-  "timestamp": "2026-06-09T15:59:05Z",
+  "timestamp": "2026-11-12T15:28:50Z",
   "contracts": [
     {
+      "name": "FootballPariMatch",
+      "address": "0xa1401b1bbf85202f88e59f54701f541f41656665"
+    },
+    {
+      "name": "BasketballPariMatch",
+      "address": "0x202cf87c36b29469f8a1fe383aba9c72c0465aba"
+    },
+    {
       "name": "PariMatchFactory",
-      "address": "0x5c6433b9a03feb15e1e6cd0745a3013cea4879ac"
+      "address": "0x78fe2af11c2aaea2648c66a327117c987ad9b18d"
     },
     {
       "name": "StreamWalletFactory",
-      "address": "0xeb92b6620556cbbc0bdb57371c501b1794961fd3"
+      "address": "0x7a0be706772186ee84fb69f630b23e5af2e515f2"
     },
     {
-      "name": "ChilizSwapRouter",
-      "address": "0xed417f0b94455e114e05a1ce54c0fdb858fe21ad"
+      "name": "NetworkRouter",
+      "address": "0x7495b33e8380ce0b760e9d9bb0af4306f55f5680"
     },
     {
       "name": "LeaderboardRewards",
-      "address": "0x627bfdd9d9d62d634cd94dc1bd2804d26c1771f9"
+      "address": "0xeee9fcbfe93be271954b0b8808d104fad37c5686"
     },
     {
       "name": "ERC1967Proxy",
-      "address": "0x1d12428243f842de0449ed6f3e8ae6dce03ace14"
+      "address": "0x861b2170816c1725913528087398c691420581ea"
     }
   ]
 }

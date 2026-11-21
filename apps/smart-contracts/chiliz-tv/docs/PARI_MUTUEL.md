@@ -11,7 +11,7 @@ to their stake on the winning outcome.
 ```
                      ┌───────────────────────────────────┐
                      │  PariMatchFactory                 │
-                     │   - one match = one UUPS proxy    │
+                     │   - one match = one BeaconProxy   │
                      │   - isMatch[]  → router allowlist │
                      └────────────┬──────────────────────┘
                                   │ creates (proxy)
@@ -26,9 +26,10 @@ to their stake on the winning outcome.
                        + pari-mutuel math)
 ```
 
-`ChilizSwapRouter` calls `placeBetUSDCFor` after swapping the user's CHZ /
-fan-token / arbitrary ERC20 → USDC. The router holds `SWAP_ROUTER_ROLE` on
-each proxy.
+`NetworkRouter` calls `placeBetUSDCFor` after swapping the user's native token
+(CHZ on Chiliz, ETH on Base) or ERC20 to USDC. The router holds
+`SWAP_ROUTER_ROLE` on each proxy. [CALL_FLOWS.md](CALL_FLOWS.md) lists the
+calls for each scenario.
 
 ---
 
@@ -39,14 +40,16 @@ A **market** is one specific question about that event:
 
 | Market type        | Sport      | Outcomes                          | Notes                                           |
 |--------------------|------------|-----------------------------------|-------------------------------------------------|
-| `WINNER`           | Football   | Home / Draw / Away                |                                                 |
+| `WINNER`           | Football   | Home / Draw / Away                | score at 90 minutes                             |
 | `GOALS_TOTAL`      | Football   | Under / Over                      | `line` in 1/10-goal units, e.g. 25 = 2.5        |
 | `BOTH_SCORE`       | Football   | No / Yes                          |                                                 |
 | `HALFTIME`         | Football   | Home / Draw / Away                |                                                 |
 | `CORRECT_SCORE`    | Football   | `home*10 + away`, 0..99           | each side clamped to 9 at resolution            |
 | `FIRST_SCORER`     | Football   | player ID 1..255                  | 0 reserved for "no scorer"                      |
 | `GOALS_EXACT`      | Football   | `0..line` bucketed                | scalar / bucket market — see § 3                |
-| `WINNER`           | Basketball | Home / Away                       | no draw                                         |
+| `DOUBLE_CHANCE`    | Football   | No / Yes                          | `line`: 0 = 1X, 1 = 12, 2 = 2X                  |
+| `FULL_TIME_WINNER` | Football   | Home / Away                       | knockout only: extra time and penalties count   |
+| `WINNER`           | Basketball | Home / Away                       | overtime included                               |
 | `TOTAL_POINTS`     | Basketball | Under / Over                      | `line` in 1/10-point units                      |
 | `SPREAD`           | Basketball | Home covers / Away covers         | `line` = home handicap in 1/10-pt units         |
 | `QUARTER_WINNER`   | Basketball | Home / Away                       | `extra` selects Q1..Q4                          |
@@ -75,15 +78,20 @@ Inactive ──open──▶ Open ──suspend──▶ Suspended ──open─
                                                        └ refund (whole stake)
 ```
 
-* **Inactive → Open**: `openMarket` (ADMIN_ROLE). Stakes accepted.
+* **Inactive → Open**: `openMarket` (ADMIN_ROLE). Stakes accepted; the market's
+  fees are frozen the first time it opens.
 * **Open ↔ Suspended**: `suspendMarket` / `openMarket` (ADMIN_ROLE). Live-game timeouts.
-* **Open → Closed**: `closeMarket` (ADMIN_ROLE). No more stakes.
-* **Closed → Resolved**: `resolveMarket(id, outcome)` (RESOLVER_ROLE) or
-  `resolveByScore(score)` (RESOLVER_ROLE) — see § 4.
-* **Closed → Cancelled (void)**: automatically if no one bet on the winning
+* **Betting cutoff**: `setMarketCloseTime` (ADMIN_ROLE) sets `closesAt`. From that
+  timestamp every stake reverts, even if the market is still Open.
+* **Open or Suspended → Closed**: `closeMarket` (ADMIN_ROLE), or
+  `closeExpiredMarket` (anyone) once `closesAt` has passed.
+* **Closed → Resolved**: `resolveMarket(id, outcome)` or a score entrypoint
+  (RESOLVER_ROLE), see § 4.
+* **Closed → Cancelled (void)**: automatic when nobody bet on the winning
   outcome. All stakers refund their full position. No fee.
-* **Anything but Resolved/Cancelled → Cancelled**: `cancelMarket(id, reason)`
-  (ADMIN_ROLE). Refunds for all.
+* **Open, Suspended or Closed → Cancelled**: `cancelMarket(id, reason)`
+  (ADMIN_ROLE), or `cancelStaleMarket` (anyone) once `staleAt` has passed: 7 days
+  after `closesAt`, so an unresponsive oracle cannot lock funds.
 
 ---
 
@@ -137,21 +145,31 @@ resolution logic is complex or sport-specific data is not available on chain.
 
 ```solidity
 // Football
-struct FootballScore { uint8 homeGoals; uint8 awayGoals; uint8 htHomeGoals; uint8 htAwayGoals; uint8 firstScorerId; }
+struct FootballScore {
+    uint8 homeGoals; uint8 awayGoals; uint8 htHomeGoals; uint8 htAwayGoals;
+    uint8 firstScorerId; uint8 aetHomeGoals; uint8 aetAwayGoals; uint8 penWinner;
+}
 resolveByScore(FootballScore s);
 resolveBatchByScore(uint256[] marketIds, FootballScore s);
 computeOutcome(uint256 marketId, FootballScore s) returns (uint64 outcome, bool resolvable);
 
-// Basketball
-struct BasketballScore {
+// Basketball, overtime points included
+struct BasketballFinalScore {
     uint8 homeQ1; uint8 awayQ1; uint8 homeQ2; uint8 awayQ2;
     uint8 homeQ3; uint8 awayQ3; uint8 homeQ4; uint8 awayQ4;
-    uint8 firstToScore;
+    uint8 homeOT; uint8 awayOT; uint8 firstToScore;
 }
-resolveByScore(BasketballScore s);
-resolveBatchByScore(uint256[] marketIds, BasketballScore s);
-computeOutcome(uint256 marketId, BasketballScore s) returns (uint64 outcome, bool resolvable);
+resolveByFinalScore(BasketballFinalScore s);
+resolveBatchByFinalScore(uint256[] marketIds, BasketballFinalScore s);
+computeOutcomeFinal(uint256 marketId, BasketballFinalScore s) returns (uint64 outcome, bool resolvable);
 ```
+
+`penWinner` is 0 for Home, 1 for Away and 255 when there was no shootout. Without
+extra time, `aetHomeGoals` and `aetAwayGoals` repeat the 90-minute score.
+
+Basketball also keeps `resolveByScore(BasketballScore)`, which has no overtime
+field: when regulation ends tied, it leaves `WINNER`, `TOTAL_POINTS`, `SPREAD`
+and `POINTS_EXACT` Closed.
 
 One signed result blob, one transaction, every market on the match settles.
 
@@ -164,6 +182,7 @@ happen for:
 * `FIRST_TO_SCORE` when `firstToScore == 0` (unknown).
 * `QUARTER_WINNER` when the chosen quarter is a tie.
 * `WINNER` (basketball) when the game is tied.
+* `FULL_TIME_WINNER` (football) when the score is tied with no shootout winner.
 * `SPREAD` when `home - away == line` (push).
 * `HIGHEST_QUARTER` when two or more quarters tie at the top.
 
@@ -178,20 +197,31 @@ before submitting the resolution tx.
 ## 5. Pari-mutuel payout math
 
 ```
-fee     = totalPool * feeBps / BPS_DENOM        // capped at MAX_FEE_BPS = 5%
-netPool = totalPool - fee                       // snapshotted at resolve time
-payout(user) = userStake[winningOutcome]
-             * netPool
-             / outcomePool[winningOutcome]
+leaderboardFee = totalPool * leaderboardFeeBps / BPS_DENOM   // 0.5% by default
+companyFee     = totalPool * (feeBps - leaderboardFeeBps) / BPS_DENOM   // 1.5% by default
+netPool        = totalPool - leaderboardFee - companyFee     // snapshotted at resolve time
+share(user)    = userStake[winningOutcome]
+               * netPool
+               / outcomePool[winningOutcome]                 // exact, not an integer
+
+// Cumulative rounding, per claim:
+claimedStake  += userStake[winningOutcome]
+paidAfter      = claimedStake * netPool / outcomePool[winningOutcome]   // floor
+payout(user)   = paidAfter - paidOut
+paidOut        = paidAfter
 ```
 
-* Multiplication before division to keep precision.
-* Floor division can leave at most `(numWinners)` wei of dust in the
-  contract. The system never overpays.
-* `netPool` is frozen at resolution: changing `feeBps` afterwards does not
-  affect in-flight claims.
-* Losing-outcome stakes stay in the contract (they're already inside
-  `totalPool`); only winners on the resolved outcome receive payouts.
+* `feeBps` is 2% by default and capped at `MAX_FEE_BPS` = 5%.
+* Fees are frozen when the market first opens: later fee changes only reach
+  markets opened afterwards.
+* When every stake is on the winning outcome, no fee is taken.
+* Fees are sent at resolution, to `feeRecipient` and `leaderboardRecipient`.
+* No rounding dust: each payout is `share(user)` rounded down or up by one
+  unit at most, and when the whole winning stake is claimed `paidOut` equals
+  `netPool`, whatever the claim order. `paidOut` is always the floor of the
+  claimed stake's share, so the system never overpays.
+* Fee rounding favours the winners: both fees are floored and `netPool` is
+  what remains.
 
 ---
 
@@ -211,8 +241,10 @@ PariMatchBase slots
  8  _claimed             (mapping)
  9  usdcToken            (IERC20)
 10  feeRecipient (20) + feeBps (2)              ── packed
-11  _marketSpec          (mapping)                ── NEW (consumes 1 gap slot)
-12..49  __gap[38]
+11  _marketSpec          (mapping)
+12  leaderboardRecipient (20) + leaderboardFeeBps (2) + pausedAt (5)  ── packed
+13  _accountedUsdc       (uint256)
+14..49  __gap[36]
 50..  sport-specific contract storage (always begins with __gap[50])
 ```
 
@@ -223,13 +255,17 @@ keep order.
 
 ## 7. Roles
 
-| Role                  | Holder                | Powers                                              |
-|-----------------------|-----------------------|-----------------------------------------------------|
-| `DEFAULT_ADMIN_ROLE`  | Owner (multisig)      | UUPS upgrades, role management                      |
-| `ADMIN_ROLE`          | Owner (multisig)      | Create / open / close / cancel markets, fee setters |
-| `RESOLVER_ROLE`       | Oracle EOA            | `resolveMarket`, `resolveByScore`                   |
-| `PAUSER_ROLE`         | Owner / ops EOA       | `emergencyPause`                                    |
-| `SWAP_ROUTER_ROLE`    | `ChilizSwapRouter`    | `placeBetUSDCFor`                                   |
+| Role                  | Holder                        | Powers                                                                    |
+|-----------------------|-------------------------------|---------------------------------------------------------------------------|
+| `DEFAULT_ADMIN_ROLE`  | Governance (the beacon owner) | Role management, settlement token, fee rates and recipients               |
+| `ADMIN_ROLE`          | Match owner (ops key)         | Create, open, suspend, close and cancel markets, `unpause`                |
+| `RESOLVER_ROLE`       | Oracle key                    | `resolveMarket` and the score entrypoints                                 |
+| `PAUSER_ROLE`         | Match owner (ops key)         | `emergencyPause`                                                          |
+| `SWAP_ROUTER_ROLE`    | `NetworkRouter`               | `placeBetUSDCFor`                                                         |
+
+The oracle must be a different key from the match owner, the factory owner and
+the factory's `matchOperator`. Match code can only change through the beacon of
+its sport, owned by the factory's `upgradeAdmin`.
 
 `PariMatchFactory` is granted all roles temporarily during deployment and
 renounces them inside the same transaction. After `createFootballMatch` /
@@ -255,17 +291,17 @@ uint256 prob = match.getImpliedProbabilityBps(marketId, outcome);   // off-chain
 identically on related markets (e.g. all O/U lines for the same match) so the
 frontend can render them under one heading.
 
-Placing a bet directly with USDC:
+Bets go through the router only. With USDC:
 
 ```solidity
-usdc.approve(matchAddr, amount);
-match.placeBetUSDC(marketId, outcome, amount);
+usdc.approve(router, amount);
+router.placeBetWithUSDC(matchAddr, marketId, outcome, amount);
 ```
 
-Or via the swap router (CHZ → USDC → bet):
+With the native token:
 
 ```solidity
-router.placeBetWithCHZ{value: chzAmount}(matchAddr, marketId, outcome, minUsdcOut, deadline);
+router.placeBetWithNativeToken{value: amount}(matchAddr, marketId, outcome, minUsdcOut, deadline);
 ```
 
 ---
@@ -276,7 +312,7 @@ router.placeBetWithCHZ{value: chzAmount}(matchAddr, marketId, outcome, minUsdcOu
 2. Define your market-type constants and your `XScore` struct.
 3. Implement `_isValidMarketType(bytes32)` and `_getMaxOutcome(bytes32, int16)`.
 4. Implement a typed `resolveByScore(XScore)` (and optional batch variant).
-5. Add your sport to `PariMatchFactory`.
+5. Add your sport and its beacon to `PariMatchFactory`.
 
 Nothing else: stake recording, pari-mutuel math, lifecycle, refunds, claims,
 fee handling, and access control are inherited.

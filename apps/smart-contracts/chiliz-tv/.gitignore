@@ -15,6 +15,7 @@ yarn-error.log*
 out/
 cache/
 broadcast/
+deployments/logs/
 forge-debug.log
 
 # Hardhat / Truffle / TypeChain (if used alongside Foundry)
@@ -33,6 +34,9 @@ coverage/
 # Environment / secrets
 .env
 .env.*.local
+# Per-network templates are committed (no secrets); the real .env.<network> files are not.
+!.env.example
+!.env.*.example
 .envrc
 secret*
 *.key
@@ -53,3 +57,5 @@ __pycache__/
 *.py[cod]
 
 # Keep remappings and foundry.toml tracked; do not ignore remappings.txt or foundry.toml
+# Generated guide PDFs (node docs/guide/build-pdf.mjs)
+docs/guide/pdf/
