@@ -4,6 +4,7 @@ import { productionEnvProblems } from '../productionEnvGuards';
 
 const HASH = 'ab12:cd34';
 const SERVICE_ROLE = 'service-role-key';
+const RESOLVER = '0xresolver';
 
 describe('productionEnvProblems — admin gate', () => {
   it('ignores every non-production environment', () => {
@@ -16,13 +17,13 @@ describe('productionEnvProblems — admin gate', () => {
   });
 
   it('only reports an unset gate hash in production', () => {
-    const report = productionEnvProblems({ NODE_ENV: 'production', SUPABASE_SERVICE_ROLE_KEY: SERVICE_ROLE });
+    const report = productionEnvProblems({ NODE_ENV: 'production', SUPABASE_SERVICE_ROLE_KEY: SERVICE_ROLE, RESOLVER_PRIVATE_KEY: RESOLVER });
     expect(report.fatal).toHaveLength(0);
     expect(report.errors).toHaveLength(1);
   });
 
   it('accepts a configured gate in production', () => {
-    expect(productionEnvProblems({ NODE_ENV: 'production', ADMIN_GATE_CODE_HASH: HASH, SUPABASE_SERVICE_ROLE_KEY: SERVICE_ROLE })).toEqual({ fatal: [], errors: [] });
+    expect(productionEnvProblems({ NODE_ENV: 'production', ADMIN_GATE_CODE_HASH: HASH, SUPABASE_SERVICE_ROLE_KEY: SERVICE_ROLE, RESOLVER_PRIVATE_KEY: RESOLVER })).toEqual({ fatal: [], errors: [] });
   });
 });
 
@@ -34,5 +35,13 @@ describe('productionEnvProblems — service role', () => {
 
   it('leaves local runs on the anon key alone (the client logs a warning)', () => {
     expect(productionEnvProblems({ NODE_ENV: 'development' }).fatal).toHaveLength(0);
+  });
+});
+
+describe('productionEnvProblems — oracle key', () => {
+  it('reports a missing oracle key without stopping the process', () => {
+    const report = productionEnvProblems({ NODE_ENV: 'production', ADMIN_GATE_CODE_HASH: HASH, SUPABASE_SERVICE_ROLE_KEY: SERVICE_ROLE });
+    expect(report.fatal).toHaveLength(0);
+    expect(report.errors).toEqual([expect.stringContaining('RESOLVER_PRIVATE_KEY')]);
   });
 });

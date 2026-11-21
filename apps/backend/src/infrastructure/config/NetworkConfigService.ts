@@ -14,6 +14,7 @@ export class NetworkConfigService implements INetworkConfig {
     readonly usdcAddress: string;
     readonly wchzAddress: string;
     readonly adminPrivateKey: string;
+    readonly resolverPrivateKey: string | null;
 
     constructor() {
         const isMainnet = env.NETWORK === 'mainnet';
@@ -36,5 +37,6 @@ export class NetworkConfigService implements INetworkConfig {
         this.usdcAddress                = isMainnet ? (env.USDC_ADDRESS_MAINNET ?? env.USDC_ADDRESS) : env.USDC_ADDRESS;
         this.wchzAddress                = isMainnet ? (env.WCHZ_ADDRESS_MAINNET ?? env.WCHZ_ADDRESS) : env.WCHZ_ADDRESS;
         this.adminPrivateKey            = env.ADMIN_PRIVATE_KEY;
+        this.resolverPrivateKey         = env.RESOLVER_PRIVATE_KEY ?? null;
     }
 }

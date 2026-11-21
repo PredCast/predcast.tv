@@ -6,10 +6,11 @@ import {
     keccak256,
     toBytes,
 } from 'viem';
-import { privateKeyToAccount, nonceManager } from 'viem/accounts';
+import { privateKeyToAccount } from 'viem/accounts';
 import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import type { ISignerLock } from '@chiliztv/domain/shared/ports/ISignerLock';
 import { withSignerLock } from '../signer/withSignerLock';
+import { ResolverSigner, resolveByScoreRequest } from '../signer/ResolverSigner';
 import { INetworkConfig } from '@chiliztv/domain/shared/ports/INetworkConfig';
 import {
     IBlockchainService,
@@ -22,7 +23,6 @@ import {
 import {
     PARI_MATCH_FACTORY_INLINE_ABI,
     PARI_MATCH_BASE_INLINE_ABI,
-    FOOTBALL_PARI_MATCH_INLINE_ABI,
     chainFor,
 } from '@chiliztv/blockchain';
 import { FOOTBALL_SEEDING_PAYLOAD, getFootballSeedingPayload } from '../markets/seedingPayload';
@@ -57,13 +57,15 @@ export class ViemBlockchainService implements IBlockchainService {
         private readonly config: INetworkConfig,
         @inject(TOKENS.ISignerLock)
         private readonly signerLock: ISignerLock,
+        @inject(ResolverSigner)
+        private readonly resolver: ResolverSigner,
     ) {
         if (!config.adminPrivateKey) {
             throw new Error('INetworkConfig.adminPrivateKey is required');
         }
 
         const chain = chainFor(config.chainId === 88888 ? 'mainnet' : 'testnet');
-        this.account = privateKeyToAccount(config.adminPrivateKey as `0x${string}`, { nonceManager });
+        this.account = privateKeyToAccount(config.adminPrivateKey as `0x${string}`);
 
         this.publicClient = createPublicClient({
             chain,
@@ -92,7 +94,7 @@ export class ViemBlockchainService implements IBlockchainService {
         ownerAddress: string,
         oracleAddress?: string,
     ): Promise<DeployContractResult> {
-        const oracle = (oracleAddress ?? process.env.RESOLVER_ADDRESS ?? ownerAddress) as `0x${string}`;
+        const oracle = (oracleAddress ?? this.resolver.requireAddress()) as `0x${string}`;
         logger.info('Deploying FootballPariMatch proxy', { matchName, ownerAddress, oracle });
 
         const hash = await this.walletClient.writeContract({
@@ -178,6 +180,7 @@ export class ViemBlockchainService implements IBlockchainService {
         if (count === 0) return 0;
 
         const toClose: bigint[] = [];
+        let unsettled = 0;
         for (let id = 0; id < count; id++) {
             try {
                 const core = await this.publicClient.readContract({
@@ -187,10 +190,14 @@ export class ViemBlockchainService implements IBlockchainService {
                     args: [BigInt(id)],
                 }) as { state: number };
                 if (core.state === MarketState.Open) toClose.push(BigInt(id));
+                if (core.state >= MarketState.Open && core.state <= MarketState.Closed) unsettled++;
             } catch (err: any) {
+                unsettled++;
                 logger.warn('resolveMarketsByScore: getMarketCore failed', { contractAddress, id, error: err?.message ?? err });
             }
         }
+        // The job revisits every finished match each tick: without this, settled contracts get a no-op tx.
+        if (unsettled === 0) return 0;
 
         if (toClose.length > 0) {
             try {
@@ -213,29 +220,10 @@ export class ViemBlockchainService implements IBlockchainService {
         //    computes the outcome, applies fees, and emits MarketResolved /
         //    MarketCancelled (for void markets).
         try {
-            // Default AET aggregate to the 90' score so FULL_TIME_WINNER
-            // resolves consistently with the 90' winner for non-knockout
-            // matches. penWinner=255 means "no shootout occurred".
-            const aetHomeGoals = score.aetHomeGoals ?? score.homeGoals;
-            const aetAwayGoals = score.aetAwayGoals ?? score.awayGoals;
-            const penWinner = score.penWinner ?? 255;
-
-            const hash = await this.walletClient.writeContract({
-                chain: undefined,
-                address: addr,
-                abi: FOOTBALL_PARI_MATCH_INLINE_ABI,
-                functionName: 'resolveByScore',
-                args: [{
-                    homeGoals: score.homeGoals,
-                    awayGoals: score.awayGoals,
-                    htHomeGoals: score.htHomeGoals ?? 0,
-                    htAwayGoals: score.htAwayGoals ?? 0,
-                    firstScorerId: score.firstScorerId ?? 0,
-                    aetHomeGoals,
-                    aetAwayGoals,
-                    penWinner,
-                }],
-            });
+            const hash = await this.resolver.resolveByScore(
+                resolveByScoreRequest(addr, score),
+                (request) => this.walletClient.writeContract({ chain: undefined, ...request }),
+            );
             const receipt = await this.publicClient.waitForTransactionReceipt({ hash, timeout: 180_000 });
             if (receipt.status === 'reverted') {
                 throw new Error(`resolveByScore reverted (hash: ${hash})`);
@@ -314,29 +302,14 @@ export class ViemBlockchainService implements IBlockchainService {
                 preStates.push(-1);
             }
         }
+        // Only Closed markets resolve; an unreadable one (-1) is given the benefit of the doubt.
+        if (!preStates.some((st) => st === MarketState.Closed || st === -1)) return 0;
 
         try {
-            // Same defaults as the full-resolve path (see resolveMarketsByScore).
-            const aetHomeGoals = score.aetHomeGoals ?? score.homeGoals;
-            const aetAwayGoals = score.aetAwayGoals ?? score.awayGoals;
-            const penWinner = score.penWinner ?? 255;
-
-            const hash = await this.walletClient.writeContract({
-                chain: undefined,
-                address: addr,
-                abi: FOOTBALL_PARI_MATCH_INLINE_ABI,
-                functionName: 'resolveByScore',
-                args: [{
-                    homeGoals: score.homeGoals,
-                    awayGoals: score.awayGoals,
-                    htHomeGoals: score.htHomeGoals ?? 0,
-                    htAwayGoals: score.htAwayGoals ?? 0,
-                    firstScorerId: score.firstScorerId ?? 0,
-                    aetHomeGoals,
-                    aetAwayGoals,
-                    penWinner,
-                }],
-            });
+            const hash = await this.resolver.resolveByScore(
+                resolveByScoreRequest(addr, score),
+                (request) => this.walletClient.writeContract({ chain: undefined, ...request }),
+            );
             const receipt = await this.publicClient.waitForTransactionReceipt({ hash, timeout: 180_000 });
             if (receipt.status === 'reverted') {
                 throw new Error(`resolveByScore reverted (hash: ${hash})`);

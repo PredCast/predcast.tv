@@ -2,7 +2,7 @@ import { parseAbiItem } from 'viem';
 
 // Full ABIs sourced from the Foundry build artifacts.
 export {
-    CHILIZ_SWAP_ROUTER_ABI,
+    NETWORK_ROUTER_ABI,
     STREAM_WALLET_ABI,
     STREAM_WALLET_FACTORY_ABI,
     PARI_MATCH_FACTORY_ABI,
@@ -30,7 +30,7 @@ export const ERC20_ABI = [
     }
 ] as const;
 
-// Minimal inline ABI for PariMatchFactory — owner-restricted match creation.
+// Minimal inline ABI for PariMatchFactory — match creation is restricted to the owner or `matchOperator`.
 export const PARI_MATCH_FACTORY_INLINE_ABI = [
     {
         type: 'function',
@@ -54,6 +54,34 @@ export const PARI_MATCH_FACTORY_INLINE_ABI = [
         outputs: [{ name: 'proxy', type: 'address' }],
         stateMutability: 'nonpayable'
     },
+    {
+        type: 'function',
+        name: 'createFootballMatchWithMarkets',
+        inputs: [
+            { name: '_matchName', type: 'string' },
+            { name: '_owner', type: 'address' },
+            { name: '_oracle', type: 'address' },
+            {
+                name: '_markets',
+                type: 'tuple',
+                components: [
+                    { name: 'marketTypes', type: 'bytes32[]' },
+                    { name: 'lines', type: 'int16[]' },
+                    { name: 'extras', type: 'uint8[]' },
+                    { name: 'groupIds', type: 'uint16[]' },
+                    { name: 'closesAt', type: 'uint40' },
+                    { name: 'open', type: 'bool' }
+                ]
+            }
+        ],
+        outputs: [{ name: 'proxy', type: 'address' }],
+        stateMutability: 'nonpayable'
+    },
+    { type: 'function', name: 'owner', inputs: [], outputs: [{ name: '', type: 'address' }], stateMutability: 'view' },
+    { type: 'function', name: 'matchOperator', inputs: [], outputs: [{ name: '', type: 'address' }], stateMutability: 'view' },
+    { type: 'error', name: 'NotOwnerOrOperator', inputs: [{ name: 'caller', type: 'address' }] },
+    { type: 'error', name: 'OracleMustBeDistinct', inputs: [{ name: 'oracle', type: 'address' }] },
+    { type: 'error', name: 'InvalidAddress', inputs: [] },
     {
         type: 'function',
         name: 'isMatch',
@@ -92,6 +120,8 @@ export const PARI_MATCH_BASE_INLINE_ABI = [
     { type: 'error', name: 'StakeBelowMinimum', inputs: [{ name: 'stake', type: 'uint256' }, { name: 'minimum', type: 'uint256' }] },
     { type: 'error', name: 'NothingToClaim', inputs: [{ name: 'marketId', type: 'uint256' }, { name: 'user', type: 'address' }] },
     { type: 'error', name: 'AlreadyClaimed', inputs: [{ name: 'marketId', type: 'uint256' }, { name: 'user', type: 'address' }] },
+    { type: 'error', name: 'BettingClosed', inputs: [{ name: 'marketId', type: 'uint256' }, { name: 'closesAt', type: 'uint40' }] },
+    { type: 'error', name: 'ClaimsPaused', inputs: [{ name: 'reopensAt', type: 'uint256' }] },
     { type: 'error', name: 'AccessControlUnauthorizedAccount', inputs: [{ name: 'account', type: 'address' }, { name: 'neededRole', type: 'bytes32' }] },
     // Market creation
     {
@@ -121,18 +151,7 @@ export const PARI_MATCH_BASE_INLINE_ABI = [
     { type: 'function', name: 'openMarketsBatch', inputs: [{ name: 'marketIds', type: 'uint256[]' }], outputs: [], stateMutability: 'nonpayable' },
     { type: 'function', name: 'closeMarketsBatch', inputs: [{ name: 'marketIds', type: 'uint256[]' }], outputs: [], stateMutability: 'nonpayable' },
     { type: 'function', name: 'cancelMarket', inputs: [{ name: 'marketId', type: 'uint256' }, { name: 'reason', type: 'string' }], outputs: [], stateMutability: 'nonpayable' },
-    // Betting (PariMatch is the escrow — caller approves USDC then calls)
-    {
-        type: 'function',
-        name: 'placeBetUSDC',
-        inputs: [
-            { name: 'marketId', type: 'uint256' },
-            { name: 'outcome', type: 'uint64' },
-            { name: 'amount', type: 'uint256' }
-        ],
-        outputs: [],
-        stateMutability: 'nonpayable'
-    },
+    // Betting goes through the router (SWAP_ROUTER_ROLE); there is no direct stake entrypoint.
     {
         type: 'function',
         name: 'placeBetUSDCFor',
@@ -207,6 +226,7 @@ export const PARI_MATCH_BASE_INLINE_ABI = [
     { type: 'function', name: 'getUserTotalStake', inputs: [{ name: 'marketId', type: 'uint256' }, { name: 'user', type: 'address' }], outputs: [{ name: '', type: 'uint256' }], stateMutability: 'view' },
     { type: 'function', name: 'hasClaimed', inputs: [{ name: 'marketId', type: 'uint256' }, { name: 'user', type: 'address' }], outputs: [{ name: '', type: 'bool' }], stateMutability: 'view' },
     { type: 'function', name: 'getImpliedProbabilityBps', inputs: [{ name: 'marketId', type: 'uint256' }, { name: 'outcome', type: 'uint64' }], outputs: [{ name: '', type: 'uint256' }], stateMutability: 'view' },
+    { type: 'function', name: 'hasRole', inputs: [{ name: 'role', type: 'bytes32' }, { name: 'account', type: 'address' }], outputs: [{ name: '', type: 'bool' }], stateMutability: 'view' },
     { type: 'function', name: 'feeBps', inputs: [], outputs: [{ name: '', type: 'uint16' }], stateMutability: 'view' },
     { type: 'function', name: 'leaderboardFeeBps', inputs: [], outputs: [{ name: '', type: 'uint16' }], stateMutability: 'view' }
 ] as const;
@@ -253,7 +273,10 @@ export const FOOTBALL_PARI_MATCH_INLINE_ABI = [
                     { name: 'awayGoals', type: 'uint8' },
                     { name: 'htHomeGoals', type: 'uint8' },
                     { name: 'htAwayGoals', type: 'uint8' },
-                    { name: 'firstScorerId', type: 'uint8' }
+                    { name: 'firstScorerId', type: 'uint8' },
+                    { name: 'aetHomeGoals', type: 'uint8' },
+                    { name: 'aetAwayGoals', type: 'uint8' },
+                    { name: 'penWinner', type: 'uint8' }
                 ]
             }
         ],

@@ -1,6 +1,6 @@
 import { inject, injectable } from 'tsyringe';
 import { createPublicClient, createWalletClient, http } from 'viem';
-import { privateKeyToAccount, nonceManager } from 'viem/accounts';
+import { privateKeyToAccount } from 'viem/accounts';
 import { chilizConfig, networkType } from '../../config/chiliz.config';
 import { STREAM_WALLET_FACTORY_ABI, chainFor } from '@chiliztv/blockchain';
 import { TOKENS } from '@chiliztv/domain/shared/tokens';
@@ -43,7 +43,7 @@ export class StreamWalletDeploymentAdapter {
         this.factoryAddress = network.streamWalletFactoryAddress as `0x${string}`;
 
         const chain = chainFor(networkType);
-        const account = privateKeyToAccount(network.adminPrivateKey as `0x${string}`, { nonceManager });
+        const account = privateKeyToAccount(network.adminPrivateKey as `0x${string}`);
         this.publicClient = createPublicClient({
             chain,
             transport: http(chilizConfig.rpcUrl),

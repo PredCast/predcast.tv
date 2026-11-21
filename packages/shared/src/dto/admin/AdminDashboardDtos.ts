@@ -28,7 +28,7 @@ export const DashboardKpisDtoSchema = z.object({
     liveStreams: z.object({ count: z.number().int(), viewers: z.number().int() }),
     deployments7d: KpiValueDtoSchema.nullable(),
     volume24h: KpiValueDtoSchema.nullable(),
-    /** MarketResolved.fee summed: gross (company + 1% leaderboard share), at settlement. */
+    /** MarketResolved.fee summed: gross (company + leaderboard share, 0.5% on current matches, 1% on older ones), at settlement. */
     feesSettled24h: KpiValueDtoSchema.nullable(),
     bettors24h: KpiValueDtoSchema.nullable(),
     avgPool30d: KpiValueDtoSchema.extend({ events: z.number().int() }).nullable(),

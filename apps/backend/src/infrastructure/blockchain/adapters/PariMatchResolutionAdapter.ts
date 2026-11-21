@@ -1,18 +1,18 @@
 import { injectable, inject } from 'tsyringe';
 import { createWalletClient, createPublicClient, http } from 'viem';
-import { privateKeyToAccount, nonceManager } from 'viem/accounts';
+import { privateKeyToAccount } from 'viem/accounts';
 import { chilizConfig, networkType } from '../../config/chiliz.config';
 import {
     chainFor,
     chilizSpicy,
     chilizMainnet,
     PARI_MATCH_BASE_INLINE_ABI,
-    FOOTBALL_PARI_MATCH_INLINE_ABI,
 } from '@chiliztv/blockchain';
 import { logger } from '../../logging/logger';
 import { TOKENS } from '@chiliztv/domain/shared/tokens';
 import type { ISignerLock } from '@chiliztv/domain/shared/ports/ISignerLock';
 import { withSignerLock } from '../signer/withSignerLock';
+import { ResolverSigner, resolveByScoreRequest } from '../signer/ResolverSigner';
 
 const ADMIN_PRIVATE_KEY = process.env.ADMIN_PRIVATE_KEY as `0x${string}`;
 const TX_DELAY_MS = 4000;
@@ -63,12 +63,15 @@ export class PariMatchResolutionAdapter {
     private publicClient: ReturnType<typeof createPublicClient>;
     private chain: typeof chilizSpicy | typeof chilizMainnet;
 
-    constructor(@inject(TOKENS.ISignerLock) signerLock: ISignerLock) {
+    constructor(
+        @inject(TOKENS.ISignerLock) signerLock: ISignerLock,
+        @inject(ResolverSigner) private readonly resolver: ResolverSigner,
+    ) {
         if (!ADMIN_PRIVATE_KEY) {
             throw new Error('ADMIN_PRIVATE_KEY environment variable is required for match resolution');
         }
         this.chain = chainFor(networkType);
-        const account = privateKeyToAccount(ADMIN_PRIVATE_KEY, { nonceManager });
+        const account = privateKeyToAccount(ADMIN_PRIVATE_KEY);
         this.publicClient = createPublicClient({
             chain: this.chain,
             transport: http(chilizConfig.rpcUrl),
@@ -129,31 +132,10 @@ export class PariMatchResolutionAdapter {
                 await delay();
             }
 
-            // Defaults for AET/PEN fields when caller omits them: pass the
-            // 90' score as the AET aggregate (so FULL_TIME_WINNER falls back
-            // to the 90' winner for non-knockout matches), and 255 for
-            // penWinner meaning "no shootout occurred".
-            const aetHomeGoals = score.aetHomeGoals ?? score.homeGoals;
-            const aetAwayGoals = score.aetAwayGoals ?? score.awayGoals;
-            const penWinner = score.penWinner ?? 255;
-
-            const hash = await this.walletClient.writeContract({
-                account: this.walletClient.account!,
-                address: addr,
-                abi: FOOTBALL_PARI_MATCH_INLINE_ABI,
-                functionName: 'resolveByScore',
-                args: [{
-                    homeGoals: score.homeGoals,
-                    awayGoals: score.awayGoals,
-                    htHomeGoals: score.htHomeGoals ?? 0,
-                    htAwayGoals: score.htAwayGoals ?? 0,
-                    firstScorerId: score.firstScorerId ?? 0,
-                    aetHomeGoals,
-                    aetAwayGoals,
-                    penWinner,
-                }],
-                chain: this.chain,
-            });
+            const hash = await this.resolver.resolveByScore(
+                resolveByScoreRequest(addr, score),
+                (request) => this.walletClient.writeContract({ account: this.walletClient.account!, chain: this.chain, ...request }),
+            );
             const receipt = await this.publicClient.waitForTransactionReceipt({ hash, timeout: 180_000 });
             if (receipt.status === 'reverted') {
                 throw new Error(`resolveByScore reverted (hash: ${hash})`);

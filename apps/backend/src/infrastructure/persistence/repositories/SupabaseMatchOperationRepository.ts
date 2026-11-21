@@ -72,6 +72,7 @@ export class SupabaseMatchOperationRepository implements IMatchOperationReposito
         kind: input.kind,
         chain_id: input.chainId,
         params: input.params,
+        progress: input.progress ?? {},
         requested_by: input.requestedBy,
         created_at: input.createdAt.toISOString(),
       })

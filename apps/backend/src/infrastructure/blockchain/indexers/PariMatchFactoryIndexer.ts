@@ -194,8 +194,9 @@ export class PariMatchFactoryIndexer extends BaseIndexer {
         }
     }
 
+    /** Oracle the backend deploys with; legacy factories (no distinct-oracle rule) used the admin key. */
     private deriveOracleAddress(): `0x${string}` {
-        const pk = this.network.adminPrivateKey;
+        const pk = this.network.resolverPrivateKey ?? this.network.adminPrivateKey;
         if (!pk || !pk.startsWith('0x') || pk.length !== 66) {
             return zeroAddress as `0x${string}`;
         }

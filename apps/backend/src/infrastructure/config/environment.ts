@@ -90,6 +90,9 @@ const envSchema = z.object({
   CHILIZ_RPC_URL: z.string().url().optional().or(z.literal('').transform(() => undefined)),
 
   ADMIN_PRIVATE_KEY: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
+  // Oracle key (RESOLVER_ROLE): signs resolveByScore only. Required to deploy matches on the current
+  // factory, which refuses an oracle equal to its owner or operator.
+  RESOLVER_PRIVATE_KEY: z.string().regex(/^0x[a-fA-F0-9]{64}$/).optional().or(z.literal('').transform(() => undefined)),
 
   JWT_SECRET: z.string().min(32),
   // Admin panel pre-wallet gate, scrypt "<saltHex>:<hashHex>" (same format

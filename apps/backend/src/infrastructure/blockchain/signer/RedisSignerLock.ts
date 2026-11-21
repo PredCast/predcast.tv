@@ -24,25 +24,23 @@ export class SignerBusyError extends Error {
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+/** Lock key of one signer on one chain. */
+export function signerLockKey(chainId: number, privateKey: string | null | undefined): string {
+    const address = privateKey ? privateKeyToAccount(privateKey as `0x${string}`).address.toLowerCase() : 'no-signer';
+    return `signer:${chainId}:${address}`;
+}
+
 /**
  * Redis-backed signer lock. When Redis is unreachable it falls back to sending without the lock
  * (logged), like the cache does: availability over strict ordering. It only coordinates processes
  * sharing this Redis; another environment using the same key (e.g. staging workers) is not covered.
  */
-@injectable()
-export class RedisSignerLock implements ISignerLock {
-    private readonly key: string;
-
+export class KeyedSignerLock implements ISignerLock {
     constructor(
-        @inject(TOKENS.ILockService) private readonly locks: ILockService,
-        @inject(TOKENS.IClock) private readonly clock: IClock,
-        @inject(TOKENS.INetworkConfig) network: INetworkConfig,
-    ) {
-        const address = network.adminPrivateKey
-            ? privateKeyToAccount(network.adminPrivateKey as `0x${string}`).address.toLowerCase()
-            : 'no-signer';
-        this.key = `signer:${network.chainId}:${address}`;
-    }
+        private readonly locks: ILockService,
+        private readonly clock: IClock,
+        private readonly key: string,
+    ) {}
 
     async run<T>(work: () => Promise<T>): Promise<T> {
         const deadline = this.clock.now().getTime() + SIGNER_LOCK_ACQUIRE_TIMEOUT_MS;
@@ -62,5 +60,17 @@ export class RedisSignerLock implements ISignerLock {
             if (this.clock.now().getTime() >= deadline) throw new SignerBusyError(this.key);
             await sleep(POLL_MS);
         }
+    }
+}
+
+/** Lock of the admin signer (ADMIN_PRIVATE_KEY), shared by the API and the workers. */
+@injectable()
+export class RedisSignerLock extends KeyedSignerLock {
+    constructor(
+        @inject(TOKENS.ILockService) locks: ILockService,
+        @inject(TOKENS.IClock) clock: IClock,
+        @inject(TOKENS.INetworkConfig) network: INetworkConfig,
+    ) {
+        super(locks, clock, signerLockKey(network.chainId, network.adminPrivateKey));
     }
 }

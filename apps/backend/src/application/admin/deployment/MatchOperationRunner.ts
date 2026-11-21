@@ -14,6 +14,13 @@ import type { IFootballApiService } from '@chiliztv/domain/shared/ports/IFootbal
 import { logger } from '../../../infrastructure/logging/logger';
 import { fetchTeamForms } from '../../matches/sync/fetchTeamForms';
 
+/** Markets stop taking stakes at kickoff; too close to it the tx could land after, so no cutoff is set. */
+const CUTOFF_MIN_LEAD_MS = 5 * 60_000;
+
+function bettingCutoff(kickoff: Date, now: Date): Date | null {
+    return kickoff.getTime() - now.getTime() > CUTOFF_MIN_LEAD_MS ? kickoff : null;
+}
+
 /** Executes one claimed admin operation. Every step is resumable: a re-run never sends a tx twice. */
 @injectable()
 export class MatchOperationRunner {
@@ -33,13 +40,13 @@ export class MatchOperationRunner {
 
         switch (op.kind) {
             case 'deploy': {
-                const contractAddress = await this.ensureContract(op, match);
-                await this.openMarketsAndPublish(op, match, contractAddress);
+                const deployed = await this.ensureContract(op, match);
+                await this.openMarketsAndPublish(op, match, deployed.address, deployed.marketsOpened ?? op.progress.marketsOpened);
                 await this.refreshForms(match);
                 return match;
             }
             case 'retry_setup':
-                await this.openMarketsAndPublish(op, match, this.requireContract(match));
+                await this.openMarketsAndPublish(op, match, this.requireContract(match), op.progress.marketsOpened);
                 return match;
             case 'cancel_markets': {
                 const reason = op.params.reason ?? 'Cancelled by PredCast';
@@ -51,45 +58,58 @@ export class MatchOperationRunner {
     }
 
     /** Deploy step: reuses the stored address, then the stored tx hash, and only then sends a new tx. */
-    private async ensureContract(op: MatchOperation, match: Match): Promise<string> {
+    private async ensureContract(op: MatchOperation, match: Match): Promise<{ address: string; marketsOpened: number | undefined }> {
         let address = op.progress.contractAddress ?? match.getBettingContractAddress() ?? null;
         let deployGasWei = op.progress.deployGasWei;
 
         if (!address && op.progress.deployTxHash) {
-            const found = await this.deployer.findDeployedContract(op.progress.deployTxHash);
-            if (!found) {
+            const found = await this.deployer.findDeployedContract(op.progress.deployTxHash, op.progress.deployNonce);
+            if (found.status === 'pending') {
                 throw new Error(
-                    `Deploy tx ${op.progress.deployTxHash} is not mined or unknown; check it on the explorer before retrying`,
+                    `Deploy tx ${op.progress.deployTxHash} is not mined yet and may still be; retry once it is mined or replaced`,
                 );
             }
-            address = found.contractAddress;
-            deployGasWei = found.gasCostWei;
+            if (found.status === 'mined') {
+                address = found.contractAddress;
+                deployGasWei = found.gasCostWei;
+            } else {
+                logger.warn('Deploy tx dropped, sending a new one', { operationId: op.id, txHash: op.progress.deployTxHash, nonce: op.progress.deployNonce });
+            }
         }
 
+        let marketsOpened: number | undefined;
         if (!address) {
             const raw = match.toRaw();
             const deployed = await this.deployer.deployMatchContract(
                 `${raw.homeTeamName} vs ${raw.awayTeamName}`,
-                (txHash) => this.operations.recordProgress(op.id, { deployTxHash: txHash }, this.clock.now()),
+                { isKnockout: match.isKnockout(), closesAt: bettingCutoff(match.getMatchDate(), this.clock.now()) },
+                (sent) => this.operations.recordProgress(op.id, { deployTxHash: sent.txHash, deployNonce: sent.nonce }, this.clock.now()),
             );
             address = deployed.contractAddress;
             deployGasWei = deployed.gasCostWei;
+            marketsOpened = deployed.marketsOpened;
         }
 
-        await this.operations.recordProgress(op.id, { contractAddress: address, deployGasWei }, this.clock.now());
+        await this.operations.recordProgress(
+            op.id,
+            marketsOpened === undefined ? { contractAddress: address, deployGasWei } : { contractAddress: address, deployGasWei, marketsOpened },
+            this.clock.now(),
+        );
         if (!match.getBettingContractAddress()) {
             await this.deployments.recordContractDeployed(op.matchId, address, op.chainId);
         }
-        return address;
+        return { address, marketsOpened };
     }
 
     /** Seeds / opens the markets; the first successful opening also publishes the match. */
-    private async openMarketsAndPublish(op: MatchOperation, match: Match, contractAddress: string): Promise<void> {
+    private async openMarketsAndPublish(op: MatchOperation, match: Match, contractAddress: string, knownOpened: number | undefined): Promise<void> {
         const { opened, gasCostWei } = await this.deployer.ensureDefaultMarketsOpen(contractAddress, { isKnockout: match.isKnockout() });
         const now = this.clock.now();
         // A resumed operation adds to what its first attempt already paid.
         const setupGasWei = (BigInt(op.progress.setupGasWei ?? '0') + BigInt(gasCostWei)).toString();
-        await this.operations.recordProgress(op.id, { marketsOpened: opened, setupGasWei }, now);
+        // Contracts deployed with their markets come back with nothing to open: keep the deploy's count.
+        const alreadyCounted = opened === 0 && knownOpened !== undefined;
+        await this.operations.recordProgress(op.id, alreadyCounted ? { setupGasWei } : { marketsOpened: opened, setupGasWei }, now);
 
         // Retries after an admin unpublish keep the match hidden: only the first opening publishes.
         if (!match.getBettingOpenedAt()) {

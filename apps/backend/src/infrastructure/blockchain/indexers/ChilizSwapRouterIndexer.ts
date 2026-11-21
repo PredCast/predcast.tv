@@ -10,6 +10,17 @@ import { IMarketEventRepository } from '@chiliztv/domain/blockchain-indexing/rep
 import type { ILockService } from '@chiliztv/domain/shared/ports/ILockService';
 import { BaseIndexer, DEFAULT_TAIL_OVERLAP_BLOCKS } from './BaseIndexer';
 
+// Native-token events: NetworkRouter names (current) and ChilizSwapRouter names (contracts still
+// emitting them on older deployments). Both decode into the same market_events rows.
+const BET_PLACED_VIA_NATIVE = parseAbiItem(
+    'event BetPlacedViaNativeToken(address indexed bettingMatch, address indexed user, uint256 nativeTokenSpent, uint256 usdcReceived, uint256 marketId, uint64 outcome)',
+);
+const DONATION_WITH_NATIVE = parseAbiItem(
+    'event DonationWithNativeToken(address indexed donor, address indexed streamer, uint256 nativeTokenSpent, uint256 usdcDonated, uint256 platformFee, string message)',
+);
+const SUBSCRIPTION_WITH_NATIVE = parseAbiItem(
+    'event SubscriptionWithNativeToken(address indexed subscriber, address indexed streamer, uint256 nativeTokenSpent, uint256 usdcPaid, uint256 platformFee, uint256 duration)',
+);
 const BET_PLACED_VIA_CHZ = parseAbiItem(
     'event BetPlacedViaCHZ(address indexed bettingMatch, address indexed user, uint256 chzSpent, uint256 usdcReceived, uint256 marketId, uint64 selection)',
 );
@@ -49,6 +60,9 @@ const FAN_TOKEN_WRAPPED = parseAbiItem(
 // — keeping the router emission lets analytics attribute volume by asset
 // path (CHZ vs token vs USDC) without joining wallet→router on-the-fly.
 const ALL_EVENTS = [
+    BET_PLACED_VIA_NATIVE,
+    DONATION_WITH_NATIVE,
+    SUBSCRIPTION_WITH_NATIVE,
     BET_PLACED_VIA_CHZ,
     BET_PLACED_VIA_TOKEN,
     BET_PLACED_WITH_USDC,

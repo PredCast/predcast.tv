@@ -1,6 +1,6 @@
 import { inject, injectable } from 'tsyringe';
 import { createWalletClient, createPublicClient, http, keccak256, toBytes } from 'viem';
-import { privateKeyToAccount, nonceManager } from 'viem/accounts';
+import { privateKeyToAccount } from 'viem/accounts';
 import { chilizConfig, networkType } from '../../config/chiliz.config';
 import {
     PARI_MATCH_FACTORY_INLINE_ABI,
@@ -13,6 +13,7 @@ import { FOOTBALL_SEEDING_PAYLOAD, getFootballSeedingPayload } from '../markets/
 import { logger } from '../../logging/logger';
 import type { ISignerLock } from '@chiliztv/domain/shared/ports/ISignerLock';
 import { withSignerLock } from '../signer/withSignerLock';
+import { ResolverSigner } from '../signer/ResolverSigner';
 
 const ADMIN_ADDRESS = process.env.ADMIN_ADDRESS as `0x${string}`;
 
@@ -41,6 +42,7 @@ export class PariMatchDeploymentAdapter {
     constructor(
         @inject(TOKENS.INetworkConfig) network: INetworkConfig,
         @inject(TOKENS.ISignerLock) signerLock: ISignerLock,
+        @inject(ResolverSigner) private readonly resolver: ResolverSigner,
     ) {
         if (!network.adminPrivateKey) {
             throw new Error('ADMIN_PRIVATE_KEY environment variable is required');
@@ -51,7 +53,7 @@ export class PariMatchDeploymentAdapter {
         this.factoryAddress = network.pariMatchFactoryAddress as `0x${string}`;
 
         const chain = chainFor(networkType);
-        const account = privateKeyToAccount(network.adminPrivateKey as `0x${string}`, { nonceManager });
+        const account = privateKeyToAccount(network.adminPrivateKey as `0x${string}`);
 
         this.publicClient = createPublicClient({
             chain,
@@ -81,7 +83,7 @@ export class PariMatchDeploymentAdapter {
         ownerAddress: string,
         oracleAddress?: string,
     ): Promise<string> {
-        const oracle = (oracleAddress ?? process.env.RESOLVER_ADDRESS ?? ownerAddress) as `0x${string}`;
+        const oracle = (oracleAddress ?? this.resolver.requireAddress()) as `0x${string}`;
         logger.info('Deploying FootballPariMatch contract', { matchName, ownerAddress, oracle });
 
         const hash = await this.walletClient.writeContract({

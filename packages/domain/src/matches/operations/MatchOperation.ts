@@ -12,6 +12,8 @@ export interface MatchOperationParams {
  */
 export interface MatchOperationProgress {
     readonly deployTxHash?: string;
+    /** Nonce of the deploy tx: once the signer's nonce passes it with no receipt, the tx can never be mined. */
+    readonly deployNonce?: number;
     readonly contractAddress?: string;
     readonly marketsOpened?: number;
     readonly marketsCancelled?: number;

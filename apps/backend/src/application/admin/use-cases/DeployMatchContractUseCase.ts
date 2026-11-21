@@ -8,6 +8,7 @@ import type { IMatchRepository } from '@chiliztv/domain/matches/repositories/IMa
 import type { IMatchOperationRepository } from '@chiliztv/domain/matches/repositories/IMatchOperationRepository';
 import type { MatchOperation } from '@chiliztv/domain/matches/operations/MatchOperation';
 import { canDeployMatch } from '@chiliztv/domain/matches/policies/MatchDeploymentPolicy';
+import { inheritDeployProgress } from '@chiliztv/domain/matches/operations/inheritDeployProgress';
 import type { IBettingChainRegistry } from '@chiliztv/domain/shared/ports/IBettingChainRegistry';
 import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import type { IAuditTrail } from '@chiliztv/domain/admin/ports/IAuditTrail';
@@ -33,7 +34,7 @@ export class DeployMatchContractUseCase {
     async execute(apiFootballId: number, chainId: number, ctx: AuditContext): Promise<MatchOperation> {
         if (!this.chains.get(chainId)) throw new ValidationError(`Unsupported chain ${chainId}`);
 
-        const { match, hasActiveOperation } = await loadMatchForAdmin(this.matches, this.operations, apiFootballId);
+        const { match, latestOperation, hasActiveOperation } = await loadMatchForAdmin(this.matches, this.operations, apiFootballId);
         const now = this.clock.now();
         const decision = canDeployMatch(
             {
@@ -46,11 +47,13 @@ export class DeployMatchContractUseCase {
         );
         if (!decision.ok) throw new BusinessRuleError(`Match cannot be deployed (${decision.reason})`, { reason: decision.reason });
 
+        // A retried deploy checks the tx of the failed one first: it may still be mined.
         const queued = await this.operations.enqueue({
             matchId: apiFootballId,
             kind: 'deploy',
             chainId,
             params: {},
+            progress: inheritDeployProgress(latestOperation ?? undefined, chainId),
             requestedBy: ctx.actorWallet,
             createdAt: now,
         });

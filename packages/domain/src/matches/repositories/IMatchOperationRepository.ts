@@ -12,6 +12,8 @@ export interface NewMatchOperation {
     readonly params: MatchOperationParams;
     readonly requestedBy: string;
     readonly createdAt: Date;
+    /** Carried over from a failed deploy whose tx may still be mined. */
+    readonly progress?: MatchOperationProgress;
 }
 
 export type EnqueueResult =
