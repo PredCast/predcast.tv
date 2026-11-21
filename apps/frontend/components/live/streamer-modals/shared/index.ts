@@ -8,6 +8,11 @@ export { SettlementFooter } from "./SettlementFooter";
 export { StreamerSuccessStep } from "./StreamerSuccessStep";
 export { TokenChipDisplay } from "./TokenChipDisplay";
 export { TokenPickerSheet } from "./TokenPickerSheet";
+export { SwapQuotePanel } from "./SwapQuotePanel";
+export { ModalAlert } from "./ModalAlert";
+export { useRouterApproval } from "./useRouterApproval";
+export { useStreamerSwapQuote, quoteTokenFor } from "./useStreamerSwapQuote";
+export { slippageFloor, tokenAmountForUsdc, withMarginBps } from "./swapMath";
 export {
   buildStreamerTokenList,
   decimalsFor,

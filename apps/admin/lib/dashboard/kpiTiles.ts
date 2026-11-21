@@ -55,7 +55,7 @@ function allTiles(k: DashboardKpisDto): Record<string, KpiTile | null> {
     fees: k.feesSettled24h && {
       key: 'fees', label: 'Fees settled · 24h (gross)', value: fmtUsdcCompact(k.feesSettled24h.current), unit: 'USDC',
       delta: delta(k.feesSettled24h, { usdc: true }), caption: 'vs prev 24h', series: usdcSeries(k.feesSettled24h),
-      hint: 'Fees taken when markets resolve, not on volume staked. Includes the 1% leaderboard share.',
+      hint: 'Fees taken when markets resolve, not on volume staked. Includes the leaderboard share: 0.5% on matches from the current contracts, 1% on older ones.',
     },
     bettors: k.bettors24h && {
       key: 'bettors', label: 'Active bettors 24h', value: fmtCount(Number(k.bettors24h.current)),

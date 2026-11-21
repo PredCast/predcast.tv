@@ -1,6 +1,6 @@
 import { injectable, inject } from 'tsyringe';
 import { createPublicClient, createWalletClient, http, type PublicClient } from 'viem';
-import { privateKeyToAccount, nonceManager } from 'viem/accounts';
+import { privateKeyToAccount } from 'viem/accounts';
 import { chainFor } from '@chiliztv/blockchain';
 import { networkType } from '../../../infrastructure/config/chiliz.config';
 import { TOKENS } from '@chiliztv/domain/shared/tokens';
@@ -13,6 +13,7 @@ import { logger } from '../../../infrastructure/logging/logger';
 const LEADERBOARD_ABI = [
     { type: 'function', name: 'epochStartTime', inputs: [], outputs: [{ type: 'uint64' }], stateMutability: 'view' },
     { type: 'function', name: 'epochDuration', inputs: [], outputs: [{ type: 'uint64' }], stateMutability: 'view' },
+    { type: 'function', name: 'nextCloseTime', inputs: [], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
     { type: 'function', name: 'advanceEpoch', inputs: [], outputs: [{ type: 'uint256' }], stateMutability: 'nonpayable' },
     { type: 'function', name: 'rolloverEpoch', inputs: [{ name: 'epochId', type: 'uint256' }], outputs: [{ type: 'uint256' }], stateMutability: 'nonpayable' },
 ] as const;
@@ -46,7 +47,7 @@ export class AdvanceEpochUseCase {
     ) {
         const chain = chainFor(networkType);
         this.publicClient = createPublicClient({ chain, transport: http(network.rpcUrl) });
-        const account = privateKeyToAccount(network.adminPrivateKey as `0x${string}`, { nonceManager });
+        const account = privateKeyToAccount(network.adminPrivateKey as `0x${string}`);
         this.walletClient = createWalletClient({ account, chain, transport: http(network.rpcUrl) });
         this.leaderboardAddress = network.leaderboardRewardsAddress as `0x${string}`;
     }
@@ -67,12 +68,7 @@ export class AdvanceEpochUseCase {
     }
 
     private async advanceIfDue(): Promise<boolean> {
-        const [start, duration] = await Promise.all([
-            this.publicClient.readContract({ address: this.leaderboardAddress, abi: LEADERBOARD_ABI, functionName: 'epochStartTime' }),
-            this.publicClient.readContract({ address: this.leaderboardAddress, abi: LEADERBOARD_ABI, functionName: 'epochDuration' }),
-        ]);
-        const boundary = (Number(start) + Number(duration)) * 1000;
-        if (this.clock.now().getTime() < boundary) return false;
+        if (this.clock.now().getTime() < (await this.closeTimeMs())) return false;
 
         const { request } = await this.publicClient.simulateContract({
             account: this.walletClient.account,
@@ -83,6 +79,20 @@ export class AdvanceEpochUseCase {
         const hash = await this.sendAndWait(() => this.walletClient.writeContract(request));
         logger.info('Leaderboard epoch advanced', { txHash: hash });
         return true;
+    }
+
+    /** V5 closes an epoch SCORING_GRACE after its boundary (`nextCloseTime`); V2 has no grace and no such view. */
+    private async closeTimeMs(): Promise<number> {
+        try {
+            const closesAt = await this.publicClient.readContract({ address: this.leaderboardAddress, abi: LEADERBOARD_ABI, functionName: 'nextCloseTime' });
+            return Number(closesAt) * 1000;
+        } catch {
+            const [start, duration] = await Promise.all([
+                this.publicClient.readContract({ address: this.leaderboardAddress, abi: LEADERBOARD_ABI, functionName: 'epochStartTime' }),
+                this.publicClient.readContract({ address: this.leaderboardAddress, abi: LEADERBOARD_ABI, functionName: 'epochDuration' }),
+            ]);
+            return (Number(start) + Number(duration)) * 1000;
+        }
     }
 
     /** Rollover every confirmed epoch whose claim window expired. The indexer

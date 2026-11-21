@@ -2,10 +2,10 @@
 
 import { useMemo, useState } from "react";
 import type { Address } from "viem";
+import { useReadContract } from "wagmi";
 
 import { useMatch } from "@/hooks/api";
 import {
-  useFootballPariMatchReadMatchName,
   usePariMatchFactoryReadGetAllMatches,
   usePariMatchFactoryReadGetSportType,
 } from "@/lib/contracts/generated";
@@ -13,6 +13,11 @@ import { chilizConfig } from "@/config/chiliz.config";
 import type { Match } from "@/types/api.types";
 
 import { buildTestMatch, TEST_MATCH_ID, testMatchKickoffIso } from "../domain/testMatch";
+
+// Minimal slice: the full FootballPariMatch ABI exceeds TS instantiation depth (CLAUDE.md §7.3).
+const MATCH_NAME_ABI = [
+  { type: "function", stateMutability: "view", name: "matchName", inputs: [], outputs: [{ name: "", type: "string" }] },
+] as const;
 
 export interface LiveMatchData {
   readonly match: Match | undefined;
@@ -33,7 +38,9 @@ export function useLiveMatchData(id: string): LiveMatchData {
   });
   const latestProxy = (allMatches as readonly Address[] | undefined)?.at(-1);
 
-  const { data: matchName } = useFootballPariMatchReadMatchName({
+  const { data: matchName } = useReadContract({
+    abi: MATCH_NAME_ABI,
+    functionName: "matchName",
     address: latestProxy,
     chainId: chilizConfig.chainId,
     query: { enabled: isTestMatch && !!latestProxy },
@@ -49,7 +56,7 @@ export function useLiveMatchData(id: string): LiveMatchData {
   const testMatch = useMemo(
     () =>
       isTestMatch
-        ? buildTestMatch({ proxy: latestProxy, matchName: matchName as string | undefined, sportType, kickoffIso })
+        ? buildTestMatch({ proxy: latestProxy, matchName, sportType, kickoffIso })
         : undefined,
     [isTestMatch, latestProxy, matchName, sportType, kickoffIso],
   );

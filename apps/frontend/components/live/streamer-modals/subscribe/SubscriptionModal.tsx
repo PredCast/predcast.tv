@@ -1,37 +1,42 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { erc20Abi, formatUnits, maxUint256, parseUnits, type Address } from "viem";
-import { useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
+import { formatUnits, type Address } from "viem";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
-import { useChilizSwapRouter } from "@/hooks/useChilizSwapRouter";
-import { useSwapRouterQuote } from "@/hooks/useSwapRouterQuote";
+
+import { useNetworkRouter } from "@/hooks/useNetworkRouter";
 import { useTokenDecimals } from "@/hooks/useTokenDecimals";
 import { usePoolDecimals } from "@/hooks/usePoolDecimals";
 import { useFanTokens } from "@/hooks/useFanTokens";
 import { useStreamWallet } from "@/hooks/useStreamWallet";
-import { chilizConfig } from "@/config/chiliz.config";
 import { decodeContractError } from "@/lib/contracts/errors";
+
 import {
   Eyebrow,
   FeeBreakdown,
   InsufficientBalanceBanner,
+  ModalAlert,
   SettlementFooter,
   StreamerModalHeader,
   StreamerModalShell,
   StreamerStrip,
-  StreamerSuccessStep,
+  SwapQuotePanel,
   TokenPickerSheet,
   buildStreamerTokenList,
   decimalsFor,
-  erc20AddressFor,
   symbolFor,
   toRouterToken,
+  useRouterApproval,
   type StreamerTokenView,
 } from "../shared";
+import { AlreadySubscribedNotice } from "./AlreadySubscribedNotice";
 import { DurationGrid } from "./DurationGrid";
 import { SubscriptionPerks } from "./SubscriptionPerks";
+import { SubscriptionsClosedNotice } from "./SubscriptionsClosedNotice";
+import { SubscriptionSuccess, type SubscriptionSnapshot } from "./SubscriptionSuccess";
 import { SubscriptionSummary } from "./SubscriptionSummary";
+import { useSubscriptionPayment } from "./useSubscriptionPayment";
+import { useSubscriptionPricing } from "./useSubscriptionPricing";
 
 interface SubscriptionModalProps {
   open: boolean;
@@ -40,8 +45,6 @@ interface SubscriptionModalProps {
   streamerName: string;
   streamerHandle?: string;
   streamerAvatarUrl?: string;
-  /** Monthly subscription price (USDC). Defaults to 5 USDC if unknown. */
-  monthlyPriceUsd?: number;
 }
 
 const PLATFORM_FEE_BPS = 500;
@@ -54,17 +57,9 @@ const fmtUsd = (n: number) =>
 const fmtTok = (n: number, dp: number) =>
   n.toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp });
 
-function formatAtomic(value: bigint | undefined, decimals: number | undefined, dp = 2): string {
-  if (value === undefined || decimals === undefined) return "—";
-  const n = Number(formatUnits(value, decimals));
-  return n.toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp });
-}
-
 /**
- * Streamer subscription modal — design-spec UI on top of the existing
- * `ChilizSwapRouter.subscribe` plumbing. The user picks duration in
- * months (1/3/6/12), and the modal computes the equivalent token spend
- * for the active token (USDC, CHZ, or fan token via FanX).
+ * Streamer subscription modal on top of `NetworkRouter.subscribe*`. The price comes from the
+ * streamer's StreamWallet (`subscriptionCost(duration)`); subscribing is disabled while unset.
  */
 export function SubscriptionModal({
   open,
@@ -73,266 +68,119 @@ export function SubscriptionModal({
   streamerName,
   streamerHandle,
   streamerAvatarUrl,
-  monthlyPriceUsd = 5,
 }: SubscriptionModalProps) {
   const tokens = useMemo(() => buildStreamerTokenList(), []);
   const [selectedToken, setSelectedToken] = useState<StreamerTokenView>(tokens[0]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [months, setMonths] = useState<number>(3);
   const [slippageBps, setSlippageBps] = useState<number>(DEFAULT_SLIPPAGE_BPS);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successSnapshot, setSuccessSnapshot] = useState<SubscriptionSnapshot | null>(null);
 
-  const { subscribe, subscribeState, routerAddress } = useChilizSwapRouter();
+  const { subscribe, subscribeState, routerAddress } = useNetworkRouter();
   const { assetDecimals: usdcDecimals } = usePoolDecimals();
   const { primaryWallet } = useDynamicContext();
   const userAddress = primaryWallet?.address as Address | undefined;
   const { tokenBalances } = useFanTokens(userAddress, !!userAddress);
 
-  const { subscription } = useStreamWallet({ streamerAddress });
+  const { subscription, streamWalletAddress } = useStreamWallet({ streamerAddress });
   const isAlreadySubscribed = !!subscription?.isSubscribed;
+
+  const durationSeconds = useMemo(() => SECONDS_PER_MONTH * BigInt(months), [months]);
+  const pricing = useSubscriptionPricing(streamWalletAddress, durationSeconds);
+  const cost = pricing.status === "priced" ? pricing.cost : undefined;
+  const toUsd = (raw: bigint) => (usdcDecimals !== undefined ? Number(formatUnits(raw, usdcDecimals)) : null);
+  const monthlyUsd =
+    pricing.status === "priced" ? toUsd((pricing.price * SECONDS_PER_MONTH) / pricing.period) : null;
+  const totalUsd = cost !== undefined ? toUsd(cost) : null;
 
   const tokenKind = selectedToken.token;
   const tokenSymbol = symbolFor(tokenKind);
-  const erc20Decimals = useTokenDecimals(
-    tokenKind.kind === "ERC20" ? tokenKind.address : undefined,
-  );
+  const erc20Decimals = useTokenDecimals(tokenKind.kind === "ERC20" ? tokenKind.address : undefined);
   const decimals = decimalsFor(tokenKind, usdcDecimals, erc20Decimals);
 
-  const totalUsd = monthlyPriceUsd * months;
+  const payment = useSubscriptionPayment({ token: tokenKind, decimals, cost, slippageBps });
+  const approval = useRouterApproval(tokenKind, userAddress, routerAddress, payment.parsedAmount);
 
-  // ── Probe quote: 1 token unit → USDC. Lets us reverse-quote how much of
-  //    the selected token covers `totalUsd`. For USDC the math is direct.
-  const oneUnit: bigint =
-    decimals !== undefined ? BigInt(10) ** BigInt(decimals) : BigInt(0);
-
-  const probeTokenIn: Address | undefined =
-    tokenKind.kind === "ERC20"
-      ? tokenKind.address
-      : tokenKind.kind === "CHZ"
-        ? chilizConfig.wchz
-        : undefined;
-
-  const {
-    amountOut: oneUnitInUsdc,
-    error: probeError,
-    isLoading: probeLoading,
-  } = useSwapRouterQuote(
-    tokenKind.kind !== "USDC" && oneUnit > BigInt(0) ? oneUnit : undefined,
-    probeTokenIn,
-  );
-
-  /** Token amount needed to cover `totalUsd`, expressed as a string for parseUnits. */
-  const tokenAmountString = useMemo(() => {
-    if (tokenKind.kind === "USDC") return totalUsd.toString();
-    if (oneUnitInUsdc === undefined || usdcDecimals === undefined) return "";
-    const unitUsd = Number(formatUnits(oneUnitInUsdc, usdcDecimals));
-    if (!Number.isFinite(unitUsd) || unitUsd <= 0) return "";
-    const raw = totalUsd / unitUsd;
-    // Fraction digits capped at the token's decimals (0-dp fan tokens can't
-    // carry fractions — parseUnits would throw); ceil keeps totalUsd covered.
-    const fractionDigits = tokenKind.kind === "CHZ" ? 0 : Math.min(4, decimals ?? 0);
-    const factor = 10 ** fractionDigits;
-    return (Math.ceil(raw * factor) / factor).toFixed(fractionDigits);
-  }, [tokenKind.kind, totalUsd, oneUnitInUsdc, usdcDecimals, decimals]);
-
-  const parsedAmount: bigint = useMemo(() => {
-    if (!tokenAmountString || decimals === undefined) return BigInt(0);
-    try {
-      return parseUnits(tokenAmountString, decimals);
-    } catch {
-      return BigInt(0);
-    }
-  }, [tokenAmountString, decimals]);
-
-  const durationSeconds = useMemo(() => SECONDS_PER_MONTH * BigInt(months), [months]);
-
-  // ── Live FanX quote on the actual amount being sent (for slippage). ────
-  const {
-    amountOut: quotedUsdcOut,
-    error: quoteError,
-    isLoading: quoteLoading,
-  } = useSwapRouterQuote(
-    parsedAmount > BigInt(0) ? parsedAmount : undefined,
-    probeTokenIn,
-  );
-
-  const swapPathMissing =
-    tokenKind.kind !== "USDC" &&
-    parsedAmount > BigInt(0) &&
-    !quoteLoading &&
-    quoteError !== null;
-  const probePathMissing =
-    tokenKind.kind !== "USDC" && !probeLoading && probeError !== null;
-
-  const amountOutMin: bigint = useMemo(() => {
-    if (tokenKind.kind === "USDC" || quotedUsdcOut === undefined) return BigInt(0);
-    const slippageMul = BigInt(10_000 - slippageBps);
-    return (quotedUsdcOut * slippageMul) / BigInt(10_000);
-  }, [tokenKind.kind, quotedUsdcOut, slippageBps]);
-
-  // ── ERC-20 path: address, allowance, approval ──────────────────────────
-  const erc20Address = erc20AddressFor(tokenKind);
-
-  const { data: allowanceData, refetch: refetchAllowance } = useReadContract({
-    abi: erc20Abi,
-    address: erc20Address,
-    functionName: "allowance",
-    args: userAddress && erc20Address ? [userAddress, routerAddress] : undefined,
-    chainId: chilizConfig.chainId,
-    query: { enabled: !!erc20Address && !!userAddress },
-  });
-  const allowance = (allowanceData as bigint | undefined) ?? BigInt(0);
-  const needsApproval =
-    tokenKind.kind !== "CHZ" && parsedAmount > BigInt(0) && allowance < parsedAmount;
-
-  const {
-    writeContract: writeApprove,
-    data: approveTxHash,
-    isPending: isApprovePending,
-    error: approveError,
-  } = useWriteContract();
-  const { isLoading: isApproveConfirming, isSuccess: isApproveSuccess } =
-    useWaitForTransactionReceipt({ hash: approveTxHash });
-
-  useEffect(() => {
-    if (isApproveSuccess) refetchAllowance();
-  }, [isApproveSuccess, refetchAllowance]);
-
-  // ── Surfaced amounts for display & gating ──────────────────────────────
   const balanceMap = useMemo(() => {
     const map: Record<string, number | undefined> = {};
     for (const tb of tokenBalances) map[tb.symbol] = tb.balance;
     return map;
   }, [tokenBalances]);
-
   const tokenBalance = balanceMap[tokenSymbol];
-  const numericTokenAmount = Number(tokenAmountString) || 0;
   const insufficient =
-    tokenBalance !== undefined && parsedAmount > BigInt(0) && numericTokenAmount > tokenBalance;
+    tokenBalance !== undefined && payment.parsedAmount > BigInt(0) && payment.tokenAmount > tokenBalance;
 
-  // ── Error / success plumbing ────────────────────────────────────────────
-  useEffect(() => {
-    const err = subscribeState.error ?? approveError;
-    if (!err) {
-      setErrorMessage(null);
-      return;
-    }
-    const decoded = decodeContractError(err);
-    setErrorMessage(decoded.description ? `${decoded.title} — ${decoded.description}` : decoded.title);
-  }, [subscribeState.error, approveError]);
+  const txError = subscribeState.error ?? approval.approveError;
+  const decodedError = txError ? decodeContractError(txError) : null;
+  const errorMessage = decodedError
+    ? decodedError.description ? `${decodedError.title} — ${decodedError.description}` : decodedError.title
+    : null;
 
   // Snapshot at tx confirm so the success view stays stable across resets.
-  const [successSnapshot, setSuccessSnapshot] = useState<
-    | { months: number; totalUsd: number; tokenSymbol: string; txHash?: `0x${string}` }
-    | null
-  >(null);
-
   useEffect(() => {
     if (subscribeState.isSuccess && !successSnapshot) {
-      setSuccessSnapshot({
-        months,
-        totalUsd,
-        tokenSymbol,
-        txHash: subscribeState.txHash,
-      });
-      setErrorMessage(null);
+      setSuccessSnapshot({ months, totalUsd, tokenSymbol, txHash: subscribeState.txHash });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subscribeState.isSuccess]);
 
-  const handleCloseFromSuccess = () => {
-    setSuccessSnapshot(null);
-    onClose();
-  };
-  const handleAnother = () => {
-    setSuccessSnapshot(null);
-    setErrorMessage(null);
-  };
-
   const isLoading =
     subscribeState.isPending ||
     subscribeState.isConfirming ||
-    isApprovePending ||
-    isApproveConfirming;
+    approval.isApprovePending ||
+    approval.isApproveConfirming;
 
   const handleSubmit = () => {
-    if (parsedAmount === BigInt(0)) return;
-    setErrorMessage(null);
-    if (needsApproval && erc20Address) {
-      writeApprove({
-        abi: erc20Abi,
-        address: erc20Address,
-        functionName: "approve",
-        args: [routerAddress, maxUint256],
-      });
-      return;
-    }
-    const deadline = BigInt(Math.floor(Date.now() / 1000) + DEADLINE_MIN * 60);
+    if (payment.parsedAmount === BigInt(0)) return;
+    if (approval.needsApproval) return approval.approve();
+    if (!payment.ready) return;
     subscribe({
       token: toRouterToken(tokenKind),
       streamer: streamerAddress,
       duration: durationSeconds,
-      amount: parsedAmount,
-      amountOutMin,
-      deadline,
+      amount: payment.parsedAmount,
+      amountOutMin: payment.amountOutMin,
+      deadline: BigInt(Math.floor(Date.now() / 1000) + DEADLINE_MIN * 60),
     });
   };
 
-  const ctaLabel = isApprovePending
-    ? "Confirm approval…"
-    : isApproveConfirming
-      ? `Approving ${tokenSymbol}…`
-      : subscribeState.isPending
-        ? "Confirm in wallet…"
-        : subscribeState.isConfirming
-          ? "Subscribing…"
-          : needsApproval
-            ? `Approve ${tokenSymbol} →`
-            : `Subscribe · ${fmtUsd(totalUsd)} →`;
+  const ctaLabel =
+    pricing.status === "unpriced"
+      ? "Subscriptions not open"
+      : approval.isApprovePending
+        ? "Confirm approval…"
+        : approval.isApproveConfirming
+          ? `Approving ${tokenSymbol}…`
+          : subscribeState.isPending
+            ? "Confirm in wallet…"
+            : subscribeState.isConfirming
+              ? "Subscribing…"
+              : approval.needsApproval
+                ? `Approve ${tokenSymbol} →`
+                : totalUsd !== null
+                  ? `Subscribe · ${fmtUsd(totalUsd)} →`
+                  : "Subscribe →";
 
+  const tokenDp = tokenSymbol === "CHZ" ? 0 : 2;
   const tokenAmountSubLabel =
     tokenKind.kind === "USDC"
-      ? `≈ ${fmtTok(totalUsd, 2)} USDC`
-      : numericTokenAmount > 0
-        ? `≈ ${fmtTok(numericTokenAmount, tokenSymbol === "CHZ" ? 0 : 2)} $${tokenSymbol}`
+      ? totalUsd !== null ? `≈ ${fmtTok(totalUsd, 2)} USDC` : "Loading price…"
+      : payment.tokenAmount > 0
+        ? `≈ ${fmtTok(payment.tokenAmount, tokenDp)} $${tokenSymbol}`
         : "FanX quote pending…";
-
-  // Prefer to gate behind the already-subscribed banner before showing the form.
-  const renderBody = !isAlreadySubscribed;
 
   if (successSnapshot) {
     return (
-      <StreamerModalShell open={open} onClose={handleCloseFromSuccess} ariaTitle="Subscribed">
-        <StreamerModalHeader
-          eyebrow="On-chain · Settled"
-          title={
-            <>
-              You&apos;re <span className="text-[#E8001D]">subscribed.</span>
-            </>
-          }
-          onClose={handleCloseFromSuccess}
-        />
-        <StreamerSuccessStep
-          title="Subscribed."
-          lead={
-            <>
-              You now have access to {streamerName}&apos;s perks for{" "}
-              {successSnapshot.months} {successSnapshot.months === 1 ? "month" : "months"}.
-              <br />
-              No auto-renew — you keep control.
-            </>
-          }
-          txHash={successSnapshot.txHash}
-          summary={[
-            { label: "Duration", value: `${successSnapshot.months} mo` },
-            { label: "Total", value: fmtUsd(successSnapshot.totalUsd) },
-            { label: "Token", value: `$${successSnapshot.tokenSymbol}` },
-          ]}
-          onAnother={handleAnother}
-          onClose={handleCloseFromSuccess}
-          anotherLabel="Subscribe again"
-        />
-      </StreamerModalShell>
+      <SubscriptionSuccess
+        open={open}
+        streamerName={streamerName}
+        snapshot={successSnapshot}
+        onAnother={() => setSuccessSnapshot(null)}
+        onClose={() => {
+          setSuccessSnapshot(null);
+          onClose();
+        }}
+      />
     );
   }
 
@@ -349,47 +197,16 @@ export function SubscriptionModal({
         onClose={onClose}
       />
 
-      <StreamerStrip
-        name={streamerName}
-        handle={streamerHandle}
-        avatarUrl={streamerAvatarUrl}
-      />
+      <StreamerStrip name={streamerName} handle={streamerHandle} avatarUrl={streamerAvatarUrl} />
 
-      {!renderBody && (
-        <div className="px-7 pb-6">
-          <div className="rounded-xl border border-[#2dd4a4]/30 bg-[#2dd4a4]/10 p-4">
-            <div className="flex items-center gap-2">
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#2dd4a4"
-                strokeWidth="2.4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              <span className="font-display text-[14px] font-bold uppercase tracking-tight text-white">
-                You&apos;re subscribed
-              </span>
-            </div>
-            <p className="mt-2 text-[12px] text-white/65">
-              Active until{" "}
-              <span className="font-mono-ctv text-white">
-                {subscription?.expiryTime ?? "—"}
-              </span>
-              . No auto-renew.
-            </p>
-          </div>
-        </div>
-      )}
+      {isAlreadySubscribed && <AlreadySubscribedNotice expiryLabel={subscription?.expiryTime} />}
 
-      {renderBody && (
+      {!isAlreadySubscribed && (
         <div className="px-7">
           <Eyebrow dim>Duration</Eyebrow>
-          <DurationGrid months={months} monthlyUsd={monthlyPriceUsd} onPick={setMonths} />
+          <DurationGrid months={months} monthlyUsd={monthlyUsd} onPick={setMonths} />
+
+          {pricing.status === "unpriced" && <SubscriptionsClosedNotice streamerName={streamerName} />}
 
           <div className="mt-5">
             <SubscriptionSummary
@@ -401,83 +218,58 @@ export function SubscriptionModal({
             />
           </div>
 
-          {tokenKind.kind !== "USDC" && parsedAmount > BigInt(0) && (
-            <div className="mt-4 rounded-xl border border-[#1F1F1F] bg-[#0a0a0a] px-4 py-3">
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="font-mono-ctv text-[10px] uppercase tracking-[0.16em] text-white/45">
-                  Min received
-                </span>
-                <span className="font-mono-ctv tabular-nums text-white/65">
-                  {amountOutMin > BigInt(0)
-                    ? `${formatAtomic(amountOutMin, usdcDecimals)} USDC`
-                    : "—"}
-                </span>
-              </div>
-              <div className="mt-3 flex items-center gap-2">
-                <span className="font-mono-ctv text-[10px] uppercase tracking-[0.16em] text-white/45">
-                  Slippage
-                </span>
-                {[10, 50, 100].map((bps) => (
-                  <button
-                    key={bps}
-                    type="button"
-                    onClick={() => setSlippageBps(bps)}
-                    className="font-mono-ctv rounded border px-2 py-0.5 text-[10px] font-bold tabular-nums transition-colors"
-                    style={{
-                      borderColor: slippageBps === bps ? "#E8001D" : "#262626",
-                      background: slippageBps === bps ? "rgba(232,0,29,0.10)" : "transparent",
-                      color: slippageBps === bps ? "#fff" : "rgba(255,255,255,0.55)",
-                    }}
-                  >
-                    {(bps / 100).toFixed(2)}%
-                  </button>
-                ))}
-              </div>
-            </div>
+          {tokenKind.kind !== "USDC" && payment.parsedAmount > BigInt(0) && (
+            <SwapQuotePanel
+              amountOutMin={payment.amountOutMin}
+              usdcDecimals={usdcDecimals}
+              slippageBps={slippageBps}
+              onSlippageChange={setSlippageBps}
+            />
           )}
 
           <div className="mt-5">
             <SubscriptionPerks />
           </div>
 
-          <div className="mt-5">
-            <FeeBreakdown
-              rows={[
-                {
-                  label: `${months} × monthly · ${fmtUsd(monthlyPriceUsd)}`,
-                  value: fmtUsd(totalUsd),
-                },
-                {
-                  label: "Platform fee · 5%",
-                  value: `− ${fmtUsd((totalUsd * PLATFORM_FEE_BPS) / 10_000)}`,
-                },
-                {
-                  label: <span className="text-white/85">Streamer receives</span>,
-                  value: fmtUsd(totalUsd - (totalUsd * PLATFORM_FEE_BPS) / 10_000),
-                  accent: true,
-                },
-              ]}
-            />
-          </div>
-
-          {(swapPathMissing || probePathMissing) && (
-            <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-[12px] text-red-300">
-              No FanX/Kayen liquidity for {tokenSymbol} → USDC. Pick another token.
+          {totalUsd !== null && monthlyUsd !== null && (
+            <div className="mt-5">
+              <FeeBreakdown
+                rows={[
+                  { label: `${months} × monthly · ${fmtUsd(monthlyUsd)}`, value: fmtUsd(totalUsd) },
+                  { label: "Platform fee · 5%", value: `− ${fmtUsd((totalUsd * PLATFORM_FEE_BPS) / 10_000)}` },
+                  {
+                    label: <span className="text-white/85">Streamer receives</span>,
+                    value: fmtUsd(totalUsd - (totalUsd * PLATFORM_FEE_BPS) / 10_000),
+                    accent: true,
+                  },
+                ]}
+              />
             </div>
+          )}
+
+          {payment.swapPathMissing && (
+            <ModalAlert className="mt-4">
+              No FanX/Kayen liquidity for {tokenSymbol} → USDC. Pick another token.
+            </ModalAlert>
+          )}
+          {payment.quoteBelowCost && !payment.swapPathMissing && (
+            <ModalAlert className="mt-4">
+              The FanX quote for {tokenSymbol} is below the subscription price. Try again in a moment.
+            </ModalAlert>
           )}
         </div>
       )}
 
-      {renderBody ? (
+      {!isAlreadySubscribed ? (
         <SettlementFooter
           ctaLabel={ctaLabel}
           onSubmit={handleSubmit}
           loading={isLoading}
           disabled={
-            parsedAmount === BigInt(0) ||
-            swapPathMissing ||
-            probePathMissing ||
-            insufficient
+            pricing.status !== "priced" ||
+            payment.parsedAmount === BigInt(0) ||
+            insufficient ||
+            (!approval.needsApproval && !payment.ready)
           }
           note="One-shot tx · no auto-renew"
           alert={
@@ -485,14 +277,10 @@ export function SubscriptionModal({
               {insufficient && tokenBalance !== undefined && (
                 <InsufficientBalanceBanner
                   symbol={tokenSymbol}
-                  shortfall={fmtTok(numericTokenAmount - tokenBalance, tokenSymbol === "CHZ" ? 0 : 2)}
+                  shortfall={fmtTok(payment.tokenAmount - tokenBalance, tokenDp)}
                 />
               )}
-              {errorMessage && !insufficient && (
-                <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-[12px] text-red-300">
-                  {errorMessage}
-                </div>
-              )}
+              {errorMessage && !insufficient && <ModalAlert className="mb-3">{errorMessage}</ModalAlert>}
             </>
           }
         />

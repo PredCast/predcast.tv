@@ -10,7 +10,7 @@ export interface BettingChain {
   /** Chain display name from the wagmi config (e.g. "Chiliz Spicy Testnet"). */
   readonly name: string;
   readonly pariMatchFactory: Address;
-  readonly swapRouter: Address;
+  readonly networkRouter: Address;
   readonly usdc: Address;
   readonly explorerAddressUrl: (address: string) => string | null;
 }
@@ -26,7 +26,7 @@ export function useBettingChain(): BettingChain {
     chainId: chilizConfig.chainId,
     name: chain?.name ?? `Chain ${chilizConfig.chainId}`,
     pariMatchFactory: chilizConfig.pariMatchFactory,
-    swapRouter: chilizConfig.chilizSwapRouter,
+    networkRouter: chilizConfig.networkRouter,
     usdc: chilizConfig.usdc,
     explorerAddressUrl: (address) => (explorer ? `${explorer}/address/${address}` : null),
   };

@@ -3,6 +3,7 @@ export interface GuardedEnv {
   readonly NODE_ENV: 'development' | 'test' | 'production';
   readonly ADMIN_GATE_CODE_HASH?: string;
   readonly SUPABASE_SERVICE_ROLE_KEY?: string;
+  readonly RESOLVER_PRIVATE_KEY?: string;
 }
 
 export interface EnvGuardReport {
@@ -29,6 +30,9 @@ export function productionEnvProblems(env: GuardedEnv): EnvGuardReport {
     // The matches RLS (migration 041) hides unpublished rows from the anon key: the admin list,
     // the jobs and the dashboard metadata would silently lose them.
     fatal.push('SUPABASE_SERVICE_ROLE_KEY is required in production: the backend cannot read RLS-hidden matches with the anon key');
+  }
+  if (!env.RESOLVER_PRIVATE_KEY) {
+    errors.push('RESOLVER_PRIVATE_KEY is not set: match deployments will fail (the factory requires a distinct oracle)');
   }
   return { fatal, errors };
 }

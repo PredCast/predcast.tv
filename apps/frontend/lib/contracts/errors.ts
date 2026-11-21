@@ -3,8 +3,8 @@
  * message. Three layers, in order of priority:
  *
  *   1. User rejection (wallet popup closed) → soft "info" — not really a failure.
- *   2. Custom contract revert (BettingMatch / LiquidityPool / ChilizSwapRouter
- *      / StreamWallet) → human message keyed off `errorName`. Some carry
+ *   2. Custom contract revert (PariMatch / NetworkRouter / StreamWallet /
+ *      LeaderboardRewards) → human message keyed off `errorName`. Some carry
  *      decoded args we surface inline ("until 23m 04s", "@ 0.04% cap"…).
  *   3. Anything else (RPC down, gas, allowance, native viem error) → fallback
  *      to viem's own `shortMessage` if present, else a generic line.
@@ -120,6 +120,18 @@ const CUSTOM_ERROR_HANDLERS: Record<
         description: 'The liquidity pool is not wired on this match. Ops needs to call setLiquidityPool.',
         severity: 'error',
     }),
+    BettingClosed: () => ({
+        title: 'Betting closed on this market',
+        description: 'The market reached its betting cutoff. Pick another market.',
+        severity: 'warning',
+    }),
+    ClaimsPaused: (args) => ({
+        title: 'Claims paused',
+        description: args[0] !== undefined
+            ? `Claims reopen in ${fmtUnixUntil(args[0])}.`
+            : 'Claims are temporarily paused on this match. Try again later.',
+        severity: 'warning',
+    }),
     AccessControlUnauthorizedAccount: () => ({
         title: 'Not authorized',
         description: 'This action requires a role you don\'t hold on the contract.',
@@ -178,7 +190,7 @@ const CUSTOM_ERROR_HANDLERS: Record<
         severity: 'error',
     }),
 
-    // ── ChilizSwapRouter ────────────────────────────────────────────────────
+    // ── NetworkRouter ───────────────────────────────────────────────────────
     DeadlinePassed: () => ({
         title: 'Quote expired',
         description: 'The price quote timed out before your tx made it on-chain. Re-submit.',
@@ -214,6 +226,25 @@ const CUSTOM_ERROR_HANDLERS: Record<
         description: 'Use the USDC entrypoint instead of the swap path for plain USDC deposits.',
         severity: 'warning',
     }),
+    SlippageNotSet: () => ({
+        title: 'Swap quote missing',
+        description: 'No minimum USDC output was set for the swap. Wait for the quote, then re-submit.',
+        severity: 'warning',
+    }),
+    InsufficientOutput: (args) => ({
+        title: 'Swap slippage exceeded',
+        description: args[0] !== undefined && args[1] !== undefined
+            ? `The swap returned ${fmtUsdc(args[0])}, below the ${fmtUsdc(args[1])} minimum. Increase the tolerance or try again.`
+            : 'The swap returned less USDC than your slippage tolerance allows. Increase the tolerance or try again.',
+        severity: 'warning',
+    }),
+    SubscriptionUnderpaid: (args) => ({
+        title: 'Subscription underpaid',
+        description: args[0] !== undefined && args[1] !== undefined
+            ? `Paid ${fmtUsdc(args[0])} but this duration costs ${fmtUsdc(args[1])}.`
+            : 'The amount paid does not cover the streamer\'s price for this duration.',
+        severity: 'warning',
+    }),
 
     // ── StreamWallet / Factory ──────────────────────────────────────────────
     OnlyStreamer: () => ({
@@ -225,6 +256,11 @@ const CUSTOM_ERROR_HANDLERS: Record<
         title: 'Not authorized',
         description: 'Only the streaming factory or the swap router can record this action.',
         severity: 'error',
+    }),
+    SubscriptionPriceNotSet: () => ({
+        title: 'Subscriptions not open yet',
+        description: 'This streamer has not set a subscription price.',
+        severity: 'info',
     }),
     InsufficientBalance: () => ({
         title: 'Insufficient stream wallet balance',
@@ -240,6 +276,13 @@ const CUSTOM_ERROR_HANDLERS: Record<
         title: 'Stream wallet already exists',
         description: 'A wallet has already been deployed for this streamer.',
         severity: 'info',
+    }),
+
+    // ── LeaderboardRewards ──────────────────────────────────────────────────
+    EpochClaimWindowExpired: () => ({
+        title: 'Claim window closed',
+        description: 'The claim deadline for this epoch has passed.',
+        severity: 'warning',
     }),
 
     // ── Generic shapes shared by several contracts ──────────────────────────
@@ -268,8 +311,8 @@ const CUSTOM_ERROR_HANDLERS: Record<
  * Cross-contract custom-error selectors (4-byte sigs) → error name.
  *
  * viem's `ContractFunctionRevertedError.data?.errorName` is only populated
- * when the *calling* contract's ABI declares the error. ChilizSwapRouter's
- * `placeBetWithUSDC` calls into BettingMatch / LiquidityPool — when those
+ * when the *calling* contract's ABI declares the error. NetworkRouter's
+ * bet / subscribe paths call into PariMatch / StreamWallet — when those
  * revert, viem only gets the raw 4-byte selector. This map lets us still
  * surface a friendly message via the existing `CUSTOM_ERROR_HANDLERS`.
  *
@@ -302,6 +345,13 @@ const ERROR_SELECTOR_TO_NAME: Readonly<Record<string, string>> = {
     '0x118a5a82': 'AlreadyClaimed',
     '0x8bf5a6c5': 'BetLost',
     '0xb706971e': 'BetNotFound',
+    '0x66458e1c': 'SlippageNotSet',
+    '0x2c19b8b8': 'InsufficientOutput',
+    '0x476d1566': 'SubscriptionUnderpaid',
+    '0x4d533f6b': 'SubscriptionPriceNotSet',
+    '0x120dd90f': 'BettingClosed',
+    '0xda6042b4': 'ClaimsPaused',
+    '0xd9508814': 'EpochClaimWindowExpired',
 };
 
 /**
@@ -386,7 +436,7 @@ export function decodeContractError(error: unknown): DecodedError {
             };
         }
         // Fallback — viem couldn't decode errorName (e.g. cross-contract
-        // revert: ChilizSwapRouter calls BettingMatch and the latter's
+        // revert: NetworkRouter calls PariMatch and the latter's
         // custom error isn't in the router ABI). Sniff the raw selector
         // out of the message and look it up against the static map.
         const selector = findSelectorInError(reverted);

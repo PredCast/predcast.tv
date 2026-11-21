@@ -27,7 +27,7 @@ const TARGETS = [
     'LeaderboardRewards',
     'StreamWallet',
     'StreamWalletFactory',
-    'ChilizSwapRouter',
+    'NetworkRouter',
 ];
 
 if (!existsSync(FOUNDRY_OUT)) {

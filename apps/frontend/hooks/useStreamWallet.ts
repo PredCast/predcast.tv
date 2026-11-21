@@ -54,7 +54,7 @@ interface SubscriptionDetails {
  * Read-only view over a streamer's StreamWallet.
  *
  * NOTE: Donation / subscription writes are NOT exposed here anymore. They go
- * through `useChilizSwapRouter` (donate / subscribe), which supports CHZ /
+ * through `useNetworkRouter` (donate / subscribe), which supports CHZ /
  * USDC / fan-token paths via the FanX swap. The factory's
  * `donateToStream` / `subscribeToStream` are fan-token-only and were
  * mis-wired to placeholder zero addresses in earlier revisions of this hook.

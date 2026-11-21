@@ -59,6 +59,16 @@ describe('DeployMatchContractUseCase', () => {
         expect(d.audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'markets.contract.deploy', targetId: '999100' }));
     });
 
+    it('hands the tx of a failed deploy to the retry so it is checked before sending another', async () => {
+        const failed = op({ status: 'failed', progress: { deployTxHash: '0xstuck', deployNonce: 16 } });
+        const d = deps(matchFixture.notDeployed({ apiFootballId: 999100, kickoffAt: new Date(NOW.getTime() + 3_600_000) }), failed);
+        const uc = new DeployMatchContractUseCase(d.matches, d.operations, chains, d.clock, d.audit);
+
+        await uc.execute(999100, 88882, CTX);
+
+        expect(d.operations.enqueue).toHaveBeenCalledWith(expect.objectContaining({ progress: { deployTxHash: '0xstuck', deployNonce: 16 } }));
+    });
+
     it('refuses a match inside the kickoff buffer with the policy reason', async () => {
         const d = deps(matchFixture.notDeployed({ apiFootballId: 999100, kickoffAt: new Date(NOW.getTime() + 60_000) }));
         const uc = new DeployMatchContractUseCase(d.matches, d.operations, chains, d.clock, d.audit);

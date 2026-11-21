@@ -1,5 +1,5 @@
 import type { Abi } from 'viem';
-import ChilizSwapRouterJson from './json/ChilizSwapRouter.json';
+import NetworkRouterJson from './json/NetworkRouter.json';
 import StreamWalletJson from './json/StreamWallet.json';
 import StreamWalletFactoryJson from './json/StreamWalletFactory.json';
 import PariMatchFactoryJson from './json/PariMatchFactory.json';
@@ -12,7 +12,7 @@ import LeaderboardRewardsJson from './json/LeaderboardRewards.json';
 // writeContract, getLogs with `event:`) accept Abi at the type level. For full literal
 // inference (compile-time function-name autocompletion), the frontend uses the wagmi-
 // generated hooks instead.
-export const CHILIZ_SWAP_ROUTER_ABI = ChilizSwapRouterJson.abi as Abi;
+export const NETWORK_ROUTER_ABI = NetworkRouterJson.abi as Abi;
 export const STREAM_WALLET_ABI = StreamWalletJson.abi as Abi;
 export const STREAM_WALLET_FACTORY_ABI = StreamWalletFactoryJson.abi as Abi;
 export const PARI_MATCH_FACTORY_ABI = PariMatchFactoryJson.abi as Abi;

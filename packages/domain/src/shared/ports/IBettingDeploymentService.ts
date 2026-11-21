@@ -5,24 +5,46 @@
 /** Gas actually paid (gasUsed × effectiveGasPrice), in wei. */
 export type GasCostWei = string;
 
+export interface SentDeployTx {
+    txHash: string;
+    nonce: number;
+}
+
+export type DeployTxLookup =
+    | { status: 'mined'; contractAddress: string; gasCostWei: GasCostWei }
+    | { status: 'pending' }
+    | { status: 'dropped' };
+
+export interface MatchMarketSetup {
+    isKnockout: boolean;
+    /** Betting cutoff of every market; null leaves it unset. */
+    closesAt: Date | null;
+}
+
 export interface IBettingDeploymentService {
     signerAddress(): string;
     /**
-     * Sends `createFootballMatch` under the signer lock. `onSent` runs with the tx hash before the
-     * receipt is awaited, so a crash after the send can resume from the stored hash.
+     * Sends `createFootballMatchWithMarkets` (deploy + seed + cutoff + open in one tx) under the signer
+     * lock. `onSent` runs with the tx hash and nonce before the receipt is awaited, so a crash after
+     * the send can resume from them.
      */
-    deployMatchContract(matchName: string, onSent: (txHash: string) => Promise<void>): Promise<{ contractAddress: string; gasCostWei: GasCostWei }>;
+    deployMatchContract(
+        matchName: string,
+        markets: MatchMarketSetup,
+        onSent: (sent: SentDeployTx) => Promise<void>,
+    ): Promise<{ contractAddress: string; gasCostWei: GasCostWei; marketsOpened: number }>;
     /**
-     * Contract created by an already-sent deploy tx (crash recovery). Null when the tx is unknown or
-     * still not mined after the wait; throws when it reverted.
+     * Outcome of an already-sent deploy tx (crash or timeout recovery). `dropped` when the signer's
+     * nonce moved past `nonce` without this tx: it can never be mined and a new deploy is safe.
+     * Throws when the tx reverted.
      */
-    findDeployedContract(txHash: string): Promise<{ contractAddress: string; gasCostWei: GasCostWei } | null>;
+    findDeployedContract(txHash: string, nonce: number | undefined): Promise<DeployTxLookup>;
     /**
      * Adds the canonical market lineup when the contract has none yet, then opens every market still
-     * Inactive. Safe to call again after a partial failure.
+     * Inactive. Safe to call again after a partial failure; a no-op on contracts deployed with markets.
      */
     ensureDefaultMarketsOpen(contractAddress: string, opts: { isKnockout: boolean }): Promise<{ added: boolean; opened: number; gasCostWei: GasCostWei }>;
     signerBalanceWei(): Promise<bigint>;
-    /** One full deployment (deploy + seed + open) at the current gas price. */
+    /** One full deployment at the current gas price. */
     estimateDeploymentCostWei(): Promise<bigint>;
 }

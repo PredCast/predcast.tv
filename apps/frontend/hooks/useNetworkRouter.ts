@@ -4,22 +4,22 @@ import { useCallback } from 'react';
 import { useWaitForTransactionReceipt } from 'wagmi';
 import type { Address } from 'viem';
 import {
-    useChilizSwapRouterWritePlaceBetWithUsdc,
-    useChilizSwapRouterWritePlaceBetWithChz,
-    useChilizSwapRouterWritePlaceBetWithToken,
-    useChilizSwapRouterWriteDonateWithUsdc,
-    useChilizSwapRouterWriteDonateWithChz,
-    useChilizSwapRouterWriteDonateWithToken,
-    useChilizSwapRouterWriteSubscribeWithUsdc,
-    useChilizSwapRouterWriteSubscribeWithChz,
-    useChilizSwapRouterWriteSubscribeWithToken,
+    useNetworkRouterWritePlaceBetWithUsdc,
+    useNetworkRouterWritePlaceBetWithNativeToken,
+    useNetworkRouterWritePlaceBetWithToken,
+    useNetworkRouterWriteDonateWithUsdc,
+    useNetworkRouterWriteDonateWithNativeToken,
+    useNetworkRouterWriteDonateWithToken,
+    useNetworkRouterWriteSubscribeWithUsdc,
+    useNetworkRouterWriteSubscribeWithNativeToken,
+    useNetworkRouterWriteSubscribeWithToken,
 } from '@/lib/contracts/generated';
 import { chilizConfig } from '@/config/chiliz.config';
 
-const ROUTER_ADDRESS = chilizConfig.chilizSwapRouter;
+const ROUTER_ADDRESS = chilizConfig.networkRouter;
 
 /**
- * Unified hook for the ChilizSwapRouter (FanX-protocol adapter). Wraps the
+ * Unified hook for the NetworkRouter (Kayen/FanX adapter). Wraps the
  * generated wagmi hooks for all user-facing entrypoints into one place so
  * dialogs (bet, deposit, donate, subscribe) don't each have to know which
  * router function maps to which payment token.
@@ -29,8 +29,10 @@ const ROUTER_ADDRESS = chilizConfig.chilizSwapRouter;
  *
  * Token paths supported:
  *   - 'USDC'  → direct USDC, no swap
- *   - 'CHZ'   → native CHZ swapped via Kayen MasterRouterV2
+ *   - 'CHZ'   → native token swapped via Kayen MasterRouterV2
  *   - <addr>  → arbitrary ERC20 swapped via Kayen tokenRouter
+ *
+ * Swap paths revert `SlippageNotSet` on `amountOutMin == 0`: callers pass a quote-derived minimum.
  */
 
 export type SwapToken = 'USDC' | 'CHZ' | Address;
@@ -80,21 +82,21 @@ function useTxState(args: {
     };
 }
 
-export function useChilizSwapRouter() {
+export function useNetworkRouter() {
     // ── Bet entrypoints ────────────────────────────────────────────────────
-    const placeBetUsdc = useChilizSwapRouterWritePlaceBetWithUsdc();
-    const placeBetChz = useChilizSwapRouterWritePlaceBetWithChz();
-    const placeBetToken = useChilizSwapRouterWritePlaceBetWithToken();
+    const placeBetUsdc = useNetworkRouterWritePlaceBetWithUsdc();
+    const placeBetNative = useNetworkRouterWritePlaceBetWithNativeToken();
+    const placeBetToken = useNetworkRouterWritePlaceBetWithToken();
 
     // ── Donation entrypoints ──────────────────────────────────────────────
-    const donateUsdc = useChilizSwapRouterWriteDonateWithUsdc();
-    const donateChz = useChilizSwapRouterWriteDonateWithChz();
-    const donateToken = useChilizSwapRouterWriteDonateWithToken();
+    const donateUsdc = useNetworkRouterWriteDonateWithUsdc();
+    const donateNative = useNetworkRouterWriteDonateWithNativeToken();
+    const donateToken = useNetworkRouterWriteDonateWithToken();
 
     // ── Subscription entrypoints ──────────────────────────────────────────
-    const subscribeUsdc = useChilizSwapRouterWriteSubscribeWithUsdc();
-    const subscribeChz = useChilizSwapRouterWriteSubscribeWithChz();
-    const subscribeToken = useChilizSwapRouterWriteSubscribeWithToken();
+    const subscribeUsdc = useNetworkRouterWriteSubscribeWithUsdc();
+    const subscribeNative = useNetworkRouterWriteSubscribeWithNativeToken();
+    const subscribeToken = useNetworkRouterWriteSubscribeWithToken();
 
     // ── Bet ─────────────────────────────────────────────────────────────────
     const placeBet = useCallback(
@@ -104,7 +106,7 @@ export function useChilizSwapRouter() {
             marketId: bigint;
             selection: bigint;
             amount: bigint;        // grossAmount in token's atomic units (USDC: 6dp, fan token: 18dp)
-            amountOutMin: bigint;  // minimum USDC the swap must produce; 0 for USDC path
+            amountOutMin: bigint;  // minimum USDC the swap must produce (non-zero); ignored on USDC path
             deadline: bigint;      // unix seconds; ignored on USDC path
         }) => {
             const { token, matchAddress, marketId, selection, amount, amountOutMin, deadline } = params;
@@ -114,7 +116,7 @@ export function useChilizSwapRouter() {
                     args: [matchAddress, marketId, selection, amount],
                 });
             } else if (token === 'CHZ') {
-                placeBetChz.writeContract({
+                placeBetNative.writeContract({
                     address: ROUTER_ADDRESS,
                     args: [matchAddress, marketId, selection, amountOutMin, deadline],
                     value: amount,
@@ -126,21 +128,19 @@ export function useChilizSwapRouter() {
                 });
             }
         },
-        [placeBetUsdc, placeBetChz, placeBetToken],
+        [placeBetUsdc, placeBetNative, placeBetToken],
     );
 
     /** Clears the three bet writes so a new prediction starts from an idle tx state. */
     const resetBet = useCallback(() => {
         placeBetUsdc.reset();
-        placeBetChz.reset();
+        placeBetNative.reset();
         placeBetToken.reset();
-    }, [placeBetUsdc, placeBetChz, placeBetToken]);
+    }, [placeBetUsdc, placeBetNative, placeBetToken]);
 
     const placeBetUsdcState = useTxState(placeBetUsdc);
-    const placeBetChzState = useTxState(placeBetChz);
+    const placeBetNativeState = useTxState(placeBetNative);
     const placeBetTokenState = useTxState(placeBetToken);
-
-    // Liquidity deposits removed in parimutuel — bettors are the only writers.
 
     // ── Donate ──────────────────────────────────────────────────────────────
     const donate = useCallback(
@@ -149,7 +149,7 @@ export function useChilizSwapRouter() {
             streamer: Address;
             message: string;
             amount: bigint;        // grossAmount in token's atomic units (USDC: 6dp, fan token / CHZ: 18dp)
-            amountOutMin: bigint;  // minimum USDC the swap must produce; 0 for USDC path
+            amountOutMin: bigint;  // minimum USDC the swap must produce (non-zero); ignored on USDC path
             deadline: bigint;      // unix seconds; ignored on USDC path
         }) => {
             const { token, streamer, message, amount, amountOutMin, deadline } = params;
@@ -159,7 +159,7 @@ export function useChilizSwapRouter() {
                     args: [streamer, message, amount],
                 });
             } else if (token === 'CHZ') {
-                donateChz.writeContract({
+                donateNative.writeContract({
                     address: ROUTER_ADDRESS,
                     args: [streamer, message, amountOutMin, deadline],
                     value: amount,
@@ -171,11 +171,11 @@ export function useChilizSwapRouter() {
                 });
             }
         },
-        [donateUsdc, donateChz, donateToken],
+        [donateUsdc, donateNative, donateToken],
     );
 
     const donateUsdcState = useTxState(donateUsdc);
-    const donateChzState = useTxState(donateChz);
+    const donateNativeState = useTxState(donateNative);
     const donateTokenState = useTxState(donateToken);
 
     // ── Subscribe ───────────────────────────────────────────────────────────
@@ -185,7 +185,7 @@ export function useChilizSwapRouter() {
             streamer: Address;
             duration: bigint;      // seconds
             amount: bigint;        // grossAmount in token's atomic units
-            amountOutMin: bigint;  // minimum USDC the swap must produce; 0 for USDC path
+            amountOutMin: bigint;  // minimum USDC the swap must produce (non-zero); ignored on USDC path
             deadline: bigint;      // unix seconds; ignored on USDC path
         }) => {
             const { token, streamer, duration, amount, amountOutMin, deadline } = params;
@@ -195,7 +195,7 @@ export function useChilizSwapRouter() {
                     args: [streamer, duration, amount],
                 });
             } else if (token === 'CHZ') {
-                subscribeChz.writeContract({
+                subscribeNative.writeContract({
                     address: ROUTER_ADDRESS,
                     args: [streamer, duration, amountOutMin, deadline],
                     value: amount,
@@ -207,26 +207,26 @@ export function useChilizSwapRouter() {
                 });
             }
         },
-        [subscribeUsdc, subscribeChz, subscribeToken],
+        [subscribeUsdc, subscribeNative, subscribeToken],
     );
 
     const subscribeUsdcState = useTxState(subscribeUsdc);
-    const subscribeChzState = useTxState(subscribeChz);
+    const subscribeNativeState = useTxState(subscribeNative);
     const subscribeTokenState = useTxState(subscribeToken);
 
     return {
         // Bet
         placeBet,
         resetBet,
-        betState: pickActive(placeBetUsdcState, placeBetChzState, placeBetTokenState),
+        betState: pickActive(placeBetUsdcState, placeBetNativeState, placeBetTokenState),
 
         // Donate
         donate,
-        donateState: pickActive(donateUsdcState, donateChzState, donateTokenState),
+        donateState: pickActive(donateUsdcState, donateNativeState, donateTokenState),
 
         // Subscribe
         subscribe,
-        subscribeState: pickActive(subscribeUsdcState, subscribeChzState, subscribeTokenState),
+        subscribeState: pickActive(subscribeUsdcState, subscribeNativeState, subscribeTokenState),
 
         // Address constant for callers that need to set ERC20 allowance on the router
         routerAddress: ROUTER_ADDRESS,

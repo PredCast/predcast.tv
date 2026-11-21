@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { useChilizSwapRouter } from "@/hooks/useChilizSwapRouter";
+import { useNetworkRouter } from "@/hooks/useNetworkRouter";
 
 import type { FailureKind } from "../../domain/betTicket";
 import { contractErrorMessage } from "../../domain/contractErrorMessage";
@@ -29,7 +29,7 @@ const MY_BETS_REFETCH_DELAYS_MS = [2000, 4000, 7000, 11000] as const;
  */
 export function useTicketSubmit(simulationError: Error | null) {
   const qc = useQueryClient();
-  const { placeBet, resetBet, betState, routerAddress } = useChilizSwapRouter();
+  const { placeBet, resetBet, betState, routerAddress } = useNetworkRouter();
   const { isPending, isConfirming, isSuccess, isReverted, isUserRejected, error, txHash } = betState;
   const pendingBetRef = useRef<PendingBet | null>(null);
 

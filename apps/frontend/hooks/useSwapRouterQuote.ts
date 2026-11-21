@@ -2,18 +2,18 @@
 
 import type { Address } from 'viem';
 
-import { useChilizSwapRouterReadQuoteTokenToUsdc } from '@/lib/contracts/generated';
+import { useNetworkRouterReadQuoteTokenToUsdc } from '@/lib/contracts/generated';
 import { chilizConfig } from '@/config/chiliz.config';
 
 const CHAIN_ID: number = chilizConfig.chainId;
-const ROUTER_ADDRESS = chilizConfig.chilizSwapRouter;
+const ROUTER_ADDRESS = chilizConfig.networkRouter;
 
 /**
- * USDC quote through `ChilizSwapRouter.quoteTokenToUSDC` — follows the exact
+ * USDC quote through `NetworkRouter.quoteTokenToUSDC` — follows the exact
  * route the swap will execute (fan-token wrap included), unlike a hand-built
  * Kayen path which reverts for wrapped tokens. The quote is a *quote*, not a
  * guarantee — slippage tolerance still has to be applied before passing
- * `amountOutMin` to a write call.
+ * `amountOutMin` to a write call. An unpriced route quotes 0 (no revert).
  *
  * @param amountIn Input amount in `tokenIn`'s atomic units (contract-reported
  *                 decimals — mainnet fan tokens are 0-dp).
@@ -30,7 +30,7 @@ export function useSwapRouterQuote(amountIn: bigint | undefined, tokenIn: Addres
         // quoteTokenToUSDC reverts when token == USDC (TokenIsUSDC guard).
         tokenIn.toLowerCase() !== chilizConfig.usdc.toLowerCase();
 
-    const { data, isLoading, error } = useChilizSwapRouterReadQuoteTokenToUsdc({
+    const { data, isLoading, error } = useNetworkRouterReadQuoteTokenToUsdc({
         address: ROUTER_ADDRESS,
         args: enabled ? [tokenIn, amountIn] : undefined,
         chainId: CHAIN_ID,

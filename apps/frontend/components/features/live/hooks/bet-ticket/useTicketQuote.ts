@@ -13,7 +13,7 @@ export type QuoteStatus = "not-needed" | "idle" | "loading" | "ready" | "unavail
 /** USDC quote, slippage floor and price impact for non-USDC stakes (via `quoteTokenToUSDC` only). */
 export function useTicketQuote(token: BetToken, parsedAmount: bigint, decimals: number | undefined, slippageBps: number) {
   const tokenIn: Address | undefined =
-    token.kind === "ERC20" ? token.address : token.kind === "CHZ" ? chilizConfig.wchz : undefined;
+    token.kind === "ERC20" ? token.address : token.kind === "CHZ" ? chilizConfig.wrappedNativeToken : undefined;
   const hasAmount = parsedAmount > BigInt(0);
   const { amountOut, error, isLoading } = useSwapRouterQuote(hasAmount ? parsedAmount : undefined, tokenIn);
 
@@ -33,11 +33,15 @@ export function useTicketQuote(token: BetToken, parsedAmount: bigint, decimals: 
           ? "unavailable"
           : isLoading || amountOut === undefined
             ? "loading"
-            : "ready";
+            : amountOut === BigInt(0)
+              ? "unavailable"
+              : "ready";
 
+  // 0 only while no usable quote exists (the CTA is blocked then); the router reverts `SlippageNotSet` on 0.
   const amountOutMin = useMemo(() => {
-    if (token.kind === "USDC" || amountOut === undefined) return BigInt(0);
-    return (amountOut * BigInt(10_000 - slippageBps)) / BigInt(10_000);
+    if (token.kind === "USDC" || amountOut === undefined || amountOut === BigInt(0)) return BigInt(0);
+    const min = (amountOut * BigInt(10_000 - slippageBps)) / BigInt(10_000);
+    return min > BigInt(0) ? min : BigInt(1);
   }, [token.kind, amountOut, slippageBps]);
 
   const priceImpactPct = useMemo(() => {

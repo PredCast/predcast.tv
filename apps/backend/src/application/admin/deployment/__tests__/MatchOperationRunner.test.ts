@@ -37,11 +37,11 @@ function setup(match: Match) {
     } as unknown as IMatchDeploymentRepository;
     const operations = { recordProgress: vi.fn(async () => undefined) } as unknown as IMatchOperationRepository;
     const deployer = {
-        deployMatchContract: vi.fn(async (_name: string, onSent: (h: string) => Promise<void>) => {
-            await onSent('0xhash');
-            return { contractAddress: CONTRACT, gasCostWei: '3000' };
+        deployMatchContract: vi.fn(async (_name: string, _markets: unknown, onSent: (sent: { txHash: string; nonce: number }) => Promise<void>) => {
+            await onSent({ txHash: '0xhash', nonce: 15 });
+            return { contractAddress: CONTRACT, gasCostWei: '3000', marketsOpened: 9 };
         }),
-        findDeployedContract: vi.fn(async () => ({ contractAddress: CONTRACT, gasCostWei: '2500' })),
+        findDeployedContract: vi.fn(async () => ({ status: 'mined', contractAddress: CONTRACT, gasCostWei: '2500' })),
         ensureDefaultMarketsOpen: vi.fn(async () => ({ added: true, opened: 8, gasCostWei: '700' })),
     } as unknown as IBettingDeploymentService;
     const blockchain = { cancelOpenMarketsForMatch: vi.fn(async () => ({ cancelled: 3, skipped: 5 })) } as unknown as IBlockchainService;
@@ -54,10 +54,14 @@ describe('MatchOperationRunner', () => {
     beforeEach(() => __resetTestMatchIdForTesting());
 
     it('deploys, records the tx hash before the receipt, seeds, opens and publishes', async () => {
-        const t = setup(matchFixture.notDeployed({ apiFootballId: 999100 }));
+        const kickoffAt = new Date(NOW.getTime() + 2 * 3_600_000);
+        const t = setup(matchFixture.notDeployed({ apiFootballId: 999100, kickoffAt }));
         await t.runner.run(operation());
 
-        expect(t.operations.recordProgress).toHaveBeenNthCalledWith(1, 'op-1', { deployTxHash: '0xhash' }, NOW);
+        expect(t.deployer.deployMatchContract).toHaveBeenCalledWith(
+            expect.any(String), { isKnockout: false, closesAt: kickoffAt }, expect.any(Function),
+        );
+        expect(t.operations.recordProgress).toHaveBeenNthCalledWith(1, 'op-1', { deployTxHash: '0xhash', deployNonce: 15 }, NOW);
         expect(t.deployments.recordContractDeployed).toHaveBeenCalledWith(999100, CONTRACT, 88882);
         expect(t.deployer.ensureDefaultMarketsOpen).toHaveBeenCalledWith(CONTRACT, { isKnockout: false });
         expect(t.deployments.setBettingOpenedAt).toHaveBeenCalledWith(999100, NOW);
@@ -68,8 +72,25 @@ describe('MatchOperationRunner', () => {
         const t = setup(matchFixture.notDeployed({ apiFootballId: 999100 }));
         await t.runner.run(operation());
 
-        expect(t.operations.recordProgress).toHaveBeenCalledWith('op-1', { contractAddress: CONTRACT, deployGasWei: '3000' }, NOW);
+        expect(t.operations.recordProgress).toHaveBeenCalledWith('op-1', { contractAddress: CONTRACT, deployGasWei: '3000', marketsOpened: 9 }, NOW);
         expect(t.operations.recordProgress).toHaveBeenCalledWith('op-1', { marketsOpened: 8, setupGasWei: '700' }, NOW);
+    });
+
+    it('keeps the deploy market count when the markets came already open', async () => {
+        const t = setup(matchFixture.notDeployed({ apiFootballId: 999100 }));
+        (t.deployer.ensureDefaultMarketsOpen as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ added: false, opened: 0, gasCostWei: '0' });
+        await t.runner.run(operation());
+
+        expect(t.operations.recordProgress).toHaveBeenLastCalledWith('op-1', { setupGasWei: '0' }, NOW);
+    });
+
+    it('sets no betting cutoff when kickoff is too close for the tx to land before it', async () => {
+        const t = setup(matchFixture.notDeployed({ apiFootballId: 999100, kickoffAt: new Date(NOW.getTime() + 60_000) }));
+        await t.runner.run(operation());
+
+        expect(t.deployer.deployMatchContract).toHaveBeenCalledWith(
+            expect.any(String), { isKnockout: false, closesAt: null }, expect.any(Function),
+        );
     });
 
     it('adds a resumed setup to the gas its first attempt already paid', async () => {
@@ -82,19 +103,28 @@ describe('MatchOperationRunner', () => {
 
     it('resumes from a stored tx hash without sending a new deploy', async () => {
         const t = setup(matchFixture.notDeployed({ apiFootballId: 999100 }));
-        await t.runner.run(operation({ progress: { deployTxHash: '0xstored' } }));
+        await t.runner.run(operation({ progress: { deployTxHash: '0xstored', deployNonce: 16 } }));
 
-        expect(t.deployer.findDeployedContract).toHaveBeenCalledWith('0xstored');
+        expect(t.deployer.findDeployedContract).toHaveBeenCalledWith('0xstored', 16);
         expect(t.deployer.deployMatchContract).not.toHaveBeenCalled();
         expect(t.deployments.recordContractDeployed).toHaveBeenCalledWith(999100, CONTRACT, 88882);
     });
 
-    it('fails instead of redeploying when the stored tx cannot be found', async () => {
+    it('fails instead of redeploying while the stored tx may still be mined', async () => {
         const t = setup(matchFixture.notDeployed({ apiFootballId: 999100 }));
-        (t.deployer.findDeployedContract as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null);
+        (t.deployer.findDeployedContract as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ status: 'pending' });
 
         await expect(t.runner.run(operation({ progress: { deployTxHash: '0xlost' } }))).rejects.toThrow(/0xlost/);
         expect(t.deployer.deployMatchContract).not.toHaveBeenCalled();
+    });
+
+    it('deploys again once the stored tx was dropped (its nonce went to another tx)', async () => {
+        const t = setup(matchFixture.notDeployed({ apiFootballId: 999100 }));
+        (t.deployer.findDeployedContract as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ status: 'dropped' });
+        await t.runner.run(operation({ progress: { deployTxHash: '0xdropped', deployNonce: 16 } }));
+
+        expect(t.deployer.deployMatchContract).toHaveBeenCalledTimes(1);
+        expect(t.operations.recordProgress).toHaveBeenCalledWith('op-1', { deployTxHash: '0xhash', deployNonce: 15 }, NOW);
     });
 
     it('skips the deploy tx when the contract address is already known', async () => {

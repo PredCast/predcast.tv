@@ -10,4 +10,6 @@ export interface INetworkConfig {
   readonly wchzAddress: string;
 
   readonly adminPrivateKey: string;
+  /** Oracle key (RESOLVER_ROLE on matches); must differ from the factory owner and operator. Null when unset. */
+  readonly resolverPrivateKey: string | null;
 }
