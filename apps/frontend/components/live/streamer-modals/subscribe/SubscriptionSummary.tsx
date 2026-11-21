@@ -4,7 +4,8 @@ import { Eyebrow, TokenChipDisplay, type StreamerTokenView } from "../shared";
 import { ExpiryDate } from "./ExpiryDate";
 
 interface SubscriptionSummaryProps {
-  totalUsd: number;
+  /** Null while the on-chain price is loading or unset. */
+  totalUsd: number | null;
   tokenAmountSubLabel: string;
   months: number;
   selectedToken: StreamerTokenView;
@@ -37,7 +38,7 @@ export function SubscriptionSummary({
             className="font-display leading-none tracking-[-0.02em] text-white"
             style={{ fontSize: 40, fontWeight: 800 }}
           >
-            {fmtUsd(totalUsd)}
+            {totalUsd !== null ? fmtUsd(totalUsd) : "—"}
           </div>
           <div className="font-mono-ctv mt-2 text-[10px] uppercase tracking-[0.18em] text-white/45">
             {tokenAmountSubLabel}

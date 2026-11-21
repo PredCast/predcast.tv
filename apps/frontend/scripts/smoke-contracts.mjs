@@ -226,7 +226,7 @@ function row(label, value) {
         client.readContract({ address: ROUTER, abi: ROUTER_ABI, functionName: 'platformFeeBps' }),
     ]);
 
-    console.log('\nChilizSwapRouter');
+    console.log('\nNetworkRouter');
     row('address', ROUTER);
     row('matchFactory wired', routerFactory.toLowerCase() === FACTORY.toLowerCase() ? '✓' : `✗ (router says ${routerFactory}, env says ${FACTORY})`);
     row('liquidityPool wired', routerPool.toLowerCase() === POOL.toLowerCase() ? '✓' : `✗ (router says ${routerPool})`);

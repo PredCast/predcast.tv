@@ -35,6 +35,20 @@ export const basketballPariMatchAbi = [
   {
     type: 'function',
     inputs: [],
+    name: 'DEFAULT_FEE_BPS',
+    outputs: [{ name: '', internalType: 'uint16', type: 'uint16' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'LEGACY_MARKET_TTL',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
     name: 'MARKET_FIRST_TO_SCORE',
     outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
     stateMutability: 'view',
@@ -84,6 +98,13 @@ export const basketballPariMatchAbi = [
   {
     type: 'function',
     inputs: [],
+    name: 'MAX_CLAIM_PAUSE',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
     name: 'MAX_FEE_BPS',
     outputs: [{ name: '', internalType: 'uint16', type: 'uint16' }],
     stateMutability: 'view',
@@ -105,6 +126,13 @@ export const basketballPariMatchAbi = [
   {
     type: 'function',
     inputs: [],
+    name: 'RESOLUTION_TIMEOUT',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
     name: 'RESOLVER_ROLE',
     outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
     stateMutability: 'view',
@@ -114,13 +142,6 @@ export const basketballPariMatchAbi = [
     inputs: [],
     name: 'SWAP_ROUTER_ROLE',
     outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'UPGRADE_INTERFACE_VERSION',
-    outputs: [{ name: '', internalType: 'string', type: 'string' }],
     stateMutability: 'view',
   },
   {
@@ -201,6 +222,13 @@ export const basketballPariMatchAbi = [
   {
     type: 'function',
     inputs: [{ name: 'marketId', internalType: 'uint256', type: 'uint256' }],
+    name: 'cancelStaleMarket',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'marketId', internalType: 'uint256', type: 'uint256' }],
     name: 'claim',
     outputs: [],
     stateMutability: 'nonpayable',
@@ -227,6 +255,13 @@ export const basketballPariMatchAbi = [
       { name: 'marketIds', internalType: 'uint256[]', type: 'uint256[]' },
     ],
     name: 'claimRefundBatch',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'marketId', internalType: 'uint256', type: 'uint256' }],
+    name: 'closeExpiredMarket',
     outputs: [],
     stateMutability: 'nonpayable',
   },
@@ -268,6 +303,36 @@ export const basketballPariMatchAbi = [
       },
     ],
     name: 'computeOutcome',
+    outputs: [
+      { name: 'outcome', internalType: 'uint64', type: 'uint64' },
+      { name: 'resolvable', internalType: 'bool', type: 'bool' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 's',
+        internalType: 'struct BasketballPariMatch.BasketballFinalScore',
+        type: 'tuple',
+        components: [
+          { name: 'homeQ1', internalType: 'uint8', type: 'uint8' },
+          { name: 'awayQ1', internalType: 'uint8', type: 'uint8' },
+          { name: 'homeQ2', internalType: 'uint8', type: 'uint8' },
+          { name: 'awayQ2', internalType: 'uint8', type: 'uint8' },
+          { name: 'homeQ3', internalType: 'uint8', type: 'uint8' },
+          { name: 'awayQ3', internalType: 'uint8', type: 'uint8' },
+          { name: 'homeQ4', internalType: 'uint8', type: 'uint8' },
+          { name: 'awayQ4', internalType: 'uint8', type: 'uint8' },
+          { name: 'homeOT', internalType: 'uint8', type: 'uint8' },
+          { name: 'awayOT', internalType: 'uint8', type: 'uint8' },
+          { name: 'firstToScore', internalType: 'uint8', type: 'uint8' },
+        ],
+      },
+    ],
+    name: 'computeOutcomeFinal',
     outputs: [
       { name: 'outcome', internalType: 'uint64', type: 'uint64' },
       { name: 'resolvable', internalType: 'bool', type: 'bool' },
@@ -332,6 +397,17 @@ export const basketballPariMatchAbi = [
   {
     type: 'function',
     inputs: [{ name: 'marketId', internalType: 'uint256', type: 'uint256' }],
+    name: 'getMarketFees',
+    outputs: [
+      { name: 'totalFeeBps', internalType: 'uint16', type: 'uint16' },
+      { name: 'leaderboardShareBps', internalType: 'uint16', type: 'uint16' },
+      { name: 'frozen', internalType: 'bool', type: 'bool' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'marketId', internalType: 'uint256', type: 'uint256' }],
     name: 'getMarketInfo',
     outputs: [
       { name: 'marketType', internalType: 'bytes32', type: 'bytes32' },
@@ -361,6 +437,7 @@ export const basketballPariMatchAbi = [
           { name: 'maxOutcome', internalType: 'uint8', type: 'uint8' },
           { name: 'extra', internalType: 'uint8', type: 'uint8' },
           { name: 'groupId', internalType: 'uint16', type: 'uint16' },
+          { name: 'closesAt', internalType: 'uint40', type: 'uint40' },
         ],
       },
     ],
@@ -498,27 +575,16 @@ export const basketballPariMatchAbi = [
   {
     type: 'function',
     inputs: [],
-    name: 'owner',
-    outputs: [{ name: '', internalType: 'address', type: 'address' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
     name: 'paused',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
     stateMutability: 'view',
   },
   {
     type: 'function',
-    inputs: [
-      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
-      { name: 'outcome', internalType: 'uint64', type: 'uint64' },
-      { name: 'amount', internalType: 'uint256', type: 'uint256' },
-    ],
-    name: 'placeBetUSDC',
-    outputs: [],
-    stateMutability: 'nonpayable',
+    inputs: [],
+    name: 'pausedAt',
+    outputs: [{ name: '', internalType: 'uint40', type: 'uint40' }],
+    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -534,26 +600,41 @@ export const basketballPariMatchAbi = [
   },
   {
     type: 'function',
-    inputs: [],
-    name: 'proxiableUUID',
-    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'renounceOwnership',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
     inputs: [
       { name: 'role', internalType: 'bytes32', type: 'bytes32' },
       { name: 'callerConfirmation', internalType: 'address', type: 'address' },
     ],
     name: 'renounceRole',
     outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'marketIds', internalType: 'uint256[]', type: 'uint256[]' },
+      {
+        name: 's',
+        internalType: 'struct BasketballPariMatch.BasketballFinalScore',
+        type: 'tuple',
+        components: [
+          { name: 'homeQ1', internalType: 'uint8', type: 'uint8' },
+          { name: 'awayQ1', internalType: 'uint8', type: 'uint8' },
+          { name: 'homeQ2', internalType: 'uint8', type: 'uint8' },
+          { name: 'awayQ2', internalType: 'uint8', type: 'uint8' },
+          { name: 'homeQ3', internalType: 'uint8', type: 'uint8' },
+          { name: 'awayQ3', internalType: 'uint8', type: 'uint8' },
+          { name: 'homeQ4', internalType: 'uint8', type: 'uint8' },
+          { name: 'awayQ4', internalType: 'uint8', type: 'uint8' },
+          { name: 'homeOT', internalType: 'uint8', type: 'uint8' },
+          { name: 'awayOT', internalType: 'uint8', type: 'uint8' },
+          { name: 'firstToScore', internalType: 'uint8', type: 'uint8' },
+        ],
+      },
+    ],
+    name: 'resolveBatchByFinalScore',
+    outputs: [
+      { name: 'marketsResolved', internalType: 'uint256', type: 'uint256' },
+    ],
     stateMutability: 'nonpayable',
   },
   {
@@ -578,6 +659,34 @@ export const basketballPariMatchAbi = [
       },
     ],
     name: 'resolveBatchByScore',
+    outputs: [
+      { name: 'marketsResolved', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 's',
+        internalType: 'struct BasketballPariMatch.BasketballFinalScore',
+        type: 'tuple',
+        components: [
+          { name: 'homeQ1', internalType: 'uint8', type: 'uint8' },
+          { name: 'awayQ1', internalType: 'uint8', type: 'uint8' },
+          { name: 'homeQ2', internalType: 'uint8', type: 'uint8' },
+          { name: 'awayQ2', internalType: 'uint8', type: 'uint8' },
+          { name: 'homeQ3', internalType: 'uint8', type: 'uint8' },
+          { name: 'awayQ3', internalType: 'uint8', type: 'uint8' },
+          { name: 'homeQ4', internalType: 'uint8', type: 'uint8' },
+          { name: 'awayQ4', internalType: 'uint8', type: 'uint8' },
+          { name: 'homeOT', internalType: 'uint8', type: 'uint8' },
+          { name: 'awayOT', internalType: 'uint8', type: 'uint8' },
+          { name: 'firstToScore', internalType: 'uint8', type: 'uint8' },
+        ],
+      },
+    ],
+    name: 'resolveByFinalScore',
     outputs: [
       { name: 'marketsResolved', internalType: 'uint256', type: 'uint256' },
     ],
@@ -669,6 +778,26 @@ export const basketballPariMatchAbi = [
   },
   {
     type: 'function',
+    inputs: [
+      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
+      { name: 'closesAt', internalType: 'uint40', type: 'uint40' },
+    ],
+    name: 'setMarketCloseTime',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'marketIds', internalType: 'uint256[]', type: 'uint256[]' },
+      { name: 'closesAt', internalType: 'uint40', type: 'uint40' },
+    ],
+    name: 'setMarketsCloseTime',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     inputs: [{ name: '_usdc', internalType: 'address', type: 'address' }],
     name: 'setUSDCToken',
     outputs: [],
@@ -679,6 +808,13 @@ export const basketballPariMatchAbi = [
     inputs: [],
     name: 'sportType',
     outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'marketId', internalType: 'uint256', type: 'uint256' }],
+    name: 'staleAt',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'view',
   },
   {
@@ -697,27 +833,10 @@ export const basketballPariMatchAbi = [
   },
   {
     type: 'function',
-    inputs: [{ name: 'newOwner', internalType: 'address', type: 'address' }],
-    name: 'transferOwnership',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
     inputs: [],
     name: 'unpause',
     outputs: [],
     stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [
-      { name: 'newImplementation', internalType: 'address', type: 'address' },
-      { name: 'data', internalType: 'bytes', type: 'bytes' },
-    ],
-    name: 'upgradeToAndCall',
-    outputs: [],
-    stateMutability: 'payable',
   },
   {
     type: 'function',
@@ -801,6 +920,25 @@ export const basketballPariMatchAbi = [
     anonymous: false,
     inputs: [
       {
+        name: 'leaderboard',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'LeaderboardNotifyFailed',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
         name: 'oldRecipient',
         internalType: 'address',
         type: 'address',
@@ -865,6 +1003,25 @@ export const basketballPariMatchAbi = [
         indexed: true,
       },
       {
+        name: 'closesAt',
+        internalType: 'uint40',
+        type: 'uint40',
+        indexed: false,
+      },
+    ],
+    name: 'MarketCloseTimeSet',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'marketId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
         name: 'marketType',
         internalType: 'bytes32',
         type: 'bytes32',
@@ -885,6 +1042,31 @@ export const basketballPariMatchAbi = [
       },
     ],
     name: 'MarketCreated',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'marketId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'feeBps',
+        internalType: 'uint16',
+        type: 'uint16',
+        indexed: false,
+      },
+      {
+        name: 'leaderboardFeeBps',
+        internalType: 'uint16',
+        type: 'uint16',
+        indexed: false,
+      },
+    ],
+    name: 'MarketFeesFrozen',
   },
   {
     type: 'event',
@@ -993,25 +1175,6 @@ export const basketballPariMatchAbi = [
       },
     ],
     name: 'MatchScoreResolved',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'previousOwner',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'newOwner',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-    ],
-    name: 'OwnershipTransferred',
   },
   {
     type: 'event',
@@ -1175,6 +1338,25 @@ export const basketballPariMatchAbi = [
     anonymous: false,
     inputs: [
       {
+        name: 'marketId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'StaleMarketCancelled',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
         name: 'token',
         internalType: 'address',
         type: 'address',
@@ -1195,19 +1377,6 @@ export const basketballPariMatchAbi = [
       },
     ],
     name: 'Unpaused',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'implementation',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-    ],
-    name: 'Upgraded',
   },
   { type: 'error', inputs: [], name: 'AccessControlBadConfirmation' },
   {
@@ -1240,11 +1409,16 @@ export const basketballPariMatchAbi = [
   {
     type: 'error',
     inputs: [
-      { name: 'implementation', internalType: 'address', type: 'address' },
+      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
+      { name: 'closesAt', internalType: 'uint40', type: 'uint40' },
     ],
-    name: 'ERC1967InvalidImplementation',
+    name: 'BettingClosed',
   },
-  { type: 'error', inputs: [], name: 'ERC1967NonPayable' },
+  {
+    type: 'error',
+    inputs: [{ name: 'reopensAt', internalType: 'uint256', type: 'uint256' }],
+    name: 'ClaimsPaused',
+  },
   { type: 'error', inputs: [], name: 'EnforcedPause' },
   { type: 'error', inputs: [], name: 'ExpectedPause' },
   { type: 'error', inputs: [], name: 'FailedInnerCall' },
@@ -1257,6 +1431,14 @@ export const basketballPariMatchAbi = [
     name: 'FeeBpsExceedsMax',
   },
   { type: 'error', inputs: [], name: 'FeeRecipientNotConfigured' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
+      { name: 'closesAt', internalType: 'uint40', type: 'uint40' },
+    ],
+    name: 'InvalidCloseTime',
+  },
   { type: 'error', inputs: [], name: 'InvalidInitialization' },
   {
     type: 'error',
@@ -1324,6 +1506,19 @@ export const basketballPariMatchAbi = [
     name: 'LeaderboardFeeExceedsTotal',
   },
   { type: 'error', inputs: [], name: 'LeaderboardRecipientNotConfigured' },
+  {
+    type: 'error',
+    inputs: [{ name: 'marketId', internalType: 'uint256', type: 'uint256' }],
+    name: 'MarketNotExpired',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
+      { name: 'staleAt', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'MarketNotStale',
+  },
   { type: 'error', inputs: [], name: 'NotInitializing' },
   {
     type: 'error',
@@ -1341,16 +1536,6 @@ export const basketballPariMatchAbi = [
     ],
     name: 'NothingToRefund',
   },
-  {
-    type: 'error',
-    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
-    name: 'OwnableInvalidOwner',
-  },
-  {
-    type: 'error',
-    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
-    name: 'OwnableUnauthorizedAccount',
-  },
   { type: 'error', inputs: [], name: 'ReentrancyGuardReentrantCall' },
   {
     type: 'error',
@@ -1365,869 +1550,17 @@ export const basketballPariMatchAbi = [
     ],
     name: 'StakeBelowMinimum',
   },
+  { type: 'error', inputs: [], name: 'USDCAlreadyConfigured' },
   { type: 'error', inputs: [], name: 'USDCNotConfigured' },
-  { type: 'error', inputs: [], name: 'UUPSUnauthorizedCallContext' },
   {
     type: 'error',
-    inputs: [{ name: 'slot', internalType: 'bytes32', type: 'bytes32' }],
-    name: 'UUPSUnsupportedProxiableUUID',
+    inputs: [
+      { name: 'required', internalType: 'uint256', type: 'uint256' },
+      { name: 'balance', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'UnbackedStake',
   },
   { type: 'error', inputs: [], name: 'ZeroStake' },
-] as const
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// ChilizSwapRouter
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-export const chilizSwapRouterAbi = [
-  {
-    type: 'constructor',
-    inputs: [
-      { name: '_masterRouter', internalType: 'address', type: 'address' },
-      { name: '_tokenRouter', internalType: 'address', type: 'address' },
-      { name: '_usdc', internalType: 'address', type: 'address' },
-      { name: '_wchz', internalType: 'address', type: 'address' },
-      { name: '_treasury', internalType: 'address', type: 'address' },
-      { name: '_platformFeeBps', internalType: 'uint16', type: 'uint16' },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  { type: 'receive', stateMutability: 'payable' },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'bettingMatchFactory',
-    outputs: [
-      { name: '', internalType: 'contract PariMatchFactory', type: 'address' },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [
-      { name: 'streamer', internalType: 'address', type: 'address' },
-      { name: 'message', internalType: 'string', type: 'string' },
-      { name: 'amountOutMin', internalType: 'uint256', type: 'uint256' },
-      { name: 'deadline', internalType: 'uint256', type: 'uint256' },
-    ],
-    name: 'donateWithCHZ',
-    outputs: [],
-    stateMutability: 'payable',
-  },
-  {
-    type: 'function',
-    inputs: [
-      { name: 'token', internalType: 'address', type: 'address' },
-      { name: 'amount', internalType: 'uint256', type: 'uint256' },
-      { name: 'streamer', internalType: 'address', type: 'address' },
-      { name: 'message', internalType: 'string', type: 'string' },
-      { name: 'amountOutMin', internalType: 'uint256', type: 'uint256' },
-      { name: 'deadline', internalType: 'uint256', type: 'uint256' },
-    ],
-    name: 'donateWithToken',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [
-      { name: 'streamer', internalType: 'address', type: 'address' },
-      { name: 'message', internalType: 'string', type: 'string' },
-      { name: 'amount', internalType: 'uint256', type: 'uint256' },
-    ],
-    name: 'donateWithUSDC',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'masterRouter',
-    outputs: [
-      {
-        name: '',
-        internalType: 'contract IKayenMasterRouterV2',
-        type: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'owner',
-    outputs: [{ name: '', internalType: 'address', type: 'address' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [
-      { name: 'bettingMatch', internalType: 'address', type: 'address' },
-      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
-      { name: 'outcome', internalType: 'uint64', type: 'uint64' },
-      { name: 'amountOutMin', internalType: 'uint256', type: 'uint256' },
-      { name: 'deadline', internalType: 'uint256', type: 'uint256' },
-    ],
-    name: 'placeBetWithCHZ',
-    outputs: [],
-    stateMutability: 'payable',
-  },
-  {
-    type: 'function',
-    inputs: [
-      { name: 'token', internalType: 'address', type: 'address' },
-      { name: 'amount', internalType: 'uint256', type: 'uint256' },
-      { name: 'bettingMatch', internalType: 'address', type: 'address' },
-      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
-      { name: 'outcome', internalType: 'uint64', type: 'uint64' },
-      { name: 'amountOutMin', internalType: 'uint256', type: 'uint256' },
-      { name: 'deadline', internalType: 'uint256', type: 'uint256' },
-    ],
-    name: 'placeBetWithToken',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [
-      { name: 'bettingMatch', internalType: 'address', type: 'address' },
-      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
-      { name: 'outcome', internalType: 'uint64', type: 'uint64' },
-      { name: 'amount', internalType: 'uint256', type: 'uint256' },
-    ],
-    name: 'placeBetWithUSDC',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'platformFeeBps',
-    outputs: [{ name: '', internalType: 'uint16', type: 'uint16' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [
-      { name: 'token', internalType: 'address', type: 'address' },
-      { name: 'amount', internalType: 'uint256', type: 'uint256' },
-    ],
-    name: 'quoteTokenToUSDC',
-    outputs: [{ name: 'usdcOut', internalType: 'uint256', type: 'uint256' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'renounceOwnership',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [{ name: '_factory', internalType: 'address', type: 'address' }],
-    name: 'setMatchFactory',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [{ name: '_feeBps', internalType: 'uint16', type: 'uint16' }],
-    name: 'setPlatformFeeBps',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [{ name: '_factory', internalType: 'address', type: 'address' }],
-    name: 'setStreamWalletFactory',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [{ name: '_treasury', internalType: 'address', type: 'address' }],
-    name: 'setTreasury',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [{ name: '_factory', internalType: 'address', type: 'address' }],
-    name: 'setWrapperFactory',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'streamWalletFactory',
-    outputs: [
-      {
-        name: '',
-        internalType: 'contract StreamWalletFactory',
-        type: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [
-      { name: 'streamer', internalType: 'address', type: 'address' },
-      { name: 'duration', internalType: 'uint256', type: 'uint256' },
-      { name: 'amountOutMin', internalType: 'uint256', type: 'uint256' },
-      { name: 'deadline', internalType: 'uint256', type: 'uint256' },
-    ],
-    name: 'subscribeWithCHZ',
-    outputs: [],
-    stateMutability: 'payable',
-  },
-  {
-    type: 'function',
-    inputs: [
-      { name: 'token', internalType: 'address', type: 'address' },
-      { name: 'amount', internalType: 'uint256', type: 'uint256' },
-      { name: 'streamer', internalType: 'address', type: 'address' },
-      { name: 'duration', internalType: 'uint256', type: 'uint256' },
-      { name: 'amountOutMin', internalType: 'uint256', type: 'uint256' },
-      { name: 'deadline', internalType: 'uint256', type: 'uint256' },
-    ],
-    name: 'subscribeWithToken',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [
-      { name: 'streamer', internalType: 'address', type: 'address' },
-      { name: 'duration', internalType: 'uint256', type: 'uint256' },
-      { name: 'amount', internalType: 'uint256', type: 'uint256' },
-    ],
-    name: 'subscribeWithUSDC',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
-    name: 'swapRouteFor',
-    outputs: [
-      { name: 'swapToken', internalType: 'address', type: 'address' },
-      { name: 'swapAmountPerUnit', internalType: 'uint256', type: 'uint256' },
-      { name: 'path', internalType: 'address[]', type: 'address[]' },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'tokenRouter',
-    outputs: [
-      { name: '', internalType: 'contract IKayenRouter', type: 'address' },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [{ name: 'newOwner', internalType: 'address', type: 'address' }],
-    name: 'transferOwnership',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'treasury',
-    outputs: [{ name: '', internalType: 'address', type: 'address' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'usdc',
-    outputs: [{ name: '', internalType: 'contract IERC20', type: 'address' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'wchz',
-    outputs: [{ name: '', internalType: 'address', type: 'address' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'wrapperFactory',
-    outputs: [
-      {
-        name: '',
-        internalType: 'contract IChilizWrapperFactory',
-        type: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'bettingMatch',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      { name: 'user', internalType: 'address', type: 'address', indexed: true },
-      {
-        name: 'chzSpent',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'usdcReceived',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'marketId',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'outcome',
-        internalType: 'uint64',
-        type: 'uint64',
-        indexed: false,
-      },
-    ],
-    name: 'BetPlacedViaCHZ',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'bettingMatch',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      { name: 'user', internalType: 'address', type: 'address', indexed: true },
-      {
-        name: 'token',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'tokenSpent',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'usdcReceived',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'marketId',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'outcome',
-        internalType: 'uint64',
-        type: 'uint64',
-        indexed: false,
-      },
-    ],
-    name: 'BetPlacedViaToken',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'bettingMatch',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      { name: 'user', internalType: 'address', type: 'address', indexed: true },
-      {
-        name: 'amount',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'marketId',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'outcome',
-        internalType: 'uint64',
-        type: 'uint64',
-        indexed: false,
-      },
-    ],
-    name: 'BetPlacedWithUSDC',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'donor',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'streamer',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'chzSpent',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'usdcDonated',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'platformFee',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'message',
-        internalType: 'string',
-        type: 'string',
-        indexed: false,
-      },
-    ],
-    name: 'DonationWithCHZ',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'donor',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'streamer',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'token',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'tokenSpent',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'usdcDonated',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'platformFee',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'message',
-        internalType: 'string',
-        type: 'string',
-        indexed: false,
-      },
-    ],
-    name: 'DonationWithToken',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'donor',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'streamer',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'amount',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'platformFee',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'message',
-        internalType: 'string',
-        type: 'string',
-        indexed: false,
-      },
-    ],
-    name: 'DonationWithUSDCEvent',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'token',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'wrapped',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'amountIn',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'wrappedAmount',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-    ],
-    name: 'FanTokenWrapped',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'oldFactory',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'newFactory',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-    ],
-    name: 'MatchFactorySet',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'previousOwner',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'newOwner',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-    ],
-    name: 'OwnershipTransferred',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'oldFeeBps',
-        internalType: 'uint16',
-        type: 'uint16',
-        indexed: false,
-      },
-      {
-        name: 'newFeeBps',
-        internalType: 'uint16',
-        type: 'uint16',
-        indexed: false,
-      },
-    ],
-    name: 'PlatformFeeBpsSet',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'oldFactory',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'newFactory',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-    ],
-    name: 'StreamWalletFactorySet',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'subscriber',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'streamer',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'chzSpent',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'usdcPaid',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'platformFee',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'duration',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-    ],
-    name: 'SubscriptionWithCHZ',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'subscriber',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'streamer',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'token',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'tokenSpent',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'usdcPaid',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'platformFee',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'duration',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-    ],
-    name: 'SubscriptionWithToken',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'subscriber',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'streamer',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'amount',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'platformFee',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'duration',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-    ],
-    name: 'SubscriptionWithUSDCEvent',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'oldTreasury',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'newTreasury',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-    ],
-    name: 'TreasurySet',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'oldFactory',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'newFactory',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-    ],
-    name: 'WrapperFactorySet',
-  },
-  {
-    type: 'error',
-    inputs: [{ name: 'target', internalType: 'address', type: 'address' }],
-    name: 'AddressEmptyCode',
-  },
-  {
-    type: 'error',
-    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
-    name: 'AddressInsufficientBalance',
-  },
-  { type: 'error', inputs: [], name: 'BettingMatchFactoryNotSet' },
-  { type: 'error', inputs: [], name: 'DeadlinePassed' },
-  { type: 'error', inputs: [], name: 'FailedInnerCall' },
-  { type: 'error', inputs: [], name: 'InvalidFeeBps' },
-  {
-    type: 'error',
-    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
-    name: 'OwnableInvalidOwner',
-  },
-  {
-    type: 'error',
-    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
-    name: 'OwnableUnauthorizedAccount',
-  },
-  { type: 'error', inputs: [], name: 'ReentrancyGuardReentrantCall' },
-  { type: 'error', inputs: [], name: 'RouterNotConfiguredOnFactory' },
-  {
-    type: 'error',
-    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
-    name: 'SafeERC20FailedOperation',
-  },
-  { type: 'error', inputs: [], name: 'StreamWalletFactoryNotSet' },
-  { type: 'error', inputs: [], name: 'TokenIsUSDC' },
-  {
-    type: 'error',
-    inputs: [
-      { name: 'bettingMatch', internalType: 'address', type: 'address' },
-    ],
-    name: 'UnauthorizedBettingMatch',
-  },
-  { type: 'error', inputs: [], name: 'ZeroAddress' },
-  { type: 'error', inputs: [], name: 'ZeroValue' },
 ] as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2255,6 +1588,20 @@ export const footballPariMatchAbi = [
     inputs: [],
     name: 'DEFAULT_ADMIN_ROLE',
     outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DEFAULT_FEE_BPS',
+    outputs: [{ name: '', internalType: 'uint16', type: 'uint16' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'LEGACY_MARKET_TTL',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'view',
   },
   {
@@ -2323,6 +1670,13 @@ export const footballPariMatchAbi = [
   {
     type: 'function',
     inputs: [],
+    name: 'MAX_CLAIM_PAUSE',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
     name: 'MAX_FEE_BPS',
     outputs: [{ name: '', internalType: 'uint16', type: 'uint16' }],
     stateMutability: 'view',
@@ -2344,6 +1698,13 @@ export const footballPariMatchAbi = [
   {
     type: 'function',
     inputs: [],
+    name: 'RESOLUTION_TIMEOUT',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
     name: 'RESOLVER_ROLE',
     outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
     stateMutability: 'view',
@@ -2353,13 +1714,6 @@ export const footballPariMatchAbi = [
     inputs: [],
     name: 'SWAP_ROUTER_ROLE',
     outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'UPGRADE_INTERFACE_VERSION',
-    outputs: [{ name: '', internalType: 'string', type: 'string' }],
     stateMutability: 'view',
   },
   {
@@ -2419,6 +1773,13 @@ export const footballPariMatchAbi = [
   {
     type: 'function',
     inputs: [{ name: 'marketId', internalType: 'uint256', type: 'uint256' }],
+    name: 'cancelStaleMarket',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'marketId', internalType: 'uint256', type: 'uint256' }],
     name: 'claim',
     outputs: [],
     stateMutability: 'nonpayable',
@@ -2445,6 +1806,13 @@ export const footballPariMatchAbi = [
       { name: 'marketIds', internalType: 'uint256[]', type: 'uint256[]' },
     ],
     name: 'claimRefundBatch',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'marketId', internalType: 'uint256', type: 'uint256' }],
+    name: 'closeExpiredMarket',
     outputs: [],
     stateMutability: 'nonpayable',
   },
@@ -2549,6 +1917,17 @@ export const footballPariMatchAbi = [
   {
     type: 'function',
     inputs: [{ name: 'marketId', internalType: 'uint256', type: 'uint256' }],
+    name: 'getMarketFees',
+    outputs: [
+      { name: 'totalFeeBps', internalType: 'uint16', type: 'uint16' },
+      { name: 'leaderboardShareBps', internalType: 'uint16', type: 'uint16' },
+      { name: 'frozen', internalType: 'bool', type: 'bool' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'marketId', internalType: 'uint256', type: 'uint256' }],
     name: 'getMarketInfo',
     outputs: [
       { name: 'marketType', internalType: 'bytes32', type: 'bytes32' },
@@ -2578,6 +1957,7 @@ export const footballPariMatchAbi = [
           { name: 'maxOutcome', internalType: 'uint8', type: 'uint8' },
           { name: 'extra', internalType: 'uint8', type: 'uint8' },
           { name: 'groupId', internalType: 'uint16', type: 'uint16' },
+          { name: 'closesAt', internalType: 'uint40', type: 'uint40' },
         ],
       },
     ],
@@ -2715,27 +2095,16 @@ export const footballPariMatchAbi = [
   {
     type: 'function',
     inputs: [],
-    name: 'owner',
-    outputs: [{ name: '', internalType: 'address', type: 'address' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
     name: 'paused',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
     stateMutability: 'view',
   },
   {
     type: 'function',
-    inputs: [
-      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
-      { name: 'outcome', internalType: 'uint64', type: 'uint64' },
-      { name: 'amount', internalType: 'uint256', type: 'uint256' },
-    ],
-    name: 'placeBetUSDC',
-    outputs: [],
-    stateMutability: 'nonpayable',
+    inputs: [],
+    name: 'pausedAt',
+    outputs: [{ name: '', internalType: 'uint40', type: 'uint40' }],
+    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -2746,20 +2115,6 @@ export const footballPariMatchAbi = [
       { name: 'amount', internalType: 'uint256', type: 'uint256' },
     ],
     name: 'placeBetUSDCFor',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'proxiableUUID',
-    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'renounceOwnership',
     outputs: [],
     stateMutability: 'nonpayable',
   },
@@ -2884,6 +2239,26 @@ export const footballPariMatchAbi = [
   },
   {
     type: 'function',
+    inputs: [
+      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
+      { name: 'closesAt', internalType: 'uint40', type: 'uint40' },
+    ],
+    name: 'setMarketCloseTime',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'marketIds', internalType: 'uint256[]', type: 'uint256[]' },
+      { name: 'closesAt', internalType: 'uint40', type: 'uint40' },
+    ],
+    name: 'setMarketsCloseTime',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     inputs: [{ name: '_usdc', internalType: 'address', type: 'address' }],
     name: 'setUSDCToken',
     outputs: [],
@@ -2894,6 +2269,13 @@ export const footballPariMatchAbi = [
     inputs: [],
     name: 'sportType',
     outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'marketId', internalType: 'uint256', type: 'uint256' }],
+    name: 'staleAt',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'view',
   },
   {
@@ -2912,27 +2294,10 @@ export const footballPariMatchAbi = [
   },
   {
     type: 'function',
-    inputs: [{ name: 'newOwner', internalType: 'address', type: 'address' }],
-    name: 'transferOwnership',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
     inputs: [],
     name: 'unpause',
     outputs: [],
     stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [
-      { name: 'newImplementation', internalType: 'address', type: 'address' },
-      { name: 'data', internalType: 'bytes', type: 'bytes' },
-    ],
-    name: 'upgradeToAndCall',
-    outputs: [],
-    stateMutability: 'payable',
   },
   {
     type: 'function',
@@ -3016,6 +2381,25 @@ export const footballPariMatchAbi = [
     anonymous: false,
     inputs: [
       {
+        name: 'leaderboard',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'LeaderboardNotifyFailed',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
         name: 'oldRecipient',
         internalType: 'address',
         type: 'address',
@@ -3080,6 +2464,25 @@ export const footballPariMatchAbi = [
         indexed: true,
       },
       {
+        name: 'closesAt',
+        internalType: 'uint40',
+        type: 'uint40',
+        indexed: false,
+      },
+    ],
+    name: 'MarketCloseTimeSet',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'marketId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
         name: 'marketType',
         internalType: 'bytes32',
         type: 'bytes32',
@@ -3100,6 +2503,31 @@ export const footballPariMatchAbi = [
       },
     ],
     name: 'MarketCreated',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'marketId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'feeBps',
+        internalType: 'uint16',
+        type: 'uint16',
+        indexed: false,
+      },
+      {
+        name: 'leaderboardFeeBps',
+        internalType: 'uint16',
+        type: 'uint16',
+        indexed: false,
+      },
+    ],
+    name: 'MarketFeesFrozen',
   },
   {
     type: 'event',
@@ -3244,25 +2672,6 @@ export const footballPariMatchAbi = [
     anonymous: false,
     inputs: [
       {
-        name: 'previousOwner',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'newOwner',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-    ],
-    name: 'OwnershipTransferred',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
         name: 'account',
         internalType: 'address',
         type: 'address',
@@ -3420,6 +2829,25 @@ export const footballPariMatchAbi = [
     anonymous: false,
     inputs: [
       {
+        name: 'marketId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'StaleMarketCancelled',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
         name: 'token',
         internalType: 'address',
         type: 'address',
@@ -3440,19 +2868,6 @@ export const footballPariMatchAbi = [
       },
     ],
     name: 'Unpaused',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'implementation',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-    ],
-    name: 'Upgraded',
   },
   { type: 'error', inputs: [], name: 'AccessControlBadConfirmation' },
   {
@@ -3485,11 +2900,16 @@ export const footballPariMatchAbi = [
   {
     type: 'error',
     inputs: [
-      { name: 'implementation', internalType: 'address', type: 'address' },
+      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
+      { name: 'closesAt', internalType: 'uint40', type: 'uint40' },
     ],
-    name: 'ERC1967InvalidImplementation',
+    name: 'BettingClosed',
   },
-  { type: 'error', inputs: [], name: 'ERC1967NonPayable' },
+  {
+    type: 'error',
+    inputs: [{ name: 'reopensAt', internalType: 'uint256', type: 'uint256' }],
+    name: 'ClaimsPaused',
+  },
   { type: 'error', inputs: [], name: 'EnforcedPause' },
   { type: 'error', inputs: [], name: 'ExpectedPause' },
   { type: 'error', inputs: [], name: 'FailedInnerCall' },
@@ -3502,6 +2922,14 @@ export const footballPariMatchAbi = [
     name: 'FeeBpsExceedsMax',
   },
   { type: 'error', inputs: [], name: 'FeeRecipientNotConfigured' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
+      { name: 'closesAt', internalType: 'uint40', type: 'uint40' },
+    ],
+    name: 'InvalidCloseTime',
+  },
   { type: 'error', inputs: [], name: 'InvalidInitialization' },
   {
     type: 'error',
@@ -3564,6 +2992,19 @@ export const footballPariMatchAbi = [
     name: 'LeaderboardFeeExceedsTotal',
   },
   { type: 'error', inputs: [], name: 'LeaderboardRecipientNotConfigured' },
+  {
+    type: 'error',
+    inputs: [{ name: 'marketId', internalType: 'uint256', type: 'uint256' }],
+    name: 'MarketNotExpired',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
+      { name: 'staleAt', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'MarketNotStale',
+  },
   { type: 'error', inputs: [], name: 'NotInitializing' },
   {
     type: 'error',
@@ -3581,16 +3022,6 @@ export const footballPariMatchAbi = [
     ],
     name: 'NothingToRefund',
   },
-  {
-    type: 'error',
-    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
-    name: 'OwnableInvalidOwner',
-  },
-  {
-    type: 'error',
-    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
-    name: 'OwnableUnauthorizedAccount',
-  },
   { type: 'error', inputs: [], name: 'ReentrancyGuardReentrantCall' },
   {
     type: 'error',
@@ -3605,12 +3036,15 @@ export const footballPariMatchAbi = [
     ],
     name: 'StakeBelowMinimum',
   },
+  { type: 'error', inputs: [], name: 'USDCAlreadyConfigured' },
   { type: 'error', inputs: [], name: 'USDCNotConfigured' },
-  { type: 'error', inputs: [], name: 'UUPSUnauthorizedCallContext' },
   {
     type: 'error',
-    inputs: [{ name: 'slot', internalType: 'bytes32', type: 'bytes32' }],
-    name: 'UUPSUnsupportedProxiableUUID',
+    inputs: [
+      { name: 'required', internalType: 'uint256', type: 'uint256' },
+      { name: 'balance', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'UnbackedStake',
   },
   { type: 'error', inputs: [], name: 'ZeroStake' },
 ] as const
@@ -3673,6 +3107,13 @@ export const leaderboardRewardsAbi = [
   {
     type: 'function',
     inputs: [],
+    name: 'SCORING_GRACE',
+    outputs: [{ name: '', internalType: 'uint64', type: 'uint64' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
     name: 'UPGRADE_INTERFACE_VERSION',
     outputs: [{ name: '', internalType: 'string', type: 'string' }],
     stateMutability: 'view',
@@ -3690,6 +3131,13 @@ export const leaderboardRewardsAbi = [
     name: 'claim',
     outputs: [{ name: 'amount', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'epochId', internalType: 'uint256', type: 'uint256' }],
+    name: 'claimDeadline',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -3729,9 +3177,30 @@ export const leaderboardRewardsAbi = [
   },
   {
     type: 'function',
+    inputs: [{ name: 't', internalType: 'uint256', type: 'uint256' }],
+    name: 'epochAt',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'epochId', internalType: 'uint256', type: 'uint256' }],
+    name: 'epochClaimedScore',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     inputs: [],
     name: 'epochDuration',
     outputs: [{ name: '', internalType: 'uint64', type: 'uint64' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'epochId', internalType: 'uint256', type: 'uint256' }],
+    name: 'epochFees',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'view',
   },
   {
@@ -3843,6 +3312,27 @@ export const leaderboardRewardsAbi = [
   {
     type: 'function',
     inputs: [],
+    name: 'nextCloseTime',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'notifiedAhead',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'amount', internalType: 'uint256', type: 'uint256' }],
+    name: 'notifyFee',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
     name: 'openPrizePool',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'view',
@@ -3870,6 +3360,17 @@ export const leaderboardRewardsAbi = [
     name: 'proxiableUUID',
     outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
     stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'user', internalType: 'address', type: 'address' },
+      { name: 'profit', internalType: 'uint256', type: 'uint256' },
+      { name: 'resolvedAt', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'recordProfit',
+    outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -4040,6 +3541,31 @@ export const leaderboardRewardsAbi = [
     anonymous: false,
     inputs: [
       {
+        name: 'match_',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'epochId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'FeeNotified',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
         name: 'version',
         internalType: 'uint64',
         type: 'uint64',
@@ -4061,6 +3587,26 @@ export const leaderboardRewardsAbi = [
       },
     ],
     name: 'Initialized',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'match_',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      { name: 'user', internalType: 'address', type: 'address', indexed: true },
+      {
+        name: 'payout',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'LegacyWinIgnored',
   },
   {
     type: 'event',
@@ -4113,6 +3659,32 @@ export const leaderboardRewardsAbi = [
       },
     ],
     name: 'PrizeClaimed',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'match_',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      { name: 'user', internalType: 'address', type: 'address', indexed: true },
+      {
+        name: 'profit',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'resolvedAt',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'ProfitIgnored',
   },
   {
     type: 'event',
@@ -4280,6 +3852,12 @@ export const leaderboardRewardsAbi = [
     ],
     name: 'AlreadyClaimed',
   },
+  { type: 'error', inputs: [], name: 'AlreadyInitializedV2' },
+  {
+    type: 'error',
+    inputs: [{ name: 'balance', internalType: 'uint256', type: 'uint256' }],
+    name: 'BalanceNotEmpty',
+  },
   {
     type: 'error',
     inputs: [
@@ -4307,6 +3885,7 @@ export const leaderboardRewardsAbi = [
     ],
     name: 'EpochClaimWindowNotExpired',
   },
+  { type: 'error', inputs: [], name: 'EpochClockNotStarted' },
   {
     type: 'error',
     inputs: [{ name: 'epochId', internalType: 'uint256', type: 'uint256' }],
@@ -4363,6 +3942,956 @@ export const leaderboardRewardsAbi = [
 ] as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// NetworkRouter
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const networkRouterAbi = [
+  {
+    type: 'constructor',
+    inputs: [
+      { name: '_masterRouter', internalType: 'address', type: 'address' },
+      { name: '_tokenRouter', internalType: 'address', type: 'address' },
+      { name: '_usdc', internalType: 'address', type: 'address' },
+      { name: '_wrappedNativeToken', internalType: 'address', type: 'address' },
+      { name: '_treasury', internalType: 'address', type: 'address' },
+      { name: '_platformFeeBps', internalType: 'uint16', type: 'uint16' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'acceptOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'bettingMatchFactory',
+    outputs: [
+      { name: '', internalType: 'contract PariMatchFactory', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'streamer', internalType: 'address', type: 'address' },
+      { name: 'message', internalType: 'string', type: 'string' },
+      { name: 'amountOutMin', internalType: 'uint256', type: 'uint256' },
+      { name: 'deadline', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'donateWithNativeToken',
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'streamer', internalType: 'address', type: 'address' },
+      { name: 'message', internalType: 'string', type: 'string' },
+      { name: 'amountOutMin', internalType: 'uint256', type: 'uint256' },
+      { name: 'deadline', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'donateWithToken',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'streamer', internalType: 'address', type: 'address' },
+      { name: 'message', internalType: 'string', type: 'string' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'donateWithUSDC',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'masterRouter',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract IKayenMasterRouterV2',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'owner',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'pendingOwner',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'bettingMatch', internalType: 'address', type: 'address' },
+      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
+      { name: 'outcome', internalType: 'uint64', type: 'uint64' },
+      { name: 'amountOutMin', internalType: 'uint256', type: 'uint256' },
+      { name: 'deadline', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'placeBetWithNativeToken',
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'bettingMatch', internalType: 'address', type: 'address' },
+      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
+      { name: 'outcome', internalType: 'uint64', type: 'uint64' },
+      { name: 'amountOutMin', internalType: 'uint256', type: 'uint256' },
+      { name: 'deadline', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'placeBetWithToken',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'bettingMatch', internalType: 'address', type: 'address' },
+      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
+      { name: 'outcome', internalType: 'uint64', type: 'uint64' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'placeBetWithUSDC',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'platformFeeBps',
+    outputs: [{ name: '', internalType: 'uint16', type: 'uint16' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'quoteTokenToUSDC',
+    outputs: [{ name: 'usdcOut', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'renounceOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'token', internalType: 'contract IERC20', type: 'address' },
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'rescueTokens',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'routeFor',
+    outputs: [
+      { name: 'swapToken', internalType: 'address', type: 'address' },
+      { name: 'swapAmountPerUnit', internalType: 'uint256', type: 'uint256' },
+      { name: 'path', internalType: 'address[]', type: 'address[]' },
+      { name: 'expectedOut', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_factory', internalType: 'address', type: 'address' }],
+    name: 'setMatchFactory',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_feeBps', internalType: 'uint16', type: 'uint16' }],
+    name: 'setPlatformFeeBps',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_factory', internalType: 'address', type: 'address' }],
+    name: 'setStreamWalletFactory',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_treasury', internalType: 'address', type: 'address' }],
+    name: 'setTreasury',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_factory', internalType: 'address', type: 'address' }],
+    name: 'setWrapperFactory',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'streamWalletFactory',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract StreamWalletFactory',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'streamer', internalType: 'address', type: 'address' },
+      { name: 'duration', internalType: 'uint256', type: 'uint256' },
+      { name: 'amountOutMin', internalType: 'uint256', type: 'uint256' },
+      { name: 'deadline', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'subscribeWithNativeToken',
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'streamer', internalType: 'address', type: 'address' },
+      { name: 'duration', internalType: 'uint256', type: 'uint256' },
+      { name: 'amountOutMin', internalType: 'uint256', type: 'uint256' },
+      { name: 'deadline', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'subscribeWithToken',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'streamer', internalType: 'address', type: 'address' },
+      { name: 'duration', internalType: 'uint256', type: 'uint256' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'subscribeWithUSDC',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'swapRouteFor',
+    outputs: [
+      { name: 'swapToken', internalType: 'address', type: 'address' },
+      { name: 'swapAmountPerUnit', internalType: 'uint256', type: 'uint256' },
+      { name: 'path', internalType: 'address[]', type: 'address[]' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'tokenRouter',
+    outputs: [
+      { name: '', internalType: 'contract IKayenRouter', type: 'address' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'newOwner', internalType: 'address', type: 'address' }],
+    name: 'transferOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'treasury',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'usdc',
+    outputs: [{ name: '', internalType: 'contract IERC20', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'wrappedNativeToken',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'wrapperFactory',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract IChilizWrapperFactory',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'bettingMatch',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      { name: 'user', internalType: 'address', type: 'address', indexed: true },
+      {
+        name: 'nativeTokenSpent',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'usdcReceived',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'marketId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'outcome',
+        internalType: 'uint64',
+        type: 'uint64',
+        indexed: false,
+      },
+    ],
+    name: 'BetPlacedViaNativeToken',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'bettingMatch',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      { name: 'user', internalType: 'address', type: 'address', indexed: true },
+      {
+        name: 'token',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'tokenSpent',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'usdcReceived',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'marketId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'outcome',
+        internalType: 'uint64',
+        type: 'uint64',
+        indexed: false,
+      },
+    ],
+    name: 'BetPlacedViaToken',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'bettingMatch',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      { name: 'user', internalType: 'address', type: 'address', indexed: true },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'marketId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'outcome',
+        internalType: 'uint64',
+        type: 'uint64',
+        indexed: false,
+      },
+    ],
+    name: 'BetPlacedWithUSDC',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'donor',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'streamer',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'nativeTokenSpent',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'usdcDonated',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'platformFee',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'message',
+        internalType: 'string',
+        type: 'string',
+        indexed: false,
+      },
+    ],
+    name: 'DonationWithNativeToken',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'donor',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'streamer',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'token',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'tokenSpent',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'usdcDonated',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'platformFee',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'message',
+        internalType: 'string',
+        type: 'string',
+        indexed: false,
+      },
+    ],
+    name: 'DonationWithToken',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'donor',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'streamer',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'platformFee',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'message',
+        internalType: 'string',
+        type: 'string',
+        indexed: false,
+      },
+    ],
+    name: 'DonationWithUSDCEvent',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'token',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'wrapped',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amountIn',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'wrappedAmount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'FanTokenWrapped',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'oldFactory',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newFactory',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'MatchFactorySet',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'previousOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'OwnershipTransferStarted',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'previousOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'OwnershipTransferred',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'oldFeeBps',
+        internalType: 'uint16',
+        type: 'uint16',
+        indexed: false,
+      },
+      {
+        name: 'newFeeBps',
+        internalType: 'uint16',
+        type: 'uint16',
+        indexed: false,
+      },
+    ],
+    name: 'PlatformFeeBpsSet',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'oldFactory',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newFactory',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'StreamWalletFactorySet',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'subscriber',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'streamer',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'nativeTokenSpent',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'usdcPaid',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'platformFee',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'duration',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'SubscriptionWithNativeToken',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'subscriber',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'streamer',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'token',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'tokenSpent',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'usdcPaid',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'platformFee',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'duration',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'SubscriptionWithToken',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'subscriber',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'streamer',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'platformFee',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'duration',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'SubscriptionWithUSDCEvent',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'token',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      { name: 'to', internalType: 'address', type: 'address', indexed: true },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'TokensRescued',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'oldTreasury',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newTreasury',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'TreasurySet',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'oldFactory',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newFactory',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'WrapperFactorySet',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'target', internalType: 'address', type: 'address' }],
+    name: 'AddressEmptyCode',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
+    name: 'AddressInsufficientBalance',
+  },
+  { type: 'error', inputs: [], name: 'BettingMatchFactoryNotSet' },
+  { type: 'error', inputs: [], name: 'DeadlinePassed' },
+  { type: 'error', inputs: [], name: 'FailedInnerCall' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'received', internalType: 'uint256', type: 'uint256' },
+      { name: 'amountOutMin', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'InsufficientOutput',
+  },
+  { type: 'error', inputs: [], name: 'InvalidFeeBps' },
+  {
+    type: 'error',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'OwnableInvalidOwner',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
+    name: 'OwnableUnauthorizedAccount',
+  },
+  { type: 'error', inputs: [], name: 'ReentrancyGuardReentrantCall' },
+  { type: 'error', inputs: [], name: 'RouterNotConfiguredOnFactory' },
+  {
+    type: 'error',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'SafeERC20FailedOperation',
+  },
+  { type: 'error', inputs: [], name: 'SlippageNotSet' },
+  { type: 'error', inputs: [], name: 'StreamWalletFactoryNotSet' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'paid', internalType: 'uint256', type: 'uint256' },
+      { name: 'cost', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'SubscriptionUnderpaid',
+  },
+  { type: 'error', inputs: [], name: 'TokenIsUSDC' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'bettingMatch', internalType: 'address', type: 'address' },
+    ],
+    name: 'UnauthorizedBettingMatch',
+  },
+  { type: 'error', inputs: [], name: 'ZeroAddress' },
+  { type: 'error', inputs: [], name: 'ZeroValue' },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // PariMatchBase
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -4391,6 +4920,27 @@ export const pariMatchBaseAbi = [
   {
     type: 'function',
     inputs: [],
+    name: 'DEFAULT_FEE_BPS',
+    outputs: [{ name: '', internalType: 'uint16', type: 'uint16' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'LEGACY_MARKET_TTL',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MAX_CLAIM_PAUSE',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
     name: 'MAX_FEE_BPS',
     outputs: [{ name: '', internalType: 'uint16', type: 'uint16' }],
     stateMutability: 'view',
@@ -4412,6 +4962,13 @@ export const pariMatchBaseAbi = [
   {
     type: 'function',
     inputs: [],
+    name: 'RESOLUTION_TIMEOUT',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
     name: 'RESOLVER_ROLE',
     outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
     stateMutability: 'view',
@@ -4421,13 +4978,6 @@ export const pariMatchBaseAbi = [
     inputs: [],
     name: 'SWAP_ROUTER_ROLE',
     outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'UPGRADE_INTERFACE_VERSION',
-    outputs: [{ name: '', internalType: 'string', type: 'string' }],
     stateMutability: 'view',
   },
   {
@@ -4487,6 +5037,13 @@ export const pariMatchBaseAbi = [
   {
     type: 'function',
     inputs: [{ name: 'marketId', internalType: 'uint256', type: 'uint256' }],
+    name: 'cancelStaleMarket',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'marketId', internalType: 'uint256', type: 'uint256' }],
     name: 'claim',
     outputs: [],
     stateMutability: 'nonpayable',
@@ -4513,6 +5070,13 @@ export const pariMatchBaseAbi = [
       { name: 'marketIds', internalType: 'uint256[]', type: 'uint256[]' },
     ],
     name: 'claimRefundBatch',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'marketId', internalType: 'uint256', type: 'uint256' }],
+    name: 'closeExpiredMarket',
     outputs: [],
     stateMutability: 'nonpayable',
   },
@@ -4590,6 +5154,17 @@ export const pariMatchBaseAbi = [
   {
     type: 'function',
     inputs: [{ name: 'marketId', internalType: 'uint256', type: 'uint256' }],
+    name: 'getMarketFees',
+    outputs: [
+      { name: 'totalFeeBps', internalType: 'uint16', type: 'uint16' },
+      { name: 'leaderboardShareBps', internalType: 'uint16', type: 'uint16' },
+      { name: 'frozen', internalType: 'bool', type: 'bool' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'marketId', internalType: 'uint256', type: 'uint256' }],
     name: 'getMarketInfo',
     outputs: [
       { name: 'marketType', internalType: 'bytes32', type: 'bytes32' },
@@ -4619,6 +5194,7 @@ export const pariMatchBaseAbi = [
           { name: 'maxOutcome', internalType: 'uint8', type: 'uint8' },
           { name: 'extra', internalType: 'uint8', type: 'uint8' },
           { name: 'groupId', internalType: 'uint16', type: 'uint16' },
+          { name: 'closesAt', internalType: 'uint40', type: 'uint40' },
         ],
       },
     ],
@@ -4746,27 +5322,16 @@ export const pariMatchBaseAbi = [
   {
     type: 'function',
     inputs: [],
-    name: 'owner',
-    outputs: [{ name: '', internalType: 'address', type: 'address' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
     name: 'paused',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
     stateMutability: 'view',
   },
   {
     type: 'function',
-    inputs: [
-      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
-      { name: 'outcome', internalType: 'uint64', type: 'uint64' },
-      { name: 'amount', internalType: 'uint256', type: 'uint256' },
-    ],
-    name: 'placeBetUSDC',
-    outputs: [],
-    stateMutability: 'nonpayable',
+    inputs: [],
+    name: 'pausedAt',
+    outputs: [{ name: '', internalType: 'uint40', type: 'uint40' }],
+    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -4777,20 +5342,6 @@ export const pariMatchBaseAbi = [
       { name: 'amount', internalType: 'uint256', type: 'uint256' },
     ],
     name: 'placeBetUSDCFor',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'proxiableUUID',
-    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'renounceOwnership',
     outputs: [],
     stateMutability: 'nonpayable',
   },
@@ -4864,6 +5415,26 @@ export const pariMatchBaseAbi = [
   },
   {
     type: 'function',
+    inputs: [
+      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
+      { name: 'closesAt', internalType: 'uint40', type: 'uint40' },
+    ],
+    name: 'setMarketCloseTime',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'marketIds', internalType: 'uint256[]', type: 'uint256[]' },
+      { name: 'closesAt', internalType: 'uint40', type: 'uint40' },
+    ],
+    name: 'setMarketsCloseTime',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     inputs: [{ name: '_usdc', internalType: 'address', type: 'address' }],
     name: 'setUSDCToken',
     outputs: [],
@@ -4874,6 +5445,13 @@ export const pariMatchBaseAbi = [
     inputs: [],
     name: 'sportType',
     outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'marketId', internalType: 'uint256', type: 'uint256' }],
+    name: 'staleAt',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'view',
   },
   {
@@ -4892,27 +5470,10 @@ export const pariMatchBaseAbi = [
   },
   {
     type: 'function',
-    inputs: [{ name: 'newOwner', internalType: 'address', type: 'address' }],
-    name: 'transferOwnership',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
     inputs: [],
     name: 'unpause',
     outputs: [],
     stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [
-      { name: 'newImplementation', internalType: 'address', type: 'address' },
-      { name: 'data', internalType: 'bytes', type: 'bytes' },
-    ],
-    name: 'upgradeToAndCall',
-    outputs: [],
-    stateMutability: 'payable',
   },
   {
     type: 'function',
@@ -4996,6 +5557,25 @@ export const pariMatchBaseAbi = [
     anonymous: false,
     inputs: [
       {
+        name: 'leaderboard',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'LeaderboardNotifyFailed',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
         name: 'oldRecipient',
         internalType: 'address',
         type: 'address',
@@ -5060,6 +5640,25 @@ export const pariMatchBaseAbi = [
         indexed: true,
       },
       {
+        name: 'closesAt',
+        internalType: 'uint40',
+        type: 'uint40',
+        indexed: false,
+      },
+    ],
+    name: 'MarketCloseTimeSet',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'marketId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
         name: 'marketType',
         internalType: 'bytes32',
         type: 'bytes32',
@@ -5080,6 +5679,31 @@ export const pariMatchBaseAbi = [
       },
     ],
     name: 'MarketCreated',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'marketId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'feeBps',
+        internalType: 'uint16',
+        type: 'uint16',
+        indexed: false,
+      },
+      {
+        name: 'leaderboardFeeBps',
+        internalType: 'uint16',
+        type: 'uint16',
+        indexed: false,
+      },
+    ],
+    name: 'MarketFeesFrozen',
   },
   {
     type: 'event',
@@ -5157,25 +5781,6 @@ export const pariMatchBaseAbi = [
       },
     ],
     name: 'MatchInitialized',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'previousOwner',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'newOwner',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-    ],
-    name: 'OwnershipTransferred',
   },
   {
     type: 'event',
@@ -5339,6 +5944,25 @@ export const pariMatchBaseAbi = [
     anonymous: false,
     inputs: [
       {
+        name: 'marketId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'caller',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'StaleMarketCancelled',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
         name: 'token',
         internalType: 'address',
         type: 'address',
@@ -5359,19 +5983,6 @@ export const pariMatchBaseAbi = [
       },
     ],
     name: 'Unpaused',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'implementation',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-    ],
-    name: 'Upgraded',
   },
   { type: 'error', inputs: [], name: 'AccessControlBadConfirmation' },
   {
@@ -5404,11 +6015,16 @@ export const pariMatchBaseAbi = [
   {
     type: 'error',
     inputs: [
-      { name: 'implementation', internalType: 'address', type: 'address' },
+      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
+      { name: 'closesAt', internalType: 'uint40', type: 'uint40' },
     ],
-    name: 'ERC1967InvalidImplementation',
+    name: 'BettingClosed',
   },
-  { type: 'error', inputs: [], name: 'ERC1967NonPayable' },
+  {
+    type: 'error',
+    inputs: [{ name: 'reopensAt', internalType: 'uint256', type: 'uint256' }],
+    name: 'ClaimsPaused',
+  },
   { type: 'error', inputs: [], name: 'EnforcedPause' },
   { type: 'error', inputs: [], name: 'ExpectedPause' },
   { type: 'error', inputs: [], name: 'FailedInnerCall' },
@@ -5421,6 +6037,14 @@ export const pariMatchBaseAbi = [
     name: 'FeeBpsExceedsMax',
   },
   { type: 'error', inputs: [], name: 'FeeRecipientNotConfigured' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
+      { name: 'closesAt', internalType: 'uint40', type: 'uint40' },
+    ],
+    name: 'InvalidCloseTime',
+  },
   { type: 'error', inputs: [], name: 'InvalidInitialization' },
   {
     type: 'error',
@@ -5483,6 +6107,19 @@ export const pariMatchBaseAbi = [
     name: 'LeaderboardFeeExceedsTotal',
   },
   { type: 'error', inputs: [], name: 'LeaderboardRecipientNotConfigured' },
+  {
+    type: 'error',
+    inputs: [{ name: 'marketId', internalType: 'uint256', type: 'uint256' }],
+    name: 'MarketNotExpired',
+  },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'marketId', internalType: 'uint256', type: 'uint256' },
+      { name: 'staleAt', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'MarketNotStale',
+  },
   { type: 'error', inputs: [], name: 'NotInitializing' },
   {
     type: 'error',
@@ -5500,16 +6137,6 @@ export const pariMatchBaseAbi = [
     ],
     name: 'NothingToRefund',
   },
-  {
-    type: 'error',
-    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
-    name: 'OwnableInvalidOwner',
-  },
-  {
-    type: 'error',
-    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
-    name: 'OwnableUnauthorizedAccount',
-  },
   { type: 'error', inputs: [], name: 'ReentrancyGuardReentrantCall' },
   {
     type: 'error',
@@ -5524,12 +6151,15 @@ export const pariMatchBaseAbi = [
     ],
     name: 'StakeBelowMinimum',
   },
+  { type: 'error', inputs: [], name: 'USDCAlreadyConfigured' },
   { type: 'error', inputs: [], name: 'USDCNotConfigured' },
-  { type: 'error', inputs: [], name: 'UUPSUnauthorizedCallContext' },
   {
     type: 'error',
-    inputs: [{ name: 'slot', internalType: 'bytes32', type: 'bytes32' }],
-    name: 'UUPSUnsupportedProxiableUUID',
+    inputs: [
+      { name: 'required', internalType: 'uint256', type: 'uint256' },
+      { name: 'balance', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'UnbackedStake',
   },
   { type: 'error', inputs: [], name: 'ZeroStake' },
 ] as const
@@ -5539,12 +6169,27 @@ export const pariMatchBaseAbi = [
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 export const pariMatchFactoryAbi = [
-  { type: 'constructor', inputs: [], stateMutability: 'nonpayable' },
+  {
+    type: 'constructor',
+    inputs: [
+      { name: '_footballImpl', internalType: 'address', type: 'address' },
+      { name: '_basketballImpl', internalType: 'address', type: 'address' },
+      { name: '_upgradeAdmin', internalType: 'address', type: 'address' },
+    ],
+    stateMutability: 'nonpayable',
+  },
   {
     type: 'function',
     inputs: [],
     name: 'BASKETBALL',
     outputs: [{ name: '', internalType: 'uint8', type: 'uint8' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DEFAULT_LEADERBOARD_FEE_BPS',
+    outputs: [{ name: '', internalType: 'uint16', type: 'uint16' }],
     stateMutability: 'view',
   },
   {
@@ -5556,9 +6201,32 @@ export const pariMatchFactoryAbi = [
   },
   {
     type: 'function',
+    inputs: [],
+    name: 'MATCH_DEFAULT_FEE_BPS',
+    outputs: [{ name: '', internalType: 'uint16', type: 'uint16' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'acceptOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     inputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     name: 'allMatches',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'basketballBeacon',
+    outputs: [
+      { name: '', internalType: 'contract UpgradeableBeacon', type: 'address' },
+    ],
     stateMutability: 'view',
   },
   {
@@ -5585,8 +6253,56 @@ export const pariMatchFactoryAbi = [
       { name: '_matchName', internalType: 'string', type: 'string' },
       { name: '_owner', internalType: 'address', type: 'address' },
       { name: '_oracle', internalType: 'address', type: 'address' },
+      {
+        name: '_markets',
+        internalType: 'struct PariMatchFactory.MarketSetup',
+        type: 'tuple',
+        components: [
+          { name: 'marketTypes', internalType: 'bytes32[]', type: 'bytes32[]' },
+          { name: 'lines', internalType: 'int16[]', type: 'int16[]' },
+          { name: 'extras', internalType: 'uint8[]', type: 'uint8[]' },
+          { name: 'groupIds', internalType: 'uint16[]', type: 'uint16[]' },
+          { name: 'closesAt', internalType: 'uint40', type: 'uint40' },
+          { name: 'open', internalType: 'bool', type: 'bool' },
+        ],
+      },
+    ],
+    name: 'createBasketballMatchWithMarkets',
+    outputs: [{ name: 'proxy', internalType: 'address', type: 'address' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_matchName', internalType: 'string', type: 'string' },
+      { name: '_owner', internalType: 'address', type: 'address' },
+      { name: '_oracle', internalType: 'address', type: 'address' },
     ],
     name: 'createFootballMatch',
+    outputs: [{ name: 'proxy', internalType: 'address', type: 'address' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_matchName', internalType: 'string', type: 'string' },
+      { name: '_owner', internalType: 'address', type: 'address' },
+      { name: '_oracle', internalType: 'address', type: 'address' },
+      {
+        name: '_markets',
+        internalType: 'struct PariMatchFactory.MarketSetup',
+        type: 'tuple',
+        components: [
+          { name: 'marketTypes', internalType: 'bytes32[]', type: 'bytes32[]' },
+          { name: 'lines', internalType: 'int16[]', type: 'int16[]' },
+          { name: 'extras', internalType: 'uint8[]', type: 'uint8[]' },
+          { name: 'groupIds', internalType: 'uint16[]', type: 'uint16[]' },
+          { name: 'closesAt', internalType: 'uint40', type: 'uint40' },
+          { name: 'open', internalType: 'bool', type: 'bool' },
+        ],
+      },
+    ],
+    name: 'createFootballMatchWithMarkets',
     outputs: [{ name: 'proxy', internalType: 'address', type: 'address' }],
     stateMutability: 'nonpayable',
   },
@@ -5595,6 +6311,15 @@ export const pariMatchFactoryAbi = [
     inputs: [],
     name: 'feeRecipient',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'footballBeacon',
+    outputs: [
+      { name: '', internalType: 'contract UpgradeableBeacon', type: 'address' },
+    ],
     stateMutability: 'view',
   },
   {
@@ -5656,6 +6381,13 @@ export const pariMatchFactoryAbi = [
   },
   {
     type: 'function',
+    inputs: [],
+    name: 'matchOperator',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     inputs: [{ name: '', internalType: 'address', type: 'address' }],
     name: 'matchSportType',
     outputs: [
@@ -5677,21 +6409,14 @@ export const pariMatchFactoryAbi = [
   {
     type: 'function',
     inputs: [],
+    name: 'pendingOwner',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
     name: 'renounceOwnership',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [{ name: 'newImpl', internalType: 'address', type: 'address' }],
-    name: 'setBasketballImplementation',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [{ name: 'newImpl', internalType: 'address', type: 'address' }],
-    name: 'setFootballImplementation',
     outputs: [],
     stateMutability: 'nonpayable',
   },
@@ -5702,6 +6427,13 @@ export const pariMatchFactoryAbi = [
       { name: '_bps', internalType: 'uint16', type: 'uint16' },
     ],
     name: 'setLeaderboardWiring',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_operator', internalType: 'address', type: 'address' }],
+    name: 'setMatchOperator',
     outputs: [],
     stateMutability: 'nonpayable',
   },
@@ -5733,47 +6465,16 @@ export const pariMatchFactoryAbi = [
   {
     type: 'function',
     inputs: [],
-    name: 'usdcToken',
+    name: 'upgradeAdmin',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
     stateMutability: 'view',
   },
   {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'oldImpl',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'newImpl',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-    ],
-    name: 'BasketballImplementationUpdated',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'oldImpl',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'newImpl',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-    ],
-    name: 'FootballImplementationUpdated',
+    type: 'function',
+    inputs: [],
+    name: 'usdcToken',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
   },
   {
     type: 'event',
@@ -5824,6 +6525,44 @@ export const pariMatchFactoryAbi = [
     anonymous: false,
     inputs: [
       {
+        name: 'oldOperator',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newOperator',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'MatchOperatorSet',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'previousOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'OwnershipTransferStarted',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
         name: 'previousOwner',
         internalType: 'address',
         type: 'address',
@@ -5866,10 +6605,25 @@ export const pariMatchFactoryAbi = [
   { type: 'error', inputs: [], name: 'InvalidAddress' },
   {
     type: 'error',
+    inputs: [{ name: 'bps', internalType: 'uint16', type: 'uint16' }],
+    name: 'InvalidLeaderboardBps',
+  },
+  {
+    type: 'error',
     inputs: [
       { name: 'matchAddress', internalType: 'address', type: 'address' },
     ],
     name: 'MatchNotFound',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'caller', internalType: 'address', type: 'address' }],
+    name: 'NotOwnerOrOperator',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'oracle', internalType: 'address', type: 'address' }],
+    name: 'OracleMustBeDistinct',
   },
   {
     type: 'error',
@@ -5893,6 +6647,20 @@ export const streamWalletAbi = [
   {
     type: 'function',
     inputs: [],
+    name: 'MAX_SUBSCRIPTION_PERIOD',
+    outputs: [{ name: '', internalType: 'uint64', type: 'uint64' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MIN_SUBSCRIPTION_PERIOD',
+    outputs: [{ name: '', internalType: 'uint64', type: 'uint64' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
     name: 'UPGRADE_INTERFACE_VERSION',
     outputs: [{ name: '', internalType: 'string', type: 'string' }],
     stateMutability: 'view',
@@ -5903,39 +6671,6 @@ export const streamWalletAbi = [
     name: 'availableBalance',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [
-      { name: 'amount', internalType: 'uint256', type: 'uint256' },
-      { name: 'message', internalType: 'string', type: 'string' },
-      { name: 'amountOutMin', internalType: 'uint256', type: 'uint256' },
-      { name: 'deadline', internalType: 'uint256', type: 'uint256' },
-      { name: 'token', internalType: 'address', type: 'address' },
-    ],
-    name: 'donate',
-    outputs: [
-      { name: 'platformFee', internalType: 'uint256', type: 'uint256' },
-      { name: 'streamerAmount', internalType: 'uint256', type: 'uint256' },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [
-      { name: 'donor', internalType: 'address', type: 'address' },
-      { name: 'amount', internalType: 'uint256', type: 'uint256' },
-      { name: 'message', internalType: 'string', type: 'string' },
-      { name: 'amountOutMin', internalType: 'uint256', type: 'uint256' },
-      { name: 'deadline', internalType: 'uint256', type: 'uint256' },
-      { name: 'token', internalType: 'address', type: 'address' },
-    ],
-    name: 'donateFor',
-    outputs: [
-      { name: 'platformFee', internalType: 'uint256', type: 'uint256' },
-      { name: 'streamerAmount', internalType: 'uint256', type: 'uint256' },
-    ],
-    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -5974,10 +6709,10 @@ export const streamWalletAbi = [
     type: 'function',
     inputs: [
       { name: 'streamer_', internalType: 'address', type: 'address' },
-      { name: 'treasury_', internalType: 'address', type: 'address' },
-      { name: 'platformFeeBps_', internalType: 'uint16', type: 'uint16' },
-      { name: 'kayenRouter_', internalType: 'address', type: 'address' },
-      { name: 'usdc_', internalType: 'address', type: 'address' },
+      { name: '', internalType: 'address', type: 'address' },
+      { name: '', internalType: 'uint16', type: 'uint16' },
+      { name: '', internalType: 'address', type: 'address' },
+      { name: '', internalType: 'address', type: 'address' },
     ],
     name: 'initialize',
     outputs: [],
@@ -5992,13 +6727,6 @@ export const streamWalletAbi = [
   },
   {
     type: 'function',
-    inputs: [],
-    name: 'kayenRouter',
-    outputs: [{ name: '', internalType: 'address', type: 'address' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     inputs: [{ name: '', internalType: 'address', type: 'address' }],
     name: 'lifetimeDonations',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
@@ -6008,6 +6736,13 @@ export const streamWalletAbi = [
     type: 'function',
     inputs: [],
     name: 'owner',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'payoutAddress',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
     stateMutability: 'view',
   },
@@ -6042,23 +6777,6 @@ export const streamWalletAbi = [
     type: 'function',
     inputs: [
       { name: 'subscriber', internalType: 'address', type: 'address' },
-      { name: 'amount', internalType: 'uint256', type: 'uint256' },
-      { name: 'duration', internalType: 'uint256', type: 'uint256' },
-      { name: 'amountOutMin', internalType: 'uint256', type: 'uint256' },
-      { name: 'deadline', internalType: 'uint256', type: 'uint256' },
-      { name: 'token', internalType: 'address', type: 'address' },
-    ],
-    name: 'recordSubscription',
-    outputs: [
-      { name: 'platformFee', internalType: 'uint256', type: 'uint256' },
-      { name: 'streamerAmount', internalType: 'uint256', type: 'uint256' },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [
-      { name: 'subscriber', internalType: 'address', type: 'address' },
       { name: 'totalUsdcAmount', internalType: 'uint256', type: 'uint256' },
       { name: 'duration', internalType: 'uint256', type: 'uint256' },
     ],
@@ -6075,16 +6793,54 @@ export const streamWalletAbi = [
   },
   {
     type: 'function',
+    inputs: [{ name: 'payout', internalType: 'address', type: 'address' }],
+    name: 'setPayoutAddress',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'price', internalType: 'uint256', type: 'uint256' },
+      { name: 'period', internalType: 'uint64', type: 'uint64' },
+    ],
+    name: 'setSubscriptionPricing',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     inputs: [{ name: '_swapRouter', internalType: 'address', type: 'address' }],
     name: 'setSwapRouter',
     outputs: [],
-    stateMutability: 'nonpayable',
+    stateMutability: 'view',
   },
   {
     type: 'function',
     inputs: [],
     name: 'streamer',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'duration', internalType: 'uint256', type: 'uint256' }],
+    name: 'subscriptionCost',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'subscriptionPeriod',
+    outputs: [{ name: '', internalType: 'uint64', type: 'uint64' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'subscriptionPrice',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'view',
   },
   {
@@ -6239,19 +6995,19 @@ export const streamWalletAbi = [
     anonymous: false,
     inputs: [
       {
-        name: 'amount',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
+        name: 'oldPayout',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
       },
       {
-        name: 'treasury',
+        name: 'newPayout',
         internalType: 'address',
         type: 'address',
         indexed: true,
       },
     ],
-    name: 'PlatformFeeCollected',
+    name: 'PayoutAddressSet',
   },
   {
     type: 'event',
@@ -6271,6 +7027,25 @@ export const streamWalletAbi = [
       },
     ],
     name: 'RevenueWithdrawn',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'price',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'period',
+        internalType: 'uint64',
+        type: 'uint64',
+        indexed: false,
+      },
+    ],
+    name: 'SubscriptionPricingSet',
   },
   {
     type: 'event',
@@ -6308,25 +7083,6 @@ export const streamWalletAbi = [
     anonymous: false,
     inputs: [
       {
-        name: 'oldRouter',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'newRouter',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-    ],
-    name: 'SwapRouterUpdated',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
         name: 'implementation',
         internalType: 'address',
         type: 'address',
@@ -6345,7 +7101,6 @@ export const streamWalletAbi = [
     inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
     name: 'AddressInsufficientBalance',
   },
-  { type: 'error', inputs: [], name: 'DeadlinePassed' },
   {
     type: 'error',
     inputs: [
@@ -6356,11 +7111,26 @@ export const streamWalletAbi = [
   { type: 'error', inputs: [], name: 'ERC1967NonPayable' },
   { type: 'error', inputs: [], name: 'FailedInnerCall' },
   { type: 'error', inputs: [], name: 'InsufficientBalance' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'required', internalType: 'uint256', type: 'uint256' },
+      { name: 'paid', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'InsufficientSubscriptionPayment',
+  },
   { type: 'error', inputs: [], name: 'InvalidAddress' },
   { type: 'error', inputs: [], name: 'InvalidAmount' },
   { type: 'error', inputs: [], name: 'InvalidDuration' },
-  { type: 'error', inputs: [], name: 'InvalidFeeBps' },
   { type: 'error', inputs: [], name: 'InvalidInitialization' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'price', internalType: 'uint256', type: 'uint256' },
+      { name: 'period', internalType: 'uint64', type: 'uint64' },
+    ],
+    name: 'InvalidSubscriptionPricing',
+  },
   { type: 'error', inputs: [], name: 'NotInitializing' },
   { type: 'error', inputs: [], name: 'OnlyAuthorized' },
   { type: 'error', inputs: [], name: 'OnlyFactory' },
@@ -6381,7 +7151,7 @@ export const streamWalletAbi = [
     inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
     name: 'SafeERC20FailedOperation',
   },
-  { type: 'error', inputs: [], name: 'SwapSlippageExceeded' },
+  { type: 'error', inputs: [], name: 'SubscriptionPriceNotSet' },
   { type: 'error', inputs: [], name: 'UUPSUnauthorizedCallContext' },
   {
     type: 'error',
@@ -6413,6 +7183,13 @@ export const streamWalletFactoryAbi = [
   {
     type: 'function',
     inputs: [],
+    name: 'acceptOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
     name: 'defaultPlatformFeeBps',
     outputs: [{ name: '', internalType: 'uint16', type: 'uint16' }],
     stateMutability: 'view',
@@ -6421,20 +7198,6 @@ export const streamWalletFactoryAbi = [
     type: 'function',
     inputs: [{ name: 'streamer', internalType: 'address', type: 'address' }],
     name: 'deployWalletFor',
-    outputs: [{ name: 'wallet', internalType: 'address', type: 'address' }],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [
-      { name: 'streamer', internalType: 'address', type: 'address' },
-      { name: 'message', internalType: 'string', type: 'string' },
-      { name: 'amount', internalType: 'uint256', type: 'uint256' },
-      { name: 'amountOutMin', internalType: 'uint256', type: 'uint256' },
-      { name: 'deadline', internalType: 'uint256', type: 'uint256' },
-      { name: 'token', internalType: 'address', type: 'address' },
-    ],
-    name: 'donateToStream',
     outputs: [{ name: 'wallet', internalType: 'address', type: 'address' }],
     stateMutability: 'nonpayable',
   },
@@ -6477,6 +7240,13 @@ export const streamWalletFactoryAbi = [
     type: 'function',
     inputs: [],
     name: 'owner',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'pendingOwner',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
     stateMutability: 'view',
   },
@@ -6547,20 +7317,6 @@ export const streamWalletFactoryAbi = [
   },
   {
     type: 'function',
-    inputs: [
-      { name: 'streamer', internalType: 'address', type: 'address' },
-      { name: 'duration', internalType: 'uint256', type: 'uint256' },
-      { name: 'amount', internalType: 'uint256', type: 'uint256' },
-      { name: 'amountOutMin', internalType: 'uint256', type: 'uint256' },
-      { name: 'deadline', internalType: 'uint256', type: 'uint256' },
-      { name: 'token', internalType: 'address', type: 'address' },
-    ],
-    name: 'subscribeToStream',
-    outputs: [{ name: 'wallet', internalType: 'address', type: 'address' }],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
     inputs: [],
     name: 'swapRouter',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
@@ -6602,37 +7358,6 @@ export const streamWalletFactoryAbi = [
     anonymous: false,
     inputs: [
       {
-        name: 'streamer',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'donor',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'amount',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-      {
-        name: 'message',
-        internalType: 'string',
-        type: 'string',
-        indexed: false,
-      },
-    ],
-    name: 'DonationProcessed',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
         name: 'oldImplementation',
         internalType: 'address',
         type: 'address',
@@ -6665,6 +7390,25 @@ export const streamWalletFactoryAbi = [
       },
     ],
     name: 'KayenRouterUpdated',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'previousOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'OwnershipTransferStarted',
   },
   {
     type: 'event',
@@ -6722,31 +7466,6 @@ export const streamWalletFactoryAbi = [
       },
     ],
     name: 'StreamWalletCreated',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
-      {
-        name: 'streamer',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'subscriber',
-        internalType: 'address',
-        type: 'address',
-        indexed: true,
-      },
-      {
-        name: 'amount',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-    ],
-    name: 'SubscriptionProcessed',
   },
   {
     type: 'event',
@@ -6830,20 +7549,7 @@ export const streamWalletFactoryAbi = [
     ],
     name: 'WalletUpgraded',
   },
-  {
-    type: 'error',
-    inputs: [{ name: 'target', internalType: 'address', type: 'address' }],
-    name: 'AddressEmptyCode',
-  },
-  {
-    type: 'error',
-    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
-    name: 'AddressInsufficientBalance',
-  },
-  { type: 'error', inputs: [], name: 'FailedInnerCall' },
   { type: 'error', inputs: [], name: 'InvalidAddress' },
-  { type: 'error', inputs: [], name: 'InvalidAmount' },
-  { type: 'error', inputs: [], name: 'InvalidDuration' },
   { type: 'error', inputs: [], name: 'InvalidFeeBps' },
   {
     type: 'error',
@@ -6854,12 +7560,6 @@ export const streamWalletFactoryAbi = [
     type: 'error',
     inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
     name: 'OwnableUnauthorizedAccount',
-  },
-  { type: 'error', inputs: [], name: 'ReentrancyGuardReentrantCall' },
-  {
-    type: 'error',
-    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
-    name: 'SafeERC20FailedOperation',
   },
   { type: 'error', inputs: [], name: 'Unauthorized' },
   { type: 'error', inputs: [], name: 'WalletAlreadyExists' },
@@ -6900,6 +7600,24 @@ export const useBasketballPariMatchReadDefaultAdminRole =
   /*#__PURE__*/ createUseReadContract({
     abi: basketballPariMatchAbi,
     functionName: 'DEFAULT_ADMIN_ROLE',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"DEFAULT_FEE_BPS"`
+ */
+export const useBasketballPariMatchReadDefaultFeeBps =
+  /*#__PURE__*/ createUseReadContract({
+    abi: basketballPariMatchAbi,
+    functionName: 'DEFAULT_FEE_BPS',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"LEGACY_MARKET_TTL"`
+ */
+export const useBasketballPariMatchReadLegacyMarketTtl =
+  /*#__PURE__*/ createUseReadContract({
+    abi: basketballPariMatchAbi,
+    functionName: 'LEGACY_MARKET_TTL',
   })
 
 /**
@@ -6966,6 +7684,15 @@ export const useBasketballPariMatchReadMarketWinner =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"MAX_CLAIM_PAUSE"`
+ */
+export const useBasketballPariMatchReadMaxClaimPause =
+  /*#__PURE__*/ createUseReadContract({
+    abi: basketballPariMatchAbi,
+    functionName: 'MAX_CLAIM_PAUSE',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"MAX_FEE_BPS"`
  */
 export const useBasketballPariMatchReadMaxFeeBps =
@@ -6993,6 +7720,15 @@ export const useBasketballPariMatchReadPauserRole =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"RESOLUTION_TIMEOUT"`
+ */
+export const useBasketballPariMatchReadResolutionTimeout =
+  /*#__PURE__*/ createUseReadContract({
+    abi: basketballPariMatchAbi,
+    functionName: 'RESOLUTION_TIMEOUT',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"RESOLVER_ROLE"`
  */
 export const useBasketballPariMatchReadResolverRole =
@@ -7011,21 +7747,21 @@ export const useBasketballPariMatchReadSwapRouterRole =
   })
 
 /**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"UPGRADE_INTERFACE_VERSION"`
- */
-export const useBasketballPariMatchReadUpgradeInterfaceVersion =
-  /*#__PURE__*/ createUseReadContract({
-    abi: basketballPariMatchAbi,
-    functionName: 'UPGRADE_INTERFACE_VERSION',
-  })
-
-/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"computeOutcome"`
  */
 export const useBasketballPariMatchReadComputeOutcome =
   /*#__PURE__*/ createUseReadContract({
     abi: basketballPariMatchAbi,
     functionName: 'computeOutcome',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"computeOutcomeFinal"`
+ */
+export const useBasketballPariMatchReadComputeOutcomeFinal =
+  /*#__PURE__*/ createUseReadContract({
+    abi: basketballPariMatchAbi,
+    functionName: 'computeOutcomeFinal',
   })
 
 /**
@@ -7062,6 +7798,15 @@ export const useBasketballPariMatchReadGetMarketCore =
   /*#__PURE__*/ createUseReadContract({
     abi: basketballPariMatchAbi,
     functionName: 'getMarketCore',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"getMarketFees"`
+ */
+export const useBasketballPariMatchReadGetMarketFees =
+  /*#__PURE__*/ createUseReadContract({
+    abi: basketballPariMatchAbi,
+    functionName: 'getMarketFees',
   })
 
 /**
@@ -7182,15 +7927,6 @@ export const useBasketballPariMatchReadMatchName =
   })
 
 /**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"owner"`
- */
-export const useBasketballPariMatchReadOwner =
-  /*#__PURE__*/ createUseReadContract({
-    abi: basketballPariMatchAbi,
-    functionName: 'owner',
-  })
-
-/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"paused"`
  */
 export const useBasketballPariMatchReadPaused =
@@ -7200,12 +7936,12 @@ export const useBasketballPariMatchReadPaused =
   })
 
 /**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"proxiableUUID"`
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"pausedAt"`
  */
-export const useBasketballPariMatchReadProxiableUuid =
+export const useBasketballPariMatchReadPausedAt =
   /*#__PURE__*/ createUseReadContract({
     abi: basketballPariMatchAbi,
-    functionName: 'proxiableUUID',
+    functionName: 'pausedAt',
   })
 
 /**
@@ -7215,6 +7951,15 @@ export const useBasketballPariMatchReadSportType =
   /*#__PURE__*/ createUseReadContract({
     abi: basketballPariMatchAbi,
     functionName: 'sportType',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"staleAt"`
+ */
+export const useBasketballPariMatchReadStaleAt =
+  /*#__PURE__*/ createUseReadContract({
+    abi: basketballPariMatchAbi,
+    functionName: 'staleAt',
   })
 
 /**
@@ -7305,6 +8050,15 @@ export const useBasketballPariMatchWriteCancelMarket =
   })
 
 /**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"cancelStaleMarket"`
+ */
+export const useBasketballPariMatchWriteCancelStaleMarket =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: basketballPariMatchAbi,
+    functionName: 'cancelStaleMarket',
+  })
+
+/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"claim"`
  */
 export const useBasketballPariMatchWriteClaim =
@@ -7338,6 +8092,15 @@ export const useBasketballPariMatchWriteClaimRefundBatch =
   /*#__PURE__*/ createUseWriteContract({
     abi: basketballPariMatchAbi,
     functionName: 'claimRefundBatch',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"closeExpiredMarket"`
+ */
+export const useBasketballPariMatchWriteCloseExpiredMarket =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: basketballPariMatchAbi,
+    functionName: 'closeExpiredMarket',
   })
 
 /**
@@ -7404,30 +8167,12 @@ export const useBasketballPariMatchWriteOpenMarketsBatch =
   })
 
 /**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"placeBetUSDC"`
- */
-export const useBasketballPariMatchWritePlaceBetUsdc =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: basketballPariMatchAbi,
-    functionName: 'placeBetUSDC',
-  })
-
-/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"placeBetUSDCFor"`
  */
 export const useBasketballPariMatchWritePlaceBetUsdcFor =
   /*#__PURE__*/ createUseWriteContract({
     abi: basketballPariMatchAbi,
     functionName: 'placeBetUSDCFor',
-  })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"renounceOwnership"`
- */
-export const useBasketballPariMatchWriteRenounceOwnership =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: basketballPariMatchAbi,
-    functionName: 'renounceOwnership',
   })
 
 /**
@@ -7440,12 +8185,30 @@ export const useBasketballPariMatchWriteRenounceRole =
   })
 
 /**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"resolveBatchByFinalScore"`
+ */
+export const useBasketballPariMatchWriteResolveBatchByFinalScore =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: basketballPariMatchAbi,
+    functionName: 'resolveBatchByFinalScore',
+  })
+
+/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"resolveBatchByScore"`
  */
 export const useBasketballPariMatchWriteResolveBatchByScore =
   /*#__PURE__*/ createUseWriteContract({
     abi: basketballPariMatchAbi,
     functionName: 'resolveBatchByScore',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"resolveByFinalScore"`
+ */
+export const useBasketballPariMatchWriteResolveByFinalScore =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: basketballPariMatchAbi,
+    functionName: 'resolveByFinalScore',
   })
 
 /**
@@ -7521,6 +8284,24 @@ export const useBasketballPariMatchWriteSetLeaderboardRecipient =
   })
 
 /**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"setMarketCloseTime"`
+ */
+export const useBasketballPariMatchWriteSetMarketCloseTime =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: basketballPariMatchAbi,
+    functionName: 'setMarketCloseTime',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"setMarketsCloseTime"`
+ */
+export const useBasketballPariMatchWriteSetMarketsCloseTime =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: basketballPariMatchAbi,
+    functionName: 'setMarketsCloseTime',
+  })
+
+/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"setUSDCToken"`
  */
 export const useBasketballPariMatchWriteSetUsdcToken =
@@ -7539,30 +8320,12 @@ export const useBasketballPariMatchWriteSuspendMarket =
   })
 
 /**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"transferOwnership"`
- */
-export const useBasketballPariMatchWriteTransferOwnership =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: basketballPariMatchAbi,
-    functionName: 'transferOwnership',
-  })
-
-/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"unpause"`
  */
 export const useBasketballPariMatchWriteUnpause =
   /*#__PURE__*/ createUseWriteContract({
     abi: basketballPariMatchAbi,
     functionName: 'unpause',
-  })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"upgradeToAndCall"`
- */
-export const useBasketballPariMatchWriteUpgradeToAndCall =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: basketballPariMatchAbi,
-    functionName: 'upgradeToAndCall',
   })
 
 /**
@@ -7635,6 +8398,15 @@ export const useBasketballPariMatchSimulateCancelMarket =
   })
 
 /**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"cancelStaleMarket"`
+ */
+export const useBasketballPariMatchSimulateCancelStaleMarket =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: basketballPariMatchAbi,
+    functionName: 'cancelStaleMarket',
+  })
+
+/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"claim"`
  */
 export const useBasketballPariMatchSimulateClaim =
@@ -7668,6 +8440,15 @@ export const useBasketballPariMatchSimulateClaimRefundBatch =
   /*#__PURE__*/ createUseSimulateContract({
     abi: basketballPariMatchAbi,
     functionName: 'claimRefundBatch',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"closeExpiredMarket"`
+ */
+export const useBasketballPariMatchSimulateCloseExpiredMarket =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: basketballPariMatchAbi,
+    functionName: 'closeExpiredMarket',
   })
 
 /**
@@ -7734,30 +8515,12 @@ export const useBasketballPariMatchSimulateOpenMarketsBatch =
   })
 
 /**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"placeBetUSDC"`
- */
-export const useBasketballPariMatchSimulatePlaceBetUsdc =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: basketballPariMatchAbi,
-    functionName: 'placeBetUSDC',
-  })
-
-/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"placeBetUSDCFor"`
  */
 export const useBasketballPariMatchSimulatePlaceBetUsdcFor =
   /*#__PURE__*/ createUseSimulateContract({
     abi: basketballPariMatchAbi,
     functionName: 'placeBetUSDCFor',
-  })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"renounceOwnership"`
- */
-export const useBasketballPariMatchSimulateRenounceOwnership =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: basketballPariMatchAbi,
-    functionName: 'renounceOwnership',
   })
 
 /**
@@ -7770,12 +8533,30 @@ export const useBasketballPariMatchSimulateRenounceRole =
   })
 
 /**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"resolveBatchByFinalScore"`
+ */
+export const useBasketballPariMatchSimulateResolveBatchByFinalScore =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: basketballPariMatchAbi,
+    functionName: 'resolveBatchByFinalScore',
+  })
+
+/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"resolveBatchByScore"`
  */
 export const useBasketballPariMatchSimulateResolveBatchByScore =
   /*#__PURE__*/ createUseSimulateContract({
     abi: basketballPariMatchAbi,
     functionName: 'resolveBatchByScore',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"resolveByFinalScore"`
+ */
+export const useBasketballPariMatchSimulateResolveByFinalScore =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: basketballPariMatchAbi,
+    functionName: 'resolveByFinalScore',
   })
 
 /**
@@ -7851,6 +8632,24 @@ export const useBasketballPariMatchSimulateSetLeaderboardRecipient =
   })
 
 /**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"setMarketCloseTime"`
+ */
+export const useBasketballPariMatchSimulateSetMarketCloseTime =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: basketballPariMatchAbi,
+    functionName: 'setMarketCloseTime',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"setMarketsCloseTime"`
+ */
+export const useBasketballPariMatchSimulateSetMarketsCloseTime =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: basketballPariMatchAbi,
+    functionName: 'setMarketsCloseTime',
+  })
+
+/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"setUSDCToken"`
  */
 export const useBasketballPariMatchSimulateSetUsdcToken =
@@ -7869,30 +8668,12 @@ export const useBasketballPariMatchSimulateSuspendMarket =
   })
 
 /**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"transferOwnership"`
- */
-export const useBasketballPariMatchSimulateTransferOwnership =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: basketballPariMatchAbi,
-    functionName: 'transferOwnership',
-  })
-
-/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"unpause"`
  */
 export const useBasketballPariMatchSimulateUnpause =
   /*#__PURE__*/ createUseSimulateContract({
     abi: basketballPariMatchAbi,
     functionName: 'unpause',
-  })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `functionName` set to `"upgradeToAndCall"`
- */
-export const useBasketballPariMatchSimulateUpgradeToAndCall =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: basketballPariMatchAbi,
-    functionName: 'upgradeToAndCall',
   })
 
 /**
@@ -7938,6 +8719,15 @@ export const useBasketballPariMatchWatchLeaderboardFeeBpsSet =
   })
 
 /**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `eventName` set to `"LeaderboardNotifyFailed"`
+ */
+export const useBasketballPariMatchWatchLeaderboardNotifyFailed =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: basketballPariMatchAbi,
+    eventName: 'LeaderboardNotifyFailed',
+  })
+
+/**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `eventName` set to `"LeaderboardRecipientSet"`
  */
 export const useBasketballPariMatchWatchLeaderboardRecipientSet =
@@ -7965,12 +8755,30 @@ export const useBasketballPariMatchWatchMarketCancelled =
   })
 
 /**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `eventName` set to `"MarketCloseTimeSet"`
+ */
+export const useBasketballPariMatchWatchMarketCloseTimeSet =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: basketballPariMatchAbi,
+    eventName: 'MarketCloseTimeSet',
+  })
+
+/**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `eventName` set to `"MarketCreated"`
  */
 export const useBasketballPariMatchWatchMarketCreated =
   /*#__PURE__*/ createUseWatchContractEvent({
     abi: basketballPariMatchAbi,
     eventName: 'MarketCreated',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `eventName` set to `"MarketFeesFrozen"`
+ */
+export const useBasketballPariMatchWatchMarketFeesFrozen =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: basketballPariMatchAbi,
+    eventName: 'MarketFeesFrozen',
   })
 
 /**
@@ -8007,15 +8815,6 @@ export const useBasketballPariMatchWatchMatchScoreResolved =
   /*#__PURE__*/ createUseWatchContractEvent({
     abi: basketballPariMatchAbi,
     eventName: 'MatchScoreResolved',
-  })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `eventName` set to `"OwnershipTransferred"`
- */
-export const useBasketballPariMatchWatchOwnershipTransferred =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: basketballPariMatchAbi,
-    eventName: 'OwnershipTransferred',
   })
 
 /**
@@ -8082,6 +8881,15 @@ export const useBasketballPariMatchWatchStakeRefunded =
   })
 
 /**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `eventName` set to `"StaleMarketCancelled"`
+ */
+export const useBasketballPariMatchWatchStaleMarketCancelled =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: basketballPariMatchAbi,
+    eventName: 'StaleMarketCancelled',
+  })
+
+/**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `eventName` set to `"USDCTokenSet"`
  */
 export const useBasketballPariMatchWatchUsdcTokenSet =
@@ -8097,575 +8905,6 @@ export const useBasketballPariMatchWatchUnpaused =
   /*#__PURE__*/ createUseWatchContractEvent({
     abi: basketballPariMatchAbi,
     eventName: 'Unpaused',
-  })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link basketballPariMatchAbi}__ and `eventName` set to `"Upgraded"`
- */
-export const useBasketballPariMatchWatchUpgraded =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: basketballPariMatchAbi,
-    eventName: 'Upgraded',
-  })
-
-/**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__
- */
-export const useChilizSwapRouterReadundefined =
-  /*#__PURE__*/ createUseReadContract({ abi: chilizSwapRouterAbi })
-
-/**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"bettingMatchFactory"`
- */
-export const useChilizSwapRouterReadBettingMatchFactory =
-  /*#__PURE__*/ createUseReadContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'bettingMatchFactory',
-  })
-
-/**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"masterRouter"`
- */
-export const useChilizSwapRouterReadMasterRouter =
-  /*#__PURE__*/ createUseReadContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'masterRouter',
-  })
-
-/**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"owner"`
- */
-export const useChilizSwapRouterReadOwner = /*#__PURE__*/ createUseReadContract(
-  { abi: chilizSwapRouterAbi, functionName: 'owner' },
-)
-
-/**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"platformFeeBps"`
- */
-export const useChilizSwapRouterReadPlatformFeeBps =
-  /*#__PURE__*/ createUseReadContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'platformFeeBps',
-  })
-
-/**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"quoteTokenToUSDC"`
- */
-export const useChilizSwapRouterReadQuoteTokenToUsdc =
-  /*#__PURE__*/ createUseReadContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'quoteTokenToUSDC',
-  })
-
-/**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"streamWalletFactory"`
- */
-export const useChilizSwapRouterReadStreamWalletFactory =
-  /*#__PURE__*/ createUseReadContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'streamWalletFactory',
-  })
-
-/**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"swapRouteFor"`
- */
-export const useChilizSwapRouterReadSwapRouteFor =
-  /*#__PURE__*/ createUseReadContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'swapRouteFor',
-  })
-
-/**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"tokenRouter"`
- */
-export const useChilizSwapRouterReadTokenRouter =
-  /*#__PURE__*/ createUseReadContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'tokenRouter',
-  })
-
-/**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"treasury"`
- */
-export const useChilizSwapRouterReadTreasury =
-  /*#__PURE__*/ createUseReadContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'treasury',
-  })
-
-/**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"usdc"`
- */
-export const useChilizSwapRouterReadUsdc = /*#__PURE__*/ createUseReadContract({
-  abi: chilizSwapRouterAbi,
-  functionName: 'usdc',
-})
-
-/**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"wchz"`
- */
-export const useChilizSwapRouterReadWchz = /*#__PURE__*/ createUseReadContract({
-  abi: chilizSwapRouterAbi,
-  functionName: 'wchz',
-})
-
-/**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"wrapperFactory"`
- */
-export const useChilizSwapRouterReadWrapperFactory =
-  /*#__PURE__*/ createUseReadContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'wrapperFactory',
-  })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__
- */
-export const useChilizSwapRouterWriteundefined =
-  /*#__PURE__*/ createUseWriteContract({ abi: chilizSwapRouterAbi })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"donateWithCHZ"`
- */
-export const useChilizSwapRouterWriteDonateWithChz =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'donateWithCHZ',
-  })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"donateWithToken"`
- */
-export const useChilizSwapRouterWriteDonateWithToken =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'donateWithToken',
-  })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"donateWithUSDC"`
- */
-export const useChilizSwapRouterWriteDonateWithUsdc =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'donateWithUSDC',
-  })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"placeBetWithCHZ"`
- */
-export const useChilizSwapRouterWritePlaceBetWithChz =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'placeBetWithCHZ',
-  })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"placeBetWithToken"`
- */
-export const useChilizSwapRouterWritePlaceBetWithToken =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'placeBetWithToken',
-  })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"placeBetWithUSDC"`
- */
-export const useChilizSwapRouterWritePlaceBetWithUsdc =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'placeBetWithUSDC',
-  })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"renounceOwnership"`
- */
-export const useChilizSwapRouterWriteRenounceOwnership =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'renounceOwnership',
-  })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"setMatchFactory"`
- */
-export const useChilizSwapRouterWriteSetMatchFactory =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'setMatchFactory',
-  })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"setPlatformFeeBps"`
- */
-export const useChilizSwapRouterWriteSetPlatformFeeBps =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'setPlatformFeeBps',
-  })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"setStreamWalletFactory"`
- */
-export const useChilizSwapRouterWriteSetStreamWalletFactory =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'setStreamWalletFactory',
-  })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"setTreasury"`
- */
-export const useChilizSwapRouterWriteSetTreasury =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'setTreasury',
-  })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"setWrapperFactory"`
- */
-export const useChilizSwapRouterWriteSetWrapperFactory =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'setWrapperFactory',
-  })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"subscribeWithCHZ"`
- */
-export const useChilizSwapRouterWriteSubscribeWithChz =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'subscribeWithCHZ',
-  })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"subscribeWithToken"`
- */
-export const useChilizSwapRouterWriteSubscribeWithToken =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'subscribeWithToken',
-  })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"subscribeWithUSDC"`
- */
-export const useChilizSwapRouterWriteSubscribeWithUsdc =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'subscribeWithUSDC',
-  })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"transferOwnership"`
- */
-export const useChilizSwapRouterWriteTransferOwnership =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'transferOwnership',
-  })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__
- */
-export const useChilizSwapRouterSimulateundefined =
-  /*#__PURE__*/ createUseSimulateContract({ abi: chilizSwapRouterAbi })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"donateWithCHZ"`
- */
-export const useChilizSwapRouterSimulateDonateWithChz =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'donateWithCHZ',
-  })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"donateWithToken"`
- */
-export const useChilizSwapRouterSimulateDonateWithToken =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'donateWithToken',
-  })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"donateWithUSDC"`
- */
-export const useChilizSwapRouterSimulateDonateWithUsdc =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'donateWithUSDC',
-  })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"placeBetWithCHZ"`
- */
-export const useChilizSwapRouterSimulatePlaceBetWithChz =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'placeBetWithCHZ',
-  })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"placeBetWithToken"`
- */
-export const useChilizSwapRouterSimulatePlaceBetWithToken =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'placeBetWithToken',
-  })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"placeBetWithUSDC"`
- */
-export const useChilizSwapRouterSimulatePlaceBetWithUsdc =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'placeBetWithUSDC',
-  })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"renounceOwnership"`
- */
-export const useChilizSwapRouterSimulateRenounceOwnership =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'renounceOwnership',
-  })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"setMatchFactory"`
- */
-export const useChilizSwapRouterSimulateSetMatchFactory =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'setMatchFactory',
-  })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"setPlatformFeeBps"`
- */
-export const useChilizSwapRouterSimulateSetPlatformFeeBps =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'setPlatformFeeBps',
-  })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"setStreamWalletFactory"`
- */
-export const useChilizSwapRouterSimulateSetStreamWalletFactory =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'setStreamWalletFactory',
-  })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"setTreasury"`
- */
-export const useChilizSwapRouterSimulateSetTreasury =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'setTreasury',
-  })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"setWrapperFactory"`
- */
-export const useChilizSwapRouterSimulateSetWrapperFactory =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'setWrapperFactory',
-  })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"subscribeWithCHZ"`
- */
-export const useChilizSwapRouterSimulateSubscribeWithChz =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'subscribeWithCHZ',
-  })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"subscribeWithToken"`
- */
-export const useChilizSwapRouterSimulateSubscribeWithToken =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'subscribeWithToken',
-  })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"subscribeWithUSDC"`
- */
-export const useChilizSwapRouterSimulateSubscribeWithUsdc =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'subscribeWithUSDC',
-  })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `functionName` set to `"transferOwnership"`
- */
-export const useChilizSwapRouterSimulateTransferOwnership =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: chilizSwapRouterAbi,
-    functionName: 'transferOwnership',
-  })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link chilizSwapRouterAbi}__
- */
-export const useChilizSwapRouterWatchundefined =
-  /*#__PURE__*/ createUseWatchContractEvent({ abi: chilizSwapRouterAbi })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `eventName` set to `"BetPlacedViaCHZ"`
- */
-export const useChilizSwapRouterWatchBetPlacedViaChz =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: chilizSwapRouterAbi,
-    eventName: 'BetPlacedViaCHZ',
-  })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `eventName` set to `"BetPlacedViaToken"`
- */
-export const useChilizSwapRouterWatchBetPlacedViaToken =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: chilizSwapRouterAbi,
-    eventName: 'BetPlacedViaToken',
-  })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `eventName` set to `"BetPlacedWithUSDC"`
- */
-export const useChilizSwapRouterWatchBetPlacedWithUsdc =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: chilizSwapRouterAbi,
-    eventName: 'BetPlacedWithUSDC',
-  })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `eventName` set to `"DonationWithCHZ"`
- */
-export const useChilizSwapRouterWatchDonationWithChz =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: chilizSwapRouterAbi,
-    eventName: 'DonationWithCHZ',
-  })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `eventName` set to `"DonationWithToken"`
- */
-export const useChilizSwapRouterWatchDonationWithToken =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: chilizSwapRouterAbi,
-    eventName: 'DonationWithToken',
-  })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `eventName` set to `"DonationWithUSDCEvent"`
- */
-export const useChilizSwapRouterWatchDonationWithUsdcEvent =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: chilizSwapRouterAbi,
-    eventName: 'DonationWithUSDCEvent',
-  })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `eventName` set to `"FanTokenWrapped"`
- */
-export const useChilizSwapRouterWatchFanTokenWrapped =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: chilizSwapRouterAbi,
-    eventName: 'FanTokenWrapped',
-  })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `eventName` set to `"MatchFactorySet"`
- */
-export const useChilizSwapRouterWatchMatchFactorySet =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: chilizSwapRouterAbi,
-    eventName: 'MatchFactorySet',
-  })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `eventName` set to `"OwnershipTransferred"`
- */
-export const useChilizSwapRouterWatchOwnershipTransferred =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: chilizSwapRouterAbi,
-    eventName: 'OwnershipTransferred',
-  })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `eventName` set to `"PlatformFeeBpsSet"`
- */
-export const useChilizSwapRouterWatchPlatformFeeBpsSet =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: chilizSwapRouterAbi,
-    eventName: 'PlatformFeeBpsSet',
-  })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `eventName` set to `"StreamWalletFactorySet"`
- */
-export const useChilizSwapRouterWatchStreamWalletFactorySet =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: chilizSwapRouterAbi,
-    eventName: 'StreamWalletFactorySet',
-  })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `eventName` set to `"SubscriptionWithCHZ"`
- */
-export const useChilizSwapRouterWatchSubscriptionWithChz =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: chilizSwapRouterAbi,
-    eventName: 'SubscriptionWithCHZ',
-  })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `eventName` set to `"SubscriptionWithToken"`
- */
-export const useChilizSwapRouterWatchSubscriptionWithToken =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: chilizSwapRouterAbi,
-    eventName: 'SubscriptionWithToken',
-  })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `eventName` set to `"SubscriptionWithUSDCEvent"`
- */
-export const useChilizSwapRouterWatchSubscriptionWithUsdcEvent =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: chilizSwapRouterAbi,
-    eventName: 'SubscriptionWithUSDCEvent',
-  })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `eventName` set to `"TreasurySet"`
- */
-export const useChilizSwapRouterWatchTreasurySet =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: chilizSwapRouterAbi,
-    eventName: 'TreasurySet',
-  })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link chilizSwapRouterAbi}__ and `eventName` set to `"WrapperFactorySet"`
- */
-export const useChilizSwapRouterWatchWrapperFactorySet =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: chilizSwapRouterAbi,
-    eventName: 'WrapperFactorySet',
   })
 
 /**
@@ -8699,6 +8938,24 @@ export const useFootballPariMatchReadDefaultAdminRole =
   /*#__PURE__*/ createUseReadContract({
     abi: footballPariMatchAbi,
     functionName: 'DEFAULT_ADMIN_ROLE',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"DEFAULT_FEE_BPS"`
+ */
+export const useFootballPariMatchReadDefaultFeeBps =
+  /*#__PURE__*/ createUseReadContract({
+    abi: footballPariMatchAbi,
+    functionName: 'DEFAULT_FEE_BPS',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"LEGACY_MARKET_TTL"`
+ */
+export const useFootballPariMatchReadLegacyMarketTtl =
+  /*#__PURE__*/ createUseReadContract({
+    abi: footballPariMatchAbi,
+    functionName: 'LEGACY_MARKET_TTL',
   })
 
 /**
@@ -8783,6 +9040,15 @@ export const useFootballPariMatchReadMarketWinner =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"MAX_CLAIM_PAUSE"`
+ */
+export const useFootballPariMatchReadMaxClaimPause =
+  /*#__PURE__*/ createUseReadContract({
+    abi: footballPariMatchAbi,
+    functionName: 'MAX_CLAIM_PAUSE',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"MAX_FEE_BPS"`
  */
 export const useFootballPariMatchReadMaxFeeBps =
@@ -8810,6 +9076,15 @@ export const useFootballPariMatchReadPauserRole =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"RESOLUTION_TIMEOUT"`
+ */
+export const useFootballPariMatchReadResolutionTimeout =
+  /*#__PURE__*/ createUseReadContract({
+    abi: footballPariMatchAbi,
+    functionName: 'RESOLUTION_TIMEOUT',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"RESOLVER_ROLE"`
  */
 export const useFootballPariMatchReadResolverRole =
@@ -8825,15 +9100,6 @@ export const useFootballPariMatchReadSwapRouterRole =
   /*#__PURE__*/ createUseReadContract({
     abi: footballPariMatchAbi,
     functionName: 'SWAP_ROUTER_ROLE',
-  })
-
-/**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"UPGRADE_INTERFACE_VERSION"`
- */
-export const useFootballPariMatchReadUpgradeInterfaceVersion =
-  /*#__PURE__*/ createUseReadContract({
-    abi: footballPariMatchAbi,
-    functionName: 'UPGRADE_INTERFACE_VERSION',
   })
 
 /**
@@ -8879,6 +9145,15 @@ export const useFootballPariMatchReadGetMarketCore =
   /*#__PURE__*/ createUseReadContract({
     abi: footballPariMatchAbi,
     functionName: 'getMarketCore',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"getMarketFees"`
+ */
+export const useFootballPariMatchReadGetMarketFees =
+  /*#__PURE__*/ createUseReadContract({
+    abi: footballPariMatchAbi,
+    functionName: 'getMarketFees',
   })
 
 /**
@@ -8999,15 +9274,6 @@ export const useFootballPariMatchReadMatchName =
   })
 
 /**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"owner"`
- */
-export const useFootballPariMatchReadOwner =
-  /*#__PURE__*/ createUseReadContract({
-    abi: footballPariMatchAbi,
-    functionName: 'owner',
-  })
-
-/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"paused"`
  */
 export const useFootballPariMatchReadPaused =
@@ -9017,12 +9283,12 @@ export const useFootballPariMatchReadPaused =
   })
 
 /**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"proxiableUUID"`
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"pausedAt"`
  */
-export const useFootballPariMatchReadProxiableUuid =
+export const useFootballPariMatchReadPausedAt =
   /*#__PURE__*/ createUseReadContract({
     abi: footballPariMatchAbi,
-    functionName: 'proxiableUUID',
+    functionName: 'pausedAt',
   })
 
 /**
@@ -9032,6 +9298,15 @@ export const useFootballPariMatchReadSportType =
   /*#__PURE__*/ createUseReadContract({
     abi: footballPariMatchAbi,
     functionName: 'sportType',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"staleAt"`
+ */
+export const useFootballPariMatchReadStaleAt =
+  /*#__PURE__*/ createUseReadContract({
+    abi: footballPariMatchAbi,
+    functionName: 'staleAt',
   })
 
 /**
@@ -9104,6 +9379,15 @@ export const useFootballPariMatchWriteCancelMarket =
   })
 
 /**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"cancelStaleMarket"`
+ */
+export const useFootballPariMatchWriteCancelStaleMarket =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: footballPariMatchAbi,
+    functionName: 'cancelStaleMarket',
+  })
+
+/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"claim"`
  */
 export const useFootballPariMatchWriteClaim =
@@ -9137,6 +9421,15 @@ export const useFootballPariMatchWriteClaimRefundBatch =
   /*#__PURE__*/ createUseWriteContract({
     abi: footballPariMatchAbi,
     functionName: 'claimRefundBatch',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"closeExpiredMarket"`
+ */
+export const useFootballPariMatchWriteCloseExpiredMarket =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: footballPariMatchAbi,
+    functionName: 'closeExpiredMarket',
   })
 
 /**
@@ -9203,30 +9496,12 @@ export const useFootballPariMatchWriteOpenMarketsBatch =
   })
 
 /**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"placeBetUSDC"`
- */
-export const useFootballPariMatchWritePlaceBetUsdc =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: footballPariMatchAbi,
-    functionName: 'placeBetUSDC',
-  })
-
-/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"placeBetUSDCFor"`
  */
 export const useFootballPariMatchWritePlaceBetUsdcFor =
   /*#__PURE__*/ createUseWriteContract({
     abi: footballPariMatchAbi,
     functionName: 'placeBetUSDCFor',
-  })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"renounceOwnership"`
- */
-export const useFootballPariMatchWriteRenounceOwnership =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: footballPariMatchAbi,
-    functionName: 'renounceOwnership',
   })
 
 /**
@@ -9320,6 +9595,24 @@ export const useFootballPariMatchWriteSetLeaderboardRecipient =
   })
 
 /**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"setMarketCloseTime"`
+ */
+export const useFootballPariMatchWriteSetMarketCloseTime =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: footballPariMatchAbi,
+    functionName: 'setMarketCloseTime',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"setMarketsCloseTime"`
+ */
+export const useFootballPariMatchWriteSetMarketsCloseTime =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: footballPariMatchAbi,
+    functionName: 'setMarketsCloseTime',
+  })
+
+/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"setUSDCToken"`
  */
 export const useFootballPariMatchWriteSetUsdcToken =
@@ -9338,30 +9631,12 @@ export const useFootballPariMatchWriteSuspendMarket =
   })
 
 /**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"transferOwnership"`
- */
-export const useFootballPariMatchWriteTransferOwnership =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: footballPariMatchAbi,
-    functionName: 'transferOwnership',
-  })
-
-/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"unpause"`
  */
 export const useFootballPariMatchWriteUnpause =
   /*#__PURE__*/ createUseWriteContract({
     abi: footballPariMatchAbi,
     functionName: 'unpause',
-  })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"upgradeToAndCall"`
- */
-export const useFootballPariMatchWriteUpgradeToAndCall =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: footballPariMatchAbi,
-    functionName: 'upgradeToAndCall',
   })
 
 /**
@@ -9416,6 +9691,15 @@ export const useFootballPariMatchSimulateCancelMarket =
   })
 
 /**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"cancelStaleMarket"`
+ */
+export const useFootballPariMatchSimulateCancelStaleMarket =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: footballPariMatchAbi,
+    functionName: 'cancelStaleMarket',
+  })
+
+/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"claim"`
  */
 export const useFootballPariMatchSimulateClaim =
@@ -9449,6 +9733,15 @@ export const useFootballPariMatchSimulateClaimRefundBatch =
   /*#__PURE__*/ createUseSimulateContract({
     abi: footballPariMatchAbi,
     functionName: 'claimRefundBatch',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"closeExpiredMarket"`
+ */
+export const useFootballPariMatchSimulateCloseExpiredMarket =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: footballPariMatchAbi,
+    functionName: 'closeExpiredMarket',
   })
 
 /**
@@ -9515,30 +9808,12 @@ export const useFootballPariMatchSimulateOpenMarketsBatch =
   })
 
 /**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"placeBetUSDC"`
- */
-export const useFootballPariMatchSimulatePlaceBetUsdc =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: footballPariMatchAbi,
-    functionName: 'placeBetUSDC',
-  })
-
-/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"placeBetUSDCFor"`
  */
 export const useFootballPariMatchSimulatePlaceBetUsdcFor =
   /*#__PURE__*/ createUseSimulateContract({
     abi: footballPariMatchAbi,
     functionName: 'placeBetUSDCFor',
-  })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"renounceOwnership"`
- */
-export const useFootballPariMatchSimulateRenounceOwnership =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: footballPariMatchAbi,
-    functionName: 'renounceOwnership',
   })
 
 /**
@@ -9632,6 +9907,24 @@ export const useFootballPariMatchSimulateSetLeaderboardRecipient =
   })
 
 /**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"setMarketCloseTime"`
+ */
+export const useFootballPariMatchSimulateSetMarketCloseTime =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: footballPariMatchAbi,
+    functionName: 'setMarketCloseTime',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"setMarketsCloseTime"`
+ */
+export const useFootballPariMatchSimulateSetMarketsCloseTime =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: footballPariMatchAbi,
+    functionName: 'setMarketsCloseTime',
+  })
+
+/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"setUSDCToken"`
  */
 export const useFootballPariMatchSimulateSetUsdcToken =
@@ -9650,30 +9943,12 @@ export const useFootballPariMatchSimulateSuspendMarket =
   })
 
 /**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"transferOwnership"`
- */
-export const useFootballPariMatchSimulateTransferOwnership =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: footballPariMatchAbi,
-    functionName: 'transferOwnership',
-  })
-
-/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"unpause"`
  */
 export const useFootballPariMatchSimulateUnpause =
   /*#__PURE__*/ createUseSimulateContract({
     abi: footballPariMatchAbi,
     functionName: 'unpause',
-  })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link footballPariMatchAbi}__ and `functionName` set to `"upgradeToAndCall"`
- */
-export const useFootballPariMatchSimulateUpgradeToAndCall =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: footballPariMatchAbi,
-    functionName: 'upgradeToAndCall',
   })
 
 /**
@@ -9719,6 +9994,15 @@ export const useFootballPariMatchWatchLeaderboardFeeBpsSet =
   })
 
 /**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link footballPariMatchAbi}__ and `eventName` set to `"LeaderboardNotifyFailed"`
+ */
+export const useFootballPariMatchWatchLeaderboardNotifyFailed =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: footballPariMatchAbi,
+    eventName: 'LeaderboardNotifyFailed',
+  })
+
+/**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link footballPariMatchAbi}__ and `eventName` set to `"LeaderboardRecipientSet"`
  */
 export const useFootballPariMatchWatchLeaderboardRecipientSet =
@@ -9746,12 +10030,30 @@ export const useFootballPariMatchWatchMarketCancelled =
   })
 
 /**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link footballPariMatchAbi}__ and `eventName` set to `"MarketCloseTimeSet"`
+ */
+export const useFootballPariMatchWatchMarketCloseTimeSet =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: footballPariMatchAbi,
+    eventName: 'MarketCloseTimeSet',
+  })
+
+/**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link footballPariMatchAbi}__ and `eventName` set to `"MarketCreated"`
  */
 export const useFootballPariMatchWatchMarketCreated =
   /*#__PURE__*/ createUseWatchContractEvent({
     abi: footballPariMatchAbi,
     eventName: 'MarketCreated',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link footballPariMatchAbi}__ and `eventName` set to `"MarketFeesFrozen"`
+ */
+export const useFootballPariMatchWatchMarketFeesFrozen =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: footballPariMatchAbi,
+    eventName: 'MarketFeesFrozen',
   })
 
 /**
@@ -9788,15 +10090,6 @@ export const useFootballPariMatchWatchMatchScoreResolved =
   /*#__PURE__*/ createUseWatchContractEvent({
     abi: footballPariMatchAbi,
     eventName: 'MatchScoreResolved',
-  })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link footballPariMatchAbi}__ and `eventName` set to `"OwnershipTransferred"`
- */
-export const useFootballPariMatchWatchOwnershipTransferred =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: footballPariMatchAbi,
-    eventName: 'OwnershipTransferred',
   })
 
 /**
@@ -9863,6 +10156,15 @@ export const useFootballPariMatchWatchStakeRefunded =
   })
 
 /**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link footballPariMatchAbi}__ and `eventName` set to `"StaleMarketCancelled"`
+ */
+export const useFootballPariMatchWatchStaleMarketCancelled =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: footballPariMatchAbi,
+    eventName: 'StaleMarketCancelled',
+  })
+
+/**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link footballPariMatchAbi}__ and `eventName` set to `"USDCTokenSet"`
  */
 export const useFootballPariMatchWatchUsdcTokenSet =
@@ -9878,15 +10180,6 @@ export const useFootballPariMatchWatchUnpaused =
   /*#__PURE__*/ createUseWatchContractEvent({
     abi: footballPariMatchAbi,
     eventName: 'Unpaused',
-  })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link footballPariMatchAbi}__ and `eventName` set to `"Upgraded"`
- */
-export const useFootballPariMatchWatchUpgraded =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: footballPariMatchAbi,
-    eventName: 'Upgraded',
   })
 
 /**
@@ -9959,12 +10252,30 @@ export const useLeaderboardRewardsReadPauserRole =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"SCORING_GRACE"`
+ */
+export const useLeaderboardRewardsReadScoringGrace =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'SCORING_GRACE',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"UPGRADE_INTERFACE_VERSION"`
  */
 export const useLeaderboardRewardsReadUpgradeInterfaceVersion =
   /*#__PURE__*/ createUseReadContract({
     abi: leaderboardRewardsAbi,
     functionName: 'UPGRADE_INTERFACE_VERSION',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"claimDeadline"`
+ */
+export const useLeaderboardRewardsReadClaimDeadline =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'claimDeadline',
   })
 
 /**
@@ -9986,12 +10297,39 @@ export const useLeaderboardRewardsReadEpoch =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"epochAt"`
+ */
+export const useLeaderboardRewardsReadEpochAt =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'epochAt',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"epochClaimedScore"`
+ */
+export const useLeaderboardRewardsReadEpochClaimedScore =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'epochClaimedScore',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"epochDuration"`
  */
 export const useLeaderboardRewardsReadEpochDuration =
   /*#__PURE__*/ createUseReadContract({
     abi: leaderboardRewardsAbi,
     functionName: 'epochDuration',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"epochFees"`
+ */
+export const useLeaderboardRewardsReadEpochFees =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'epochFees',
   })
 
 /**
@@ -10073,6 +10411,24 @@ export const useLeaderboardRewardsReadMatchFactory =
   /*#__PURE__*/ createUseReadContract({
     abi: leaderboardRewardsAbi,
     functionName: 'matchFactory',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"nextCloseTime"`
+ */
+export const useLeaderboardRewardsReadNextCloseTime =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'nextCloseTime',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"notifiedAhead"`
+ */
+export const useLeaderboardRewardsReadNotifiedAhead =
+  /*#__PURE__*/ createUseReadContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'notifiedAhead',
   })
 
 /**
@@ -10187,6 +10543,24 @@ export const useLeaderboardRewardsWriteInitializeV2 =
   /*#__PURE__*/ createUseWriteContract({
     abi: leaderboardRewardsAbi,
     functionName: 'initializeV2',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"notifyFee"`
+ */
+export const useLeaderboardRewardsWriteNotifyFee =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'notifyFee',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"recordProfit"`
+ */
+export const useLeaderboardRewardsWriteRecordProfit =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'recordProfit',
   })
 
 /**
@@ -10331,6 +10705,24 @@ export const useLeaderboardRewardsSimulateInitializeV2 =
   })
 
 /**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"notifyFee"`
+ */
+export const useLeaderboardRewardsSimulateNotifyFee =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'notifyFee',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"recordProfit"`
+ */
+export const useLeaderboardRewardsSimulateRecordProfit =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: leaderboardRewardsAbi,
+    functionName: 'recordProfit',
+  })
+
+/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `functionName` set to `"recordWin"`
  */
 export const useLeaderboardRewardsSimulateRecordWin =
@@ -10445,12 +10837,30 @@ export const useLeaderboardRewardsWatchEpochRolledOver =
   })
 
 /**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `eventName` set to `"FeeNotified"`
+ */
+export const useLeaderboardRewardsWatchFeeNotified =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: leaderboardRewardsAbi,
+    eventName: 'FeeNotified',
+  })
+
+/**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `eventName` set to `"Initialized"`
  */
 export const useLeaderboardRewardsWatchInitialized =
   /*#__PURE__*/ createUseWatchContractEvent({
     abi: leaderboardRewardsAbi,
     eventName: 'Initialized',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `eventName` set to `"LegacyWinIgnored"`
+ */
+export const useLeaderboardRewardsWatchLegacyWinIgnored =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: leaderboardRewardsAbi,
+    eventName: 'LegacyWinIgnored',
   })
 
 /**
@@ -10478,6 +10888,15 @@ export const useLeaderboardRewardsWatchPrizeClaimed =
   /*#__PURE__*/ createUseWatchContractEvent({
     abi: leaderboardRewardsAbi,
     eventName: 'PrizeClaimed',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link leaderboardRewardsAbi}__ and `eventName` set to `"ProfitIgnored"`
+ */
+export const useLeaderboardRewardsWatchProfitIgnored =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: leaderboardRewardsAbi,
+    eventName: 'ProfitIgnored',
   })
 
 /**
@@ -10544,6 +10963,636 @@ export const useLeaderboardRewardsWatchWinRecorded =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link networkRouterAbi}__
+ */
+export const useNetworkRouterReadundefined =
+  /*#__PURE__*/ createUseReadContract({ abi: networkRouterAbi })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"bettingMatchFactory"`
+ */
+export const useNetworkRouterReadBettingMatchFactory =
+  /*#__PURE__*/ createUseReadContract({
+    abi: networkRouterAbi,
+    functionName: 'bettingMatchFactory',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"masterRouter"`
+ */
+export const useNetworkRouterReadMasterRouter =
+  /*#__PURE__*/ createUseReadContract({
+    abi: networkRouterAbi,
+    functionName: 'masterRouter',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"owner"`
+ */
+export const useNetworkRouterReadOwner = /*#__PURE__*/ createUseReadContract({
+  abi: networkRouterAbi,
+  functionName: 'owner',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"pendingOwner"`
+ */
+export const useNetworkRouterReadPendingOwner =
+  /*#__PURE__*/ createUseReadContract({
+    abi: networkRouterAbi,
+    functionName: 'pendingOwner',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"platformFeeBps"`
+ */
+export const useNetworkRouterReadPlatformFeeBps =
+  /*#__PURE__*/ createUseReadContract({
+    abi: networkRouterAbi,
+    functionName: 'platformFeeBps',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"quoteTokenToUSDC"`
+ */
+export const useNetworkRouterReadQuoteTokenToUsdc =
+  /*#__PURE__*/ createUseReadContract({
+    abi: networkRouterAbi,
+    functionName: 'quoteTokenToUSDC',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"routeFor"`
+ */
+export const useNetworkRouterReadRouteFor = /*#__PURE__*/ createUseReadContract(
+  { abi: networkRouterAbi, functionName: 'routeFor' },
+)
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"streamWalletFactory"`
+ */
+export const useNetworkRouterReadStreamWalletFactory =
+  /*#__PURE__*/ createUseReadContract({
+    abi: networkRouterAbi,
+    functionName: 'streamWalletFactory',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"swapRouteFor"`
+ */
+export const useNetworkRouterReadSwapRouteFor =
+  /*#__PURE__*/ createUseReadContract({
+    abi: networkRouterAbi,
+    functionName: 'swapRouteFor',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"tokenRouter"`
+ */
+export const useNetworkRouterReadTokenRouter =
+  /*#__PURE__*/ createUseReadContract({
+    abi: networkRouterAbi,
+    functionName: 'tokenRouter',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"treasury"`
+ */
+export const useNetworkRouterReadTreasury = /*#__PURE__*/ createUseReadContract(
+  { abi: networkRouterAbi, functionName: 'treasury' },
+)
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"usdc"`
+ */
+export const useNetworkRouterReadUsdc = /*#__PURE__*/ createUseReadContract({
+  abi: networkRouterAbi,
+  functionName: 'usdc',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"wrappedNativeToken"`
+ */
+export const useNetworkRouterReadWrappedNativeToken =
+  /*#__PURE__*/ createUseReadContract({
+    abi: networkRouterAbi,
+    functionName: 'wrappedNativeToken',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"wrapperFactory"`
+ */
+export const useNetworkRouterReadWrapperFactory =
+  /*#__PURE__*/ createUseReadContract({
+    abi: networkRouterAbi,
+    functionName: 'wrapperFactory',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link networkRouterAbi}__
+ */
+export const useNetworkRouterWriteundefined =
+  /*#__PURE__*/ createUseWriteContract({ abi: networkRouterAbi })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"acceptOwnership"`
+ */
+export const useNetworkRouterWriteAcceptOwnership =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: networkRouterAbi,
+    functionName: 'acceptOwnership',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"donateWithNativeToken"`
+ */
+export const useNetworkRouterWriteDonateWithNativeToken =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: networkRouterAbi,
+    functionName: 'donateWithNativeToken',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"donateWithToken"`
+ */
+export const useNetworkRouterWriteDonateWithToken =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: networkRouterAbi,
+    functionName: 'donateWithToken',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"donateWithUSDC"`
+ */
+export const useNetworkRouterWriteDonateWithUsdc =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: networkRouterAbi,
+    functionName: 'donateWithUSDC',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"placeBetWithNativeToken"`
+ */
+export const useNetworkRouterWritePlaceBetWithNativeToken =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: networkRouterAbi,
+    functionName: 'placeBetWithNativeToken',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"placeBetWithToken"`
+ */
+export const useNetworkRouterWritePlaceBetWithToken =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: networkRouterAbi,
+    functionName: 'placeBetWithToken',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"placeBetWithUSDC"`
+ */
+export const useNetworkRouterWritePlaceBetWithUsdc =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: networkRouterAbi,
+    functionName: 'placeBetWithUSDC',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"renounceOwnership"`
+ */
+export const useNetworkRouterWriteRenounceOwnership =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: networkRouterAbi,
+    functionName: 'renounceOwnership',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"rescueTokens"`
+ */
+export const useNetworkRouterWriteRescueTokens =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: networkRouterAbi,
+    functionName: 'rescueTokens',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"setMatchFactory"`
+ */
+export const useNetworkRouterWriteSetMatchFactory =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: networkRouterAbi,
+    functionName: 'setMatchFactory',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"setPlatformFeeBps"`
+ */
+export const useNetworkRouterWriteSetPlatformFeeBps =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: networkRouterAbi,
+    functionName: 'setPlatformFeeBps',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"setStreamWalletFactory"`
+ */
+export const useNetworkRouterWriteSetStreamWalletFactory =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: networkRouterAbi,
+    functionName: 'setStreamWalletFactory',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"setTreasury"`
+ */
+export const useNetworkRouterWriteSetTreasury =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: networkRouterAbi,
+    functionName: 'setTreasury',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"setWrapperFactory"`
+ */
+export const useNetworkRouterWriteSetWrapperFactory =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: networkRouterAbi,
+    functionName: 'setWrapperFactory',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"subscribeWithNativeToken"`
+ */
+export const useNetworkRouterWriteSubscribeWithNativeToken =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: networkRouterAbi,
+    functionName: 'subscribeWithNativeToken',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"subscribeWithToken"`
+ */
+export const useNetworkRouterWriteSubscribeWithToken =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: networkRouterAbi,
+    functionName: 'subscribeWithToken',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"subscribeWithUSDC"`
+ */
+export const useNetworkRouterWriteSubscribeWithUsdc =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: networkRouterAbi,
+    functionName: 'subscribeWithUSDC',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"transferOwnership"`
+ */
+export const useNetworkRouterWriteTransferOwnership =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: networkRouterAbi,
+    functionName: 'transferOwnership',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link networkRouterAbi}__
+ */
+export const useNetworkRouterSimulateundefined =
+  /*#__PURE__*/ createUseSimulateContract({ abi: networkRouterAbi })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"acceptOwnership"`
+ */
+export const useNetworkRouterSimulateAcceptOwnership =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: networkRouterAbi,
+    functionName: 'acceptOwnership',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"donateWithNativeToken"`
+ */
+export const useNetworkRouterSimulateDonateWithNativeToken =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: networkRouterAbi,
+    functionName: 'donateWithNativeToken',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"donateWithToken"`
+ */
+export const useNetworkRouterSimulateDonateWithToken =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: networkRouterAbi,
+    functionName: 'donateWithToken',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"donateWithUSDC"`
+ */
+export const useNetworkRouterSimulateDonateWithUsdc =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: networkRouterAbi,
+    functionName: 'donateWithUSDC',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"placeBetWithNativeToken"`
+ */
+export const useNetworkRouterSimulatePlaceBetWithNativeToken =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: networkRouterAbi,
+    functionName: 'placeBetWithNativeToken',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"placeBetWithToken"`
+ */
+export const useNetworkRouterSimulatePlaceBetWithToken =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: networkRouterAbi,
+    functionName: 'placeBetWithToken',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"placeBetWithUSDC"`
+ */
+export const useNetworkRouterSimulatePlaceBetWithUsdc =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: networkRouterAbi,
+    functionName: 'placeBetWithUSDC',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"renounceOwnership"`
+ */
+export const useNetworkRouterSimulateRenounceOwnership =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: networkRouterAbi,
+    functionName: 'renounceOwnership',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"rescueTokens"`
+ */
+export const useNetworkRouterSimulateRescueTokens =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: networkRouterAbi,
+    functionName: 'rescueTokens',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"setMatchFactory"`
+ */
+export const useNetworkRouterSimulateSetMatchFactory =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: networkRouterAbi,
+    functionName: 'setMatchFactory',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"setPlatformFeeBps"`
+ */
+export const useNetworkRouterSimulateSetPlatformFeeBps =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: networkRouterAbi,
+    functionName: 'setPlatformFeeBps',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"setStreamWalletFactory"`
+ */
+export const useNetworkRouterSimulateSetStreamWalletFactory =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: networkRouterAbi,
+    functionName: 'setStreamWalletFactory',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"setTreasury"`
+ */
+export const useNetworkRouterSimulateSetTreasury =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: networkRouterAbi,
+    functionName: 'setTreasury',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"setWrapperFactory"`
+ */
+export const useNetworkRouterSimulateSetWrapperFactory =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: networkRouterAbi,
+    functionName: 'setWrapperFactory',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"subscribeWithNativeToken"`
+ */
+export const useNetworkRouterSimulateSubscribeWithNativeToken =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: networkRouterAbi,
+    functionName: 'subscribeWithNativeToken',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"subscribeWithToken"`
+ */
+export const useNetworkRouterSimulateSubscribeWithToken =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: networkRouterAbi,
+    functionName: 'subscribeWithToken',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"subscribeWithUSDC"`
+ */
+export const useNetworkRouterSimulateSubscribeWithUsdc =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: networkRouterAbi,
+    functionName: 'subscribeWithUSDC',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link networkRouterAbi}__ and `functionName` set to `"transferOwnership"`
+ */
+export const useNetworkRouterSimulateTransferOwnership =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: networkRouterAbi,
+    functionName: 'transferOwnership',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link networkRouterAbi}__
+ */
+export const useNetworkRouterWatchundefined =
+  /*#__PURE__*/ createUseWatchContractEvent({ abi: networkRouterAbi })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link networkRouterAbi}__ and `eventName` set to `"BetPlacedViaNativeToken"`
+ */
+export const useNetworkRouterWatchBetPlacedViaNativeToken =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: networkRouterAbi,
+    eventName: 'BetPlacedViaNativeToken',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link networkRouterAbi}__ and `eventName` set to `"BetPlacedViaToken"`
+ */
+export const useNetworkRouterWatchBetPlacedViaToken =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: networkRouterAbi,
+    eventName: 'BetPlacedViaToken',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link networkRouterAbi}__ and `eventName` set to `"BetPlacedWithUSDC"`
+ */
+export const useNetworkRouterWatchBetPlacedWithUsdc =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: networkRouterAbi,
+    eventName: 'BetPlacedWithUSDC',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link networkRouterAbi}__ and `eventName` set to `"DonationWithNativeToken"`
+ */
+export const useNetworkRouterWatchDonationWithNativeToken =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: networkRouterAbi,
+    eventName: 'DonationWithNativeToken',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link networkRouterAbi}__ and `eventName` set to `"DonationWithToken"`
+ */
+export const useNetworkRouterWatchDonationWithToken =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: networkRouterAbi,
+    eventName: 'DonationWithToken',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link networkRouterAbi}__ and `eventName` set to `"DonationWithUSDCEvent"`
+ */
+export const useNetworkRouterWatchDonationWithUsdcEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: networkRouterAbi,
+    eventName: 'DonationWithUSDCEvent',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link networkRouterAbi}__ and `eventName` set to `"FanTokenWrapped"`
+ */
+export const useNetworkRouterWatchFanTokenWrapped =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: networkRouterAbi,
+    eventName: 'FanTokenWrapped',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link networkRouterAbi}__ and `eventName` set to `"MatchFactorySet"`
+ */
+export const useNetworkRouterWatchMatchFactorySet =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: networkRouterAbi,
+    eventName: 'MatchFactorySet',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link networkRouterAbi}__ and `eventName` set to `"OwnershipTransferStarted"`
+ */
+export const useNetworkRouterWatchOwnershipTransferStarted =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: networkRouterAbi,
+    eventName: 'OwnershipTransferStarted',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link networkRouterAbi}__ and `eventName` set to `"OwnershipTransferred"`
+ */
+export const useNetworkRouterWatchOwnershipTransferred =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: networkRouterAbi,
+    eventName: 'OwnershipTransferred',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link networkRouterAbi}__ and `eventName` set to `"PlatformFeeBpsSet"`
+ */
+export const useNetworkRouterWatchPlatformFeeBpsSet =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: networkRouterAbi,
+    eventName: 'PlatformFeeBpsSet',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link networkRouterAbi}__ and `eventName` set to `"StreamWalletFactorySet"`
+ */
+export const useNetworkRouterWatchStreamWalletFactorySet =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: networkRouterAbi,
+    eventName: 'StreamWalletFactorySet',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link networkRouterAbi}__ and `eventName` set to `"SubscriptionWithNativeToken"`
+ */
+export const useNetworkRouterWatchSubscriptionWithNativeToken =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: networkRouterAbi,
+    eventName: 'SubscriptionWithNativeToken',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link networkRouterAbi}__ and `eventName` set to `"SubscriptionWithToken"`
+ */
+export const useNetworkRouterWatchSubscriptionWithToken =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: networkRouterAbi,
+    eventName: 'SubscriptionWithToken',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link networkRouterAbi}__ and `eventName` set to `"SubscriptionWithUSDCEvent"`
+ */
+export const useNetworkRouterWatchSubscriptionWithUsdcEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: networkRouterAbi,
+    eventName: 'SubscriptionWithUSDCEvent',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link networkRouterAbi}__ and `eventName` set to `"TokensRescued"`
+ */
+export const useNetworkRouterWatchTokensRescued =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: networkRouterAbi,
+    eventName: 'TokensRescued',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link networkRouterAbi}__ and `eventName` set to `"TreasurySet"`
+ */
+export const useNetworkRouterWatchTreasurySet =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: networkRouterAbi,
+    eventName: 'TreasurySet',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link networkRouterAbi}__ and `eventName` set to `"WrapperFactorySet"`
+ */
+export const useNetworkRouterWatchWrapperFactorySet =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: networkRouterAbi,
+    eventName: 'WrapperFactorySet',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link pariMatchBaseAbi}__
  */
 export const usePariMatchBaseReadundefined =
@@ -10575,6 +11624,33 @@ export const usePariMatchBaseReadDefaultAdminRole =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"DEFAULT_FEE_BPS"`
+ */
+export const usePariMatchBaseReadDefaultFeeBps =
+  /*#__PURE__*/ createUseReadContract({
+    abi: pariMatchBaseAbi,
+    functionName: 'DEFAULT_FEE_BPS',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"LEGACY_MARKET_TTL"`
+ */
+export const usePariMatchBaseReadLegacyMarketTtl =
+  /*#__PURE__*/ createUseReadContract({
+    abi: pariMatchBaseAbi,
+    functionName: 'LEGACY_MARKET_TTL',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"MAX_CLAIM_PAUSE"`
+ */
+export const usePariMatchBaseReadMaxClaimPause =
+  /*#__PURE__*/ createUseReadContract({
+    abi: pariMatchBaseAbi,
+    functionName: 'MAX_CLAIM_PAUSE',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"MAX_FEE_BPS"`
  */
 export const usePariMatchBaseReadMaxFeeBps =
@@ -10600,6 +11676,15 @@ export const usePariMatchBaseReadPauserRole =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"RESOLUTION_TIMEOUT"`
+ */
+export const usePariMatchBaseReadResolutionTimeout =
+  /*#__PURE__*/ createUseReadContract({
+    abi: pariMatchBaseAbi,
+    functionName: 'RESOLUTION_TIMEOUT',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"RESOLVER_ROLE"`
  */
 export const usePariMatchBaseReadResolverRole =
@@ -10615,15 +11700,6 @@ export const usePariMatchBaseReadSwapRouterRole =
   /*#__PURE__*/ createUseReadContract({
     abi: pariMatchBaseAbi,
     functionName: 'SWAP_ROUTER_ROLE',
-  })
-
-/**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"UPGRADE_INTERFACE_VERSION"`
- */
-export const usePariMatchBaseReadUpgradeInterfaceVersion =
-  /*#__PURE__*/ createUseReadContract({
-    abi: pariMatchBaseAbi,
-    functionName: 'UPGRADE_INTERFACE_VERSION',
   })
 
 /**
@@ -10659,6 +11735,15 @@ export const usePariMatchBaseReadGetMarketCore =
   /*#__PURE__*/ createUseReadContract({
     abi: pariMatchBaseAbi,
     functionName: 'getMarketCore',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"getMarketFees"`
+ */
+export const usePariMatchBaseReadGetMarketFees =
+  /*#__PURE__*/ createUseReadContract({
+    abi: pariMatchBaseAbi,
+    functionName: 'getMarketFees',
   })
 
 /**
@@ -10778,14 +11863,6 @@ export const usePariMatchBaseReadMatchName =
   })
 
 /**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"owner"`
- */
-export const usePariMatchBaseReadOwner = /*#__PURE__*/ createUseReadContract({
-  abi: pariMatchBaseAbi,
-  functionName: 'owner',
-})
-
-/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"paused"`
  */
 export const usePariMatchBaseReadPaused = /*#__PURE__*/ createUseReadContract({
@@ -10794,13 +11871,11 @@ export const usePariMatchBaseReadPaused = /*#__PURE__*/ createUseReadContract({
 })
 
 /**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"proxiableUUID"`
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"pausedAt"`
  */
-export const usePariMatchBaseReadProxiableUuid =
-  /*#__PURE__*/ createUseReadContract({
-    abi: pariMatchBaseAbi,
-    functionName: 'proxiableUUID',
-  })
+export const usePariMatchBaseReadPausedAt = /*#__PURE__*/ createUseReadContract(
+  { abi: pariMatchBaseAbi, functionName: 'pausedAt' },
+)
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"sportType"`
@@ -10810,6 +11885,14 @@ export const usePariMatchBaseReadSportType =
     abi: pariMatchBaseAbi,
     functionName: 'sportType',
   })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"staleAt"`
+ */
+export const usePariMatchBaseReadStaleAt = /*#__PURE__*/ createUseReadContract({
+  abi: pariMatchBaseAbi,
+  functionName: 'staleAt',
+})
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"supportsInterface"`
@@ -10881,6 +11964,15 @@ export const usePariMatchBaseWriteCancelMarket =
   })
 
 /**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"cancelStaleMarket"`
+ */
+export const usePariMatchBaseWriteCancelStaleMarket =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: pariMatchBaseAbi,
+    functionName: 'cancelStaleMarket',
+  })
+
+/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"claim"`
  */
 export const usePariMatchBaseWriteClaim = /*#__PURE__*/ createUseWriteContract({
@@ -10913,6 +12005,15 @@ export const usePariMatchBaseWriteClaimRefundBatch =
   /*#__PURE__*/ createUseWriteContract({
     abi: pariMatchBaseAbi,
     functionName: 'claimRefundBatch',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"closeExpiredMarket"`
+ */
+export const usePariMatchBaseWriteCloseExpiredMarket =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: pariMatchBaseAbi,
+    functionName: 'closeExpiredMarket',
   })
 
 /**
@@ -10970,30 +12071,12 @@ export const usePariMatchBaseWriteOpenMarketsBatch =
   })
 
 /**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"placeBetUSDC"`
- */
-export const usePariMatchBaseWritePlaceBetUsdc =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: pariMatchBaseAbi,
-    functionName: 'placeBetUSDC',
-  })
-
-/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"placeBetUSDCFor"`
  */
 export const usePariMatchBaseWritePlaceBetUsdcFor =
   /*#__PURE__*/ createUseWriteContract({
     abi: pariMatchBaseAbi,
     functionName: 'placeBetUSDCFor',
-  })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"renounceOwnership"`
- */
-export const usePariMatchBaseWriteRenounceOwnership =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: pariMatchBaseAbi,
-    functionName: 'renounceOwnership',
   })
 
 /**
@@ -11069,6 +12152,24 @@ export const usePariMatchBaseWriteSetLeaderboardRecipient =
   })
 
 /**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"setMarketCloseTime"`
+ */
+export const usePariMatchBaseWriteSetMarketCloseTime =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: pariMatchBaseAbi,
+    functionName: 'setMarketCloseTime',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"setMarketsCloseTime"`
+ */
+export const usePariMatchBaseWriteSetMarketsCloseTime =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: pariMatchBaseAbi,
+    functionName: 'setMarketsCloseTime',
+  })
+
+/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"setUSDCToken"`
  */
 export const usePariMatchBaseWriteSetUsdcToken =
@@ -11087,30 +12188,12 @@ export const usePariMatchBaseWriteSuspendMarket =
   })
 
 /**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"transferOwnership"`
- */
-export const usePariMatchBaseWriteTransferOwnership =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: pariMatchBaseAbi,
-    functionName: 'transferOwnership',
-  })
-
-/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"unpause"`
  */
 export const usePariMatchBaseWriteUnpause =
   /*#__PURE__*/ createUseWriteContract({
     abi: pariMatchBaseAbi,
     functionName: 'unpause',
-  })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"upgradeToAndCall"`
- */
-export const usePariMatchBaseWriteUpgradeToAndCall =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: pariMatchBaseAbi,
-    functionName: 'upgradeToAndCall',
   })
 
 /**
@@ -11165,6 +12248,15 @@ export const usePariMatchBaseSimulateCancelMarket =
   })
 
 /**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"cancelStaleMarket"`
+ */
+export const usePariMatchBaseSimulateCancelStaleMarket =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: pariMatchBaseAbi,
+    functionName: 'cancelStaleMarket',
+  })
+
+/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"claim"`
  */
 export const usePariMatchBaseSimulateClaim =
@@ -11198,6 +12290,15 @@ export const usePariMatchBaseSimulateClaimRefundBatch =
   /*#__PURE__*/ createUseSimulateContract({
     abi: pariMatchBaseAbi,
     functionName: 'claimRefundBatch',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"closeExpiredMarket"`
+ */
+export const usePariMatchBaseSimulateCloseExpiredMarket =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: pariMatchBaseAbi,
+    functionName: 'closeExpiredMarket',
   })
 
 /**
@@ -11255,30 +12356,12 @@ export const usePariMatchBaseSimulateOpenMarketsBatch =
   })
 
 /**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"placeBetUSDC"`
- */
-export const usePariMatchBaseSimulatePlaceBetUsdc =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: pariMatchBaseAbi,
-    functionName: 'placeBetUSDC',
-  })
-
-/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"placeBetUSDCFor"`
  */
 export const usePariMatchBaseSimulatePlaceBetUsdcFor =
   /*#__PURE__*/ createUseSimulateContract({
     abi: pariMatchBaseAbi,
     functionName: 'placeBetUSDCFor',
-  })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"renounceOwnership"`
- */
-export const usePariMatchBaseSimulateRenounceOwnership =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: pariMatchBaseAbi,
-    functionName: 'renounceOwnership',
   })
 
 /**
@@ -11354,6 +12437,24 @@ export const usePariMatchBaseSimulateSetLeaderboardRecipient =
   })
 
 /**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"setMarketCloseTime"`
+ */
+export const usePariMatchBaseSimulateSetMarketCloseTime =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: pariMatchBaseAbi,
+    functionName: 'setMarketCloseTime',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"setMarketsCloseTime"`
+ */
+export const usePariMatchBaseSimulateSetMarketsCloseTime =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: pariMatchBaseAbi,
+    functionName: 'setMarketsCloseTime',
+  })
+
+/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"setUSDCToken"`
  */
 export const usePariMatchBaseSimulateSetUsdcToken =
@@ -11372,30 +12473,12 @@ export const usePariMatchBaseSimulateSuspendMarket =
   })
 
 /**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"transferOwnership"`
- */
-export const usePariMatchBaseSimulateTransferOwnership =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: pariMatchBaseAbi,
-    functionName: 'transferOwnership',
-  })
-
-/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"unpause"`
  */
 export const usePariMatchBaseSimulateUnpause =
   /*#__PURE__*/ createUseSimulateContract({
     abi: pariMatchBaseAbi,
     functionName: 'unpause',
-  })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `functionName` set to `"upgradeToAndCall"`
- */
-export const usePariMatchBaseSimulateUpgradeToAndCall =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: pariMatchBaseAbi,
-    functionName: 'upgradeToAndCall',
   })
 
 /**
@@ -11441,6 +12524,15 @@ export const usePariMatchBaseWatchLeaderboardFeeBpsSet =
   })
 
 /**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `eventName` set to `"LeaderboardNotifyFailed"`
+ */
+export const usePariMatchBaseWatchLeaderboardNotifyFailed =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: pariMatchBaseAbi,
+    eventName: 'LeaderboardNotifyFailed',
+  })
+
+/**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `eventName` set to `"LeaderboardRecipientSet"`
  */
 export const usePariMatchBaseWatchLeaderboardRecipientSet =
@@ -11468,12 +12560,30 @@ export const usePariMatchBaseWatchMarketCancelled =
   })
 
 /**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `eventName` set to `"MarketCloseTimeSet"`
+ */
+export const usePariMatchBaseWatchMarketCloseTimeSet =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: pariMatchBaseAbi,
+    eventName: 'MarketCloseTimeSet',
+  })
+
+/**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `eventName` set to `"MarketCreated"`
  */
 export const usePariMatchBaseWatchMarketCreated =
   /*#__PURE__*/ createUseWatchContractEvent({
     abi: pariMatchBaseAbi,
     eventName: 'MarketCreated',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `eventName` set to `"MarketFeesFrozen"`
+ */
+export const usePariMatchBaseWatchMarketFeesFrozen =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: pariMatchBaseAbi,
+    eventName: 'MarketFeesFrozen',
   })
 
 /**
@@ -11501,15 +12611,6 @@ export const usePariMatchBaseWatchMatchInitialized =
   /*#__PURE__*/ createUseWatchContractEvent({
     abi: pariMatchBaseAbi,
     eventName: 'MatchInitialized',
-  })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `eventName` set to `"OwnershipTransferred"`
- */
-export const usePariMatchBaseWatchOwnershipTransferred =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: pariMatchBaseAbi,
-    eventName: 'OwnershipTransferred',
   })
 
 /**
@@ -11576,6 +12677,15 @@ export const usePariMatchBaseWatchStakeRefunded =
   })
 
 /**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `eventName` set to `"StaleMarketCancelled"`
+ */
+export const usePariMatchBaseWatchStaleMarketCancelled =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: pariMatchBaseAbi,
+    eventName: 'StaleMarketCancelled',
+  })
+
+/**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `eventName` set to `"USDCTokenSet"`
  */
 export const usePariMatchBaseWatchUsdcTokenSet =
@@ -11594,15 +12704,6 @@ export const usePariMatchBaseWatchUnpaused =
   })
 
 /**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link pariMatchBaseAbi}__ and `eventName` set to `"Upgraded"`
- */
-export const usePariMatchBaseWatchUpgraded =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: pariMatchBaseAbi,
-    eventName: 'Upgraded',
-  })
-
-/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__
  */
 export const usePariMatchFactoryReadundefined =
@@ -11618,6 +12719,15 @@ export const usePariMatchFactoryReadBasketball =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"DEFAULT_LEADERBOARD_FEE_BPS"`
+ */
+export const usePariMatchFactoryReadDefaultLeaderboardFeeBps =
+  /*#__PURE__*/ createUseReadContract({
+    abi: pariMatchFactoryAbi,
+    functionName: 'DEFAULT_LEADERBOARD_FEE_BPS',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"FOOTBALL"`
  */
 export const usePariMatchFactoryReadFootball =
@@ -11627,12 +12737,30 @@ export const usePariMatchFactoryReadFootball =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"MATCH_DEFAULT_FEE_BPS"`
+ */
+export const usePariMatchFactoryReadMatchDefaultFeeBps =
+  /*#__PURE__*/ createUseReadContract({
+    abi: pariMatchFactoryAbi,
+    functionName: 'MATCH_DEFAULT_FEE_BPS',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"allMatches"`
  */
 export const usePariMatchFactoryReadAllMatches =
   /*#__PURE__*/ createUseReadContract({
     abi: pariMatchFactoryAbi,
     functionName: 'allMatches',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"basketballBeacon"`
+ */
+export const usePariMatchFactoryReadBasketballBeacon =
+  /*#__PURE__*/ createUseReadContract({
+    abi: pariMatchFactoryAbi,
+    functionName: 'basketballBeacon',
   })
 
 /**
@@ -11651,6 +12779,15 @@ export const usePariMatchFactoryReadFeeRecipient =
   /*#__PURE__*/ createUseReadContract({
     abi: pariMatchFactoryAbi,
     functionName: 'feeRecipient',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"footballBeacon"`
+ */
+export const usePariMatchFactoryReadFootballBeacon =
+  /*#__PURE__*/ createUseReadContract({
+    abi: pariMatchFactoryAbi,
+    functionName: 'footballBeacon',
   })
 
 /**
@@ -11717,6 +12854,15 @@ export const usePariMatchFactoryReadLeaderboardRewards =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"matchOperator"`
+ */
+export const usePariMatchFactoryReadMatchOperator =
+  /*#__PURE__*/ createUseReadContract({
+    abi: pariMatchFactoryAbi,
+    functionName: 'matchOperator',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"matchSportType"`
  */
 export const usePariMatchFactoryReadMatchSportType =
@@ -11733,12 +12879,30 @@ export const usePariMatchFactoryReadOwner = /*#__PURE__*/ createUseReadContract(
 )
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"pendingOwner"`
+ */
+export const usePariMatchFactoryReadPendingOwner =
+  /*#__PURE__*/ createUseReadContract({
+    abi: pariMatchFactoryAbi,
+    functionName: 'pendingOwner',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"swapRouter"`
  */
 export const usePariMatchFactoryReadSwapRouter =
   /*#__PURE__*/ createUseReadContract({
     abi: pariMatchFactoryAbi,
     functionName: 'swapRouter',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"upgradeAdmin"`
+ */
+export const usePariMatchFactoryReadUpgradeAdmin =
+  /*#__PURE__*/ createUseReadContract({
+    abi: pariMatchFactoryAbi,
+    functionName: 'upgradeAdmin',
   })
 
 /**
@@ -11757,12 +12921,30 @@ export const usePariMatchFactoryWriteundefined =
   /*#__PURE__*/ createUseWriteContract({ abi: pariMatchFactoryAbi })
 
 /**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"acceptOwnership"`
+ */
+export const usePariMatchFactoryWriteAcceptOwnership =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: pariMatchFactoryAbi,
+    functionName: 'acceptOwnership',
+  })
+
+/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"createBasketballMatch"`
  */
 export const usePariMatchFactoryWriteCreateBasketballMatch =
   /*#__PURE__*/ createUseWriteContract({
     abi: pariMatchFactoryAbi,
     functionName: 'createBasketballMatch',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"createBasketballMatchWithMarkets"`
+ */
+export const usePariMatchFactoryWriteCreateBasketballMatchWithMarkets =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: pariMatchFactoryAbi,
+    functionName: 'createBasketballMatchWithMarkets',
   })
 
 /**
@@ -11775,6 +12957,15 @@ export const usePariMatchFactoryWriteCreateFootballMatch =
   })
 
 /**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"createFootballMatchWithMarkets"`
+ */
+export const usePariMatchFactoryWriteCreateFootballMatchWithMarkets =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: pariMatchFactoryAbi,
+    functionName: 'createFootballMatchWithMarkets',
+  })
+
+/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"renounceOwnership"`
  */
 export const usePariMatchFactoryWriteRenounceOwnership =
@@ -11784,30 +12975,21 @@ export const usePariMatchFactoryWriteRenounceOwnership =
   })
 
 /**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"setBasketballImplementation"`
- */
-export const usePariMatchFactoryWriteSetBasketballImplementation =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: pariMatchFactoryAbi,
-    functionName: 'setBasketballImplementation',
-  })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"setFootballImplementation"`
- */
-export const usePariMatchFactoryWriteSetFootballImplementation =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: pariMatchFactoryAbi,
-    functionName: 'setFootballImplementation',
-  })
-
-/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"setLeaderboardWiring"`
  */
 export const usePariMatchFactoryWriteSetLeaderboardWiring =
   /*#__PURE__*/ createUseWriteContract({
     abi: pariMatchFactoryAbi,
     functionName: 'setLeaderboardWiring',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"setMatchOperator"`
+ */
+export const usePariMatchFactoryWriteSetMatchOperator =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: pariMatchFactoryAbi,
+    functionName: 'setMatchOperator',
   })
 
 /**
@@ -11835,12 +13017,30 @@ export const usePariMatchFactorySimulateundefined =
   /*#__PURE__*/ createUseSimulateContract({ abi: pariMatchFactoryAbi })
 
 /**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"acceptOwnership"`
+ */
+export const usePariMatchFactorySimulateAcceptOwnership =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: pariMatchFactoryAbi,
+    functionName: 'acceptOwnership',
+  })
+
+/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"createBasketballMatch"`
  */
 export const usePariMatchFactorySimulateCreateBasketballMatch =
   /*#__PURE__*/ createUseSimulateContract({
     abi: pariMatchFactoryAbi,
     functionName: 'createBasketballMatch',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"createBasketballMatchWithMarkets"`
+ */
+export const usePariMatchFactorySimulateCreateBasketballMatchWithMarkets =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: pariMatchFactoryAbi,
+    functionName: 'createBasketballMatchWithMarkets',
   })
 
 /**
@@ -11853,6 +13053,15 @@ export const usePariMatchFactorySimulateCreateFootballMatch =
   })
 
 /**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"createFootballMatchWithMarkets"`
+ */
+export const usePariMatchFactorySimulateCreateFootballMatchWithMarkets =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: pariMatchFactoryAbi,
+    functionName: 'createFootballMatchWithMarkets',
+  })
+
+/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"renounceOwnership"`
  */
 export const usePariMatchFactorySimulateRenounceOwnership =
@@ -11862,30 +13071,21 @@ export const usePariMatchFactorySimulateRenounceOwnership =
   })
 
 /**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"setBasketballImplementation"`
- */
-export const usePariMatchFactorySimulateSetBasketballImplementation =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: pariMatchFactoryAbi,
-    functionName: 'setBasketballImplementation',
-  })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"setFootballImplementation"`
- */
-export const usePariMatchFactorySimulateSetFootballImplementation =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: pariMatchFactoryAbi,
-    functionName: 'setFootballImplementation',
-  })
-
-/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"setLeaderboardWiring"`
  */
 export const usePariMatchFactorySimulateSetLeaderboardWiring =
   /*#__PURE__*/ createUseSimulateContract({
     abi: pariMatchFactoryAbi,
     functionName: 'setLeaderboardWiring',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `functionName` set to `"setMatchOperator"`
+ */
+export const usePariMatchFactorySimulateSetMatchOperator =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: pariMatchFactoryAbi,
+    functionName: 'setMatchOperator',
   })
 
 /**
@@ -11913,24 +13113,6 @@ export const usePariMatchFactoryWatchundefined =
   /*#__PURE__*/ createUseWatchContractEvent({ abi: pariMatchFactoryAbi })
 
 /**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `eventName` set to `"BasketballImplementationUpdated"`
- */
-export const usePariMatchFactoryWatchBasketballImplementationUpdated =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: pariMatchFactoryAbi,
-    eventName: 'BasketballImplementationUpdated',
-  })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `eventName` set to `"FootballImplementationUpdated"`
- */
-export const usePariMatchFactoryWatchFootballImplementationUpdated =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: pariMatchFactoryAbi,
-    eventName: 'FootballImplementationUpdated',
-  })
-
-/**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `eventName` set to `"LeaderboardWiringSet"`
  */
 export const usePariMatchFactoryWatchLeaderboardWiringSet =
@@ -11946,6 +13128,24 @@ export const usePariMatchFactoryWatchMatchCreated =
   /*#__PURE__*/ createUseWatchContractEvent({
     abi: pariMatchFactoryAbi,
     eventName: 'MatchCreated',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `eventName` set to `"MatchOperatorSet"`
+ */
+export const usePariMatchFactoryWatchMatchOperatorSet =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: pariMatchFactoryAbi,
+    eventName: 'MatchOperatorSet',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link pariMatchFactoryAbi}__ and `eventName` set to `"OwnershipTransferStarted"`
+ */
+export const usePariMatchFactoryWatchOwnershipTransferStarted =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: pariMatchFactoryAbi,
+    eventName: 'OwnershipTransferStarted',
   })
 
 /**
@@ -11972,6 +13172,24 @@ export const usePariMatchFactoryWatchWiringSet =
 export const useStreamWalletReadundefined = /*#__PURE__*/ createUseReadContract(
   { abi: streamWalletAbi },
 )
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"MAX_SUBSCRIPTION_PERIOD"`
+ */
+export const useStreamWalletReadMaxSubscriptionPeriod =
+  /*#__PURE__*/ createUseReadContract({
+    abi: streamWalletAbi,
+    functionName: 'MAX_SUBSCRIPTION_PERIOD',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"MIN_SUBSCRIPTION_PERIOD"`
+ */
+export const useStreamWalletReadMinSubscriptionPeriod =
+  /*#__PURE__*/ createUseReadContract({
+    abi: streamWalletAbi,
+    functionName: 'MIN_SUBSCRIPTION_PERIOD',
+  })
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"UPGRADE_INTERFACE_VERSION"`
@@ -12027,15 +13245,6 @@ export const useStreamWalletReadIsSubscribed =
   })
 
 /**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"kayenRouter"`
- */
-export const useStreamWalletReadKayenRouter =
-  /*#__PURE__*/ createUseReadContract({
-    abi: streamWalletAbi,
-    functionName: 'kayenRouter',
-  })
-
-/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"lifetimeDonations"`
  */
 export const useStreamWalletReadLifetimeDonations =
@@ -12051,6 +13260,15 @@ export const useStreamWalletReadOwner = /*#__PURE__*/ createUseReadContract({
   abi: streamWalletAbi,
   functionName: 'owner',
 })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"payoutAddress"`
+ */
+export const useStreamWalletReadPayoutAddress =
+  /*#__PURE__*/ createUseReadContract({
+    abi: streamWalletAbi,
+    functionName: 'payoutAddress',
+  })
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"platformFeeBps"`
@@ -12071,12 +13289,48 @@ export const useStreamWalletReadProxiableUuid =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"setSwapRouter"`
+ */
+export const useStreamWalletReadSetSwapRouter =
+  /*#__PURE__*/ createUseReadContract({
+    abi: streamWalletAbi,
+    functionName: 'setSwapRouter',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"streamer"`
  */
 export const useStreamWalletReadStreamer = /*#__PURE__*/ createUseReadContract({
   abi: streamWalletAbi,
   functionName: 'streamer',
 })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"subscriptionCost"`
+ */
+export const useStreamWalletReadSubscriptionCost =
+  /*#__PURE__*/ createUseReadContract({
+    abi: streamWalletAbi,
+    functionName: 'subscriptionCost',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"subscriptionPeriod"`
+ */
+export const useStreamWalletReadSubscriptionPeriod =
+  /*#__PURE__*/ createUseReadContract({
+    abi: streamWalletAbi,
+    functionName: 'subscriptionPeriod',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"subscriptionPrice"`
+ */
+export const useStreamWalletReadSubscriptionPrice =
+  /*#__PURE__*/ createUseReadContract({
+    abi: streamWalletAbi,
+    functionName: 'subscriptionPrice',
+  })
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"subscriptions"`
@@ -12146,23 +13400,6 @@ export const useStreamWalletWriteundefined =
   /*#__PURE__*/ createUseWriteContract({ abi: streamWalletAbi })
 
 /**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"donate"`
- */
-export const useStreamWalletWriteDonate = /*#__PURE__*/ createUseWriteContract({
-  abi: streamWalletAbi,
-  functionName: 'donate',
-})
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"donateFor"`
- */
-export const useStreamWalletWriteDonateFor =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: streamWalletAbi,
-    functionName: 'donateFor',
-  })
-
-/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"initialize"`
  */
 export const useStreamWalletWriteInitialize =
@@ -12178,15 +13415,6 @@ export const useStreamWalletWriteRecordDonationByRouter =
   /*#__PURE__*/ createUseWriteContract({
     abi: streamWalletAbi,
     functionName: 'recordDonationByRouter',
-  })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"recordSubscription"`
- */
-export const useStreamWalletWriteRecordSubscription =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: streamWalletAbi,
-    functionName: 'recordSubscription',
   })
 
 /**
@@ -12208,12 +13436,21 @@ export const useStreamWalletWriteRenounceOwnership =
   })
 
 /**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"setSwapRouter"`
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"setPayoutAddress"`
  */
-export const useStreamWalletWriteSetSwapRouter =
+export const useStreamWalletWriteSetPayoutAddress =
   /*#__PURE__*/ createUseWriteContract({
     abi: streamWalletAbi,
-    functionName: 'setSwapRouter',
+    functionName: 'setPayoutAddress',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"setSubscriptionPricing"`
+ */
+export const useStreamWalletWriteSetSubscriptionPricing =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: streamWalletAbi,
+    functionName: 'setSubscriptionPricing',
   })
 
 /**
@@ -12250,24 +13487,6 @@ export const useStreamWalletSimulateundefined =
   /*#__PURE__*/ createUseSimulateContract({ abi: streamWalletAbi })
 
 /**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"donate"`
- */
-export const useStreamWalletSimulateDonate =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: streamWalletAbi,
-    functionName: 'donate',
-  })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"donateFor"`
- */
-export const useStreamWalletSimulateDonateFor =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: streamWalletAbi,
-    functionName: 'donateFor',
-  })
-
-/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"initialize"`
  */
 export const useStreamWalletSimulateInitialize =
@@ -12283,15 +13502,6 @@ export const useStreamWalletSimulateRecordDonationByRouter =
   /*#__PURE__*/ createUseSimulateContract({
     abi: streamWalletAbi,
     functionName: 'recordDonationByRouter',
-  })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"recordSubscription"`
- */
-export const useStreamWalletSimulateRecordSubscription =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: streamWalletAbi,
-    functionName: 'recordSubscription',
   })
 
 /**
@@ -12313,12 +13523,21 @@ export const useStreamWalletSimulateRenounceOwnership =
   })
 
 /**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"setSwapRouter"`
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"setPayoutAddress"`
  */
-export const useStreamWalletSimulateSetSwapRouter =
+export const useStreamWalletSimulateSetPayoutAddress =
   /*#__PURE__*/ createUseSimulateContract({
     abi: streamWalletAbi,
-    functionName: 'setSwapRouter',
+    functionName: 'setPayoutAddress',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link streamWalletAbi}__ and `functionName` set to `"setSubscriptionPricing"`
+ */
+export const useStreamWalletSimulateSetSubscriptionPricing =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: streamWalletAbi,
+    functionName: 'setSubscriptionPricing',
   })
 
 /**
@@ -12382,12 +13601,12 @@ export const useStreamWalletWatchOwnershipTransferred =
   })
 
 /**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link streamWalletAbi}__ and `eventName` set to `"PlatformFeeCollected"`
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link streamWalletAbi}__ and `eventName` set to `"PayoutAddressSet"`
  */
-export const useStreamWalletWatchPlatformFeeCollected =
+export const useStreamWalletWatchPayoutAddressSet =
   /*#__PURE__*/ createUseWatchContractEvent({
     abi: streamWalletAbi,
-    eventName: 'PlatformFeeCollected',
+    eventName: 'PayoutAddressSet',
   })
 
 /**
@@ -12400,21 +13619,21 @@ export const useStreamWalletWatchRevenueWithdrawn =
   })
 
 /**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link streamWalletAbi}__ and `eventName` set to `"SubscriptionPricingSet"`
+ */
+export const useStreamWalletWatchSubscriptionPricingSet =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: streamWalletAbi,
+    eventName: 'SubscriptionPricingSet',
+  })
+
+/**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link streamWalletAbi}__ and `eventName` set to `"SubscriptionRecorded"`
  */
 export const useStreamWalletWatchSubscriptionRecorded =
   /*#__PURE__*/ createUseWatchContractEvent({
     abi: streamWalletAbi,
     eventName: 'SubscriptionRecorded',
-  })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link streamWalletAbi}__ and `eventName` set to `"SwapRouterUpdated"`
- */
-export const useStreamWalletWatchSwapRouterUpdated =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: streamWalletAbi,
-    eventName: 'SwapRouterUpdated',
   })
 
 /**
@@ -12487,6 +13706,15 @@ export const useStreamWalletFactoryReadOwner =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"pendingOwner"`
+ */
+export const useStreamWalletFactoryReadPendingOwner =
+  /*#__PURE__*/ createUseReadContract({
+    abi: streamWalletFactoryAbi,
+    functionName: 'pendingOwner',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"streamWalletImplementation"`
  */
 export const useStreamWalletFactoryReadStreamWalletImplementation =
@@ -12538,21 +13766,21 @@ export const useStreamWalletFactoryWriteundefined =
   /*#__PURE__*/ createUseWriteContract({ abi: streamWalletFactoryAbi })
 
 /**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"acceptOwnership"`
+ */
+export const useStreamWalletFactoryWriteAcceptOwnership =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: streamWalletFactoryAbi,
+    functionName: 'acceptOwnership',
+  })
+
+/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"deployWalletFor"`
  */
 export const useStreamWalletFactoryWriteDeployWalletFor =
   /*#__PURE__*/ createUseWriteContract({
     abi: streamWalletFactoryAbi,
     functionName: 'deployWalletFor',
-  })
-
-/**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"donateToStream"`
- */
-export const useStreamWalletFactoryWriteDonateToStream =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: streamWalletFactoryAbi,
-    functionName: 'donateToStream',
   })
 
 /**
@@ -12628,15 +13856,6 @@ export const useStreamWalletFactoryWriteSetUsdc =
   })
 
 /**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"subscribeToStream"`
- */
-export const useStreamWalletFactoryWriteSubscribeToStream =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: streamWalletFactoryAbi,
-    functionName: 'subscribeToStream',
-  })
-
-/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"transferOwnership"`
  */
 export const useStreamWalletFactoryWriteTransferOwnership =
@@ -12661,21 +13880,21 @@ export const useStreamWalletFactorySimulateundefined =
   /*#__PURE__*/ createUseSimulateContract({ abi: streamWalletFactoryAbi })
 
 /**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"acceptOwnership"`
+ */
+export const useStreamWalletFactorySimulateAcceptOwnership =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: streamWalletFactoryAbi,
+    functionName: 'acceptOwnership',
+  })
+
+/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"deployWalletFor"`
  */
 export const useStreamWalletFactorySimulateDeployWalletFor =
   /*#__PURE__*/ createUseSimulateContract({
     abi: streamWalletFactoryAbi,
     functionName: 'deployWalletFor',
-  })
-
-/**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"donateToStream"`
- */
-export const useStreamWalletFactorySimulateDonateToStream =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: streamWalletFactoryAbi,
-    functionName: 'donateToStream',
   })
 
 /**
@@ -12751,15 +13970,6 @@ export const useStreamWalletFactorySimulateSetUsdc =
   })
 
 /**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"subscribeToStream"`
- */
-export const useStreamWalletFactorySimulateSubscribeToStream =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: streamWalletFactoryAbi,
-    functionName: 'subscribeToStream',
-  })
-
-/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `functionName` set to `"transferOwnership"`
  */
 export const useStreamWalletFactorySimulateTransferOwnership =
@@ -12784,15 +13994,6 @@ export const useStreamWalletFactoryWatchundefined =
   /*#__PURE__*/ createUseWatchContractEvent({ abi: streamWalletFactoryAbi })
 
 /**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `eventName` set to `"DonationProcessed"`
- */
-export const useStreamWalletFactoryWatchDonationProcessed =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: streamWalletFactoryAbi,
-    eventName: 'DonationProcessed',
-  })
-
-/**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `eventName` set to `"ImplementationUpdated"`
  */
 export const useStreamWalletFactoryWatchImplementationUpdated =
@@ -12808,6 +14009,15 @@ export const useStreamWalletFactoryWatchKayenRouterUpdated =
   /*#__PURE__*/ createUseWatchContractEvent({
     abi: streamWalletFactoryAbi,
     eventName: 'KayenRouterUpdated',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `eventName` set to `"OwnershipTransferStarted"`
+ */
+export const useStreamWalletFactoryWatchOwnershipTransferStarted =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: streamWalletFactoryAbi,
+    eventName: 'OwnershipTransferStarted',
   })
 
 /**
@@ -12835,15 +14045,6 @@ export const useStreamWalletFactoryWatchStreamWalletCreated =
   /*#__PURE__*/ createUseWatchContractEvent({
     abi: streamWalletFactoryAbi,
     eventName: 'StreamWalletCreated',
-  })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link streamWalletFactoryAbi}__ and `eventName` set to `"SubscriptionProcessed"`
- */
-export const useStreamWalletFactoryWatchSubscriptionProcessed =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: streamWalletFactoryAbi,
-    eventName: 'SubscriptionProcessed',
   })
 
 /**

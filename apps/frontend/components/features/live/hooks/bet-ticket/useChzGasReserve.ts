@@ -6,7 +6,7 @@ import { useEstimateGas, useGasPrice } from "wagmi";
 import { gasReserveWei } from "@chiliztv/domain/betting/stakePresets";
 
 import { chilizConfig } from "@/config/chiliz.config";
-import { chilizSwapRouterAbi } from "@/lib/contracts/generated";
+import { networkRouterAbi } from "@/lib/contracts/generated";
 
 const GAS_MARGIN_BPS = 15_000;
 const GAS_RESERVE_FLOOR_WEI = parseEther("1");
@@ -28,13 +28,13 @@ export function useChzGasReserve({ enabled, wallet, contractAddress, marketId, o
   const { data: gasLimit } = useEstimateGas({
     account: wallet,
     chainId: chilizConfig.chainId,
-    to: chilizConfig.chilizSwapRouter,
+    to: chilizConfig.networkRouter,
     value: probeValue,
     data: encodeFunctionData({
-      abi: chilizSwapRouterAbi,
-      functionName: "placeBetWithCHZ",
-      // amountOutMin 0 + far deadline: only the gas profile matters here.
-      args: [contractAddress, BigInt(marketId), BigInt(outcome ?? 0), BigInt(0), BigInt(2) ** BigInt(40)],
+      abi: networkRouterAbi,
+      functionName: "placeBetWithNativeToken",
+      // Minimal non-zero amountOutMin (0 reverts SlippageNotSet) + far deadline: only the gas profile matters.
+      args: [contractAddress, BigInt(marketId), BigInt(outcome ?? 0), BigInt(1), BigInt(2) ** BigInt(40)],
     }),
     query: { enabled: active, retry: false, staleTime: 60_000 },
   });

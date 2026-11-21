@@ -45,10 +45,10 @@ export function useBetTicket({ contractAddress, walletAddress, selection, homeTe
 
   const token = useTicketToken(state.token, state.amount, wallet, true);
   const quote = useTicketQuote(state.token, token.parsedAmount, token.decimals, state.slippageBps);
-  const approval = useTicketApproval(token.erc20Address, wallet, chilizConfig.chilizSwapRouter, token.parsedAmount);
+  const approval = useTicketApproval(token.erc20Address, wallet, chilizConfig.networkRouter, token.parsedAmount);
   const simulation = useTicketSimulation({
     enabled: !!wallet && marketOpen,
-    routerAddress: chilizConfig.chilizSwapRouter,
+    routerAddress: chilizConfig.networkRouter,
     contractAddress,
     token: state.token,
     marketId: selection.marketId,
@@ -90,6 +90,7 @@ export function useBetTicket({ contractAddress, walletAddress, selection, homeTe
 
   const submit = () => {
     if (!isActionableCta(guards.cta) || state.outcome === null) return;
+    if (state.token.kind !== "USDC" && quote.amountOutMin === BigInt(0)) return;
     dispatch({ type: "clearSubmitError" });
     try {
       if (approval.needsApproval) return approval.approve();

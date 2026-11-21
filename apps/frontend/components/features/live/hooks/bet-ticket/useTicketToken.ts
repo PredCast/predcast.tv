@@ -79,7 +79,7 @@ export function useTicketToken(token: BetToken, amount: string, walletAddress: A
       logoTxt: "C",
       logoBg: "#E8001D",
       logoUrl: tokenLogoFor("CHZ") ?? undefined,
-      unavailableReason: reasonFor(statusOf(chilizConfig.wchz)),
+      unavailableReason: reasonFor(statusOf(chilizConfig.wrappedNativeToken)),
     };
     const fanTokens = chilizConfig.tokens
       .filter((t) => !!t.tokenAddress)

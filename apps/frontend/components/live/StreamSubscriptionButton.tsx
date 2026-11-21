@@ -11,8 +11,6 @@ interface StreamSubscriptionButtonProps {
   streamerName?: string;
   streamerHandle?: string;
   streamerAvatarUrl?: string;
-  /** Monthly USDC price for the subscription. */
-  monthlyPriceUsd?: number;
 }
 
 /**
@@ -28,7 +26,6 @@ export default function StreamSubscriptionButton({
   streamerName,
   streamerHandle,
   streamerAvatarUrl,
-  monthlyPriceUsd,
 }: StreamSubscriptionButtonProps) {
   if (!streamerAddress || isStreamer) return null;
   return (
@@ -39,7 +36,6 @@ export default function StreamSubscriptionButton({
       streamerName={streamerName ?? "this streamer"}
       streamerHandle={streamerHandle}
       streamerAvatarUrl={streamerAvatarUrl}
-      monthlyPriceUsd={monthlyPriceUsd}
     />
   );
 }

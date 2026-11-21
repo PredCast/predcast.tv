@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useWaitForTransactionReceipt } from 'wagmi';
 import { toast } from 'sonner';
 import {
+    useLeaderboardRewardsReadClaimDeadline,
     useLeaderboardRewardsSimulateClaim,
     useLeaderboardRewardsWriteClaim,
 } from '@/lib/contracts/generated';
@@ -25,7 +26,7 @@ export type ClaimDisabledReason =
 interface UseLeaderboardClaimArgs {
     readonly wallet: Address | undefined;
     readonly epochId: number;
-    /** ISO timestamp of `claimExpiry` — checked client-side before simulation. */
+    /** ISO `claimExpiry` from the DB; fallback only until the on-chain `claimDeadline` loads. */
     readonly claimExpiry: string;
     /** Server-known claim flag — short-circuits the on-chain simulate. */
     readonly alreadyClaimed: boolean;
@@ -50,8 +51,16 @@ export function useLeaderboardClaim(args: UseLeaderboardClaimArgs): UseLeaderboa
     const { wallet, epochId, claimExpiry, alreadyClaimed } = args;
     const qc = useQueryClient();
 
-    const now = Date.now();
-    const expired = new Date(claimExpiry).getTime() <= now;
+    // `claimDeadline` = claimExpiry + time spent paused; `claim` reverts after it.
+    const { data: onChainDeadline } = useLeaderboardRewardsReadClaimDeadline({
+        address: chilizConfig.leaderboardRewards,
+        chainId: chilizConfig.chainId,
+        args: [BigInt(epochId)],
+    });
+    const deadlineMs = onChainDeadline !== undefined
+        ? Number(onChainDeadline) * 1000
+        : new Date(claimExpiry).getTime();
+    const expired = deadlineMs <= Date.now();
 
     const simulationEnabled = !!wallet && !expired && !alreadyClaimed;
     const simulation = useLeaderboardRewardsSimulateClaim({

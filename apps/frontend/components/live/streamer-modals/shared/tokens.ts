@@ -4,8 +4,8 @@ import { tokenLogoFor } from "@/lib/tokens/tokenLogo";
 
 /**
  * Token kinds the donation / subscription modals can consume.
- * Mirrors the route discrimination required by `ChilizSwapRouter.donate` /
- * `subscribe`: USDC direct, native CHZ, or any ERC-20 fan token.
+ * Mirrors the route discrimination required by `NetworkRouter.donate*` /
+ * `subscribe*`: USDC direct, native CHZ, or any ERC-20 fan token.
  */
 export type StreamerTokenKind =
   | { kind: "USDC" }
@@ -95,7 +95,7 @@ export function erc20AddressFor(token: StreamerTokenKind): Address | undefined {
 
 /**
  * Maps the modal's discriminated-token shape to the union the
- * `useChilizSwapRouter` `donate` / `subscribe` helpers expect.
+ * `useNetworkRouter` `donate` / `subscribe` helpers expect.
  */
 export function toRouterToken(
   token: StreamerTokenKind,

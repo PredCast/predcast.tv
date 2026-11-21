@@ -1,38 +1,40 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { erc20Abi, formatUnits, maxUint256, parseUnits, type Address } from "viem";
-import { useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
+import { formatUnits, parseUnits, type Address } from "viem";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
-import { useChilizSwapRouter } from "@/hooks/useChilizSwapRouter";
-import { useSwapRouterQuote } from "@/hooks/useSwapRouterQuote";
+
+import { useNetworkRouter } from "@/hooks/useNetworkRouter";
 import { useTokenDecimals } from "@/hooks/useTokenDecimals";
 import { usePoolDecimals } from "@/hooks/usePoolDecimals";
 import { useFanTokens } from "@/hooks/useFanTokens";
-import { chilizConfig } from "@/config/chiliz.config";
 import { decodeContractError } from "@/lib/contracts/errors";
+
 import {
   Eyebrow,
   FeeBreakdown,
   InsufficientBalanceBanner,
+  ModalAlert,
   SettlementFooter,
   StreamerModalHeader,
   StreamerModalShell,
   StreamerStrip,
-  StreamerSuccessStep,
+  SwapQuotePanel,
   TokenChipDisplay,
   TokenPickerSheet,
   buildStreamerTokenList,
   decimalsFor,
-  erc20AddressFor,
   symbolFor,
   toRouterToken,
+  useRouterApproval,
+  useStreamerSwapQuote,
   type StreamerTokenView,
 } from "../shared";
 import { BigTipBanner } from "./BigTipBanner";
 import { DonationAmountInput } from "./DonationAmountInput";
 import { DonationMessageField } from "./DonationMessageField";
 import { DonationPresetGrid } from "./DonationPresetGrid";
+import { DonationSuccess, type DonationSnapshot } from "./DonationSuccess";
 
 interface DonationModalProps {
   open: boolean;
@@ -52,16 +54,9 @@ const fmtUsd = (n: number) =>
 const fmtTok = (n: number, dp: number) =>
   n.toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp });
 
-function formatAtomic(value: bigint | undefined, decimals: number | undefined, dp = 2): string {
-  if (value === undefined || decimals === undefined) return "—";
-  const n = Number(formatUnits(value, decimals));
-  return n.toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp });
-}
-
 /**
- * Streamer donation modal — design-spec UI on top of the existing
- * `ChilizSwapRouter.donate` plumbing. Supports USDC direct, native CHZ,
- * and any ERC-20 fan token via FanX/Kayen quote + slippage.
+ * Streamer donation modal on top of `NetworkRouter.donate*`. Supports USDC direct,
+ * native CHZ, and any ERC-20 fan token via FanX/Kayen quote + slippage.
  */
 export function DonationModal({
   open,
@@ -77,9 +72,9 @@ export function DonationModal({
   const [amount, setAmount] = useState<string>("5");
   const [message, setMessage] = useState<string>("");
   const [slippageBps, setSlippageBps] = useState<number>(DEFAULT_SLIPPAGE_BPS);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successSnapshot, setSuccessSnapshot] = useState<DonationSnapshot | null>(null);
 
-  const { donate, donateState, routerAddress } = useChilizSwapRouter();
+  const { donate, donateState, routerAddress } = useNetworkRouter();
   const { assetDecimals: usdcDecimals } = usePoolDecimals();
   const { primaryWallet } = useDynamicContext();
   const userAddress = primaryWallet?.address as Address | undefined;
@@ -87,9 +82,7 @@ export function DonationModal({
 
   const tokenKind = selectedToken.token;
   const tokenSymbol = symbolFor(tokenKind);
-  const erc20Decimals = useTokenDecimals(
-    tokenKind.kind === "ERC20" ? tokenKind.address : undefined,
-  );
+  const erc20Decimals = useTokenDecimals(tokenKind.kind === "ERC20" ? tokenKind.address : undefined);
   const decimals = decimalsFor(tokenKind, usdcDecimals, erc20Decimals);
 
   const parsedAmount: bigint = useMemo(() => {
@@ -101,112 +94,42 @@ export function DonationModal({
     }
   }, [amount, decimals]);
 
-  // ── Balance / picker decoration ────────────────────────────────────────
   const balanceMap = useMemo(() => {
     const map: Record<string, number | undefined> = {};
     for (const tb of tokenBalances) map[tb.symbol] = tb.balance;
     return map;
   }, [tokenBalances]);
 
-  // ── ERC-20 path: address, allowance, approval ──────────────────────────
-  const erc20Address = erc20AddressFor(tokenKind);
+  const approval = useRouterApproval(tokenKind, userAddress, routerAddress, parsedAmount);
+  const { quotedUsdcOut, amountOutMin, swapPathMissing, swapReady } = useStreamerSwapQuote(
+    tokenKind,
+    parsedAmount,
+    slippageBps,
+  );
 
-  const { data: allowanceData, refetch: refetchAllowance } = useReadContract({
-    abi: erc20Abi,
-    address: erc20Address,
-    functionName: "allowance",
-    args: userAddress && erc20Address ? [userAddress, routerAddress] : undefined,
-    chainId: chilizConfig.chainId,
-    query: { enabled: !!erc20Address && !!userAddress },
-  });
-  const allowance = (allowanceData as bigint | undefined) ?? BigInt(0);
-  const needsApproval =
-    tokenKind.kind !== "CHZ" && parsedAmount > BigInt(0) && allowance < parsedAmount;
-
-  const {
-    writeContract: writeApprove,
-    data: approveTxHash,
-    isPending: isApprovePending,
-    error: approveError,
-  } = useWriteContract();
-  const { isLoading: isApproveConfirming, isSuccess: isApproveSuccess } =
-    useWaitForTransactionReceipt({ hash: approveTxHash });
-
-  useEffect(() => {
-    if (isApproveSuccess) refetchAllowance();
-  }, [isApproveSuccess, refetchAllowance]);
-
-  // ── FanX quote (USDC out for non-USDC paths) ───────────────────────────
-  const quoteTokenIn: Address | undefined =
-    tokenKind.kind === "ERC20"
-      ? tokenKind.address
-      : tokenKind.kind === "CHZ"
-        ? chilizConfig.wchz
-        : undefined;
-  const {
-    amountOut: quotedUsdcOut,
-    error: quoteError,
-    isLoading: quoteLoading,
-  } = useSwapRouterQuote(parsedAmount > BigInt(0) ? parsedAmount : undefined, quoteTokenIn);
-
-  const swapPathMissing =
-    tokenKind.kind !== "USDC" &&
-    parsedAmount > BigInt(0) &&
-    !quoteLoading &&
-    quoteError !== null;
-
-  const amountOutMin: bigint = useMemo(() => {
-    if (tokenKind.kind === "USDC" || quotedUsdcOut === undefined) return BigInt(0);
-    const slippageMul = BigInt(10_000 - slippageBps);
-    return (quotedUsdcOut * slippageMul) / BigInt(10_000);
-  }, [tokenKind.kind, quotedUsdcOut, slippageBps]);
-
-  // ── Surfaced amounts for display & gating ──────────────────────────────
   const numericAmount = Number(amount) || 0;
   const tokenBalance = balanceMap[tokenSymbol];
   const insufficient =
     tokenBalance !== undefined && parsedAmount > BigInt(0) && numericAmount > tokenBalance;
 
-  // USDC equivalent shown under the input. For USDC this equals the input;
-  // for non-USDC we use the live FanX quote when it has resolved.
-  const usdcEquivalent = useMemo(() => {
-    if (tokenKind.kind === "USDC") return numericAmount;
-    if (quotedUsdcOut !== undefined && usdcDecimals !== undefined) {
-      return Number(formatUnits(quotedUsdcOut, usdcDecimals));
-    }
-    return null;
-  }, [tokenKind.kind, numericAmount, quotedUsdcOut, usdcDecimals]);
-
-  const platformFeeUsd =
-    usdcEquivalent !== null ? (usdcEquivalent * PLATFORM_FEE_BPS) / 10_000 : null;
+  // USDC path: the input itself; swap paths: the live quote once priced.
+  const usdcEquivalent =
+    tokenKind.kind === "USDC"
+      ? numericAmount
+      : quotedUsdcOut !== undefined && usdcDecimals !== undefined
+        ? Number(formatUnits(quotedUsdcOut, usdcDecimals))
+        : null;
+  const platformFeeUsd = usdcEquivalent !== null ? (usdcEquivalent * PLATFORM_FEE_BPS) / 10_000 : null;
   const streamerGetsUsd =
-    usdcEquivalent !== null && platformFeeUsd !== null
-      ? usdcEquivalent - platformFeeUsd
-      : null;
+    usdcEquivalent !== null && platformFeeUsd !== null ? usdcEquivalent - platformFeeUsd : null;
 
-  // ── Error / success plumbing ────────────────────────────────────────────
-  useEffect(() => {
-    const err = donateState.error ?? approveError;
-    if (!err) {
-      setErrorMessage(null);
-      return;
-    }
-    const decoded = decodeContractError(err);
-    setErrorMessage(decoded.description ? `${decoded.title} — ${decoded.description}` : decoded.title);
-  }, [donateState.error, approveError]);
+  const txError = donateState.error ?? approval.approveError;
+  const decodedError = txError ? decodeContractError(txError) : null;
+  const errorMessage = decodedError
+    ? decodedError.description ? `${decodedError.title} — ${decodedError.description}` : decodedError.title
+    : null;
 
   // Snapshot at tx confirm so the success view stays stable across resets.
-  const [successSnapshot, setSuccessSnapshot] = useState<
-    | {
-          amountUsd: number | null;
-          tokenAmount: number;
-          tokenSymbol: string;
-          message: string;
-          txHash?: `0x${string}`;
-      }
-    | null
-  >(null);
-
   useEffect(() => {
     if (donateState.isSuccess && !successSnapshot) {
       setSuccessSnapshot({
@@ -216,122 +139,68 @@ export function DonationModal({
         message,
         txHash: donateState.txHash,
       });
-      setErrorMessage(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [donateState.isSuccess]);
 
-  const handleCloseFromSuccess = () => {
+  const resetForm = () => {
     setSuccessSnapshot(null);
     setAmount("5");
     setMessage("");
-    onClose();
-  };
-  const handleAnother = () => {
-    setSuccessSnapshot(null);
-    setAmount("5");
-    setMessage("");
-    setErrorMessage(null);
   };
 
   const isLoading =
     donateState.isPending ||
     donateState.isConfirming ||
-    isApprovePending ||
-    isApproveConfirming;
+    approval.isApprovePending ||
+    approval.isApproveConfirming;
 
   const handleSubmit = () => {
-    setErrorMessage(null);
-    if (needsApproval && erc20Address) {
-      writeApprove({
-        abi: erc20Abi,
-        address: erc20Address,
-        functionName: "approve",
-        args: [routerAddress, maxUint256],
-      });
-      return;
-    }
-    const deadline = BigInt(Math.floor(Date.now() / 1000) + DEADLINE_MIN * 60);
+    if (approval.needsApproval) return approval.approve();
+    if (!swapReady) return;
     donate({
       token: toRouterToken(tokenKind),
       streamer: streamerAddress,
       message,
       amount: parsedAmount,
       amountOutMin,
-      deadline,
+      deadline: BigInt(Math.floor(Date.now() / 1000) + DEADLINE_MIN * 60),
     });
   };
 
-  // CTA copy reflects the active sub-flow (approve / pending / sending / send).
-  const ctaLabel = isApprovePending
+  const ctaLabel = approval.isApprovePending
     ? "Confirm approval…"
-    : isApproveConfirming
+    : approval.isApproveConfirming
       ? `Approving ${tokenSymbol}…`
       : donateState.isPending
         ? "Confirm in wallet…"
         : donateState.isConfirming
           ? "Sending donation…"
-          : needsApproval
+          : approval.needsApproval
             ? `Approve ${tokenSymbol} →`
             : usdcEquivalent !== null
               ? `Donate ${fmtUsd(usdcEquivalent)} →`
               : `Donate ${tokenSymbol} →`;
 
-  // Sub-label below the big number input.
   const subLabel =
     tokenKind.kind === "USDC"
-      ? null
+      ? undefined
       : usdcEquivalent !== null
         ? `≈ ${fmtUsd(usdcEquivalent)} USDC`
         : "FanX quote pending…";
 
   if (successSnapshot) {
-    const fmtUsdInline = (n: number) =>
-      "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const fmtTokInline = (n: number, dp: number) =>
-      n.toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp });
     return (
-      <StreamerModalShell open={open} onClose={handleCloseFromSuccess} ariaTitle="Tip sent">
-        <StreamerModalHeader
-          eyebrow="On-chain · Settled"
-          title={
-            <>
-              Thanks for the <span className="text-[#E8001D]">tip.</span>
-            </>
-          }
-          onClose={handleCloseFromSuccess}
-        />
-        <StreamerSuccessStep
-          title="Tip sent."
-          lead={
-            <>
-              {streamerName} just received your support.
-              <br />
-              The amount lands in their StreamWallet within seconds.
-            </>
-          }
-          txHash={successSnapshot.txHash}
-          summary={[
-            {
-              label: "Amount",
-              value:
-                successSnapshot.amountUsd !== null
-                  ? fmtUsdInline(successSnapshot.amountUsd)
-                  : `${fmtTokInline(successSnapshot.tokenAmount, successSnapshot.tokenSymbol === "CHZ" ? 0 : 2)} $${successSnapshot.tokenSymbol}`,
-            },
-            { label: "Token", value: `$${successSnapshot.tokenSymbol}` },
-            {
-              label: "Note",
-              value: successSnapshot.message
-                ? `“${successSnapshot.message.slice(0, 24)}${successSnapshot.message.length > 24 ? "…" : ""}”`
-                : "—",
-            },
-          ]}
-          onAnother={handleAnother}
-          onClose={handleCloseFromSuccess}
-          anotherLabel="Send another"
-        />
-      </StreamerModalShell>
+      <DonationSuccess
+        open={open}
+        streamerName={streamerName}
+        snapshot={successSnapshot}
+        onAnother={resetForm}
+        onClose={() => {
+          resetForm();
+          onClose();
+        }}
+      />
     );
   }
 
@@ -348,25 +217,16 @@ export function DonationModal({
         onClose={onClose}
       />
 
-      <StreamerStrip
-        name={streamerName}
-        handle={streamerHandle}
-        avatarUrl={streamerAvatarUrl}
-      />
+      <StreamerStrip name={streamerName} handle={streamerHandle} avatarUrl={streamerAvatarUrl} />
 
       <div className="px-7">
         <div className="mb-3 flex items-center justify-between">
-          <Eyebrow dim>
-            Amount · {tokenKind.kind === "USDC" ? "USD" : tokenSymbol}
-          </Eyebrow>
+          <Eyebrow dim>Amount · {tokenKind.kind === "USDC" ? "USD" : tokenSymbol}</Eyebrow>
           <TokenChipDisplay token={selectedToken} onClick={() => setPickerOpen(true)} />
         </div>
 
         {tokenKind.kind === "USDC" && (
-          <DonationPresetGrid
-            amount={numericAmount}
-            onPick={(p) => setAmount(String(p))}
-          />
+          <DonationPresetGrid amount={numericAmount} onPick={(p) => setAmount(String(p))} />
         )}
 
         <div className={tokenKind.kind === "USDC" ? "mt-4" : ""}>
@@ -374,12 +234,8 @@ export function DonationModal({
             amount={amount}
             onChange={setAmount}
             prefix={tokenKind.kind === "USDC" ? "$" : `$${tokenSymbol}`}
-            subLabel={subLabel ?? undefined}
-            onMax={
-              tokenBalance !== undefined && tokenBalance > 0
-                ? () => setAmount(String(tokenBalance))
-                : undefined
-            }
+            subLabel={subLabel}
+            onMax={tokenBalance !== undefined && tokenBalance > 0 ? () => setAmount(String(tokenBalance)) : undefined}
             maxLabel={
               tokenBalance !== undefined
                 ? `Max · ${fmtTok(tokenBalance, tokenSymbol === "CHZ" ? 0 : 2)} ${tokenSymbol}`
@@ -399,48 +255,14 @@ export function DonationModal({
         )}
 
         {tokenKind.kind !== "USDC" && parsedAmount > BigInt(0) && (
-          <div className="mt-4 rounded-xl border border-[#1F1F1F] bg-[#0a0a0a] px-4 py-3">
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="font-mono-ctv text-[10px] uppercase tracking-[0.16em] text-white/45">
-                FanX quote
-              </span>
-              <span className="font-mono-ctv font-bold tabular-nums text-white">
-                {quotedUsdcOut !== undefined
-                  ? `${formatAtomic(quotedUsdcOut, usdcDecimals)} USDC`
-                  : "—"}
-              </span>
-            </div>
-            <div className="mt-1 flex items-center justify-between text-[11px]">
-              <span className="font-mono-ctv text-[10px] uppercase tracking-[0.16em] text-white/45">
-                Min received
-              </span>
-              <span className="font-mono-ctv tabular-nums text-white/65">
-                {amountOutMin > BigInt(0)
-                  ? `${formatAtomic(amountOutMin, usdcDecimals)} USDC`
-                  : "—"}
-              </span>
-            </div>
-            <div className="mt-3 flex items-center gap-2">
-              <span className="font-mono-ctv text-[10px] uppercase tracking-[0.16em] text-white/45">
-                Slippage
-              </span>
-              {[10, 50, 100].map((bps) => (
-                <button
-                  key={bps}
-                  type="button"
-                  onClick={() => setSlippageBps(bps)}
-                  className="font-mono-ctv rounded border px-2 py-0.5 text-[10px] font-bold tabular-nums transition-colors"
-                  style={{
-                    borderColor: slippageBps === bps ? "#E8001D" : "#262626",
-                    background: slippageBps === bps ? "rgba(232,0,29,0.10)" : "transparent",
-                    color: slippageBps === bps ? "#fff" : "rgba(255,255,255,0.55)",
-                  }}
-                >
-                  {(bps / 100).toFixed(2)}%
-                </button>
-              ))}
-            </div>
-          </div>
+          <SwapQuotePanel
+            showQuote
+            quotedUsdcOut={quotedUsdcOut}
+            amountOutMin={amountOutMin}
+            usdcDecimals={usdcDecimals}
+            slippageBps={slippageBps}
+            onSlippageChange={setSlippageBps}
+          />
         )}
 
         {usdcEquivalent !== null && (
@@ -448,10 +270,7 @@ export function DonationModal({
             <FeeBreakdown
               rows={[
                 { label: "You send", value: fmtUsd(usdcEquivalent) },
-                {
-                  label: "Platform fee · 5%",
-                  value: `− ${fmtUsd(platformFeeUsd ?? 0)}`,
-                },
+                { label: "Platform fee · 5%", value: `− ${fmtUsd(platformFeeUsd ?? 0)}` },
                 {
                   label: (
                     <>
@@ -468,9 +287,9 @@ export function DonationModal({
         )}
 
         {swapPathMissing && (
-          <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-[12px] text-red-300">
+          <ModalAlert className="mt-4">
             No FanX/Kayen liquidity for {tokenSymbol} → USDC. Pick another token.
-          </div>
+          </ModalAlert>
         )}
       </div>
 
@@ -478,7 +297,12 @@ export function DonationModal({
         ctaLabel={ctaLabel}
         onSubmit={handleSubmit}
         loading={isLoading}
-        disabled={parsedAmount === BigInt(0) || swapPathMissing || insufficient}
+        disabled={
+          parsedAmount === BigInt(0) ||
+          swapPathMissing ||
+          insufficient ||
+          (!approval.needsApproval && !swapReady)
+        }
         note="Settled on Chiliz · non-custodial"
         alert={
           <>
@@ -488,11 +312,7 @@ export function DonationModal({
                 shortfall={fmtTok(numericAmount - tokenBalance, tokenSymbol === "CHZ" ? 0 : 2)}
               />
             )}
-            {errorMessage && !insufficient && (
-              <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-[12px] text-red-300">
-                {errorMessage}
-              </div>
-            )}
+            {errorMessage && !insufficient && <ModalAlert className="mb-3">{errorMessage}</ModalAlert>}
           </>
         }
       />

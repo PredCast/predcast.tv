@@ -10,7 +10,7 @@ import BasketballPariMatchJSON from "./artifacts/BasketballPariMatch.json";
 import LeaderboardRewardsJSON from "./artifacts/LeaderboardRewards.json";
 import StreamWalletJSON from "./artifacts/StreamWallet.json";
 import StreamWalletFactoryJSON from "./artifacts/StreamWalletFactory.json";
-import ChilizSwapRouterJSON from "./artifacts/ChilizSwapRouter.json";
+import NetworkRouterJSON from "./artifacts/NetworkRouter.json";
 
 // Counter for unique hook names when wagmi sees overloads.
 const hookNameCounter: Record<string, number> = {};
@@ -25,7 +25,7 @@ export default defineConfig({
     { name: 'LeaderboardRewards',   abi: LeaderboardRewardsJSON.abi as Abi },
     { name: 'StreamWallet',         abi: StreamWalletJSON.abi as Abi },
     { name: 'StreamWalletFactory',  abi: StreamWalletFactoryJSON.abi as Abi },
-    { name: 'ChilizSwapRouter',     abi: ChilizSwapRouterJSON.abi as Abi },
+    { name: 'NetworkRouter',        abi: NetworkRouterJSON.abi as Abi },
   ],
   plugins: [
     react({

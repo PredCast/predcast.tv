@@ -15,16 +15,16 @@ export interface ChilizNetworkConfig {
     /** PariMatchFactory — deploys FootballPariMatch / BasketballPariMatch proxies. */
     pariMatchFactory: `0x${string}`;
     streamWalletFactory: `0x${string}`;
-    /** Unified swap router (Kayen adapter). Source of multi-asset bets,
-     *  donations, and subscriptions. No more LP deposits in parimutuel model. */
-    chilizSwapRouter: `0x${string}`;
+    /** NetworkRouter: single entry point for bets, donations and subscriptions
+     *  (USDC direct, native token or ERC20 swapped to USDC). */
+    networkRouter: `0x${string}`;
     /** LeaderboardRewards proxy — epoch-based merkle distribution of the
      *  leaderboard fee split (default 1% of every resolved market). */
     leaderboardRewards: `0x${string}`;
     /** USDC token — settlement currency for stakes, payouts, refunds. */
     usdc: `0x${string}`;
-    /** Wrapped CHZ — used by the swap router's native-CHZ swap path. */
-    wchz: `0x${string}`;
+    /** Wrapped native token (WCHZ) — quote reference for the router's native-token path. */
+    wrappedNativeToken: `0x${string}`;
     tokens: ChilizToken[];
 }
 
@@ -119,8 +119,9 @@ const MAINNET_PARI_MATCH_FACTORY = (process.env.NEXT_PUBLIC_PARI_MATCH_FACTORY_A
 const TESTNET_STREAM_WALLET_FACTORY = (process.env.NEXT_PUBLIC_STREAM_WALLET_FACTORY_ADDRESS || ZERO) as `0x${string}`;
 const MAINNET_STREAM_WALLET_FACTORY = (process.env.NEXT_PUBLIC_STREAM_WALLET_FACTORY_ADDRESS_MAINNET || ZERO) as `0x${string}`;
 
-const TESTNET_SWAP_ROUTER = (process.env.NEXT_PUBLIC_CHILIZ_SWAP_ROUTER_ADDRESS || ZERO) as `0x${string}`;
-const MAINNET_SWAP_ROUTER = (process.env.NEXT_PUBLIC_CHILIZ_SWAP_ROUTER_ADDRESS_MAINNET || ZERO) as `0x${string}`;
+// Env names predate the router rename; they hold the NetworkRouter address.
+const TESTNET_NETWORK_ROUTER = (process.env.NEXT_PUBLIC_CHILIZ_SWAP_ROUTER_ADDRESS || ZERO) as `0x${string}`;
+const MAINNET_NETWORK_ROUTER = (process.env.NEXT_PUBLIC_CHILIZ_SWAP_ROUTER_ADDRESS_MAINNET || ZERO) as `0x${string}`;
 
 const TESTNET_LEADERBOARD = (process.env.NEXT_PUBLIC_LEADERBOARD_REWARDS_ADDRESS || ZERO) as `0x${string}`;
 const MAINNET_LEADERBOARD = (process.env.NEXT_PUBLIC_LEADERBOARD_REWARDS_ADDRESS_MAINNET || ZERO) as `0x${string}`;
@@ -136,10 +137,10 @@ const TESTNET_CONFIG: ChilizNetworkConfig = {
     chainId: 88882,
     pariMatchFactory: TESTNET_PARI_MATCH_FACTORY,
     streamWalletFactory: TESTNET_STREAM_WALLET_FACTORY,
-    chilizSwapRouter: TESTNET_SWAP_ROUTER,
+    networkRouter: TESTNET_NETWORK_ROUTER,
     leaderboardRewards: TESTNET_LEADERBOARD,
     usdc: TESTNET_USDC,
-    wchz: TESTNET_WCHZ,
+    wrappedNativeToken: TESTNET_WCHZ,
     tokens: TESTNET_TOKENS.map(token => ({
         ...token,
         tokenAddress: token.testnetTokenAddress
@@ -153,10 +154,10 @@ const MAINNET_CONFIG: ChilizNetworkConfig = {
     chainId: 88888,
     pariMatchFactory: MAINNET_PARI_MATCH_FACTORY,
     streamWalletFactory: MAINNET_STREAM_WALLET_FACTORY,
-    chilizSwapRouter: MAINNET_SWAP_ROUTER,
+    networkRouter: MAINNET_NETWORK_ROUTER,
     leaderboardRewards: MAINNET_LEADERBOARD,
     usdc: MAINNET_USDC,
-    wchz: MAINNET_WCHZ,
+    wrappedNativeToken: MAINNET_WCHZ,
     tokens: MAINNET_TOKENS
 };
 
@@ -178,10 +179,10 @@ if (typeof window !== 'undefined') {
     console.log(`   Chain ID               : ${chilizConfig.chainId}`);
     console.log(`   PariMatchFactory       : ${chilizConfig.pariMatchFactory}`);
     console.log(`   StreamWalletFactory    : ${chilizConfig.streamWalletFactory}`);
-    console.log(`   ChilizSwapRouter       : ${chilizConfig.chilizSwapRouter}`);
+    console.log(`   NetworkRouter          : ${chilizConfig.networkRouter}`);
     console.log(`   LeaderboardRewards     : ${chilizConfig.leaderboardRewards}`);
     console.log(`   USDC                   : ${chilizConfig.usdc}`);
-    console.log(`   WCHZ                   : ${chilizConfig.wchz}`);
+    console.log(`   WCHZ                   : ${chilizConfig.wrappedNativeToken}`);
     console.log(`   Fan tokens             : ${chilizConfig.tokens.length}`);
 }
 

@@ -16,7 +16,8 @@ const OPTIONS: DurationOption[] = [
 
 interface DurationGridProps {
   months: number;
-  monthlyUsd: number;
+  /** Null while the on-chain price is loading or unset. */
+  monthlyUsd: number | null;
   onPick: (months: number) => void;
 }
 
@@ -55,8 +56,10 @@ export function DurationGrid({ months, monthlyUsd, onPick }: DurationGridProps) 
               {d.sub}
             </div>
             <div className="font-mono-ctv mt-3 text-[12px] font-bold tabular-nums text-white">
-              {fmtUsd(monthlyUsd * d.months)}
-              <span className="font-medium text-white/40"> · {fmtUsd(monthlyUsd)}/mo</span>
+              {monthlyUsd !== null ? fmtUsd(monthlyUsd * d.months) : "—"}
+              {monthlyUsd !== null && (
+                <span className="font-medium text-white/40"> · {fmtUsd(monthlyUsd)}/mo</span>
+              )}
             </div>
           </button>
         );
