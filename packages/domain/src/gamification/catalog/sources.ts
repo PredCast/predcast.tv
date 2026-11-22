@@ -21,8 +21,10 @@ export type GamificationSource = (typeof GAMIFICATION_SOURCES)[number];
 export const DOUBLE_XP_ELIGIBLE = ['check_in', 'watch', 'chat_message', 'stream_time'] as const;
 export type DoubleXpSource = (typeof DOUBLE_XP_ELIGIBLE)[number];
 
+const ELIGIBLE: ReadonlyArray<string> = DOUBLE_XP_ELIGIBLE;
+
 export function isDoubleXpEligible(source: string): source is DoubleXpSource {
-    return (DOUBLE_XP_ELIGIBLE as ReadonlyArray<string>).includes(source);
+    return ELIGIBLE.includes(source);
 }
 
 export interface SourceRule {

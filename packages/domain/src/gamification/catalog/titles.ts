@@ -62,6 +62,8 @@ export function titleTranslationKey(titleId: TitleId): string {
     return `gamification.title.${titleId}`;
 }
 
+const ALL_TITLES: ReadonlyArray<string> = TITLE_IDS;
+
 export function isTitleId(value: string): value is TitleId {
-    return (TITLE_IDS as ReadonlyArray<string>).includes(value);
+    return ALL_TITLES.includes(value);
 }
