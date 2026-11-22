@@ -68,6 +68,9 @@ const envSchema = z.object({
 
   NETWORK: z.enum(['testnet', 'mainnet']).default('testnet'),
 
+  // On-chain jobs start on their own only in production unless set; 'true' enables them locally.
+  JOBS_ONCHAIN_ENABLED: z.enum(['true', 'false']).optional().transform((v) => (v === undefined ? undefined : v === 'true')),
+
   // Testnet contract addresses (required when NETWORK=testnet, validated at construction time
   // by NetworkConfigService — Zod requires them unconditionally so misconfigs fail fast).
   PARI_MATCH_FACTORY_ADDRESS: z.string().regex(addressRegex),
