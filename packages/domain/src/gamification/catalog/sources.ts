@@ -54,10 +54,12 @@ export function dailyCapFor(source: GamificationSource, switches: LegalSwitches 
     return SOURCE_RULES[source].dailyCapXp;
 }
 
-/** False when a legal switch turns the source off entirely: nothing is credited, no progress. */
+/**
+ * False when a legal switch turns the source off entirely: no row, no progress. A disabled
+ * `bet_volume` still writes 0 XP rows (`volumeDelta`) so Versatility and Globetrotter keep moving.
+ */
 export function isSourceEnabled(source: GamificationSource, switches: LegalSwitches = LEGAL_SWITCHES): boolean {
     switch (source) {
-        case 'bet_volume': return switches.betVolume !== 'disabled';
         case 'bet_won': return switches.betWon !== 'disabled';
         case 'support': return switches.support !== 'disabled';
         default: return true;
@@ -72,6 +74,7 @@ export type LedgerReason =
     | 'daily_cap'
     | 'hedge'
     | 'repeat_market'
+    | 'source_disabled'
     | 'banned'
     | 'suspended'
     | 'market_cancelled'

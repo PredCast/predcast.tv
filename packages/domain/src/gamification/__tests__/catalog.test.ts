@@ -46,7 +46,7 @@ describe('sources', () => {
     it('applies the legal switches to caps and availability', () => {
         expect(dailyCapFor('bet_volume')).toBe(1000);
         expect(dailyCapFor('bet_volume', { ...LEGAL_SWITCHES, betVolume: 'per_market' })).toBe(25);
-        expect(isSourceEnabled('bet_volume', { ...LEGAL_SWITCHES, betVolume: 'disabled' })).toBe(false);
+        expect(isSourceEnabled('bet_volume', { ...LEGAL_SWITCHES, betVolume: 'disabled' })).toBe(true);
         expect(isSourceEnabled('bet_won', { ...LEGAL_SWITCHES, betWon: 'disabled' })).toBe(false);
         expect(isSourceEnabled('bet_won', { ...LEGAL_SWITCHES, betWon: 'cosmetic_only' })).toBe(true);
         expect(isSourceEnabled('support', { ...LEGAL_SWITCHES, support: 'disabled' })).toBe(false);
