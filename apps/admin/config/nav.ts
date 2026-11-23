@@ -20,6 +20,7 @@ export const NAV_ENTRIES: ReadonlyArray<NavEntry> = [
   { label: 'Moderation', href: '/moderation', icon: 'flag', roles: ['moderator'], badge: 'openReports' },
   { label: 'Players', href: '/players', icon: 'users', roles: ['moderator'] },
   { label: 'Jobs', href: '/jobs', icon: 'clock', roles: ['admin'], badge: 'jobsAttention' },
+  { label: 'Gamification', href: '/gamification', icon: 'zap', roles: ['admin'] },
 ];
 
 /** Planned sections, listed for the roles that will use them. */

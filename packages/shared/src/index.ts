@@ -11,6 +11,7 @@ export * from './dto/admin/AdminMatchDeploymentDtos';
 export * from './dto/admin/AdminContextDtos';
 export * from './dto/admin/AdminJobsDtos';
 export * from './dto/admin/AdminDashboardDtos';
+export * from './dto/admin/AdminGamificationDtos';
 
 // DTOs — Platform stats
 export * from './dto/stats/PlatformStatsDto';

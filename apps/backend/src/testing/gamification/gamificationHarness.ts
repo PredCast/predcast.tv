@@ -87,7 +87,7 @@ export function buildGamificationHarness(options: HarnessOptions = {}) {
 
     return {
         clock, store, cache, rateLimit, config, audits, creditXp, evaluate, checkIn, adjustXp, rebuild,
-        accounts, isBanned, afterCredit, achievements, profileSteps, logger: silentLogger,
+        accounts, isBanned, afterCredit, achievements, profileSteps, audit, logger: silentLogger,
         addAccount(account: Account, wallets: ReadonlyArray<WalletLink>): void {
             accountsById.set(account.id, account);
             links.push(...wallets);

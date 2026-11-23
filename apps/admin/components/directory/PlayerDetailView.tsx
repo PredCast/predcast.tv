@@ -3,23 +3,32 @@
 import Link from 'next/link';
 
 import { usePlayerDetail } from '@/hooks/api/usePlayers';
+import { useAdminSession } from '@/providers/AdminSessionProvider';
+import { isAllowedForNav } from '@/lib/rbac';
 import { Eyebrow } from '@/components/common/Eyebrow';
 import { Icon } from '@/components/common/Icon';
 import { CopyButton } from '@/components/common/CopyButton';
+import { PlayerGamificationBlock } from '@/components/gamification/PlayerGamificationBlock';
 import { PlayerSummaryCards } from './PlayerSummaryCards';
 import { PlayerBetsTable } from './PlayerBetsTable';
 
 export function PlayerDetailView({ wallet }: Readonly<{ wallet: string }>) {
   const { data, isLoading, isError } = usePlayerDetail(wallet);
+  const { role } = useAdminSession();
+  // Admin scope (G18); moderators keep the bets view only. The API enforces it too.
+  const gamification = isAllowedForNav(role, ['admin']) && <PlayerGamificationBlock wallet={wallet} />;
 
   if (isLoading) {
     return <p className="font-mono mt-6 text-[11px] uppercase tracking-[0.14em] text-fg-meta">Loading…</p>;
   }
   if (isError || !data) {
     return (
-      <p className="font-mono mt-6 text-[11px] uppercase tracking-[0.14em] text-accent-text">
-        Player not found — no bets indexed for this wallet.
-      </p>
+      <div>
+        <p className="font-mono mt-6 text-[11px] uppercase tracking-[0.14em] text-accent-text">
+          Player not found — no bets indexed for this wallet.
+        </p>
+        {gamification}
+      </div>
     );
   }
 
@@ -47,6 +56,7 @@ export function PlayerDetailView({ wallet }: Readonly<{ wallet: string }>) {
         </Link>
       </div>
       <PlayerSummaryCards player={player} />
+      {gamification}
       <PlayerBetsTable bets={data.recentBets} />
     </div>
   );

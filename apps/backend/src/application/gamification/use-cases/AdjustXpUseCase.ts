@@ -1,6 +1,7 @@
 import { inject, injectable } from 'tsyringe';
 
 import type { IAuditTrail } from '@chiliztv/domain/admin/ports/IAuditTrail';
+import { GAMIFICATION_AUDIT_ACTIONS } from '@chiliztv/domain/gamification/catalog/auditActions';
 import { refKeys } from '@chiliztv/domain/gamification/catalog/refKeys';
 import type { IAccountRepository } from '@chiliztv/domain/identity/repositories/IAccountRepository';
 import { NotFoundError } from '@chiliztv/domain/shared/errors/NotFoundError';
@@ -27,7 +28,7 @@ export interface AdjustXpCommand {
     readonly requestId?: string;
 }
 
-/** `admin_adjustment` source (§3.2): a ledger correction, audited. No UI before step 07. */
+/** `admin_adjustment` source (§3.2): a ledger correction, audited. */
 @injectable()
 export class AdjustXpUseCase {
     constructor(
@@ -60,7 +61,7 @@ export class AdjustXpUseCase {
         await this.audit.record({
             actorWallet: cmd.actorWallet,
             actorRole: cmd.actorRole,
-            action: 'gamification.xp.adjust',
+            action: GAMIFICATION_AUDIT_ACTIONS.xpAdjust,
             targetType: 'account',
             targetId: cmd.accountId,
             newValue: {
