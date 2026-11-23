@@ -11,7 +11,7 @@ Source de reprise entre sessions. Sources : [`00-decisions.md`](00-decisions.md)
 | 03 · Schéma, noyau, connexion (G4, G5, G6) | prête pour PR | (branche feat/gamification-core) | **044** `gamification_*` (appliquée en local seulement) | aucune | CA2, CA3, CA4, CA5, CA17, CA19, CA20 (connexion) | voir ci-dessous |
 | 04 · Sources XP joueurs | à faire | — | — | — | — | — |
 | 05 · Streamers et classement | à faire | — | — | — | — | — |
-| 06 · API, composants, surfaces | à faire | — | — | — | — | — |
+| 06 · API, composants, surfaces (G12, G13, G14) | prête pour PR | (branche feat/gamification-surfaces) | aucune | aucune | CA15, CA16, CA22, CA23 | voir ci-dessous |
 | 07 · Progression, profil, notifs, admin | à faire | — | — | — | — | — |
 | 08 · Tests et lancement | à faire | — | — | — | — | — |
 
@@ -42,6 +42,21 @@ Source de reprise entre sessions. Sources : [`00-decisions.md`](00-decisions.md)
 - Fixtures L1 : `accountFixture`, `linkedWalletFixture`, `streakFixture`, `doubleXpEventFixture` ; celles des paris / marchés (`betRowFixture`…) arrivent avec l'étape 04.
 - Tests SQL : `src/testing/integration/gamification-sql.integration.test.ts`, à lancer **seul** (`vitest run --config vitest.integration.config.ts <fichier>`) : les autres suites d'intégration appellent `setupIntegrationEnv`, qui vide le schéma `public`.
 - Front : `GamificationAutoCheckIn` est monté hors `QueryProvider` (QueryClient de wagmi) : l'invalidation de `gamification.me` ne touchera pas le client de l'app, à traiter à l'étape 06 (refetch 60 s ou montage déplacé).
+
+### Étape 06
+- **Routes** : publiques dans `gamification-public.routes.ts` (montées avant `authenticate`), propriétaire dans `gamification-me.routes.ts` (`/gamification/me`, après `authenticate`, `requireAccount`). Contrôleur `GamificationReadController` ; le routeur de l'étape 03 (`check-in`) n'est pas touché, pour limiter les conflits avec l'étape 04.
+- **Lecture** : port `IGamificationReadRepository` (une lecture groupée par lot : liens actifs, `accounts`, `users` joint par la route elle-même (D8), profils, succès, rangs de cycle, minutes streamées) ; modèles de lecture purs dans le domaine (`policies/profileCard.ts`, `policies/doubleXpAnnouncement.ts`), réutilisant `displayedFrame`, `displayedShowcase`, `ownedTitles`, `effectiveStreak`, `levelProgress`.
+- **Cache Redis** : `gami:card|badge|profile:{wallet}` 60 s, `gami:me:{accountId}` 15 s, `gami:double-xp:current` 30 s ; invalidés par le noyau (`GamificationAfterCredit.invalidate`), `PUT me/cosmetics` et l'ack (me). Badges : `mget` / `mset` par wallet, un wallet sans compte est mémorisé `null`. Rate limit `cards/badges` : 60 / min / IP via `IRateLimitService`.
+- **Flag off ou avant lancement** : badges `{}`, cartes / profils / `me` en 404, double XP `null` ; le front retombe exactement sur l'UI actuelle (capture `app-desktop-chat-flag-off.png`).
+- **Écarts au §9.2** : `AchievementProgressSchema.current` est `nullable` (le domaine renvoie `null` pour `leaderboard` sans rang et `founder`) ; `PublicProfileDto` (non défini par la spec) = carte + plus haut palier public de chaque famille (`achievements`), jamais d'autre wallet ; `activeDoubleXp` de `/me` n'est rempli que pendant l'événement (l'annonce à 7 jours passe par `double-xp/current`). Codes 422 : `COSMETIC_NOT_OWNED` (titre, cadre, tuile non possédée ou privée — `details.code` garde la règle du domaine), `SHOWCASE_TOO_LONG`, `SHOWCASE_DUPLICATE`.
+- **Sans profil** : un compte sans ligne `gamification_profiles` n'a ni pastille ni carte publique ; `/me` le lit au niveau 1.
+- **Tag `New`** : 14 jours après `accounts.created_at` (constante domaine `NEW_PLAYER_TAG_DAYS`). **Tag `Streamer`** : minutes streamées > 0.
+- **Front** : `GamificationAutoCheckIn` déplacé dans `app/layout.tsx`, à l'intérieur du `QueryProvider` de l'app (l'invalidation de `gamification.me` atteint donc le bon client). Avatar extrait de `UserBadge` dans `components/shared/UserAvatar.tsx` (D11) ; `UserBadge` accepte `frameId` / `level` (rétrocompatible). Carte au survol : `radix-ui` Popover (déjà dépendance) en portail, hors des listes qui défilent.
+- **Accessibilité (CA23)** : survol 300 ms, focus clavier ouvre, Tab entre dans la carte (portail), Échap ferme et rend le focus au pseudo sans rouvrir, tap sur mobile ; une carte où l'on a cliqué reste ouverte (le dialogue de signalement n'est pas démonté) ; `motion-reduce` coupe les rotations (vérifié : `spin 18s` → `none`).
+- **CA22** : la couleur or `isFeatured` est conservée ; la pastille est un élément distinct ; avec une pastille, le pseudo des autres joueurs passe en blanc (la teinte `hueForUser` reste quand il n'y a pas de pastille).
+- **Réseau** : un chat chargé = 1 requête `cards/badges` (6 wallets), le leaderboard = 1 ; débounce 300 ms, clé de requête triée (le chat desktop et la feuille mobile partagent la même requête).
+- **Ajouts hors liste** : `StreamShelf` (« Now watching ») porte aussi le cadre (même requête de carte que `StreamerStrip`). Sur mobile, la médaille de `PreviewRow` laisse sa place à l'avatar encadré (la colonne Tier garde le nom de la médaille).
+- **Dette / à faire** : bouton *Follow* de la carte streamer de la maquette non repris (pied commun *View profile* + signalement) ; `/u/[wallet]` arrive à l'étape 07 (lien déjà en place) ; `AddressLabel` du leaderboard garde sa police mono pour les pseudos (comportement existant) ; la grille du leaderboard reste serrée sur mobile (existant).
 
 ### Mode de travail
 - À partir du 23/11, l'utilisateur laisse travailler en autonomie : branches empilées (chaque étape part de la précédente), une PR par étape vers `main` avec ses dépendances, aucun merge. Tests manuels groupés à la fin.
