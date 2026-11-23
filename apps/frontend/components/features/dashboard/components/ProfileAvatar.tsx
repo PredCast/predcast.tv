@@ -2,6 +2,10 @@
 
 import { useRef } from 'react';
 import { Loader2 } from 'lucide-react';
+import { FrameRing } from '@/components/features/gamification/components/FrameRing';
+import { LevelChip } from '@/components/features/gamification/components/LevelChip';
+import { frameRingOf } from '@/components/features/gamification/domain/frameStyle';
+
 import { Avatar } from './Avatar';
 
 interface ProfileAvatarProps {
@@ -12,6 +16,9 @@ interface ProfileAvatarProps {
     readonly uploading?: boolean;
     readonly onUpload: (file: File) => void;
     readonly onRemove: () => void;
+    /** Worn frame and level (gamification); without them the original red halo is kept. */
+    readonly frameId?: string;
+    readonly level?: number;
 }
 
 const ACCEPTED_MIME = 'image/jpeg,image/png,image/webp';
@@ -20,8 +27,9 @@ const ACCEPTED_MIME = 'image/jpeg,image/png,image/webp';
  * Editable hero avatar. Click → file picker. Parent handles upload via the
  * `/users/avatar` route + Dynamic metadata update; this component is purely UI.
  */
-export function ProfileAvatar({ seed, label, size = 128, photoUrl, uploading = false, onUpload, onRemove }: ProfileAvatarProps) {
+export function ProfileAvatar({ seed, label, size = 128, photoUrl, uploading = false, onUpload, onRemove, frameId, level }: ProfileAvatarProps) {
     const inputRef = useRef<HTMLInputElement | null>(null);
+    const ring = frameId ? frameRingOf(frameId).width : 0;
 
     const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -32,24 +40,32 @@ export function ProfileAvatar({ seed, label, size = 128, photoUrl, uploading = f
 
     return (
         <div className="relative inline-block flex-shrink-0" style={{ width: size, height: size }}>
-            <span
-                aria-hidden
-                className="pointer-events-none absolute -inset-1 rounded-full"
-                style={{
-                    background: 'conic-gradient(from 220deg, rgba(232,0,29,0.0), rgba(232,0,29,0.55), rgba(232,0,29,0.0))',
-                    filter: 'blur(2px)',
-                    opacity: 0.6,
-                }}
-            />
+            {frameId ? (
+                <FrameRing frameId={frameId} size={size} />
+            ) : (
+                <span
+                    aria-hidden
+                    className="pointer-events-none absolute -inset-1 rounded-full"
+                    style={{
+                        background: 'conic-gradient(from 220deg, rgba(232,0,29,0.0), rgba(232,0,29,0.55), rgba(232,0,29,0.0))',
+                        filter: 'blur(2px)',
+                        opacity: 0.6,
+                    }}
+                />
+            )}
             <button
                 type="button"
                 onClick={() => inputRef.current?.click()}
                 disabled={uploading}
                 aria-label="Change profile photo"
-                className="group relative block h-full w-full overflow-hidden rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8001D] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0A]"
-                style={{ border: '2px solid #1E1E1E', cursor: uploading ? 'wait' : 'pointer' }}
+                className="group absolute block overflow-hidden rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8001D] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0A]"
+                style={{
+                    inset: ring,
+                    border: `2px solid ${frameId ? '#0A0A0A' : '#1E1E1E'}`,
+                    cursor: uploading ? 'wait' : 'pointer',
+                }}
             >
-                <Avatar seed={seed} label={label} size={size - 4} photoUrl={photoUrl} />
+                <Avatar seed={seed} label={label} size={size - 2 * ring - 4} photoUrl={photoUrl} />
                 <span
                     className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 transition-opacity group-hover:opacity-100"
                     style={{ opacity: uploading ? 1 : undefined }}
@@ -97,6 +113,8 @@ export function ProfileAvatar({ seed, label, size = 128, photoUrl, uploading = f
                     <circle cx="12" cy="13" r="4" />
                 </svg>
             </span>
+
+            {frameId && level !== undefined && <LevelChip level={level} size={size} />}
 
             <input ref={inputRef} type="file" accept={ACCEPTED_MIME} className="sr-only" onChange={handleFile} />
         </div>
