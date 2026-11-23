@@ -6,14 +6,14 @@ Source de reprise entre sessions. Sources : [`00-decisions.md`](00-decisions.md)
 
 | Étape | Statut | PR | Migrations | Variables d'env | CA couverts | Écarts et décisions |
 |---|---|---|---|---|---|---|
-| 01 · Préparation et identité (G0, G1, G2) | PR ouverte | (voir PR feat/gamification-identity) | **043** `accounts`, `account_wallets` | `JOBS_ONCHAIN_ENABLED` (`.env.local.example`) ; `DYNAMIC_ENVIRONMENT_ID`, `AUTH_REQUIRE_DYNAMIC_JWT`, `GAMIFICATION_ENABLED`, `GAMIFICATION_LAUNCH_AT` (les deux `.env.example`) | CA1 | voir ci-dessous |
+| 01 · Préparation et identité (G0, G1, G2) | PR ouverte | #46 | **043** `accounts`, `account_wallets` | `JOBS_ONCHAIN_ENABLED` (`.env.local.example`) ; `DYNAMIC_ENVIRONMENT_ID`, `AUTH_REQUIRE_DYNAMIC_JWT`, `GAMIFICATION_ENABLED`, `GAMIFICATION_LAUNCH_AT` (les deux `.env.example`) | CA1 | voir ci-dessous |
 | 02 · Domaine (G3) | PR ouverte | #45 | — | — | CA3–CA8, CA10, CA14 (règles), CA16 (validation) | voir #45 |
 | 03 · Schéma, noyau, connexion (G4, G5, G6) | prête pour PR | (branche feat/gamification-core) | **044** `gamification_*` (appliquée en local seulement) | aucune | CA2, CA3, CA4, CA5, CA17, CA19, CA20 (connexion) | voir ci-dessous |
 | 04 · Sources XP joueurs (G7, G8, G9) | prête pour PR | (branche feat/gamification-player-xp) | **045** `gamification_record_watch_minute` + index (appliquée en local seulement) | aucune | CA6–CA12, CA18, CA19, CA20 (tests) | voir ci-dessous |
 | 05 · Streamers et classement (G10, G11) | prête pour PR | (branche feat/gamification-streamers ; correctif D6 à part : commit `5a375b2`) | **046** `record_leaderboard_win` (D6, indépendante de 043–045), **047** minutes de stream et `stop_stream` (appliquées en local seulement) | aucune | CA13, CA21, rembobinage D6 | voir ci-dessous |
 | 06 · API, composants, surfaces (G12, G13, G14) | prête pour PR | (branche feat/gamification-surfaces) | aucune | aucune | CA15, CA16, CA22, CA23 | voir ci-dessous |
 | 07 · Progression, profil, notifs, admin | app (G15, G16, G17, G19) et admin (G18) : PR ouvertes | #51 (app), #52 (admin) | aucune | aucune | CA14, CA15 (profil public), CA17 | voir ci-dessous |
-| 08 · Tests et lancement | à faire | — | — | — | — | — |
+| 08 · Tests et lancement (G20) | PR ouverte (branche feat/gamification-launch, contient 01 à 07) | voir PR feat/gamification-launch | aucune nouvelle | aucune nouvelle | CA1–CA23 : [`CA-MATRIX.md`](CA-MATRIX.md) | voir ci-dessous |
 
 ## Journal des écarts et décisions
 
@@ -102,6 +102,15 @@ Source de reprise entre sessions. Sources : [`00-decisions.md`](00-decisions.md)
 - **Vérifié en local** (API :3071, admin :3073) : création OK, refus 400 / 409 / 403 (modérateur), annulation, suspension, ajustement ± et rejeu idempotent ; lignes `audit_log` contrôlées ; données de test supprimées ensuite. Captures Playwright (desktop 1440 et mobile 390 : page Gamification, formulaire, refus 409, annulation, bloc joueur, suspension, ajustement, vue modérateur sans bloc) dans le scratchpad de session `shots07admin/` ; la connexion admin y passe par un wallet injecté factice et un JWT admin local (Dynamic n'autorise que l'origine `:3003`, ses appels sont relayés avec cette origine).
 - **Dette** : les indicateurs §1.2 ne sont pas construits (itération 2), voir la proposition ci-dessous ; l'annulation d'un événement **en cours** libère encore sa place du quota (règle du domaine de l'étape 02, inchangée) ; pas de pagination au-delà des 50 derniers événements ni des 20 dernières lignes du registre ; un joueur sans pari n'apparaît pas dans la liste *Players* (sa fiche reste accessible par URL).
 - **Proposition pour les indicateurs §1.2 (itération 2)** : une rangée de quatre `StatTile` en tête de la page *Gamification* (activation niveau 2 à 7 jours, part des séries ≥ 7 jours, part des messages avec pastille, part d'XP non monétaire), chacune avec sa cible en légende et un endpoint `/admin/gamification/kpis` en cache Redis court ; sur le dashboard, une seule carte *Engagement* (admin) à côté de *System health*, qui reprend les deux premiers indicateurs et renvoie vers la page, sans rafraîchissement automatique (ce ne sont pas des cartes live).
+
+### Étape 08
+- **Branche d'intégration** `feat/gamification-launch` : étape 05 + fusions de 06, 07 app et 07 admin. Conflits tous additifs (DI, index des hooks, query keys, harness, ce fichier). Un seul correctif : le harness de lecture de l'étape 06 lisait `store.bestRank`, remplacé par les vraies lignes de rang de cycle de l'étape 05.
+- **L2** : `gamification-matchday` et `gamification-cancel` inscrits au registre. Les scénarios CLI ne savent créer que des matchs, ni comptes ni paris indexés : ils posent un match pariable (déployé et publié) pour la QA manuelle, décrite pas à pas dans `SMOKE.md`. Le résultat sur le registre est figé par leurs jumeaux en mémoire (`scenarios/__tests__/`).
+- **L4** : `gamification-chain.integration.test.ts` fait passer de vrais events `FootballPariMatch` par une chaîne Anvil locale (un émetteur de logs à l'ABI du contrat, faute de harness de déploiement), le `PariMatchEventIndexer` de l'app, puis le processeur de la chaîne sur les adaptateurs Supabase : volume, couverture, pari < 5 USDC, gain, annulation, rembobinage complet sans doublon. `gamification-credit.integration.test.ts` : 20 messages de chat en parallèle → exactement 5 XP ; `UPDATE` / `DELETE` du registre refusés au `service_role` via PostgREST. Les cas SQL purs existaient déjà (`gamification-sql`). Lignes de test supprimées après chaque run, rien ne sort de la machine.
+- **Constat** : 20 messages envoyés au même instant passent tous la lecture anti-spam des 20 s (course côté app), mais le plafond SQL tient (5 XP). Sans gravité ; à durcir en itération 2 si besoin.
+- **Livrables** : [`RUNBOOK.md`](RUNBOOK.md), [`LEGAL_CHECKLIST.md`](LEGAL_CHECKLIST.md) (8 points, interrupteurs, clause CGU en anglais), [`ITERATION-2.md`](ITERATION-2.md), [`CA-MATRIX.md`](CA-MATRIX.md).
+- **Vérifié** : domaine 570 tests, backend 354 tests + L4 gamification (chain 3/3, credit 2/2), `tsc` back / front / admin, lint (0 erreur), builds front et admin.
+- `GAMIFICATION_ENABLED` n'a pas été touché hors local. Le lancement reste une décision humaine après la gate juridique.
 
 ### Mode de travail
 - À partir du 23/11, l'utilisateur laisse travailler en autonomie : branches empilées (chaque étape part de la précédente), une PR par étape vers `main` avec ses dépendances, aucun merge. Tests manuels groupés à la fin.
