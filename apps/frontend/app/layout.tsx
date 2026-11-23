@@ -7,6 +7,7 @@ import { QueryProvider } from "@/providers/query-provider";
 import { UsernameSetupGuard } from "@/components/providers/UsernameSetupGuard";
 import { BanRealtimeProvider } from "@/components/providers/BanRealtimeProvider";
 import { GamificationAutoCheckIn } from "@/components/providers/GamificationAutoCheckIn";
+import { GamificationToasts } from "@/components/providers/GamificationToasts";
 import { Toaster } from "@chiliztv/ui";
 
 const lexend = Lexend({
@@ -55,6 +56,7 @@ export default function RootLayout({
               <BanRealtimeProvider />
               {/* Inside the app QueryProvider so a credited check-in refreshes `gamification.me`. */}
               <GamificationAutoCheckIn />
+              <GamificationToasts />
               <UsernameSetupGuard />
               {children}
               <Toaster position="top-right" richColors />
