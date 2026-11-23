@@ -79,6 +79,7 @@ export class ChatController {
         message,
         isFeatured,
         clientTempId,
+        accountId: req.user?.accountId,
       });
 
       res.json({
