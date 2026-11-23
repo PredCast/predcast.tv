@@ -12,7 +12,7 @@ import { Button } from '@/components/common/Button';
 import { TRow } from '@/components/common/TRow';
 import { WalletLabel } from '@/components/moderation/WalletLabel';
 
-export const DOUBLE_XP_COLS = 'minmax(0,1.3fr) minmax(0,1.5fr) 56px minmax(0,1.4fr) 112px 88px';
+export const DOUBLE_XP_COLS = 'minmax(0,1.5fr) minmax(0,1.4fr) 56px minmax(0,1.3fr) 112px 88px';
 
 const EDGES: Partial<Record<AdminDoubleXpEventDto['status'], string>> = { running: '#2dd4a4', upcoming: '#F5C518' };
 

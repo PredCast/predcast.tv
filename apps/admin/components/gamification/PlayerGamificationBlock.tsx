@@ -63,7 +63,9 @@ export function PlayerGamificationBlock({ wallet }: Readonly<{ wallet: string }>
           <div className="flex flex-wrap items-center gap-2 border-t border-line-subtle px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.12em] text-fg-meta">
             <span>Linked wallets</span>
             {account.linkedWallets.map((w) => (
-              <WalletLabel key={w} wallet={w} />
+              <span key={w} className="normal-case">
+                <WalletLabel wallet={w} />
+              </span>
             ))}
           </div>
           <div className="border-t border-line-subtle">

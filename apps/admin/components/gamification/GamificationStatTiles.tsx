@@ -24,8 +24,8 @@ export function GamificationStatTiles({ account }: Readonly<{ account: Gamificat
         caption={`Best ${streak.best} · ${streak.freezes} freeze${streak.freezes === 1 ? '' : 's'}${streak.alive ? '' : ' · broken'}`}
       />
       <StatTile
-        label="Status"
-        value={account.suspendedAt ? 'Suspended' : 'Active'}
+        label="Suspension"
+        value={account.suspendedAt ? 'On' : 'Off'}
         live={account.suspendedAt !== null}
         caption={account.hasProfile ? `Account since ${new Date(account.createdAt).toLocaleDateString('en-GB')}` : 'No credit yet'}
       />
