@@ -68,6 +68,9 @@ const envSchema = z.object({
 
   NETWORK: z.enum(['testnet', 'mainnet']).default('testnet'),
 
+  // On-chain jobs start on their own only in production unless set; 'true' enables them locally.
+  JOBS_ONCHAIN_ENABLED: z.enum(['true', 'false']).optional().transform((v) => (v === undefined ? undefined : v === 'true')),
+
   // Testnet contract addresses (required when NETWORK=testnet, validated at construction time
   // by NetworkConfigService — Zod requires them unconditionally so misconfigs fail fast).
   PARI_MATCH_FACTORY_ADDRESS: z.string().regex(addressRegex),
@@ -88,6 +91,16 @@ const envSchema = z.object({
   // RPC override — leave empty to use the chain default (https://spicy-rpc.chiliz.com or
   // https://rpc.ankr.com/chiliz). Set to a private/Quicknode/Alchemy URL in prod.
   CHILIZ_RPC_URL: z.string().url().optional().or(z.literal('').transform(() => undefined)),
+
+  // Dynamic environment whose JWTs prove wallet ownership at /auth/token. Must be the environment of
+  // the NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID deployed with this backend. Unset = no account linking.
+  DYNAMIC_ENVIRONMENT_ID: z.string().uuid().optional().or(z.literal('').transform(() => undefined)),
+  // true = /auth/token refuses requests without a valid Dynamic JWT (closes wallet impersonation).
+  AUTH_REQUIRE_DYNAMIC_JWT: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  // Gamification kill switch; stays false in production until launch.
+  GAMIFICATION_ENABLED: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  // Launch instant (ISO 8601). Empty or unset = not launched: nothing is credited, jobs exit at once.
+  GAMIFICATION_LAUNCH_AT: z.string().datetime({ offset: true }).optional().or(z.literal('').transform(() => undefined)),
 
   ADMIN_PRIVATE_KEY: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
   // Oracle key (RESOLVER_ROLE): signs resolveByScore only. Required to deploy matches on the current

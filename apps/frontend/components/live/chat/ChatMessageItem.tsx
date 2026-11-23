@@ -5,6 +5,9 @@ import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { ChatMessage, SystemMessageType } from "@/models/chat.model";
 import { RemovedMessagePlaceholder } from "@/components/features/moderation/RemovedMessagePlaceholder";
 import { ReportButton } from "@/components/features/moderation/ReportButton";
+import { useProfileBadge } from "@/components/features/gamification/hooks/useProfileBadge";
+
+import { ChatAuthor } from "./ChatAuthor";
 
 interface ChatMessageItemProps {
   message: ChatMessage;
@@ -76,6 +79,7 @@ function hueForUser(name: string): string {
 export function ChatMessageItem({ message, userId, username }: ChatMessageItemProps) {
   const { primaryWallet } = useDynamicContext();
   const viewerWallet = primaryWallet?.address?.toLowerCase();
+  const badge = useProfileBadge(message.walletAddress);
 
   if (message.removedAt) {
     return <RemovedMessagePlaceholder />;
@@ -109,11 +113,14 @@ export function ChatMessageItem({ message, userId, username }: ChatMessageItemPr
   }
 
   const isOwnMessage = message.userId === userId || message.username === username;
+  // The level pill replaces the per-name hue; gold stays reserved to active subscribers (CA22).
   const userColor = isOwnMessage
     ? "#E8001D"
     : message.isFeatured
       ? "#F5C518"
-      : hueForUser(message.username);
+      : badge
+        ? "#FFFFFF"
+        : hueForUser(message.username);
 
   // Own-wallet messages would 422 server-side (self-report) — hide the flag.
   // Optimistic rows have no DB id yet — nothing to report.
@@ -124,12 +131,13 @@ export function ChatMessageItem({ message, userId, username }: ChatMessageItemPr
   return (
     <div className="group flex items-start justify-between gap-2 px-2 py-1.5 text-[13px] leading-snug text-white/85">
       <div className="min-w-0">
-        <span
-          className="font-display mr-2 font-bold uppercase tracking-tight"
-          style={{ color: userColor }}
-        >
-          {message.username}
-        </span>
+        <ChatAuthor
+          username={message.username}
+          walletAddress={message.walletAddress}
+          color={userColor}
+          badge={badge}
+          isOwn={isOwnMessage || isOwnWallet}
+        />
         <span className="break-words">{message.message}</span>
       </div>
       {reportable && (

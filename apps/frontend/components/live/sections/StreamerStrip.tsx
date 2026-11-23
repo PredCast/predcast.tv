@@ -4,6 +4,11 @@ import { Eye, Heart, Gift, Star } from "lucide-react";
 import { Eyebrow, GhostBtn, GoldBtn, fmtViewersLive } from "../primitives";
 import { ReportButton } from "@/components/features/moderation/ReportButton";
 import type { LiveStream } from "@/models/stream.model";
+import { FramedAvatar } from "@/components/features/gamification/components/FramedAvatar";
+import { ProfileHoverTrigger } from "@/components/features/gamification/components/ProfileHoverTrigger";
+import { useProfileCard } from "@/hooks/api";
+
+import { StreamerLevelLine } from "./StreamerLevelLine";
 
 interface StreamerStripProps {
   stream: LiveStream | null;
@@ -41,6 +46,8 @@ export function StreamerStrip({
   onTip,
   onSubscribe,
 }: StreamerStripProps) {
+  // One card read for the streamer; 404 (no profile, flag off) keeps today's strip.
+  const { data: card } = useProfileCard(stream?.streamerWalletAddress);
   if (!stream) {
     return (
       <div className="flex flex-col items-start gap-2 rounded-xl border border-[#1E1E1E] bg-[#111] p-5 sm:flex-row sm:items-center sm:justify-between">
@@ -58,12 +65,33 @@ export function StreamerStrip({
     <div className="rounded-xl border border-[#1E1E1E] bg-[#111] p-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-center gap-4">
-          <StreamerInitial name={stream.streamerName} />
+          {card ? (
+            <FramedAvatar
+              walletAddress={card.wallet}
+              profile={{ username: card.displayName, avatarUrl: card.avatarUrl }}
+              frameId={card.frameId}
+              level={card.level}
+              size={54}
+              live={stream.isLive}
+            />
+          ) : (
+            <StreamerInitial name={stream.streamerName} />
+          )}
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-display truncate text-[20px] font-extrabold uppercase tracking-tight text-white">
-                @{stream.streamerName}
-              </span>
+              {card ? (
+                <ProfileHoverTrigger
+                  wallet={card.wallet}
+                  reportable={!isOwnStream}
+                  className="font-display truncate text-[20px] font-extrabold uppercase tracking-tight text-white"
+                >
+                  @{stream.streamerName}
+                </ProfileHoverTrigger>
+              ) : (
+                <span className="font-display truncate text-[20px] font-extrabold uppercase tracking-tight text-white">
+                  @{stream.streamerName}
+                </span>
+              )}
               {isOwnStream && (
                 <span
                   className="font-mono-ctv inline-flex items-center rounded-sm border px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.16em]"
@@ -79,6 +107,7 @@ export function StreamerStrip({
               </div>
             )}
             <div className="font-mono-ctv mt-2 flex flex-wrap items-center gap-3 text-[10px] uppercase tracking-[0.16em] text-white/45">
+              {card && <StreamerLevelLine card={card} />}
               {typeof stream.viewerCount === "number" && (
                 <>
                   <span className="inline-flex items-center gap-1">

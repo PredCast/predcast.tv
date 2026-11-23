@@ -19,3 +19,6 @@ export { adminAuthRoutes } from './admin-auth.routes';
 export { metricsRoutes } from './metrics.routes';
 export { reportingRoutes } from './reporting.routes';
 export { banRoutes } from './ban.routes';
+export { gamificationRoutes } from './gamification.routes';
+export { gamificationPublicRoutes } from './gamification-public.routes';
+export { gamificationMeRoutes } from './gamification-me.routes';

@@ -12,6 +12,7 @@ import type { ISubscriptionChecker } from '@chiliztv/domain/shared/ports/ISubscr
 import { __resetTestMatchIdForTesting, matchFixture } from '../../../../testing/fixtures/match.fixtures';
 import { CreateStreamUseCase } from '../../../streams/use-cases/CreateStreamUseCase';
 import { SendMessageUseCase } from '../../../chat/use-cases/SendMessageUseCase';
+import type { GamificationActivityRecorder } from '../../../gamification/services/GamificationActivityRecorder';
 import type { GetMatchByIdUseCase } from '../../use-cases/GetMatchByIdUseCase';
 import { requireVisibleMatch } from '../requireVisibleMatch';
 
@@ -56,7 +57,8 @@ describe('stream and chat guards', () => {
     it('refuses a chat message on a match that is not visible', async () => {
         const chat = { saveMessage: vi.fn(), updateUserActivity: vi.fn() } as unknown as IChatRepository;
         const subs = { hasActiveSubscription: vi.fn(async () => false) } as unknown as ISubscriptionChecker;
-        const uc = new SendMessageUseCase(chat, subs, getMatchReturning(matchFixture.notDeployed()));
+        const gamification = { chatMessageSent: vi.fn() } as unknown as GamificationActivityRecorder;
+        const uc = new SendMessageUseCase(chat, subs, getMatchReturning(matchFixture.notDeployed()), gamification);
 
         await expect(uc.execute({ matchId: 1, userId: 'u', walletAddress: '0x1', username: 'n', message: 'hi' } as never))
             .rejects.toBeInstanceOf(NotFoundError);

@@ -3,10 +3,17 @@ import { formatUnits } from 'viem';
 import { FINISHED_MATCH_STATUSES, type MyBet } from '@/components/features/dashboard/domain/bets';
 import { MARKET_TYPE_HASHES, fmtSelectionWithMarket } from '@/lib/contracts/markets';
 
-import type { WinCardBet, WinCardData } from './types';
+import type { WinCardBet, WinCardData, WinCardGamification } from './types';
 import { teamCode, winCrowd } from './logic';
 
 const USDC_DECIMALS = 6;
+
+export interface WinCardPlayer {
+  readonly pseudo: string;
+  readonly rank: string | null;
+  readonly avatar?: string | null;
+  readonly gamification?: WinCardGamification | null;
+}
 
 function usdc(raw: string | null): number {
   if (!raw) return 0;
@@ -41,7 +48,7 @@ export function isWinCardEligible(bet: MyBet): boolean {
  */
 export function buildWinCards(
   bets: ReadonlyArray<MyBet>,
-  player: { pseudo: string; rank: string | null; avatar?: string | null },
+  player: WinCardPlayer,
 ): WinCardData[] {
   const byContract = new Map<string, MyBet[]>();
   for (const bet of bets) {
@@ -61,14 +68,14 @@ export function buildWinCards(
 /** Single-match card from its winning bets. Exported for the live page (one match). */
 export function buildWinCard(
   bets: ReadonlyArray<MyBet>,
-  player: { pseudo: string; rank: string | null; avatar?: string | null },
+  player: WinCardPlayer,
 ): WinCardData | null {
   return buildOne(bets.filter(isWinCardEligible), player);
 }
 
 function buildOne(
   group: ReadonlyArray<MyBet>,
-  player: { pseudo: string; rank: string | null; avatar?: string | null },
+  player: WinCardPlayer,
 ): WinCardData | null {
   if (group.length === 0) return null;
   const first = group[0];
@@ -116,5 +123,6 @@ function buildOne(
     pseudo: player.pseudo,
     avatar: player.avatar ?? null,
     rank: player.rank,
+    gamification: player.gamification ?? null,
   };
 }

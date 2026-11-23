@@ -5,7 +5,10 @@ import type {
     LeaderboardScore,
     LeaderboardScoreWithRank,
 } from '@chiliztv/domain/leaderboard/entities/LeaderboardScore';
-import type { ILeaderboardScoreRepository } from '@chiliztv/domain/leaderboard/repositories/ILeaderboardScoreRepository';
+import type {
+    ILeaderboardScoreRepository,
+    LeaderboardWinEvent,
+} from '@chiliztv/domain/leaderboard/repositories/ILeaderboardScoreRepository';
 
 interface ScoreRow {
     user_address: string;
@@ -37,21 +40,25 @@ function cycleRowToDomain(row: CycleScoreRow): LeaderboardScore {
 
 @injectable()
 export class SupabaseLeaderboardScoreRepository implements ILeaderboardScoreRepository {
-    async upsertScore(userAddress: string, delta: bigint): Promise<void> {
-        const addr = userAddress.toLowerCase();
-        // Atomic increment via Postgres RPC — `WinRecorded` events stream in
-        // concurrently from the indexer so a read-modify-write would race.
-        const { error } = await supabase.rpc('increment_leaderboard_score', {
+    async recordWin(event: LeaderboardWinEvent): Promise<boolean> {
+        const addr = event.userAddress.toLowerCase();
+        // Set-from-latest-event in one SQL call: a replayed range never double counts (D6).
+        const { data, error } = await supabase.rpc('record_leaderboard_win', {
+            p_cycle_id: event.cycleId.toString(),
             p_user_address: addr,
-            p_delta: delta.toString(),
+            p_new_epoch_score: event.newEpochScore.toString(),
+            p_block: event.blockNumber.toString(),
+            p_log_index: event.logIndex,
         });
         if (error) {
-            logger.error('Failed to upsert leaderboard score', {
+            logger.error('Failed to record leaderboard win', {
+                cycleId: event.cycleId.toString(),
                 userAddress: addr,
                 error: error.message,
             });
-            throw new Error('Failed to upsert leaderboard score');
+            throw new Error('Failed to record leaderboard win');
         }
+        return data === true;
     }
 
     async getScoreForUser(userAddress: string): Promise<LeaderboardScore | null> {
@@ -93,23 +100,6 @@ export class SupabaseLeaderboardScoreRepository implements ILeaderboardScoreRepo
             ...toDomain(row as ScoreRow),
             rank: idx + 1,
         }));
-    }
-
-    async upsertCycleScore(cycleId: bigint, userAddress: string, delta: bigint): Promise<void> {
-        const addr = userAddress.toLowerCase();
-        const { error } = await supabase.rpc('increment_leaderboard_cycle_score', {
-            p_cycle_id: cycleId.toString(),
-            p_user_address: addr,
-            p_delta: delta.toString(),
-        });
-        if (error) {
-            logger.error('Failed to upsert cycle score', {
-                cycleId: cycleId.toString(),
-                userAddress: addr,
-                error: error.message,
-            });
-            throw new Error('Failed to upsert cycle score');
-        }
     }
 
     async getCycleScoreForUser(cycleId: bigint, userAddress: string): Promise<LeaderboardScore | null> {

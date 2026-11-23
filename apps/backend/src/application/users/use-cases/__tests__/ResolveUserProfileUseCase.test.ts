@@ -10,6 +10,7 @@ vi.mock('../../../../infrastructure/persistence/repositories/MultiSourceUserDisp
 
 import { ResolveUserProfileUseCase } from '../ResolveUserProfileUseCase';
 import { UpsertUserProfileUseCase } from '../UpsertUserProfileUseCase';
+import type { GamificationActivityRecorder } from '../../../gamification/services/GamificationActivityRecorder';
 import { InMemoryCache } from '../../../../testing/cache/InMemoryCache';
 import { MockClock } from '../../../../testing/clock/MockClock';
 import { UserCacheKeys } from '../../UserCacheKeys';
@@ -84,7 +85,8 @@ describe('ResolveUserProfileUseCase', () => {
     const repo = fakeRepo(null);
     const fallback = fakeFallback(null);
     const resolver = new ResolveUserProfileUseCase(repo, fallback, new MockClock(FIXED_NOW), cache);
-    const upsert = new UpsertUserProfileUseCase(repo, new MockClock(FIXED_NOW), cache);
+    const gamification = { profileUpdated: vi.fn() } as unknown as GamificationActivityRecorder;
+    const upsert = new UpsertUserProfileUseCase(repo, new MockClock(FIXED_NOW), cache, gamification);
 
     // Pre-fill the cache with the "no username yet" state.
     const empty = await resolver.execute(WALLET);

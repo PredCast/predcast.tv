@@ -1,0 +1,990 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PredCast · Profile hover card · MVP mockup</title>
+<style>
+  :root {
+    --bg: #0A0A0A; --card-1: #111; --card-2: #141414; --elev: #1A1A1A;
+    --bd-subtle: #1E1E1E; --bd: #2A2A2A; --bd-hover: #3A3A3A;
+    --red: #E8001D; --red-hover: #FF1737; --red-dark: #B0001A;
+    --green: #2dd4a4; --gold: #F5C518; --silver: #D8D8DC; --bronze: #C8794B;
+    --t1: #fff; --t2: rgba(255,255,255,0.65); --t3: rgba(255,255,255,0.45);
+    --display: "Barlow Condensed", "Roboto Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+    --body: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--t1); font-family: var(--body); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  a { color: inherit; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 48px 16px 80px; }
+  @media (min-width: 720px) { .wrap { padding: 64px 32px 96px; } }
+
+  /* ── Type & patterns (CLAUDE.md §5) ─────────────────────────────── */
+  .eyebrow { font-family: var(--mono); display: inline-flex; align-items: center; gap: 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.16em; color: var(--red); }
+  .eyebrow::before { content: ""; display: block; width: 16px; height: 2px; background: var(--red); }
+  .eyebrow--dim { color: var(--t3); }
+  .eyebrow--dim::before { background: var(--t3); }
+  h1, h2 { font-family: var(--display); font-stretch: condensed; text-transform: uppercase; font-weight: 800; letter-spacing: -0.015em; line-height: 0.9; margin: 0; }
+  h1 { font-size: clamp(40px, 6vw, 68px); margin-top: 18px; }
+  h2 { font-size: clamp(28px, 3.4vw, 40px); margin-top: 12px; }
+  .red { color: var(--red); }
+  .lead { max-width: 740px; margin: 18px 0 0; color: var(--t2); font-size: 15px; font-weight: 300; line-height: 1.6; }
+  .lead b { color: var(--t1); font-weight: 600; }
+  section { margin-top: 72px; }
+  .sec-lead { color: var(--t2); font-weight: 300; max-width: 780px; margin: 12px 0 28px; }
+  .mono { font-family: var(--mono); }
+
+  /* ── Icons ──────────────────────────────────────────────────────── */
+  .ic { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+  .c-red { color: var(--red); } .c-green { color: var(--green); } .c-gold { color: var(--gold); }
+  .c-silver { color: var(--silver); } .c-bronze { color: var(--bronze); } .c-meta { color: var(--t3); }
+
+  /* ── Avatar + frame ─────────────────────────────────────────────── */
+  .av { --s: 60px; --rw: 3px; position: relative; display: inline-grid; place-items: center; width: var(--s); height: var(--s); flex: 0 0 var(--s); border-radius: 50%; }
+  .av::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--ring, #3A3A3A); box-shadow: var(--glow, none); }
+  .av__in { position: relative; z-index: 1; width: calc(var(--s) - 2 * var(--rw)); height: calc(var(--s) - 2 * var(--rw)); border-radius: 50%; border: 2px solid var(--bg); display: grid; place-items: center; font-family: var(--display); font-stretch: condensed; font-weight: 800; text-transform: uppercase; color: #fff; font-size: calc(var(--s) * 0.32); letter-spacing: 0.02em; }
+  .av__lvl { position: absolute; z-index: 3; left: 50%; bottom: calc(var(--s) * -0.1); transform: translateX(-50%); font-family: var(--mono); font-size: 10px; font-weight: 700; line-height: 1; padding: 3px 6px; border-radius: 4px; background: var(--bg); border: 1px solid var(--chip, #3A3A3A); color: var(--chip-text, var(--t2)); white-space: nowrap; }
+  .av--sm .av__lvl { font-size: 8px; padding: 2px 4px; }
+  .av__tab { position: absolute; z-index: 3; left: 50%; top: -7px; transform: translateX(-50%); font-family: var(--mono); font-size: 8px; font-weight: 700; letter-spacing: 0.16em; padding: 2px 5px; border-radius: 3px; background: var(--red); color: #fff; }
+  .av__crown { position: absolute; z-index: 3; left: 50%; top: calc(var(--s) * -0.3); transform: translateX(-50%); width: calc(var(--s) * 0.42); height: calc(var(--s) * 0.42); color: var(--gold); filter: drop-shadow(0 0 6px rgba(245,197,24,0.5)); }
+  .av__crown .ic { width: 100%; height: 100%; stroke-width: 2.2; fill: rgba(245,197,24,0.18); }
+
+  /* Deterministic gradient fallbacks, on palette (the app derives them from the wallet). */
+  .g-red   { background: linear-gradient(135deg, #E8001D 0%, #7B0010 100%); }
+  .g-gold  { background: linear-gradient(135deg, #F5C518 0%, #7A6109 100%); }
+  .g-green { background: linear-gradient(135deg, #2dd4a4 0%, #0d6f55 100%); }
+  .g-dark  { background: linear-gradient(135deg, #252525 0%, #141414 100%); }
+  .g-brown { background: linear-gradient(135deg, #5a3520 0%, #1c1208 100%); }
+
+  /* Rank frames (level bands) — chip colour always follows the rank */
+  .t-rookie        { --ring: #3A3A3A; --rw: 2px; --chip: #3A3A3A; --chip-text: rgba(255,255,255,0.65); }
+  .t-starter       { --ring: #C8794B; --rw: 2px; --chip: #C8794B; --chip-text: #C8794B; }
+  .t-seasoned      { --ring: #D8D8DC; --rw: 2px; --chip: #D8D8DC; --chip-text: #D8D8DC; }
+  .av.t-seasoned::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 1px solid rgba(216,216,220,0.55); }
+  .t-captain       { --ring: #F5C518; --rw: 3px; --glow: 0 0 18px rgba(245,197,24,0.35); --chip: #F5C518; --chip-text: #F5C518; }
+  .t-international { --ring: #E8001D; --rw: 3px; --glow: 0 0 22px rgba(232,0,29,0.55); --chip: #E8001D; --chip-text: #FF1737; }
+  .t-legend        { --ring: conic-gradient(from 0deg, #E8001D, #F5C518, #E8001D, #B0001A, #E8001D); --rw: 3px; --glow: 0 0 24px rgba(232,0,29,0.45); --chip: #F5C518; --chip-text: #F5C518; }
+  .av.t-legend::before { animation: spin 12s linear infinite; }
+  .t-icon          { --ring: conic-gradient(from 0deg, #E8001D, #F5C518, #FFFFFF, #F5C518, #E8001D); --rw: 4px; --glow: 0 0 26px rgba(245,197,24,0.45), 0 0 10px rgba(232,0,29,0.5); --chip: #FFFFFF; --chip-text: #FFFFFF; }
+  .av.t-icon::before { animation: spin 18s linear infinite; }
+  .av.t-icon::after  { content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 2px dotted rgba(245,197,24,0.75); }
+
+  /* Special frames. --chip/--chip-text are set by a rank class added next to them (level chip keeps the rank colour). */
+  .f-podium-gold   { --ring: repeating-conic-gradient(#F5C518 0deg 12deg, #7A6109 12deg 18deg); --rw: 4px; --glow: 0 0 18px rgba(245,197,24,0.3); }
+  .f-podium-silver { --ring: repeating-conic-gradient(#D8D8DC 0deg 12deg, #6B6B70 12deg 18deg); --rw: 4px; --glow: none; }
+  .f-podium-bronze { --ring: repeating-conic-gradient(#C8794B 0deg 12deg, #6E3C20 12deg 18deg); --rw: 4px; --glow: none; }
+  .f-crown         { --ring: #F5C518; --rw: 3px; --glow: 0 0 22px rgba(245,197,24,0.5); }
+  .f-antenna       { --ring: var(--ant, #E8001D); --rw: 3px; --glow: 0 0 16px rgba(232,0,29,0.35); }
+  .av.f-antenna::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 1px dashed var(--ant-dash, rgba(232,0,29,0.65)); }
+  .f-antenna.ant-bronze { --ant: #C8794B; --ant-dash: rgba(200,121,75,0.7); --glow: none; }
+  .f-antenna.ant-silver { --ant: #D8D8DC; --ant-dash: rgba(216,216,220,0.65); --glow: none; }
+  .f-antenna.ant-legend { --ant: conic-gradient(from 0deg, #E8001D, #F5C518, #E8001D, #B0001A, #E8001D); --ant-dash: rgba(245,197,24,0.7); --glow: 0 0 20px rgba(232,0,29,0.4); }
+  .f-antenna.ant-icon   { --ant: conic-gradient(from 0deg, #E8001D, #F5C518, #FFFFFF, #F5C518, #E8001D); --ant-dash: rgba(255,255,255,0.7); --glow: 0 0 22px rgba(245,197,24,0.4); }
+  .f-founder       { --ring: repeating-conic-gradient(#E8001D 0deg 20deg, #FFFFFF 20deg 23deg); --rw: 3px; --glow: none; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    .av.t-legend::before, .av.t-icon::before { animation: none; }
+  }
+
+  /* ── Hover card ─────────────────────────────────────────────────── */
+  .hc { --tier: #3A3A3A; --tint: rgba(255,255,255,0.04); width: 320px; max-width: calc(100vw - 32px); background: var(--card-1); border: 1px solid var(--bd); border-radius: 12px; box-shadow: 0 18px 48px rgba(0,0,0,0.65); overflow: hidden; text-align: left; color: var(--t1); font-family: var(--body); font-size: 13px; }
+  .hc.tier-rookie   { --tier: rgba(255,255,255,0.65); --tint: rgba(255,255,255,0.05); }
+  .hc.tier-starter  { --tier: #C8794B; --tint: rgba(200,121,75,0.14); }
+  .hc.tier-seasoned { --tier: #D8D8DC; --tint: rgba(216,216,220,0.10); }
+  .hc.tier-captain  { --tier: #F5C518; --tint: rgba(245,197,24,0.14); }
+  .hc.tier-legend   { --tier: #F5C518; --tint: rgba(232,0,29,0.18); }
+  .hc.tier-icon     { --tier: #FFFFFF; --tint: rgba(245,197,24,0.16); }
+  .hc.tier-streamer { --tier: #FF1737; --tint: rgba(232,0,29,0.16); }
+  .hc__top { display: flex; align-items: center; gap: 16px; padding: 18px 16px 18px 18px; background: radial-gradient(130% 150% at 100% 0%, var(--tint) 0%, transparent 60%), var(--card-1); border-bottom: 1px solid var(--bd-subtle); }
+  .hc__id { min-width: 0; flex: 1; }
+  .hc__name { font-family: var(--display); font-stretch: condensed; font-size: 23px; font-weight: 800; text-transform: uppercase; letter-spacing: -0.005em; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hc__title { font-family: var(--mono); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.16em; margin-top: 6px; color: var(--tier); }
+  .hc__meta { font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--t3); margin-top: 5px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .tag { font-family: var(--mono); font-size: 8px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; padding: 2px 5px; border-radius: 3px; border: 1px solid currentColor; line-height: 1.2; }
+  .tag--new { color: var(--green); }
+  .tag--streamer { color: var(--red-hover); }
+  .tag--crown { color: var(--gold); }
+  .tag--founder { color: rgba(255,255,255,0.8); }
+  .tag--sub { color: var(--gold); }
+
+  .hc__xp { padding: 12px 16px 12px 18px; border-bottom: 1px solid var(--bd-subtle); }
+  .hc__xprow { display: flex; justify-content: space-between; align-items: baseline; font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--t3); }
+  .hc__xprow b { color: var(--t1); font-weight: 700; }
+  .hc__xprow span:last-child { font-variant-numeric: tabular-nums; }
+  .bar { margin-top: 8px; height: 6px; border-radius: 999px; background: var(--elev); border: 1px solid var(--bd-subtle); overflow: hidden; }
+  .bar i { display: block; height: 100%; border-radius: 999px; background: var(--tier); }
+  .hc.tier-legend .bar i, .hc.tier-icon .bar i { background: linear-gradient(90deg, #E8001D, #F5C518); }
+  .hc__xpsub { margin-top: 6px; font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--t3); }
+
+  .hc__streaks { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--bd-subtle); }
+  .stk { padding: 11px 12px 11px 18px; display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: center; }
+  .stk + .stk { border-left: 1px solid var(--bd-subtle); padding-left: 14px; }
+  .stk .ic { grid-row: span 2; width: 16px; height: 16px; }
+  .stk b { font-family: var(--display); font-stretch: condensed; font-size: 19px; font-weight: 800; line-height: 1; text-transform: uppercase; }
+  .stk span { font-family: var(--mono); font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--t3); }
+
+  .hc__show { padding: 12px 16px 14px 18px; border-bottom: 1px solid var(--bd-subtle); }
+  .eyebrow-s { font-family: var(--mono); font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.18em; color: var(--t3); }
+  .show { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 9px; }
+  .show--1 { grid-template-columns: minmax(0, 1fr); }
+  .show--1 .ach { flex-direction: row; text-align: left; gap: 10px; justify-content: flex-start; padding-left: 10px; }
+  .ach { --fg: var(--bronze); --bgc: rgba(200,121,75,0.12); --bdc: rgba(200,121,75,0.38); display: flex; flex-direction: column; align-items: center; text-align: center; gap: 5px; padding: 9px 4px 8px; border-radius: 8px; border: 1px solid var(--bdc); background: var(--bgc); min-width: 0; }
+  .ach__ico { width: 30px; height: 30px; display: grid; place-items: center; color: var(--fg); background: rgba(10,10,10,0.6); border: 1px solid var(--bdc); clip-path: polygon(25% 4%, 75% 4%, 100% 50%, 75% 96%, 25% 96%, 0 50%); flex-shrink: 0; }
+  .ach__ico .ic { width: 15px; height: 15px; }
+  .ach__txt { display: flex; flex-direction: column; min-width: 0; }
+  .ach b { font-family: var(--mono); font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg); line-height: 1.25; }
+  .ach i { font-style: normal; font-size: 10.5px; color: var(--t2); line-height: 1.25; margin-top: 2px; }
+  .a-bronze { --fg: #C8794B; --bgc: rgba(200,121,75,0.10); --bdc: rgba(200,121,75,0.38); }
+  .a-silver { --fg: #D8D8DC; --bgc: rgba(216,216,220,0.06); --bdc: rgba(216,216,220,0.34); }
+  .a-gold   { --fg: #F5C518; --bgc: rgba(245,197,24,0.07); --bdc: rgba(245,197,24,0.40); }
+  .a-red    { --fg: #FF1737; --bgc: rgba(232,0,29,0.08); --bdc: rgba(232,0,29,0.42); }
+  .a-legend { --fg: #F5C518; --bgc: linear-gradient(160deg, rgba(232,0,29,0.14), rgba(245,197,24,0.08)); --bdc: rgba(245,197,24,0.45); }
+  .a-icon   { --fg: #FFFFFF; --bgc: linear-gradient(160deg, rgba(232,0,29,0.16), rgba(245,197,24,0.12)); --bdc: rgba(255,255,255,0.5); }
+
+  .hc__foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 14px 12px 18px; background: #0d0d0d; }
+  .hc__facts { font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--t3); line-height: 1.4; }
+  .hc__actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .btn-ghost, .btn-red, .btn-icon, .btn-gold { font-family: var(--mono); font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; border-radius: 6px; padding: 7px 9px; text-decoration: none; cursor: pointer; line-height: 1; }
+  .btn-ghost { color: var(--t1); border: 1px solid var(--bd); background: transparent; }
+  .btn-ghost:hover { border-color: var(--red); }
+  .btn-red { color: #fff; border: 1px solid var(--red); background: var(--red); box-shadow: 0 6px 20px rgba(232,0,29,0.25); }
+  .btn-red:hover { background: var(--red-hover); }
+  .btn-icon { color: var(--t3); border: 1px solid var(--bd-subtle); background: transparent; display: inline-grid; place-items: center; padding: 6px; }
+  .btn-icon:hover { color: var(--t1); border-color: var(--bd-hover); }
+  .btn-gold { color: #0A0A0A; background: var(--gold); border: 1px solid var(--gold); padding: 8px 10px; }
+  :focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+
+  /* ── Live chat mock ─────────────────────────────────────────────── */
+  .stage { display: grid; gap: 28px; align-items: start; }
+  @media (min-width: 900px) { .stage { grid-template-columns: 400px 1fr; } }
+  .chat { width: 100%; max-width: 400px; background: #0d0d0d; border: 1px solid var(--bd-subtle); border-radius: 12px; }
+  .chat__head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--bd-subtle); }
+  .chat__head .live { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--t2); display: inline-flex; align-items: center; gap: 8px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red); box-shadow: 0 0 6px var(--red); }
+  .tabs { display: flex; gap: 4px; }
+  .tabs span { font-family: var(--mono); font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; padding: 4px 8px; border-radius: 4px; color: var(--t3); border: 1px solid var(--bd-subtle); }
+  .tabs span.on { color: var(--t1); border-color: var(--bd); background: var(--elev); }
+  .sys { margin: 10px 12px 4px; border: 1px solid rgba(232,0,29,0.4); background: rgba(232,0,29,0.07); border-radius: 6px; padding: 8px 12px; }
+  .sys__k { font-family: var(--mono); font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.18em; color: var(--red-hover); display: flex; align-items: center; gap: 8px; }
+  .sys__k::before { content: ""; width: 12px; height: 2px; background: var(--red-hover); }
+  .sys__k span { color: var(--t3); }
+  .sys__m { margin-top: 3px; font-size: 12px; color: rgba(255,255,255,0.85); }
+  .msgs { padding: 6px 6px 10px; }
+  .msg { padding: 6px 8px; font-size: 13px; line-height: 1.45; color: rgba(255,255,255,0.85); border-radius: 6px; }
+  .msg:hover { background: rgba(255,255,255,0.015); }
+  .lvl { display: inline-block; vertical-align: 1px; font-family: var(--mono); font-size: 9px; font-weight: 700; line-height: 1; padding: 2px 4px; border-radius: 3px; border: 1px solid var(--chip, #3A3A3A); color: var(--chip-text, var(--t2)); margin-right: 6px; min-width: 22px; text-align: center; }
+  .lvl.t-legend { border-color: transparent; background: linear-gradient(90deg, rgba(232,0,29,0.35), rgba(245,197,24,0.3)); color: #fff; }
+  .who { position: relative; display: inline; }
+  .who__btn { font: inherit; font-family: var(--display); font-stretch: condensed; font-weight: 700; text-transform: uppercase; letter-spacing: -0.005em; font-size: 15px; color: #fff; background: none; border: 0; padding: 0; margin-right: 6px; cursor: pointer; border-bottom: 1px dotted rgba(255,255,255,0.25); }
+  .who__btn:hover { border-bottom-color: currentColor; }
+  .who__btn.own { color: var(--red); }
+  .who__btn.sub { color: var(--gold); }
+  .pop { position: absolute; z-index: 40; left: -30px; top: 100%; padding-top: 10px; display: none; }
+  .who:hover .pop, .who:focus-within .pop { display: block; }
+  @media (max-width: 480px) { .pop { left: -60px; } }
+  .msg .tag { margin-right: 6px; vertical-align: 2px; }
+  .composer { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--bd-subtle); }
+  .composer span { flex: 1; font-size: 12px; color: var(--t3); border: 1px solid var(--bd-subtle); background: var(--card-1); border-radius: 6px; padding: 8px 10px; }
+  .composer b { font-family: var(--mono); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; background: var(--red); color: #fff; border-radius: 6px; padding: 9px 10px; }
+  .hint { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); margin: 0 0 12px; }
+  .hint .dot { background: var(--gold); box-shadow: 0 0 6px var(--gold); animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: 0.35; } }
+  @media (prefers-reduced-motion: reduce) { .hint .dot { animation: none; } }
+
+  .notes { display: grid; gap: 10px; }
+  .note { background: var(--card-1); border: 1px solid var(--bd-subtle); border-radius: 12px; padding: 16px 18px; }
+  .note h3 { margin: 0; font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--t1); }
+  .note p { margin: 6px 0 0; color: var(--t2); font-size: 13px; font-weight: 300; }
+  .note code { font-family: var(--mono); font-size: 11.5px; color: var(--t1); background: var(--elev); border: 1px solid var(--bd-subtle); border-radius: 4px; padding: 0 4px; }
+
+  /* ── Variants ───────────────────────────────────────────────────── */
+  .variants { display: grid; gap: 28px 20px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); justify-items: center; }
+  .variant { width: 100%; max-width: 320px; }
+  .variant__cap { font-family: var(--mono); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.16em; color: var(--t3); margin-bottom: 10px; display: flex; justify-content: space-between; gap: 8px; }
+  .variant__cap b { color: var(--t1); font-weight: 700; }
+
+  /* ── Gallery ────────────────────────────────────────────────────── */
+  .gallery { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .tile { background: var(--card-1); border: 1px solid var(--bd-subtle); border-radius: 12px; padding: 26px 14px 16px; text-align: center; display: flex; flex-direction: column; align-items: center; transition: border-color 0.2s; }
+  .tile:hover { border-color: var(--bd); }
+  .tile .av { --s: 72px; }
+  .tile__name { margin-top: 20px; font-family: var(--display); font-stretch: condensed; font-size: 20px; font-weight: 800; text-transform: uppercase; line-height: 1; }
+  .tile__band { margin-top: 6px; font-family: var(--mono); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--t2); }
+  .tile__hex { margin-top: 6px; font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--t3); line-height: 1.5; }
+  .tile__trio { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .tile__trio .av { --s: 40px; }
+  .tile--wide { grid-column: span 2; }
+  @media (max-width: 520px) { .tile--wide { grid-column: span 1; } }
+  .subhead { margin: 34px 0 14px; }
+  .tiers { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tierchip { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--bdc); background: var(--bgc); color: var(--fg); }
+  .tierchip i { font-style: normal; color: var(--t3); font-weight: 600; }
+
+  /* ── Elsewhere ──────────────────────────────────────────────────── */
+  .else { display: grid; gap: 20px; }
+  @media (min-width: 900px) { .else { grid-template-columns: 1.1fr 1fr; } }
+  .panel { background: var(--card-1); border: 1px solid var(--bd-subtle); border-radius: 12px; overflow: hidden; }
+  .panel__head { padding: 14px 18px; border-bottom: 1px solid var(--bd-subtle); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .lb-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 14px 18px; border-bottom: 1px solid #1A1A1A; }
+  .lb-row:last-child { border-bottom: 0; }
+  .lb-rank { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--t3); font-variant-numeric: tabular-nums; }
+  .lb-who { display: flex; align-items: center; gap: 14px; min-width: 0; }
+  .lb-who .av { --s: 34px; }
+  .lb-name { font-family: var(--display); font-stretch: condensed; font-size: 18px; font-weight: 800; text-transform: uppercase; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+  .lb-title { font-family: var(--mono); font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; margin-top: 4px; display: block; }
+  .lb-tier { font-family: var(--mono); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.18em; }
+  .gold-row { background: rgba(245,197,24,0.06); }
+  .strip { padding: 22px 18px; display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+  .strip .av { --s: 54px; }
+  .strip__name { font-family: var(--display); font-stretch: condensed; font-size: 22px; font-weight: 800; text-transform: uppercase; line-height: 1; }
+  .strip__title { margin-top: 3px; font-size: 13px; font-weight: 300; color: var(--t2); }
+  .strip__meta { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--t3); }
+  .strip__meta .ic { width: 11px; height: 11px; }
+  .strip__meta span { display: inline-flex; gap: 5px; align-items: center; }
+  .strip__btns { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+
+  /* ── Notifications (sonner-style toasts) and double-XP banner ──── */
+  .toasts { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); }
+  .toast { display: flex; gap: 12px; align-items: flex-start; background: var(--card-2); border: 1px solid var(--bd); border-radius: 10px; padding: 14px 16px; box-shadow: 0 12px 32px rgba(0,0,0,0.5); }
+  .toast__ico { width: 30px; height: 30px; flex: 0 0 30px; display: grid; place-items: center; border-radius: 8px; background: var(--elev); border: 1px solid var(--bd-subtle); }
+  .toast__ico .ic { width: 16px; height: 16px; }
+  .toast__k { font-family: var(--mono); font-size: 9px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--t3); }
+  .toast__t { font-family: var(--display); font-stretch: condensed; font-size: 20px; font-weight: 800; text-transform: uppercase; line-height: 1.05; margin-top: 2px; }
+  .toast__d { font-size: 12px; color: var(--t2); margin-top: 3px; font-weight: 300; }
+  .banner { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; border: 1px solid rgba(245,197,24,0.4); background: linear-gradient(90deg, rgba(245,197,24,0.08), rgba(232,0,29,0.06)); border-radius: 10px; padding: 14px 18px; }
+  .banner__x { font-family: var(--display); font-stretch: condensed; font-size: 30px; font-weight: 800; color: var(--gold); line-height: 1; }
+  .banner__t { font-family: var(--mono); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.16em; color: var(--t1); }
+  .banner__d { font-size: 12.5px; color: var(--t2); margin-top: 2px; font-weight: 300; }
+  .banner__d b { color: var(--t1); font-weight: 600; }
+
+  footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--bd-subtle); display: grid; gap: 8px; }
+  footer p { margin: 0; font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--t3); line-height: 1.7; }
+</style>
+</head>
+<body>
+
+<!-- Icon sprite (lucide-style strokes) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-flame" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></symbol>
+  <symbol id="i-award" viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M15.48 12.89 17 22l-5-3-5 3 1.52-9.11"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.6 2.5L16 9.5"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></symbol>
+  <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+  <symbol id="i-crown" viewBox="0 0 24 24"><path d="m2 6 4 11h12l4-11-6 5-4-7-4 7-6-5Z"/><path d="M6 21h12"/></symbol>
+  <symbol id="i-steps" viewBox="0 0 24 24"><path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z"/><path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z"/></symbol>
+  <symbol id="i-gift" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C9 3 12 8 12 8s3-5 4.5-5a2.5 2.5 0 0 1 0 5"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></symbol>
+  <symbol id="i-snow" viewBox="0 0 24 24"><path d="M12 2v20M4.93 4.93l14.14 14.14M2 12h20M4.93 19.07 19.07 4.93"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></symbol>
+  <symbol id="i-zap" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></symbol>
+</svg>
+
+<main class="wrap">
+
+  <header>
+    <div class="eyebrow">Gamification · Mockup 04 · MVP</div>
+    <h1>Profile card <span class="red">on hover.</span></h1>
+    <p class="lead">
+      What you see when hovering a username in the live chat, the leaderboard or the live page: <b>level, rank frame, chosen title, XP bar, daily streak and a showcase of up to 3 achievements</b>.
+      No amount is ever shown. Hover a username in the chat below, or reach it with the Tab key.
+    </p>
+  </header>
+
+  <!-- ═══════════════ 01 · In context ═══════════════ -->
+  <section aria-labelledby="s1">
+    <div class="eyebrow">01 · In context</div>
+    <h2 id="s1">In the live <span class="red">chat.</span></h2>
+    <p class="sec-lead">A level chip coloured by rank sits before every username. The chips of visible messages load in one batch; the full card loads on hover or focus only. Bets stay anonymous in the chat.</p>
+
+    <div class="stage">
+      <div>
+        <div class="hint"><span class="dot"></span>Hover or tab to a username</div>
+        <div class="chat" role="log" aria-label="Match chat, mockup">
+          <div class="chat__head">
+            <span class="live"><span class="dot"></span>Live chat</span>
+            <span class="tabs"><span class="on">Match</span><span>Stream</span></span>
+          </div>
+
+          <div class="sys">
+            <div class="sys__k">Prediction <span>· System</span></div>
+            <div class="sys__m">New position on Over 2.5 goals</div>
+          </div>
+
+          <div class="msgs">
+            <!-- NINO_FC · Starter 9 -->
+            <div class="msg">
+              <span class="lvl t-starter">9</span><span class="who"><button class="who__btn" type="button" aria-haspopup="dialog">NINO_FC</button><span class="pop">
+                <article class="hc tier-starter" aria-label="Profile card of NINO_FC">
+                  <div class="hc__top">
+                    <span class="av t-starter"><span class="av__in g-brown">NI</span><span class="av__lvl">9</span></span>
+                    <div class="hc__id">
+                      <div class="hc__name">NINO_FC</div>
+                      <div class="hc__title">Striker</div>
+                      <div class="hc__meta">Starter rank</div>
+                    </div>
+                  </div>
+                  <div class="hc__xp">
+                    <div class="hc__xprow"><b>LVL 9</b><span>300 / 900 XP</span></div>
+                    <div class="bar"><i style="width:33.3%"></i></div>
+                    <div class="hc__xpsub">600 XP to level 10</div>
+                  </div>
+                  <div class="hc__streaks">
+                    <div class="stk"><svg class="ic c-red"><use href="#i-flame"/></svg><b>23 days</b><span>Daily streak</span></div>
+                    <div class="stk"><svg class="ic c-gold"><use href="#i-award"/></svg><b>41 days</b><span>Best streak</span></div>
+                  </div>
+                  <div class="hc__show">
+                    <div class="eyebrow-s">Showcase · 1 slot</div>
+                    <div class="show show--1">
+                      <div class="ach a-silver"><span class="ach__ico"><svg class="ic"><use href="#i-check"/></svg></span><span class="ach__txt"><b>Winning Bets II</b><i>Striker · 10 wins</i></span></div>
+                    </div>
+                  </div>
+                  <div class="hc__foot">
+                    <span class="hc__facts">Member since<br>Jan 2027</span>
+                    <div class="hc__actions"><a class="btn-ghost" href="#">View profile</a><button class="btn-icon" type="button" aria-label="Report this account"><svg class="ic"><use href="#i-flag"/></svg></button></div>
+                  </div>
+                </article>
+              </span></span>Their high press will choke them in the first half.
+            </div>
+
+            <!-- VALOU_92 · Captain 27 -->
+            <div class="msg">
+              <span class="lvl t-captain">27</span><span class="who"><button class="who__btn" type="button" aria-haspopup="dialog">VALOU_92</button><span class="pop">
+                <article class="hc tier-captain" aria-label="Profile card of VALOU_92">
+                  <div class="hc__top">
+                    <span class="av t-captain"><span class="av__in g-gold">VA</span><span class="av__lvl">27</span></span>
+                    <div class="hc__id">
+                      <div class="hc__name">VALOU_92</div>
+                      <div class="hc__title">Encyclopedia</div>
+                      <div class="hc__meta">Captain rank <span class="tag tag--founder">Founder</span></div>
+                    </div>
+                  </div>
+                  <div class="hc__xp">
+                    <div class="hc__xprow"><b>LVL 27</b><span>1,320 / 2,700 XP</span></div>
+                    <div class="bar"><i style="width:48.9%"></i></div>
+                    <div class="hc__xpsub">1,380 XP to level 28</div>
+                  </div>
+                  <div class="hc__streaks">
+                    <div class="stk"><svg class="ic c-red"><use href="#i-flame"/></svg><b>61 days</b><span>Daily streak</span></div>
+                    <div class="stk"><svg class="ic c-gold"><use href="#i-award"/></svg><b>88 days</b><span>Best streak</span></div>
+                  </div>
+                  <div class="hc__show">
+                    <div class="eyebrow-s">Showcase</div>
+                    <div class="show">
+                      <div class="ach a-red"><span class="ach__ico"><svg class="ic"><use href="#i-grid"/></svg></span><span class="ach__txt"><b>Versatility IV</b><i>Encyclopedia</i></span></div>
+                      <div class="ach a-gold"><span class="ach__ico"><svg class="ic"><use href="#i-eye"/></svg></span><span class="ach__txt"><b>Spectator III</b><i>Kop · 50 h</i></span></div>
+                      <div class="ach a-gold"><span class="ach__ico"><svg class="ic"><use href="#i-trophy"/></svg></span><span class="ach__txt"><b>Leaderboard III</b><i>Top 10 · Cycle 5</i></span></div>
+                    </div>
+                  </div>
+                  <div class="hc__foot">
+                    <span class="hc__facts">Member since<br>Dec 2026</span>
+                    <div class="hc__actions"><a class="btn-ghost" href="#">View profile</a><button class="btn-icon" type="button" aria-label="Report this account"><svg class="ic"><use href="#i-flag"/></svg></button></div>
+                  </div>
+                </article>
+              </span></span>Careful: they came back twice this season after the break.
+            </div>
+
+            <!-- TIKITAKA · Rookie 3 · New -->
+            <div class="msg">
+              <span class="lvl t-rookie">3</span><span class="tag tag--new">New</span><span class="who"><button class="who__btn" type="button" aria-haspopup="dialog">TIKITAKA</button><span class="pop">
+                <article class="hc tier-rookie" aria-label="Profile card of TIKITAKA">
+                  <div class="hc__top">
+                    <span class="av t-rookie"><span class="av__in g-dark">TI</span><span class="av__lvl">3</span></span>
+                    <div class="hc__id">
+                      <div class="hc__name">TIKITAKA</div>
+                      <div class="hc__title">New Recruit</div>
+                      <div class="hc__meta">Rookie rank <span class="tag tag--new">New · day 5</span></div>
+                    </div>
+                  </div>
+                  <div class="hc__xp">
+                    <div class="hc__xprow"><b>LVL 3</b><span>80 / 300 XP</span></div>
+                    <div class="bar"><i style="width:26.7%"></i></div>
+                    <div class="hc__xpsub">220 XP to level 4</div>
+                  </div>
+                  <div class="hc__streaks">
+                    <div class="stk"><svg class="ic c-red"><use href="#i-flame"/></svg><b>5 days</b><span>Daily streak</span></div>
+                    <div class="stk"><svg class="ic c-gold"><use href="#i-award"/></svg><b>5 days</b><span>Best streak</span></div>
+                  </div>
+                  <div class="hc__show">
+                    <div class="eyebrow-s">Showcase · 1 slot</div>
+                    <div class="show show--1">
+                      <div class="ach a-bronze"><span class="ach__ico"><svg class="ic"><use href="#i-steps"/></svg></span><span class="ach__txt"><b>First Steps</b><i>New Recruit · 5 of 6 steps</i></span></div>
+                    </div>
+                  </div>
+                  <div class="hc__foot">
+                    <span class="hc__facts">Member since<br>Mar 2027</span>
+                    <div class="hc__actions"><a class="btn-ghost" href="#">View profile</a><button class="btn-icon" type="button" aria-label="Report this account"><svg class="ic"><use href="#i-flag"/></svg></button></div>
+                  </div>
+                </article>
+              </span></span>First match here, does anyone know how to turn the stream sound on?
+            </div>
+
+            <!-- MARGO.ETH · Seasoned 19 · active subscriber (isFeatured gold name, unchanged) -->
+            <div class="msg">
+              <span class="lvl t-seasoned">19</span><span class="who"><button class="who__btn sub" type="button" aria-haspopup="dialog">MARGO.ETH</button><span class="pop">
+                <article class="hc tier-seasoned" aria-label="Profile card of MARGO.ETH">
+                  <div class="hc__top">
+                    <span class="av t-seasoned"><span class="av__in g-green">MA</span><span class="av__lvl">19</span></span>
+                    <div class="hc__id">
+                      <div class="hc__name">MARGO.ETH</div>
+                      <div class="hc__title">Swiss Army Knife</div>
+                      <div class="hc__meta">Seasoned rank</div>
+                    </div>
+                  </div>
+                  <div class="hc__xp">
+                    <div class="hc__xprow"><b>LVL 19</b><span>1,150 / 1,900 XP</span></div>
+                    <div class="bar"><i style="width:60.5%"></i></div>
+                    <div class="hc__xpsub">750 XP to level 20</div>
+                  </div>
+                  <div class="hc__streaks">
+                    <div class="stk"><svg class="ic c-red"><use href="#i-flame"/></svg><b>0 days</b><span>Daily streak</span></div>
+                    <div class="stk"><svg class="ic c-gold"><use href="#i-award"/></svg><b>34 days</b><span>Best streak</span></div>
+                  </div>
+                  <div class="hc__show">
+                    <div class="eyebrow-s">Showcase · 2 slots</div>
+                    <div class="show" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+                      <div class="ach a-gold"><span class="ach__ico"><svg class="ic"><use href="#i-grid"/></svg></span><span class="ach__txt"><b>Versatility III</b><i>Swiss Army Knife</i></span></div>
+                      <div class="ach a-gold"><span class="ach__ico"><svg class="ic"><use href="#i-chat"/></svg></span><span class="ach__txt"><b>Chatter III</b><i>Cheerleader</i></span></div>
+                    </div>
+                  </div>
+                  <div class="hc__foot">
+                    <span class="hc__facts">Member since<br>Dec 2026</span>
+                    <div class="hc__actions"><a class="btn-ghost" href="#">View profile</a><button class="btn-icon" type="button" aria-label="Report this account"><svg class="ic"><use href="#i-flag"/></svg></button></div>
+                  </div>
+                </article>
+              </span></span>Anyone else watching the Kop on the second stream? Great vibe.
+            </div>
+
+            <!-- LE_KOP_ROUGE · Legend 52 wearing the Crown -->
+            <div class="msg">
+              <span class="lvl t-legend">52</span><span class="who"><button class="who__btn" type="button" aria-haspopup="dialog">LE_KOP_ROUGE</button><span class="pop">
+                <article class="hc tier-legend" aria-label="Profile card of LE_KOP_ROUGE">
+                  <div class="hc__top">
+                    <span class="av f-crown t-legend" style="--ring:#F5C518;--rw:3px;--glow:0 0 22px rgba(245,197,24,0.5)"><span class="av__crown"><svg class="ic"><use href="#i-crown"/></svg></span><span class="av__in g-red">LK</span><span class="av__lvl">52</span></span>
+                    <div class="hc__id">
+                      <div class="hc__name">LE_KOP_ROUGE</div>
+                      <div class="hc__title">Champion · Cycle 31</div>
+                      <div class="hc__meta">Legend rank <span class="tag tag--crown">Crown</span></div>
+                    </div>
+                  </div>
+                  <div class="hc__xp">
+                    <div class="hc__xprow"><b>LVL 52</b><span>2,400 / 5,200 XP</span></div>
+                    <div class="bar"><i style="width:46.2%"></i></div>
+                    <div class="hc__xpsub">2,800 XP to level 53</div>
+                  </div>
+                  <div class="hc__streaks">
+                    <div class="stk"><svg class="ic c-red"><use href="#i-flame"/></svg><b>214 days</b><span>Daily streak</span></div>
+                    <div class="stk"><svg class="ic c-gold"><use href="#i-award"/></svg><b>365 days</b><span>Best streak</span></div>
+                  </div>
+                  <div class="hc__show">
+                    <div class="eyebrow-s">Showcase</div>
+                    <div class="show">
+                      <div class="ach a-legend"><span class="ach__ico"><svg class="ic"><use href="#i-crown"/></svg></span><span class="ach__txt"><b>Leaderboard V</b><i>#1 · Cycle 31</i></span></div>
+                      <div class="ach a-red"><span class="ach__ico"><svg class="ic"><use href="#i-eye"/></svg></span><span class="ach__txt"><b>Spectator IV</b><i>Ultra · 150 h</i></span></div>
+                      <div class="ach a-icon"><span class="ach__ico"><svg class="ic"><use href="#i-calendar"/></svg></span><span class="ach__txt"><b>Daily Streak VIII</b><i>Full Season</i></span></div>
+                    </div>
+                  </div>
+                  <div class="hc__foot">
+                    <span class="hc__facts">Member since<br>Dec 2026</span>
+                    <div class="hc__actions"><a class="btn-ghost" href="#">View profile</a><button class="btn-icon" type="button" aria-label="Report this account"><svg class="ic"><use href="#i-flag"/></svg></button></div>
+                  </div>
+                </article>
+              </span></span>Welcome! Stream tab at the top, then the speaker icon in the player.
+            </div>
+
+            <!-- COACH_RAPH · Streamer 31 -->
+            <div class="msg">
+              <span class="lvl t-captain">31</span><span class="tag tag--streamer">Streamer</span><span class="who"><button class="who__btn" type="button" aria-haspopup="dialog">COACH_RAPH</button><span class="pop">
+                <article class="hc tier-streamer" aria-label="Profile card of COACH_RAPH, streamer">
+                  <div class="hc__top">
+                    <span class="av f-antenna t-captain"><span class="av__tab">LIVE</span><span class="av__in g-red">CR</span><span class="av__lvl">31</span></span>
+                    <div class="hc__id">
+                      <div class="hc__name">COACH_RAPH</div>
+                      <div class="hc__title">Voice of the Match</div>
+                      <div class="hc__meta">Captain rank <span class="tag tag--streamer">Streamer</span></div>
+                    </div>
+                  </div>
+                  <div class="hc__xp">
+                    <div class="hc__xprow"><b>LVL 31</b><span>1,400 / 3,100 XP</span></div>
+                    <div class="bar"><i style="width:45.2%"></i></div>
+                    <div class="hc__xpsub">1,700 XP to level 32</div>
+                  </div>
+                  <div class="hc__streaks">
+                    <div class="stk"><svg class="ic c-red"><use href="#i-mic"/></svg><b>152 h</b><span>Streamed</span></div>
+                    <div class="stk"><svg class="ic c-red"><use href="#i-flame"/></svg><b>9 days</b><span>Daily streak</span></div>
+                  </div>
+                  <div class="hc__show">
+                    <div class="eyebrow-s">Showcase</div>
+                    <div class="show">
+                      <div class="ach a-red"><span class="ach__ico"><svg class="ic"><use href="#i-mic"/></svg></span><span class="ach__txt"><b>Streamed Hours IV</b><i>Voice of the Match</i></span></div>
+                      <div class="ach a-gold"><span class="ach__ico"><svg class="ic"><use href="#i-chat"/></svg></span><span class="ach__txt"><b>Chatter III</b><i>Cheerleader</i></span></div>
+                      <div class="ach a-silver"><span class="ach__ico"><svg class="ic"><use href="#i-eye"/></svg></span><span class="ach__txt"><b>Spectator II</b><i>In the Stands</i></span></div>
+                    </div>
+                  </div>
+                  <div class="hc__foot">
+                    <span class="hc__facts">Member since<br>Dec 2026</span>
+                    <div class="hc__actions"><a class="btn-red" href="#">Follow</a><a class="btn-ghost" href="#">Profile</a></div>
+                  </div>
+                </article>
+              </span></span>We'll go through the line-ups together at half-time.
+            </div>
+
+            <!-- Own message -->
+            <div class="msg">
+              <span class="lvl t-seasoned">18</span><span class="who"><button class="who__btn own" type="button">YOU</button></span>Good idea, I'm staying for half-time.
+            </div>
+          </div>
+
+          <div class="composer"><span>Send a message…</span><b>Send</b></div>
+        </div>
+      </div>
+
+      <div class="notes">
+        <div class="note">
+          <h3>Level chip</h3>
+          <p>Lifetime level in the rank colour (Rookie → Icon). Always shown, even when the player wears a special frame. It replaces the <code>hueForUser</code> colour, which said nothing about the player.</p>
+        </div>
+        <div class="note">
+          <h3>Title, picked by the player</h3>
+          <p>Unlocked by achievements and levels, chosen in the Progression section of the dashboard, together with the frame and the showcase.</p>
+        </div>
+        <div class="note">
+          <h3>Daily streak, no pressure</h3>
+          <p>Days with a check-in: opening the app signed in is enough, no bet needed. A freeze, earned every 7 days (2 max), protects a missed day automatically. No "streak in danger" alert.</p>
+        </div>
+        <div class="note">
+          <h3>Never on the card</h3>
+          <p>No stake, payout or PnL, no Bet Volume achievement (private to its owner), no linked wallets. Gold usernames stay reserved for active subscribers (<code>isFeatured</code>), as today.</p>
+        </div>
+        <div class="note">
+          <h3>New players</h3>
+          <p>A <b style="color:#2dd4a4">New</b> tag for 14 days. Nothing is sorted or hidden by level: a level 3 reads as clearly as a level 52.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ 02 · Variants ═══════════════ -->
+  <section aria-labelledby="s2">
+    <div class="eyebrow">02 · Variants</div>
+    <h2 id="s2">Six players, <span class="red">six readings.</span></h2>
+    <p class="sec-lead">Frozen hover state, for review. The showcase grows from 1 slot (levels 1–9) to 2 (10–19) and 3 (20+). For a streamer, the streak row shows streamed hours next to the daily streak. At level 60 the bar is full and reads <span class="mono">Max level</span>; there is no prestige in the MVP.</p>
+
+    <div class="variants">
+      <!-- Rookie -->
+      <div class="variant">
+        <div class="variant__cap"><b>Rookie · New</b><span>LVL 1–4</span></div>
+        <article class="hc tier-rookie" aria-label="Rookie card">
+          <div class="hc__top">
+            <span class="av t-rookie"><span class="av__in g-dark">TI</span><span class="av__lvl">3</span></span>
+            <div class="hc__id">
+              <div class="hc__name">TIKITAKA</div>
+              <div class="hc__title">New Recruit</div>
+              <div class="hc__meta">Rookie rank <span class="tag tag--new">New · day 5</span></div>
+            </div>
+          </div>
+          <div class="hc__xp">
+            <div class="hc__xprow"><b>LVL 3</b><span>80 / 300 XP</span></div>
+            <div class="bar"><i style="width:26.7%"></i></div>
+            <div class="hc__xpsub">220 XP to level 4</div>
+          </div>
+          <div class="hc__streaks">
+            <div class="stk"><svg class="ic c-red"><use href="#i-flame"/></svg><b>5 days</b><span>Daily streak</span></div>
+            <div class="stk"><svg class="ic c-gold"><use href="#i-award"/></svg><b>5 days</b><span>Best streak</span></div>
+          </div>
+          <div class="hc__show">
+            <div class="eyebrow-s">Showcase · 1 slot</div>
+            <div class="show show--1">
+              <div class="ach a-bronze"><span class="ach__ico"><svg class="ic"><use href="#i-steps"/></svg></span><span class="ach__txt"><b>First Steps</b><i>New Recruit · 5 of 6 steps</i></span></div>
+            </div>
+          </div>
+          <div class="hc__foot">
+            <span class="hc__facts">Member since<br>Mar 2027</span>
+            <div class="hc__actions"><a class="btn-ghost" href="#">View profile</a><button class="btn-icon" type="button" aria-label="Report this account"><svg class="ic"><use href="#i-flag"/></svg></button></div>
+          </div>
+        </article>
+      </div>
+
+      <!-- Starter -->
+      <div class="variant">
+        <div class="variant__cap"><b>Starter</b><span>LVL 5–14</span></div>
+        <article class="hc tier-starter" aria-label="Starter card">
+          <div class="hc__top">
+            <span class="av t-starter"><span class="av__in g-brown">NI</span><span class="av__lvl">9</span></span>
+            <div class="hc__id">
+              <div class="hc__name">NINO_FC</div>
+              <div class="hc__title">Striker</div>
+              <div class="hc__meta">Starter rank</div>
+            </div>
+          </div>
+          <div class="hc__xp">
+            <div class="hc__xprow"><b>LVL 9</b><span>300 / 900 XP</span></div>
+            <div class="bar"><i style="width:33.3%"></i></div>
+            <div class="hc__xpsub">600 XP to level 10</div>
+          </div>
+          <div class="hc__streaks">
+            <div class="stk"><svg class="ic c-red"><use href="#i-flame"/></svg><b>23 days</b><span>Daily streak</span></div>
+            <div class="stk"><svg class="ic c-gold"><use href="#i-award"/></svg><b>41 days</b><span>Best streak</span></div>
+          </div>
+          <div class="hc__show">
+            <div class="eyebrow-s">Showcase · 1 slot</div>
+            <div class="show show--1">
+              <div class="ach a-silver"><span class="ach__ico"><svg class="ic"><use href="#i-check"/></svg></span><span class="ach__txt"><b>Winning Bets II</b><i>Striker · 10 wins</i></span></div>
+            </div>
+          </div>
+          <div class="hc__foot">
+            <span class="hc__facts">Member since<br>Jan 2027</span>
+            <div class="hc__actions"><a class="btn-ghost" href="#">View profile</a><button class="btn-icon" type="button" aria-label="Report this account"><svg class="ic"><use href="#i-flag"/></svg></button></div>
+          </div>
+        </article>
+      </div>
+
+      <!-- Captain + Founder -->
+      <div class="variant">
+        <div class="variant__cap"><b>Captain · Founder</b><span>LVL 25–34</span></div>
+        <article class="hc tier-captain" aria-label="Captain card">
+          <div class="hc__top">
+            <span class="av t-captain"><span class="av__in g-gold">VA</span><span class="av__lvl">27</span></span>
+            <div class="hc__id">
+              <div class="hc__name">VALOU_92</div>
+              <div class="hc__title">Encyclopedia</div>
+              <div class="hc__meta">Captain rank <span class="tag tag--founder">Founder</span></div>
+            </div>
+          </div>
+          <div class="hc__xp">
+            <div class="hc__xprow"><b>LVL 27</b><span>1,320 / 2,700 XP</span></div>
+            <div class="bar"><i style="width:48.9%"></i></div>
+            <div class="hc__xpsub">1,380 XP to level 28</div>
+          </div>
+          <div class="hc__streaks">
+            <div class="stk"><svg class="ic c-red"><use href="#i-flame"/></svg><b>61 days</b><span>Daily streak</span></div>
+            <div class="stk"><svg class="ic c-gold"><use href="#i-award"/></svg><b>88 days</b><span>Best streak</span></div>
+          </div>
+          <div class="hc__show">
+            <div class="eyebrow-s">Showcase</div>
+            <div class="show">
+              <div class="ach a-red"><span class="ach__ico"><svg class="ic"><use href="#i-grid"/></svg></span><span class="ach__txt"><b>Versatility IV</b><i>Encyclopedia</i></span></div>
+              <div class="ach a-gold"><span class="ach__ico"><svg class="ic"><use href="#i-eye"/></svg></span><span class="ach__txt"><b>Spectator III</b><i>Kop · 50 h</i></span></div>
+              <div class="ach a-gold"><span class="ach__ico"><svg class="ic"><use href="#i-trophy"/></svg></span><span class="ach__txt"><b>Leaderboard III</b><i>Top 10 · Cycle 5</i></span></div>
+            </div>
+          </div>
+          <div class="hc__foot">
+            <span class="hc__facts">Member since<br>Dec 2026</span>
+            <div class="hc__actions"><a class="btn-ghost" href="#">View profile</a><button class="btn-icon" type="button" aria-label="Report this account"><svg class="ic"><use href="#i-flag"/></svg></button></div>
+          </div>
+        </article>
+      </div>
+
+      <!-- Legend + Crown -->
+      <div class="variant">
+        <div class="variant__cap"><b>Legend · Crown</b><span>LVL 45–59</span></div>
+        <article class="hc tier-legend" aria-label="Legend card wearing the Crown">
+          <div class="hc__top">
+            <span class="av f-crown t-legend" style="--ring:#F5C518;--rw:3px;--glow:0 0 22px rgba(245,197,24,0.5)"><span class="av__crown"><svg class="ic"><use href="#i-crown"/></svg></span><span class="av__in g-red">LK</span><span class="av__lvl">52</span></span>
+            <div class="hc__id">
+              <div class="hc__name">LE_KOP_ROUGE</div>
+              <div class="hc__title">Champion · Cycle 31</div>
+              <div class="hc__meta">Legend rank <span class="tag tag--crown">Crown</span></div>
+            </div>
+          </div>
+          <div class="hc__xp">
+            <div class="hc__xprow"><b>LVL 52</b><span>2,400 / 5,200 XP</span></div>
+            <div class="bar"><i style="width:46.2%"></i></div>
+            <div class="hc__xpsub">2,800 XP to level 53</div>
+          </div>
+          <div class="hc__streaks">
+            <div class="stk"><svg class="ic c-red"><use href="#i-flame"/></svg><b>214 days</b><span>Daily streak</span></div>
+            <div class="stk"><svg class="ic c-gold"><use href="#i-award"/></svg><b>365 days</b><span>Best streak</span></div>
+          </div>
+          <div class="hc__show">
+            <div class="eyebrow-s">Showcase</div>
+            <div class="show">
+              <div class="ach a-legend"><span class="ach__ico"><svg class="ic"><use href="#i-crown"/></svg></span><span class="ach__txt"><b>Leaderboard V</b><i>#1 · Cycle 31</i></span></div>
+              <div class="ach a-red"><span class="ach__ico"><svg class="ic"><use href="#i-eye"/></svg></span><span class="ach__txt"><b>Spectator IV</b><i>Ultra · 150 h</i></span></div>
+              <div class="ach a-icon"><span class="ach__ico"><svg class="ic"><use href="#i-calendar"/></svg></span><span class="ach__txt"><b>Daily Streak VIII</b><i>Full Season</i></span></div>
+            </div>
+          </div>
+          <div class="hc__foot">
+            <span class="hc__facts">Member since<br>Dec 2026</span>
+            <div class="hc__actions"><a class="btn-ghost" href="#">View profile</a><button class="btn-icon" type="button" aria-label="Report this account"><svg class="ic"><use href="#i-flag"/></svg></button></div>
+          </div>
+        </article>
+      </div>
+
+      <!-- Streamer -->
+      <div class="variant">
+        <div class="variant__cap"><b>Streamer · Antenna IV</b><span>LVL 31</span></div>
+        <article class="hc tier-streamer" aria-label="Streamer card">
+          <div class="hc__top">
+            <span class="av f-antenna t-captain"><span class="av__tab">LIVE</span><span class="av__in g-red">CR</span><span class="av__lvl">31</span></span>
+            <div class="hc__id">
+              <div class="hc__name">COACH_RAPH</div>
+              <div class="hc__title">Voice of the Match</div>
+              <div class="hc__meta">Captain rank <span class="tag tag--streamer">Streamer</span></div>
+            </div>
+          </div>
+          <div class="hc__xp">
+            <div class="hc__xprow"><b>LVL 31</b><span>1,400 / 3,100 XP</span></div>
+            <div class="bar"><i style="width:45.2%"></i></div>
+            <div class="hc__xpsub">1,700 XP to level 32</div>
+          </div>
+          <div class="hc__streaks">
+            <div class="stk"><svg class="ic c-red"><use href="#i-mic"/></svg><b>152 h</b><span>Streamed</span></div>
+            <div class="stk"><svg class="ic c-red"><use href="#i-flame"/></svg><b>9 days</b><span>Daily streak</span></div>
+          </div>
+          <div class="hc__show">
+            <div class="eyebrow-s">Showcase</div>
+            <div class="show">
+              <div class="ach a-red"><span class="ach__ico"><svg class="ic"><use href="#i-mic"/></svg></span><span class="ach__txt"><b>Streamed Hours IV</b><i>Voice of the Match</i></span></div>
+              <div class="ach a-gold"><span class="ach__ico"><svg class="ic"><use href="#i-chat"/></svg></span><span class="ach__txt"><b>Chatter III</b><i>Cheerleader</i></span></div>
+              <div class="ach a-silver"><span class="ach__ico"><svg class="ic"><use href="#i-eye"/></svg></span><span class="ach__txt"><b>Spectator II</b><i>In the Stands</i></span></div>
+            </div>
+          </div>
+          <div class="hc__foot">
+            <span class="hc__facts">Member since<br>Dec 2026</span>
+            <div class="hc__actions"><a class="btn-red" href="#">Follow</a><a class="btn-ghost" href="#">Profile</a></div>
+          </div>
+        </article>
+      </div>
+
+      <!-- Icon (max level) -->
+      <div class="variant">
+        <div class="variant__cap"><b>Icon · max level</b><span>LVL 60</span></div>
+        <article class="hc tier-icon" aria-label="Icon card at max level">
+          <div class="hc__top">
+            <span class="av t-icon"><span class="av__in g-gold">MA</span><span class="av__lvl">60</span></span>
+            <div class="hc__id">
+              <div class="hc__name">MAESTRO_10</div>
+              <div class="hc__title">Club Icon</div>
+              <div class="hc__meta">Icon rank <span class="tag tag--founder">Founder</span></div>
+            </div>
+          </div>
+          <div class="hc__xp">
+            <div class="hc__xprow"><b>LVL 60 · Max level</b><span>181,450 XP</span></div>
+            <div class="bar"><i style="width:100%"></i></div>
+            <div class="hc__xpsub">XP keeps counting for future seasons</div>
+          </div>
+          <div class="hc__streaks">
+            <div class="stk"><svg class="ic c-red"><use href="#i-flame"/></svg><b>1,204 days</b><span>Daily streak</span></div>
+            <div class="stk"><svg class="ic c-gold"><use href="#i-award"/></svg><b>1,204 days</b><span>Best streak</span></div>
+          </div>
+          <div class="hc__show">
+            <div class="eyebrow-s">Showcase</div>
+            <div class="show">
+              <div class="ach a-icon"><span class="ach__ico"><svg class="ic"><use href="#i-calendar"/></svg></span><span class="ach__txt"><b>Daily Streak VIII</b><i>Full Season</i></span></div>
+              <div class="ach a-icon"><span class="ach__ico"><svg class="ic"><use href="#i-check"/></svg></span><span class="ach__txt"><b>Winning Bets VII</b><i>Prediction Legend</i></span></div>
+              <div class="ach a-icon"><span class="ach__ico"><svg class="ic"><use href="#i-eye"/></svg></span><span class="ach__txt"><b>Spectator VI</b><i>Club Memory</i></span></div>
+            </div>
+          </div>
+          <div class="hc__foot">
+            <span class="hc__facts">Member since<br>Dec 2026</span>
+            <div class="hc__actions"><a class="btn-ghost" href="#">View profile</a><button class="btn-icon" type="button" aria-label="Report this account"><svg class="ic"><use href="#i-flag"/></svg></button></div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ 03 · Frame gallery ═══════════════ -->
+  <section aria-labelledby="s3">
+    <div class="eyebrow">03 · Frame gallery</div>
+    <h2 id="s3">Frames, <span class="red">by rank.</span></h2>
+    <p class="sec-lead">The rank follows the lifetime level and gives the default frame. A player can wear the frame of any rank reached, or a special frame they own; the level chip keeps the rank colour either way. Legend and Icon frames rotate slowly and stop when the system asks for reduced motion. Colours: CLAUDE.md §5 palette plus the medals of <span class="mono">leaderboard/domain/medals.ts</span>.</p>
+
+    <div class="gallery">
+      <div class="tile">
+        <span class="av t-rookie"><span class="av__in g-dark">RK</span><span class="av__lvl">1</span></span>
+        <div class="tile__name">Rookie</div>
+        <div class="tile__band">LVL 1–4</div>
+        <div class="tile__hex">#3A3A3A · plain ring</div>
+      </div>
+      <div class="tile">
+        <span class="av t-starter"><span class="av__in g-brown">ST</span><span class="av__lvl">5</span></span>
+        <div class="tile__name">Starter</div>
+        <div class="tile__band">LVL 5–14</div>
+        <div class="tile__hex">#C8794B · bronze</div>
+      </div>
+      <div class="tile">
+        <span class="av t-seasoned"><span class="av__in g-dark">SE</span><span class="av__lvl">15</span></span>
+        <div class="tile__name">Seasoned</div>
+        <div class="tile__band">LVL 15–24</div>
+        <div class="tile__hex">#D8D8DC · double ring</div>
+      </div>
+      <div class="tile">
+        <span class="av t-captain"><span class="av__in g-dark">CA</span><span class="av__lvl">25</span></span>
+        <div class="tile__name">Captain</div>
+        <div class="tile__band">LVL 25–34</div>
+        <div class="tile__hex">#F5C518 · gold glow</div>
+      </div>
+      <div class="tile">
+        <span class="av t-international"><span class="av__in g-dark">IN</span><span class="av__lvl">35</span></span>
+        <div class="tile__name">International</div>
+        <div class="tile__band">LVL 35–44</div>
+        <div class="tile__hex">#E8001D · red glow</div>
+      </div>
+      <div class="tile">
+        <span class="av t-legend"><span class="av__in g-dark">LE</span><span class="av__lvl">45</span></span>
+        <div class="tile__name">Legend</div>
+        <div class="tile__band">LVL 45–59</div>
+        <div class="tile__hex">Red → gold conic · animated</div>
+      </div>
+      <div class="tile">
+        <span class="av t-icon"><span class="av__in g-dark">IC</span><span class="av__lvl">60</span></span>
+        <div class="tile__name">Icon</div>
+        <div class="tile__band">LVL 60 (max)</div>
+        <div class="tile__hex">Red · gold · white · dotted ring</div>
+      </div>
+    </div>
+
+    <div class="subhead"><div class="eyebrow eyebrow--dim">Special frames · unlocked by achievements</div></div>
+    <div class="gallery">
+      <div class="tile">
+        <div class="tile__trio">
+          <span class="av f-podium-gold"><span class="av__in g-gold">1</span></span>
+          <span class="av f-podium-silver"><span class="av__in g-dark">2</span></span>
+          <span class="av f-podium-bronze"><span class="av__in g-brown">3</span></span>
+        </div>
+        <div class="tile__name">Podium</div>
+        <div class="tile__band">Top 3 of a cycle</div>
+        <div class="tile__hex">Permanent · best place sets the colour · "Cycle N"</div>
+      </div>
+      <div class="tile">
+        <span class="av f-crown t-legend" style="--ring:#F5C518;--rw:3px;--glow:0 0 22px rgba(245,197,24,0.5)"><span class="av__crown"><svg class="ic"><use href="#i-crown"/></svg></span><span class="av__in g-red">LK</span><span class="av__lvl">52</span></span>
+        <div class="tile__name">Crown</div>
+        <div class="tile__band">#1 of the last cycle</div>
+        <div class="tile__hex">Temporary · until the next cycle closes</div>
+      </div>
+      <div class="tile tile--wide">
+        <div class="tile__trio">
+          <span class="av f-antenna ant-bronze"><span class="av__in g-brown">II</span></span>
+          <span class="av f-antenna ant-silver"><span class="av__in g-dark">III</span></span>
+          <span class="av f-antenna"><span class="av__in g-red">IV</span></span>
+          <span class="av f-antenna ant-legend"><span class="av__in g-dark">V</span></span>
+          <span class="av f-antenna ant-icon"><span class="av__in g-gold">VI</span></span>
+        </div>
+        <div class="tile__name">Antenna</div>
+        <div class="tile__band">Streamed Hours II → VI</div>
+        <div class="tile__hex">10 h bronze · 50 h silver · 150 h red · 300 h legend · 1,000 h icon</div>
+      </div>
+      <div class="tile">
+        <span class="av f-founder t-starter"><span class="av__in g-dark">FD</span><span class="av__lvl">5+</span></span>
+        <div class="tile__name">Founder</div>
+        <div class="tile__band">Launch</div>
+        <div class="tile__hex">Level 5 within 60 days of launch</div>
+      </div>
+    </div>
+
+    <div class="subhead"><div class="eyebrow eyebrow--dim">Achievement tiers · same colour code · XP per tier</div></div>
+    <div class="tiers">
+      <span class="tierchip a-bronze">I <i>Bronze · 10 XP</i></span>
+      <span class="tierchip a-silver">II <i>Silver · 25 XP</i></span>
+      <span class="tierchip a-gold">III <i>Gold · 50 XP</i></span>
+      <span class="tierchip a-red">IV <i>Red · 100 XP</i></span>
+      <span class="tierchip a-legend">V <i>Legend · 200 XP</i></span>
+      <span class="tierchip a-icon">VI–VIII <i>Icon · 350 / 500 / 750 XP</i></span>
+    </div>
+  </section>
+
+  <!-- ═══════════════ 04 · Elsewhere ═══════════════ -->
+  <section aria-labelledby="s4">
+    <div class="eyebrow">04 · Elsewhere in the app</div>
+    <h2 id="s4">Leaderboard, live page <span class="red">and notifications.</span></h2>
+    <p class="sec-lead">Same components everywhere, through <span class="mono">FramedAvatar</span> built on <span class="mono">UserBadge</span>. The leaderboard score column is unchanged and not shown here. Notifications are in-app only (sonner toasts); there is no push and no "come back and bet" message.</p>
+
+    <div class="else">
+      <div class="panel">
+        <div class="panel__head"><div class="eyebrow eyebrow--dim">PreviewRow · current cycle</div></div>
+        <div class="lb-row gold-row">
+          <span class="lb-rank">01</span>
+          <span class="lb-who">
+            <span class="av av--sm f-crown t-legend" style="--ring:#F5C518;--rw:3px;--glow:0 0 22px rgba(245,197,24,0.5)"><span class="av__crown"><svg class="ic"><use href="#i-crown"/></svg></span><span class="av__in g-red">LK</span><span class="av__lvl">52</span></span>
+            <span style="min-width:0"><span class="lb-name c-gold">LE_KOP_ROUGE</span><span class="lb-title c-gold">Champion · Cycle 31</span></span>
+          </span>
+          <span class="lb-tier c-gold">Gold</span>
+        </div>
+        <div class="lb-row">
+          <span class="lb-rank">04</span>
+          <span class="lb-who">
+            <span class="av av--sm t-captain"><span class="av__in g-gold">VA</span><span class="av__lvl">27</span></span>
+            <span style="min-width:0"><span class="lb-name">VALOU_92</span><span class="lb-title c-gold">Encyclopedia</span></span>
+          </span>
+          <span class="lb-tier" style="color:rgba(255,255,255,0.55)">Top 10</span>
+        </div>
+        <div class="lb-row">
+          <span class="lb-rank">11</span>
+          <span class="lb-who">
+            <span class="av av--sm t-seasoned"><span class="av__in g-green">MA</span><span class="av__lvl">19</span></span>
+            <span style="min-width:0"><span class="lb-name">MARGO.ETH</span><span class="lb-title c-silver">Swiss Army Knife</span></span>
+          </span>
+          <span class="lb-tier" style="color:rgba(255,255,255,0.35)">—</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel__head"><div class="eyebrow eyebrow--dim">StreamerStrip · live page</div></div>
+        <div class="strip">
+          <span class="av f-antenna t-captain"><span class="av__tab">LIVE</span><span class="av__in g-red">CR</span><span class="av__lvl">31</span></span>
+          <div style="min-width:0">
+            <div class="strip__name">@COACH_RAPH</div>
+            <div class="strip__title">Pre-match analysis and live tactical reading</div>
+            <div class="strip__meta">
+              <span>Level 31</span><span>·</span>
+              <span class="c-red">Voice of the Match</span><span>·</span>
+              <span><svg class="ic"><use href="#i-mic"/></svg>152 h streamed</span>
+            </div>
+          </div>
+          <div class="strip__btns">
+            <span class="btn-ghost" style="display:inline-flex;gap:6px;align-items:center"><svg class="ic" style="width:12px;height:12px"><use href="#i-heart"/></svg>Follow</span>
+            <span class="btn-ghost" style="display:inline-flex;gap:6px;align-items:center"><svg class="ic" style="width:12px;height:12px"><use href="#i-gift"/></svg>Tip</span>
+            <span class="btn-gold">Subscribe</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="subhead"><div class="eyebrow eyebrow--dim">In-app notifications</div></div>
+    <div class="toasts">
+      <div class="toast" role="status">
+        <span class="toast__ico c-red"><svg class="ic"><use href="#i-flame"/></svg></span>
+        <div><div class="toast__k">Daily check-in</div><div class="toast__t">+65 XP · Day 4</div><div class="toast__d">Your streak keeps growing up to 100 XP a day from day 11.</div></div>
+      </div>
+      <div class="toast" role="status">
+        <span class="toast__ico c-bronze"><svg class="ic"><use href="#i-up"/></svg></span>
+        <div><div class="toast__k">Level up</div><div class="toast__t">Level 5 · Starter rank</div><div class="toast__d">New frame unlocked. Pick it in Progression.</div></div>
+      </div>
+      <div class="toast" role="status">
+        <span class="toast__ico c-silver"><svg class="ic"><use href="#i-check"/></svg></span>
+        <div><div class="toast__k">Achievement unlocked</div><div class="toast__t">Winning Bets II</div><div class="toast__d">New title: Striker. +25 XP.</div></div>
+      </div>
+      <div class="toast" role="status">
+        <span class="toast__ico c-silver"><svg class="ic"><use href="#i-snow"/></svg></span>
+        <div><div class="toast__k">Streak freeze used</div><div class="toast__t">Streak kept · 13 days</div><div class="toast__d">A freeze covered the day you missed. 0 freezes left; you earn one every 7 days.</div></div>
+      </div>
+    </div>
+
+    <div class="banner" role="note" aria-label="Double XP event announcement">
+      <span class="banner__x">×2</span>
+      <div style="flex:1;min-width:220px">
+        <div class="banner__t">Double XP · Sat 14:00 → Sun 23:00 (Paris time)</div>
+        <div class="banner__d">Check-in, watching, chat and streaming earn ×2. <b>Bets are not boosted.</b></div>
+      </div>
+      <span class="btn-ghost" style="display:inline-flex;gap:6px;align-items:center"><svg class="ic" style="width:12px;height:12px"><use href="#i-zap"/></svg>How XP works</span>
+    </div>
+  </section>
+
+  <footer>
+    <p>Fictional data, projected several seasons after launch. No amount (stake, payout, PnL, volume) appears on the card or the public profile.</p>
+    <p>MVP scope: daily streak only (no accuracy streak), no free predictions, no viewer-peak frames, no prestige beyond level 60. English labels; translation keys gamification.* from day one.</p>
+    <p>Barlow Condensed and JetBrains Mono are used when installed, otherwise system fallbacks. Self-contained HTML: inline CSS, no script.</p>
+  </footer>
+</main>
+</body>
+</html>

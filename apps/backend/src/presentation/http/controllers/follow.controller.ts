@@ -6,6 +6,7 @@ import { GetIsFollowingUseCase } from '../../../application/follows/use-cases/Ge
 import { GetFollowerCountUseCase } from '../../../application/follows/use-cases/GetFollowerCountUseCase';
 import { GetFollowedStreamersUseCase } from '../../../application/follows/use-cases/GetFollowedStreamersUseCase';
 import { parsePagination } from '../helpers/parsePagination';
+import { sessionDynamicUserId } from '../helpers/sessionIdentity';
 
 @injectable()
 export class FollowController {
@@ -24,8 +25,9 @@ export class FollowController {
 
   async follow(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { followerId, streamerId, streamerName } = req.body;
-      const follow = await this.followStreamerUseCase.execute({ followerId, streamerId, streamerName });
+      const { streamerId, streamerName } = req.body;
+      const followerId = sessionDynamicUserId(req, req.body.followerId);
+      const follow = await this.followStreamerUseCase.execute({ followerId, streamerId, streamerName, accountId: req.user?.accountId });
       res.status(201).json({ success: true, follow: follow.toJSON() });
     } catch (error) {
       next(error);
@@ -34,7 +36,8 @@ export class FollowController {
 
   async unfollow(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { followerId, streamerId } = req.body;
+      const { streamerId } = req.body;
+      const followerId = sessionDynamicUserId(req, req.body.followerId);
       await this.unfollowStreamerUseCase.execute(followerId, streamerId);
       res.json({ success: true, message: 'Unfollowed successfully' });
     } catch (error) {

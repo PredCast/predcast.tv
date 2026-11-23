@@ -19,6 +19,8 @@ import { StreamerStudioSection } from './sections/streamer-studio';
 import type { TokenCardData } from './components/TokenCardDash';
 import { WinCardModalProvider } from '@/components/features/win-card/components/WinCardModalProvider';
 import { WinCardAutoTrigger } from '@/components/features/win-card/components/WinCardAutoTrigger';
+import { ProgressionSection } from '@/components/features/gamification/sections/ProgressionSection';
+import { useOwnerGamification } from '@/components/features/gamification/hooks/useOwnerGamification';
 
 function scrollToId(id: string): void {
     if (typeof window === 'undefined') return;
@@ -35,6 +37,7 @@ export function Dashboard() {
     const { isStreamer } = useIsStreamer({ wallet: user.wallet });
     const stats = useDashboardStats({ wallet: user.wallet });
     const activity = useDashboardActivity({ wallet: user.wallet });
+    const gamification = useOwnerGamification();
 
     // Token holdings + prices for the Fan Tokens tab.
     const { tokenBalances } = useFanTokens(user.wallet, !!user.wallet);
@@ -81,7 +84,8 @@ export function Dashboard() {
         <main className="relative bg-[#0A0A0A]">
             <WinCardAutoTrigger wallet={user.wallet} scope={{ kind: 'dashboard' }} />
             <BackgroundFX />
-            <DashboardHero user={user} />
+            <DashboardHero user={user} gamification={gamification} />
+            {gamification && <ProgressionSection me={gamification} />}
             <QuickActionsStrip isStreamer={isStreamer} onAction={handleQuickAction} />
             <StatsHero stats={stats.data} onPlaceFirstBet={goToDiscover} />
             <MyBetsSection
