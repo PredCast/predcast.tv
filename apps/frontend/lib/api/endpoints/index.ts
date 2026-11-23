@@ -15,3 +15,4 @@ export * from './leaderboard';
 export * from './reports';
 export * from './bans';
 export * from './gamification';
+export * from './gamificationWatch';

@@ -20,6 +20,7 @@ import { useLiveStreamSession } from "./hooks/useLiveStreamSession";
 import { useMatchMarketWatchers } from "./hooks/useMatchMarketWatchers";
 import { usePredictShortcut } from "./hooks/usePredictShortcut";
 import { useStreamerFollow } from "./hooks/useStreamerFollow";
+import { useWatchHeartbeat } from "./hooks/useWatchHeartbeat";
 import { LiveMatchHeader } from "./sections/LiveMatchHeader";
 import { MatchFanTokenCharts } from "./sections/MatchFanTokenCharts";
 import { LiveMediaSection } from "./sections/LiveMediaSection";
@@ -68,6 +69,10 @@ export function LivePage({ id }: LivePageProps) {
   const isOwnSelectedStream =
     !!selectedStream && selectedStream.streamerWalletAddress?.toLowerCase() === walletAddress.toLowerCase();
   const streamForDialogs = selectedStream?.streamerWalletAddress ? selectedStream : null;
+  useWatchHeartbeat({
+    matchId: match && !Number.isNaN(matchIdNum) ? matchIdNum : null,
+    streamId: selectedStream?.id ?? null,
+  });
 
   if (!id) return null;
   if (loading) return <CenterStatus message="Loading match…" />;
