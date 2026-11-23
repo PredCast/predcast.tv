@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import type { ApiSuccessResponse, ApiErrorResponse } from '@chiliztv/shared/types/ApiResponse';
-import { getAuthToken, clearAuthToken } from './auth';
+import { getBackendToken, clearAuthToken } from './auth';
 import { handleApiError } from './error';
 import { mapApiError } from './errors';
 
@@ -101,7 +101,7 @@ class ApiClient {
   private setupInterceptors(): void {
     this.client.interceptors.request.use(
       async (config: InternalAxiosRequestConfig) => {
-        const token = await getAuthToken();
+        const token = await getBackendToken();
         if (token && config.headers) {
           config.headers.Authorization = `Bearer ${token}`;
         }

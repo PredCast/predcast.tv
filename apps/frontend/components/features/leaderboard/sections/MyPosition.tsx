@@ -3,6 +3,7 @@
 import { formatUnits } from 'viem';
 import { useLeaderboardTop, useMyLeaderboardPosition } from '@/hooks/api';
 import { shareBps } from '../domain/buildAllocations';
+import { MyPositionIdentity } from './MyPositionIdentity';
 
 interface MyPositionProps {
     readonly wallet: string | undefined;
@@ -69,6 +70,8 @@ export function MyPosition({ wallet }: MyPositionProps) {
                     <span aria-hidden className="block h-0.5 w-4 bg-[#E8001D]" />
                     Your position
                 </div>
+
+                <MyPositionIdentity wallet={wallet} />
 
                 <div className="mt-3 grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4">
                     <Stat label="Rank" value={me.rank !== null ? `#${me.rank}` : '—'} />
