@@ -59,3 +59,12 @@ export * from './tokens/priceQuote';
 export * from './tokens/teamFanTokens';
 export * from './tokens/fanTokenDeployments';
 export * from './dto/prices/PriceHistoryDto';
+
+// Gamification — read API (step 06)
+export * from './dto/gamification/GamificationEnums';
+export * from './dto/gamification/ProfileBadgeDto';
+export * from './dto/gamification/ProfileCardDto';
+export * from './dto/gamification/PublicProfileDto';
+export * from './dto/gamification/DoubleXpPublicDto';
+export * from './dto/gamification/MyGamificationDto';
+export * from './dto/gamification/UpdateCosmeticsBody';

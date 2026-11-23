@@ -8,6 +8,7 @@ import type { IGamificationLedgerRepository } from '@chiliztv/domain/gamificatio
 import type { IGamificationNotificationRepository } from '@chiliztv/domain/gamification/repositories/IGamificationNotificationRepository';
 import type { IGamificationProfileRepository } from '@chiliztv/domain/gamification/repositories/IGamificationProfileRepository';
 import type { IGamificationProgressRepository } from '@chiliztv/domain/gamification/repositories/IGamificationProgressRepository';
+import type { IGamificationReadRepository } from '@chiliztv/domain/gamification/repositories/IGamificationReadRepository';
 import { TOKENS } from '@chiliztv/domain/shared/tokens';
 
 import { GamificationAfterCredit } from '../application/gamification/services/GamificationAfterCredit';
@@ -25,6 +26,16 @@ import { SupabaseGamificationNotificationRepository } from '../infrastructure/pe
 import { SupabaseGamificationProfileRepository } from '../infrastructure/persistence/repositories/gamification/SupabaseGamificationProfileRepository';
 import { SupabaseGamificationProgressRepository } from '../infrastructure/persistence/repositories/gamification/SupabaseGamificationProgressRepository';
 import { GamificationController } from '../presentation/http/controllers/gamification.controller';
+import { GamificationReadModels } from '../application/gamification/services/GamificationReadModels';
+import { AckNotificationsUseCase } from '../application/gamification/use-cases/AckNotificationsUseCase';
+import { GetCurrentDoubleXpUseCase } from '../application/gamification/use-cases/GetCurrentDoubleXpUseCase';
+import { GetMyGamificationUseCase } from '../application/gamification/use-cases/GetMyGamificationUseCase';
+import { GetProfileBadgesUseCase } from '../application/gamification/use-cases/GetProfileBadgesUseCase';
+import { GetProfileCardUseCase } from '../application/gamification/use-cases/GetProfileCardUseCase';
+import { GetPublicProfileUseCase } from '../application/gamification/use-cases/GetPublicProfileUseCase';
+import { UpdateCosmeticsUseCase } from '../application/gamification/use-cases/UpdateCosmeticsUseCase';
+import { SupabaseGamificationReadRepository } from '../infrastructure/persistence/repositories/gamification/SupabaseGamificationReadRepository';
+import { GamificationReadController } from '../presentation/http/controllers/gamification-read.controller';
 
 /** Gamification ports, repositories, use cases and controller. Needs identity, cache and audit first. */
 export function registerGamification(container: DependencyContainer): void {
@@ -45,4 +56,20 @@ export function registerGamification(container: DependencyContainer): void {
   container.registerSingleton(RebuildProfilesUseCase);
 
   container.registerSingleton(GamificationController);
+
+  registerGamificationReads(container);
+}
+
+/** Read API of step 06 (cards, badges, profiles, double XP, owner view). */
+function registerGamificationReads(container: DependencyContainer): void {
+  container.registerSingleton<IGamificationReadRepository>(TOKENS.IGamificationReadRepository, SupabaseGamificationReadRepository);
+  container.registerSingleton(GamificationReadModels);
+  container.registerSingleton(GetProfileBadgesUseCase);
+  container.registerSingleton(GetProfileCardUseCase);
+  container.registerSingleton(GetPublicProfileUseCase);
+  container.registerSingleton(GetCurrentDoubleXpUseCase);
+  container.registerSingleton(GetMyGamificationUseCase);
+  container.registerSingleton(UpdateCosmeticsUseCase);
+  container.registerSingleton(AckNotificationsUseCase);
+  container.registerSingleton(GamificationReadController);
 }
