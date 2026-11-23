@@ -103,6 +103,9 @@ export const TOKENS = {
   IAuditTrail:             Symbol.for('IAuditTrail'),
   IAdminDirectoryRepository: Symbol.for('IAdminDirectoryRepository'),
   IAuditLogReader:         Symbol.for('IAuditLogReader'),
+
+  // Gamification — read side (cards, badges, profiles)
+  IGamificationReadRepository: Symbol.for('IGamificationReadRepository'),
 } as const;
 
 export type TokenKey = keyof typeof TOKENS;

@@ -2,6 +2,10 @@ import { MEDAL_PALETTE } from '../domain/medals';
 import type { PreviewRow as PreviewRowData } from '../domain/data';
 import { AddressLabel, RankMedal } from '../primitives';
 import { UserBadge } from '@/components/shared/UserBadge';
+import { ProfileHoverTrigger } from '@/components/features/gamification/components/ProfileHoverTrigger';
+import { titleLabel } from '@/components/features/gamification/domain/labels';
+import { rankStyleOf } from '@/components/features/gamification/domain/rankStyle';
+import { useProfileBadge } from '@/components/features/gamification/hooks/useProfileBadge';
 
 interface PreviewRowProps {
     row: PreviewRowData;
@@ -15,6 +19,7 @@ const COLS = '44px minmax(0,1.7fr) minmax(0,1fr) minmax(0,1.05fr)';
  */
 export function PreviewRow({ row }: PreviewRowProps) {
     const palette = row.medal ? MEDAL_PALETTE[row.medal] : null;
+    const badge = useProfileBadge(row.walletAddress);
     return (
         <div
             className="grid items-center gap-3 border-b border-[#1A1A1A] px-5 py-3.5 transition-colors hover:bg-white/[0.015]"
@@ -30,16 +35,37 @@ export function PreviewRow({ row }: PreviewRowProps) {
 
             {/* who */}
             <div className="flex min-w-0 items-center gap-3">
-                <RankMedal medal={row.medal} rank={row.rank} />
+                {/* On phones the framed avatar takes the medal's room; the tier column keeps the medal name. */}
+                <span className={badge ? 'max-sm:hidden' : 'contents'}>
+                    <RankMedal medal={row.medal} rank={row.rank} />
+                </span>
                 <UserBadge
                     walletAddress={row.walletAddress}
                     profile={{ username: row.username, avatarUrl: row.avatarUrl }}
-                    size={28}
+                    size={badge ? 34 : 28}
                     avatarOnly
+                    frameId={badge?.frameId}
+                    level={badge?.level}
                 />
-                <span className="min-w-0 truncate">
-                    <AddressLabel who={row.who} medal={row.medal} />
-                </span>
+                {badge ? (
+                    <span className="min-w-0">
+                        <ProfileHoverTrigger wallet={row.walletAddress} className="block max-w-full truncate leading-none">
+                            <AddressLabel who={row.who} medal={row.medal} />
+                        </ProfileHoverTrigger>
+                        {badge.titleId && (
+                            <span
+                                className="font-mono-ctv mt-1 block truncate text-[9px] font-bold uppercase tracking-[0.14em]"
+                                style={{ color: rankStyleOf(badge.rankTier).accent }}
+                            >
+                                {titleLabel(badge.titleId, badge.titleCycleId)}
+                            </span>
+                        )}
+                    </span>
+                ) : (
+                    <span className="min-w-0 truncate">
+                        <AddressLabel who={row.who} medal={row.medal} />
+                    </span>
+                )}
             </div>
 
             {/* pnl — explicit `en-US` locale so server (Node) and client
