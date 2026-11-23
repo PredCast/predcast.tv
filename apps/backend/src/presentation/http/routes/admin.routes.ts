@@ -15,6 +15,7 @@ import { AdminMarketsController } from '../controllers/admin-markets.controller'
 import { AdminJobsController } from '../controllers/admin-jobs.controller';
 import { AdminDashboardController } from '../controllers/admin-dashboard.controller';
 import { requireAdmin } from '../middlewares/require-admin.middleware';
+import { adminGamificationRoutes } from './admin-gamification.routes';
 import { validate } from '../middlewares/validation.middleware';
 
 const router = Router();
@@ -80,5 +81,8 @@ router.post('/matches/:id/retry-setup', requireAdmin('admin'), markets.retrySetu
 router.post('/matches/:id/publish', requireAdmin('admin'), markets.publish.bind(markets));
 router.post('/matches/:id/unpublish', requireAdmin('admin'), markets.unpublish.bind(markets));
 router.post('/matches/:id/close-markets', requireAdmin('admin'), markets.closeMarkets.bind(markets));
+
+// ── Gamification — double XP, suspension, XP adjustment (admin+, audited) ──
+router.use('/gamification', adminGamificationRoutes);
 
 export { router as adminRoutes };

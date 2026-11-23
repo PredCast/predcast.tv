@@ -53,4 +53,9 @@ export const queryKeys = {
     run: (runId: string) => ['jobs', 'run', runId] as const,
     indexers: ['jobs', 'indexers'] as const,
   },
+  gamification: {
+    all: ['gamification'] as const,
+    doubleXp: (limit: number) => ['gamification', 'double-xp', limit] as const,
+    account: (wallet: string) => ['gamification', 'account', wallet.toLowerCase()] as const,
+  },
 } as const;
