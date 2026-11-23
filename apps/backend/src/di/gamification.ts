@@ -12,6 +12,7 @@ import { TOKENS } from '@chiliztv/domain/shared/tokens';
 
 import { GamificationAfterCredit } from '../application/gamification/services/GamificationAfterCredit';
 import { AdjustXpUseCase } from '../application/gamification/use-cases/AdjustXpUseCase';
+import { CheckInUseCase } from '../application/gamification/use-cases/CheckInUseCase';
 import { CreditXpUseCase } from '../application/gamification/use-cases/CreditXpUseCase';
 import { EvaluateAchievementsUseCase } from '../application/gamification/use-cases/EvaluateAchievementsUseCase';
 import { RebuildProfilesUseCase } from '../application/gamification/use-cases/RebuildProfilesUseCase';
@@ -23,8 +24,9 @@ import { SupabaseGamificationLedgerRepository } from '../infrastructure/persiste
 import { SupabaseGamificationNotificationRepository } from '../infrastructure/persistence/repositories/gamification/SupabaseGamificationNotificationRepository';
 import { SupabaseGamificationProfileRepository } from '../infrastructure/persistence/repositories/gamification/SupabaseGamificationProfileRepository';
 import { SupabaseGamificationProgressRepository } from '../infrastructure/persistence/repositories/gamification/SupabaseGamificationProgressRepository';
+import { GamificationController } from '../presentation/http/controllers/gamification.controller';
 
-/** Gamification ports, repositories and use cases. Needs identity, cache and audit first. */
+/** Gamification ports, repositories, use cases and controller. Needs identity, cache and audit first. */
 export function registerGamification(container: DependencyContainer): void {
   container.registerSingleton<IGamificationConfig>(TOKENS.IGamificationConfig, GamificationConfigService);
   container.registerSingleton<IGamificationLedgerRepository>(TOKENS.IGamificationLedgerRepository, SupabaseGamificationLedgerRepository);
@@ -38,6 +40,9 @@ export function registerGamification(container: DependencyContainer): void {
   container.registerSingleton(GamificationAfterCredit);
   container.registerSingleton(CreditXpUseCase);
   container.registerSingleton(EvaluateAchievementsUseCase);
+  container.registerSingleton(CheckInUseCase);
   container.registerSingleton(AdjustXpUseCase);
   container.registerSingleton(RebuildProfilesUseCase);
+
+  container.registerSingleton(GamificationController);
 }

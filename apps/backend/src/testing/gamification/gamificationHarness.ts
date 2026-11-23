@@ -10,6 +10,7 @@ import type { IRateLimitService, RateLimitCheckOptions, RateLimitDecision } from
 import { IsAccountBannedUseCase } from '../../application/identity/use-cases/IsAccountBannedUseCase';
 import { GamificationAfterCredit } from '../../application/gamification/services/GamificationAfterCredit';
 import { AdjustXpUseCase } from '../../application/gamification/use-cases/AdjustXpUseCase';
+import { CheckInUseCase } from '../../application/gamification/use-cases/CheckInUseCase';
 import { CreditXpUseCase } from '../../application/gamification/use-cases/CreditXpUseCase';
 import { EvaluateAchievementsUseCase } from '../../application/gamification/use-cases/EvaluateAchievementsUseCase';
 import { RebuildProfilesUseCase } from '../../application/gamification/use-cases/RebuildProfilesUseCase';
@@ -73,11 +74,15 @@ export function buildGamificationHarness(options: HarnessOptions = {}) {
     const afterCredit = new GamificationAfterCredit(store.notifications, accounts, cache, silentLogger);
     const creditXp = new CreditXpUseCase(config, accounts, store.profiles, store.ledger, store.doubleXp, isBanned, afterCredit);
     const evaluate = new EvaluateAchievementsUseCase(config, store.profiles, store.progress, store.cycleRanks, store.notifications, creditXp);
+    const checkIn = new CheckInUseCase(
+        config, clock, rateLimit, store.profiles, store.ledger, store.doubleXp, store.notifications, silentLogger,
+        isBanned, afterCredit, evaluate,
+    );
     const adjustXp = new AdjustXpUseCase(accounts, audit, clock, creditXp);
     const rebuild = new RebuildProfilesUseCase(store.profiles, afterCredit);
 
     return {
-        clock, store, cache, rateLimit, config, audits, creditXp, evaluate, adjustXp, rebuild,
+        clock, store, cache, rateLimit, config, audits, creditXp, evaluate, checkIn, adjustXp, rebuild,
         addAccount(account: Account, wallets: ReadonlyArray<WalletLink>): void {
             accountsById.set(account.id, account);
             links.push(...wallets);
