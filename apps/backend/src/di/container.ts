@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { container } from 'tsyringe';
+import { container, instanceCachingFactory } from 'tsyringe';
 import { TOKENS } from '@chiliztv/domain/shared/tokens';
 
 // ─── Repositories ────────────────────────────────────────────────────────────
@@ -15,6 +15,11 @@ import { IChatRepository } from '@chiliztv/domain/chat/repositories/IChatReposit
 import { SupabaseChatRepository } from '../infrastructure/persistence/repositories/SupabaseChatRepository';
 import { IReportRepository } from '@chiliztv/domain/reporting/repositories/IReportRepository';
 import { IBanRepository } from '@chiliztv/domain/reporting/repositories/IBanRepository';
+import type { IAccountRepository } from '@chiliztv/domain/identity/repositories/IAccountRepository';
+import type { IIdentityTokenVerifier } from '@chiliztv/domain/identity/ports/IIdentityTokenVerifier';
+import { SupabaseAccountRepository } from '../infrastructure/persistence/repositories/SupabaseAccountRepository';
+import { DynamicJwtVerifier } from '../infrastructure/auth/DynamicJwtVerifier';
+import { fetchDynamicJwks } from '../infrastructure/auth/dynamicJwks';
 import { IReportActionRepository } from '@chiliztv/domain/reporting/repositories/IReportActionRepository';
 import { IPresenceService } from '@chiliztv/domain/reporting/ports/IPresenceService';
 import { IBetHistoryService } from '@chiliztv/domain/reporting/ports/IBetHistoryService';
@@ -347,6 +352,17 @@ export function setupDependencyInjection(): void {
   // ─── Reporting / moderation ────────────────────────────────────────────────
   container.registerSingleton<IReportRepository>(TOKENS.IReportRepository, SupabaseReportRepository);
   container.registerSingleton<IBanRepository>(TOKENS.IBanRepository, SupabaseBanRepository);
+  container.registerSingleton<IAccountRepository>(TOKENS.IAccountRepository, SupabaseAccountRepository);
+  container.register<IIdentityTokenVerifier>(TOKENS.IIdentityTokenVerifier, {
+    useFactory: instanceCachingFactory((c) => new DynamicJwtVerifier(
+      {
+        environmentId: env.DYNAMIC_ENVIRONMENT_ID ?? null,
+        allowedAudiences: env.ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean),
+        fetchJwks: fetchDynamicJwks,
+      },
+      c.resolve<IClock>(TOKENS.IClock),
+    )),
+  });
 
   // Admin panel (lot 0)
   container.registerSingleton<IAdminWalletRepository>(TOKENS.IAdminWalletRepository, SupabaseAdminWalletRepository);

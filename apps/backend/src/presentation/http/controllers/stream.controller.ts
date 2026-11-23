@@ -11,6 +11,7 @@ import { StreamLifecycleService } from '../../../infrastructure/services/StreamL
 import { ViewerSessionService } from '../../../infrastructure/services/ViewerSessionService';
 import { supabaseClient as supabase } from '../../../infrastructure/database/supabase/client';
 import { logger } from '../../../infrastructure/logging/logger';
+import { sessionDynamicUserId } from '../helpers/sessionIdentity';
 
 const METRIC_FALLBACK_KEY = 'metrics:cfstream:fallback:24h';
 const METRIC_TTL_SECONDS = 86400;
@@ -38,7 +39,10 @@ export class StreamController {
 
   async createStream(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { matchId, streamerId, streamerName, streamerWalletAddress, title, sourceType } = req.body;
+      const { matchId, streamerName, title, sourceType } = req.body;
+      // Identity from the JWT (D3), never trusted from the body.
+      const streamerId = sessionDynamicUserId(req, req.body.streamerId);
+      const streamerWalletAddress = req.user?.walletAddress;
 
       const stream = await this.createStreamUseCase.execute({
         matchId,
