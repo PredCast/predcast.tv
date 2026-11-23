@@ -20,11 +20,22 @@ const tiers = (spec: Partial<Record<AchievementId, number>>): ReadonlyArray<Unlo
     );
 
 const ctx = (overrides: Partial<CosmeticsContext> = {}): CosmeticsContext => ({
-    level: 12,
+    level: overrides.level ?? 12,
+    peakLevel: overrides.peakLevel ?? overrides.level ?? 12,
     unlocked: tiers({ chatter: 3, daily_streak: 2, bet_volume: 4, spectator: 1 }),
     bestCycleRank: null,
     isCrownHolder: false,
     ...overrides,
+});
+
+describe('unlocks follow the peak level', () => {
+    it('keeps level titles, rank frames and slots after a reversal lowers the level', () => {
+        const lowered = ctx({ level: 29, peakLevel: 31, unlocked: [] });
+        expect(ownedTitles(lowered)).toContain('club_stalwart');
+        expect(ownedFrames(lowered)).toContain('frame.rank.captain');
+        expect(showcaseSlots(lowered.peakLevel)).toBe(3);
+        expect(displayedFrame(null, lowered)).toBe('frame.rank.captain');
+    });
 });
 
 describe('showcaseSlots', () => {

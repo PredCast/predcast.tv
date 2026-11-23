@@ -7,6 +7,8 @@ import type { UnlockedTier } from './achievementEvaluator';
 
 export interface CosmeticsContext {
     readonly level: number;
+    /** Highest level ever reached: unlocks never go away when a reversal lowers the level (§3.1 rule 8, §4.2). */
+    readonly peakLevel: number;
     readonly unlocked: ReadonlyArray<UnlockedTier>;
     /** Best placement over closed cycles; sets the podium colour (§4.3). */
     readonly bestCycleRank: number | null;
@@ -20,7 +22,7 @@ export function ownedTitles(ctx: CosmeticsContext): ReadonlyArray<TitleId> {
         const titleId = achievementById(u.achievementId)?.tiers.find((t) => t.tier === u.tier)?.titleId;
         if (titleId) titles.add(titleId);
     }
-    for (const t of LEVEL_TITLES) if (ctx.level >= t.level) titles.add(t.titleId);
+    for (const t of LEVEL_TITLES) if (ctx.peakLevel >= t.level) titles.add(t.titleId);
     return [...titles];
 }
 
@@ -29,7 +31,7 @@ function has(ctx: CosmeticsContext, achievementId: AchievementId, tier: number):
 }
 
 export function ownedFrames(ctx: CosmeticsContext): ReadonlyArray<FrameId> {
-    const frames: FrameId[] = ranksReachedAt(ctx.level).map((r) => r.frameId);
+    const frames: FrameId[] = ranksReachedAt(ctx.peakLevel).map((r) => r.frameId);
     if (has(ctx, 'leaderboard', 4) && ctx.bestCycleRank !== null) {
         const podium = podiumFrameFor(ctx.bestCycleRank);
         if (podium) frames.push(podium);
@@ -99,7 +101,7 @@ export function validateCosmetics(selection: CosmeticsSelection, ctx: CosmeticsC
     if (selection.frameId !== null && !frames.includes(selection.frameId)) {
         return fail({ code: 'FRAME_NOT_OWNED', frameId: selection.frameId });
     }
-    const max = showcaseSlots(ctx.level);
+    const max = showcaseSlots(ctx.peakLevel);
     if (selection.showcase.length > max) return fail({ code: 'SHOWCASE_TOO_LONG', max, got: selection.showcase.length });
 
     const owned = new Map(ctx.unlocked.map((u) => [showcaseItemKey(u.achievementId, u.tier), u]));
@@ -129,6 +131,6 @@ export function displayedFrame(selectedFrameId: string | null, ctx: CosmeticsCon
 /** Showcase shown on the card: the stored one filtered to owned public tiers, else the default. */
 export function displayedShowcase(stored: ReadonlyArray<string>, ctx: CosmeticsContext): ReadonlyArray<string> {
     const owned = new Set(ctx.unlocked.filter(isPublicTier).map((u) => showcaseItemKey(u.achievementId, u.tier)));
-    const kept = stored.filter((item) => owned.has(item)).slice(0, showcaseSlots(ctx.level));
-    return kept.length > 0 ? kept : defaultShowcase(ctx.unlocked, ctx.level);
+    const kept = stored.filter((item) => owned.has(item)).slice(0, showcaseSlots(ctx.peakLevel));
+    return kept.length > 0 ? kept : defaultShowcase(ctx.unlocked, ctx.peakLevel);
 }
