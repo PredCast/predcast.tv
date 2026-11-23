@@ -56,6 +56,12 @@ export class SupabaseAccountRepository implements IAccountRepository {
     return toAccount(data as AccountRow);
   }
 
+  async findById(accountId: string): Promise<Account | null> {
+    const { data, error } = await supabase.from('accounts').select('*').eq('id', accountId).maybeSingle();
+    if (error) fail('find account', error.message);
+    return data ? toAccount(data as AccountRow) : null;
+  }
+
   async findLinks(wallets: ReadonlyArray<string>): Promise<ReadonlyArray<WalletLink>> {
     if (wallets.length === 0) return [];
     const { data, error } = await supabase

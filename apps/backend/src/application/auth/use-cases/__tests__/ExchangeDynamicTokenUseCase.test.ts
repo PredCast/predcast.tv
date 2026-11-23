@@ -24,6 +24,7 @@ class MemoryAccounts implements IAccountRepository {
         this.accounts.set(account.id, account);
         return account;
     }
+    async findById(accountId: string) { return this.accounts.get(accountId) ?? null; }
     async findLinks(wallets: ReadonlyArray<string>) { return wallets.flatMap((w) => this.links.get(w) ?? []); }
     async findActiveLinksOfAccount(accountId: string) {
         return [...this.links.values()].filter((l) => l.accountId === accountId && l.unlinkedAt === null);

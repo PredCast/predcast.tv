@@ -294,6 +294,7 @@ import { SetupMarketsCommand } from '../presentation/cli/commands/SetupMarketsCo
 import { TestMatchLifecycleCommand } from '../presentation/cli/commands/TestMatchLifecycleCommand';
 import { ScenarioCommand } from '../presentation/cli/commands/ScenarioCommand';
 import { ResetTestDataCommand } from '../presentation/cli/commands/ResetTestDataCommand';
+import { registerGamification } from './gamification';
 
 export function setupDependencyInjection(): void {
   // ─── Config ports ──────────────────────────────────────────────────────────
@@ -552,6 +553,8 @@ export function setupDependencyInjection(): void {
   container.registerSingleton(LeaderboardController);
   container.registerSingleton(ReportingController);
   container.registerSingleton(BanController);
+
+  registerGamification(container);
 }
 
 export { container };

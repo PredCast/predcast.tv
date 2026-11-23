@@ -5,6 +5,8 @@ export interface GamificationProfile {
     readonly accountId: string;
     readonly xpTotal: number;
     readonly level: number;
+    /** Highest level ever reached (titles, frames, showcase slots); never decreases. */
+    readonly levelPeak: number;
     readonly streak: StreakState;
     readonly selectedTitleId: string | null;
     readonly selectedFrameId: string | null;

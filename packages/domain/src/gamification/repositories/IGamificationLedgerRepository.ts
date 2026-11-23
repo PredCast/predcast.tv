@@ -35,6 +35,8 @@ export type CreditResult =
           readonly newTotal: number;
           readonly oldLevel: number;
           readonly newLevel: number;
+          /** `level_peak` before the credit: a level-up notifies only above it. */
+          readonly previousPeak: number;
       };
 
 export type ReverseResult =
@@ -61,6 +63,7 @@ export type CheckInWriteResult =
           readonly newTotal: number;
           readonly oldLevel: number;
           readonly newLevel: number;
+          readonly previousPeak: number;
       };
 
 /** Append-only XP ledger (`gamification_credit`, `_reverse`, `_check_in`). No update, no delete. */
