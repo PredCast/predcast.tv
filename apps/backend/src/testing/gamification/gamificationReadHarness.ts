@@ -55,11 +55,17 @@ export function buildGamificationReadHarness(options: ReadHarnessOptions = {}) {
             avatarUrl: user?.avatarUrl ?? null,
             profile: store.profileMap.get(accountId) ?? null,
             unlocked: store.achievements.filter((a) => a.accountId === accountId),
-            bestCycleRank: store.bestRank,
-            lastWonCycleId: store.bestRank === 1 ? 1 : null,
+            bestCycleRank: bestRankOf(accountId),
+            lastWonCycleId: lastWonCycleOf(accountId),
             streamMinutes: store.progressMap.get(accountId)?.get('stream_minutes')?.value ?? 0,
         };
     };
+
+    const ranksOf = (accountId: string) => store.cycleRankRows.filter((r) => r.accountId === accountId);
+    const bestRankOf = (accountId: string): number | null =>
+        ranksOf(accountId).reduce<number | null>((best, r) => (best === null || r.rank < best ? r.rank : best), null);
+    const lastWonCycleOf = (accountId: string): number | null =>
+        ranksOf(accountId).filter((r) => r.rank === 1).reduce<number | null>((last, r) => (last === null || r.cycleId > last ? r.cycleId : last), null);
 
     const reads: IGamificationReadRepository = {
         findCardSources: async (wallets) => {

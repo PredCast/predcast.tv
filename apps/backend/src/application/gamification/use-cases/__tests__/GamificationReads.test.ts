@@ -185,7 +185,7 @@ describe('Crown', () => {
     it('shows the Crown frame and tag only while the account holds it', async () => {
         const h = buildGamificationReadHarness();
         const { captain } = seed(h);
-        h.store.bestRank = 1;
+        h.store.cycleRankRows.push({ cycleId: 1, wallet: WALLET_A, accountId: captain.id, rank: 1, score: BigInt(100), frozenAt: new Date('2026-11-01T00:00:00Z') });
         h.store.achievements.push(unlock(captain.id, 'leaderboard', 5));
         h.store.setProfile(captain.id, { selectedFrameId: 'frame.crown', selectedTitleId: 'cycle_champion' });
         h.setCrown(captain.id);
