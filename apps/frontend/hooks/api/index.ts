@@ -54,3 +54,5 @@ export { useMyBan, useSetMyBan } from './useMyBan';
 export { useCreateReport } from './useCreateReport';
 export { useReportConfig } from './useReportConfig';
 export { useActiveStreams } from './useActiveStreams';
+export { useCheckIn } from './useGamification';
+export { useWatchHeartbeatMutation } from './useWatchHeartbeat';

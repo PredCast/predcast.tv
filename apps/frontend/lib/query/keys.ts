@@ -80,4 +80,10 @@ export const queryKeys = {
     all: ['reports'] as const,
     config: () => [...queryKeys.reports.all, 'config'] as const,
   },
+  gamification: {
+    all: ['gamification'] as const,
+    me: () => [...queryKeys.gamification.all, 'me'] as const,
+    checkIn: () => [...queryKeys.gamification.all, 'check-in'] as const,
+    watchHeartbeat: () => [...queryKeys.gamification.all, 'watch-heartbeat'] as const,
+  },
 } as const;

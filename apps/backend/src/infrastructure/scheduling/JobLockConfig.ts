@@ -33,6 +33,10 @@ export const JobLocks = {
   // One operation can wait several receipts (deploy + seed + open); the watchdog renews beyond.
   matchOperations:      { key: baseKey('match-operations'),      ttlSeconds: 300 } satisfies JobLockConfig,
   purgeJobRuns:         { key: baseKey('purge-job-runs'),        ttlSeconds: 120 } satisfies JobLockConfig,
+  gamificationChain:    { key: baseKey('gamification-chain'),    ttlSeconds: 300 } satisfies JobLockConfig,
+  gamificationPurge:    { key: baseKey('gamification-purge'),    ttlSeconds: 300 } satisfies JobLockConfig,
+  gamificationStreamMinutes: { key: baseKey('gamification-stream-minutes'), ttlSeconds: 300 } satisfies JobLockConfig,
+  gamificationCycleSnapshot: { key: baseKey('gamification-cycle-snapshot'), ttlSeconds: 300 } satisfies JobLockConfig,
 } as const;
 
 /** Per-indexer lock key. Watchdog renews automatically at TTL/3. */

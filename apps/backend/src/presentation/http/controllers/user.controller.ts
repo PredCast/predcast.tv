@@ -80,6 +80,7 @@ export class UserController {
                 walletAddress: wallet,
                 username: username ?? null,
                 avatarUrl: avatarUrl ?? null,
+                accountId: req.user?.accountId,
             });
             res.json({ success: true, profile: serializeProfile(profile) });
         } catch (error) {
@@ -167,6 +168,7 @@ export class UserController {
                     walletAddress: wallet,
                     username: null,
                     avatarUrl: url,
+                    accountId: req.user?.accountId,
                 });
             } catch (mirrorErr) {
                 logger.warn('Avatar URL mirror to users table failed', {

@@ -5,6 +5,7 @@ import { UserProfile } from '@chiliztv/domain/users/entities/UserProfile';
 import { IUserProfileRepository } from '@chiliztv/domain/users/repositories/IUserProfileRepository';
 import type { IClock } from '@chiliztv/domain/shared/ports/IClock';
 import type { ICacheService } from '@chiliztv/domain/shared/ports/ICacheService';
+import { GamificationActivityRecorder } from '../../gamification/services/GamificationActivityRecorder';
 import { UserCacheKeys } from '../UserCacheKeys';
 
 const USERNAME_PATTERN = /^[A-Za-z0-9._-]{1,30}$/;
@@ -15,6 +16,8 @@ export interface UpsertUserProfileInput {
     username: string | null;
     /** Public CDN URL of the avatar image, or null. */
     avatarUrl?: string | null;
+    /** From the JWT; a username or an avatar completes a first step. */
+    accountId?: string | null;
 }
 
 /**
@@ -35,6 +38,8 @@ export class UpsertUserProfileUseCase {
         private readonly clock: IClock,
         @inject(TOKENS.ICacheService)
         private readonly cache: ICacheService,
+        @inject(GamificationActivityRecorder)
+        private readonly gamification: GamificationActivityRecorder,
     ) {}
 
     async execute(input: UpsertUserProfileInput): Promise<UserProfile> {
@@ -60,6 +65,7 @@ export class UpsertUserProfileUseCase {
         // with it. The marker forces the next ~2 s of reads to bypass the
         // cache and go to the primary (cf. plan §12 #11).
         await this.cache.markFresh(cacheKey, 2);
+        if (input.accountId) await this.gamification.profileUpdated(input.accountId, { username, avatarUrl });
         return profile;
     }
 }

@@ -10,9 +10,9 @@ import type { ILockService } from '@chiliztv/domain/shared/ports/ILockService';
 import type { ILeaderboardScoreRepository } from '@chiliztv/domain/leaderboard/repositories/ILeaderboardScoreRepository';
 import type { ILeaderboardEpochRepository } from '@chiliztv/domain/leaderboard/repositories/ILeaderboardEpochRepository';
 import type { ILeaderboardClaimRepository } from '@chiliztv/domain/leaderboard/repositories/ILeaderboardClaimRepository';
-import { BaseIndexer } from './BaseIndexer';
+import { BaseIndexer, DEFAULT_TAIL_OVERLAP_BLOCKS } from './BaseIndexer';
 
-// Signatures MUST match LeaderboardRewards.sol V2 — a drifted parameter
+// Signatures MUST match LeaderboardRewards.sol (unchanged from V2 to V5) — a drifted parameter
 // list changes topic0 and the getLogs filter silently matches nothing
 // (incident 2026-06-11: V1 WinRecorded signature, empty board after claims).
 const WIN_RECORDED = parseAbiItem(
@@ -31,10 +31,11 @@ const EPOCH_ROLLED_OVER = parseAbiItem(
 const ALL_EVENTS = [WIN_RECORDED, EPOCH_ADVANCED, PRIZE_CLAIMED, EPOCH_ROLLED_OVER];
 
 /**
- * Reads `LeaderboardRewards` V2 events into the three leaderboard tables.
+ * Reads `LeaderboardRewards` events into the three leaderboard tables. Every
+ * handler is replay-idempotent, hence the tail overlap.
  *
- *  - WinRecorded     → increment `leaderboard_scores` (lifetime + per-epoch;
- *                      the cycle comes from the event's own `epochId`)
+ *  - WinRecorded     → set the (epoch, user) score from `newEpochScore`, then
+ *                      the lifetime sum (the cycle is the event's own `epochId`)
  *  - EpochAdvanced   → record the closed epoch as confirmed (V2 advanceEpoch
  *                      is permissionless — no pending CLI row, no merkle)
  *  - PrizeClaimed    → INSERT into `leaderboard_claims`
@@ -68,6 +69,7 @@ export class LeaderboardIndexer extends BaseIndexer {
             }),
             checkpoints,
             lockService,
+            tailOverlapBlocks: DEFAULT_TAIL_OVERLAP_BLOCKS,
         });
         this.leaderboardAddress = address;
     }
@@ -101,7 +103,7 @@ export class LeaderboardIndexer extends BaseIndexer {
             try {
                 switch (eventName) {
                     case 'WinRecorded':
-                        await this.handleWinRecorded(args);
+                        await this.handleWinRecorded(log, args);
                         break;
                     case 'EpochAdvanced':
                         await this.handleEpochAdvanced(log, args);
@@ -123,16 +125,19 @@ export class LeaderboardIndexer extends BaseIndexer {
         }
     }
 
-    private async handleWinRecorded(args: Record<string, unknown>): Promise<void> {
-        const user = (args.user as string).toLowerCase();
-        const delta = BigInt(args.delta as bigint);
-        // V2 scopes scores per epoch on-chain — the event carries its epochId,
-        // so cycle attribution never depends on read-at-batch-start state.
-        const epochId = BigInt(args.epochId as bigint);
-        // Dual-write: lifetime cumulative + per-cycle. The lifetime row is
-        // kept for an eventual Hall of Fame surface (cf. plan §1 context).
-        await this.scoreRepo.upsertScore(user, delta);
-        await this.scoreRepo.upsertCycleScore(epochId, user, delta);
+    private async handleWinRecorded(log: Log, args: Record<string, unknown>): Promise<void> {
+        if (log.blockNumber === null || log.blockNumber === undefined || log.logIndex === null || log.logIndex === undefined) {
+            throw new Error('WinRecorded log without a chain position');
+        }
+        // `newEpochScore` is the on-chain total after the event: applying it is replay-safe
+        // where adding `delta` double counted every re-indexed event (D6).
+        await this.scoreRepo.recordWin({
+            cycleId: BigInt(args.epochId as bigint),
+            userAddress: (args.user as string).toLowerCase(),
+            newEpochScore: BigInt(args.newEpochScore as bigint),
+            blockNumber: log.blockNumber,
+            logIndex: log.logIndex,
+        });
     }
 
     private async handleEpochAdvanced(

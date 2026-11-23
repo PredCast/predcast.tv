@@ -43,6 +43,10 @@ export * from './dto/leaderboard/LeaderboardTopDto';
 export * from './dto/leaderboard/MyLeaderboardPositionDto';
 export * from './dto/leaderboard/ClaimableEpochDto';
 
+// Gamification
+export * from './dto/gamification/CheckInResultDto';
+export * from './dto/gamification/WatchHeartbeatDto';
+
 // Zod schemas
 export * from './schemas/common.schemas';
 export * from './schemas/auth.schemas';

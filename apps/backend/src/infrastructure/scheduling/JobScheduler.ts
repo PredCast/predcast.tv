@@ -1,10 +1,12 @@
 import { injectable } from 'tsyringe';
 import cron from 'node-cron';
 
+import { env } from '../config/environment';
 import { logger } from '../logging/logger';
 import { JobExecutor } from './JobExecutor';
 import { JobRegistry, type RegisteredJob } from './JobRegistry';
 import { ManualJobRunner } from './ManualJobRunner';
+import { onChainJobsEnabled } from './onChainJobsPolicy';
 
 /**
  * Starts every job of the registry on its schedule, plus the manual-run consumer. Each tick goes
@@ -26,7 +28,10 @@ export class JobScheduler {
 
     start(): void {
         logger.info('Starting job scheduler');
+        const onChain = onChainJobsEnabled(env.NODE_ENV, env.JOBS_ONCHAIN_ENABLED);
+        if (!onChain) logger.warn('On-chain jobs not scheduled (JOBS_ONCHAIN_ENABLED); Run now still works');
         for (const job of this.registry.registered()) {
+            if (job.category === 'on_chain' && !onChain) continue;
             switch (job.schedule.kind) {
                 case 'cron':
                     this.startCronJob(job, job.schedule.expression);

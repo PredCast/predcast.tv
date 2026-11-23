@@ -1,8 +1,8 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { useDynamicContext } from '@dynamic-labs/sdk-react-core';
-import { authenticateWallet, getAuthToken, clearAuthToken } from '@/lib/api/auth';
+import { getAuthToken as getDynamicAuthToken, useDynamicContext } from '@dynamic-labs/sdk-react-core';
+import { authenticateWallet, getBackendToken, clearAuthToken, isBackendTokenReusable } from '@/lib/api/auth';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -36,22 +36,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        const existingToken = await getAuthToken();
+        const dynamicJwt = getDynamicAuthToken();
+        const existingToken = await getBackendToken();
         if (existingToken) {
-          // Verify the token isn't expired before trusting it.
-          try {
-            const { exp } = JSON.parse(atob(existingToken.split('.')[1])) as { exp?: number };
-            if (!exp || exp * 1000 > Date.now()) {
-              setAuthState({ isAuthenticated: true, isLoading: false });
-              return;
-            }
-          } catch {
-            // Malformed token — fall through to regenerate.
+          if (isBackendTokenReusable(existingToken, Boolean(dynamicJwt), Date.now())) {
+            setAuthState({ isAuthenticated: true, isLoading: false });
+            return;
           }
           await clearAuthToken();
         }
 
-        await authenticateWallet(primaryWallet.address);
+        await authenticateWallet(primaryWallet.address, dynamicJwt);
         setAuthState({ isAuthenticated: true, isLoading: false });
       } catch (error) {
         setAuthState({
@@ -69,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handle = () => {
       if (primaryWallet?.address) {
-        authenticateWallet(primaryWallet.address)
+        authenticateWallet(primaryWallet.address, getDynamicAuthToken())
           .then(() => setAuthState({ isAuthenticated: true, isLoading: false }))
           .catch(() => setAuthState({ isAuthenticated: false, isLoading: false }));
       } else {
@@ -87,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       setAuthState((prev) => ({ ...prev, isLoading: true }));
-      await authenticateWallet(primaryWallet.address);
+      await authenticateWallet(primaryWallet.address, getDynamicAuthToken());
       setAuthState({ isAuthenticated: true, isLoading: false });
     } catch (error) {
       setAuthState({

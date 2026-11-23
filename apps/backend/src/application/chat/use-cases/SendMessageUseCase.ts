@@ -6,6 +6,7 @@ import { ISubscriptionChecker } from '@chiliztv/domain/shared/ports/ISubscriptio
 import { SendMessageDto } from '@chiliztv/shared/dto/chat/SendMessageDto';
 import { GetMatchByIdUseCase } from '../../matches/use-cases/GetMatchByIdUseCase';
 import { requireVisibleMatch } from '../../matches/visibility/requireVisibleMatch';
+import { GamificationActivityRecorder } from '../../gamification/services/GamificationActivityRecorder';
 
 @injectable()
 export class SendMessageUseCase {
@@ -16,6 +17,8 @@ export class SendMessageUseCase {
     private readonly subscriptionChecker: ISubscriptionChecker,
     @inject(GetMatchByIdUseCase)
     private readonly getMatch: GetMatchByIdUseCase,
+    @inject(GamificationActivityRecorder)
+    private readonly gamification: GamificationActivityRecorder,
   ) {}
 
   async execute(dto: SendMessageDto): Promise<ChatMessage> {
@@ -39,6 +42,16 @@ export class SendMessageUseCase {
 
     await this.chatRepository.updateUserActivity(dto.matchId, dto.userId);
 
-    return await this.chatRepository.saveMessage(message);
+    const saved = await this.chatRepository.saveMessage(message);
+    if (dto.accountId) {
+      await this.gamification.chatMessageSent({
+        accountId: dto.accountId,
+        messageId: saved.getId(),
+        matchId: dto.matchId,
+        messageType: MessageType.REGULAR,
+        text: dto.message,
+      });
+    }
+    return saved;
   }
 }

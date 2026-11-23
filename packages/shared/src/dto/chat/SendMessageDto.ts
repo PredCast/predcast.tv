@@ -8,6 +8,8 @@ export interface SendMessageDto {
   isFeatured?: boolean;
   /** Client-generated UUID for deterministic optimistic dedup. */
   clientTempId?: string;
+  /** Set by the server from the JWT (chat XP); never read from the request body. */
+  accountId?: string;
 }
 
 export interface SendBetMessageDto extends SendMessageDto {
