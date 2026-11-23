@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import { Eye } from "lucide-react";
 import { Eyebrow, PulseDot, fmtViewersLive } from "../primitives";
 import type { LiveStream } from "@/models/stream.model";
+import { FramedAvatar } from "@/components/features/gamification/components/FramedAvatar";
+import { useProfileCard } from "@/hooks/api";
 
 interface StreamShelfProps {
   activeStream: LiveStream | null;
@@ -35,6 +37,8 @@ export function StreamShelf({
   browseSlot,
   startSlot,
 }: StreamShelfProps) {
+  // Same cached card query as the StreamerStrip: no extra request.
+  const { data: card } = useProfileCard(activeStream?.streamerWalletAddress);
   return (
     <div className="mb-3">
       <div className="rounded-lg border border-[#1E1E1E] bg-[#111]/95 backdrop-blur">
@@ -44,7 +48,17 @@ export function StreamShelf({
               <>
                 <Eyebrow>{isOwnStream ? "Your stream" : "Now watching"}</Eyebrow>
                 <div className="mt-2 flex items-center gap-3">
-                  <StreamerInitial name={activeStream.streamerName} />
+                  {card ? (
+                    <FramedAvatar
+                      walletAddress={card.wallet}
+                      profile={{ username: card.displayName, avatarUrl: card.avatarUrl }}
+                      frameId={card.frameId}
+                      level={card.level}
+                      size={36}
+                    />
+                  ) : (
+                    <StreamerInitial name={activeStream.streamerName} />
+                  )}
                   <span className="font-display truncate text-[16px] font-extrabold uppercase tracking-tight text-white">
                     @{activeStream.streamerName}
                   </span>

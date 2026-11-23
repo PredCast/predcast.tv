@@ -11,7 +11,6 @@ import { useRouter } from "next/navigation";
 import { networkType } from "@/config/chiliz.config";
 import { WagmiProviderWrapper } from "./WagmiProviderWrapper";
 import { UserProfileAutoSync } from "./UserProfileAutoSync";
-import { GamificationAutoCheckIn } from "./GamificationAutoCheckIn";
 
 const SPICY_NETWORK = {
     chainId: 88882,
@@ -108,7 +107,6 @@ export default function DynamicSolanaWalletProvider({ children }: Readonly<{ chi
                         list views resolve real names instead of truncated
                         addresses. */}
                     <UserProfileAutoSync />
-                    <GamificationAutoCheckIn />
                     {children}
                 </DynamicWagmiConnector>
             </DynamicContextProvider>

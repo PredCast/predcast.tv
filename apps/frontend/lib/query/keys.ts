@@ -84,5 +84,9 @@ export const queryKeys = {
     all: ['gamification'] as const,
     me: () => [...queryKeys.gamification.all, 'me'] as const,
     checkIn: () => [...queryKeys.gamification.all, 'check-in'] as const,
+    card: (wallet: string) => [...queryKeys.gamification.all, 'card', wallet.toLowerCase()] as const,
+    badges: (wallets: ReadonlyArray<string>) => [...queryKeys.gamification.all, 'badges', ...wallets] as const,
+    profile: (wallet: string) => [...queryKeys.gamification.all, 'profile', wallet.toLowerCase()] as const,
+    doubleXp: () => [...queryKeys.gamification.all, 'double-xp'] as const,
   },
 } as const;
