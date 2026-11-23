@@ -16,10 +16,10 @@ export function StreakFreezes({ freezes }: StreakFreezesProps) {
                     <Snowflake key={i} className="h-4 w-4" style={{ color: filled ? '#D8D8DC' : '#3A3A3A' }} strokeWidth={2} />
                 ))}
             </span>
-            <b className="font-display text-[19px] font-extrabold uppercase leading-none text-white">
+            <b className="font-display whitespace-nowrap text-[19px] font-extrabold uppercase leading-none text-white">
                 {freezes} / {STREAK_MAX_FREEZES}
             </b>
-            <span className="font-mono-ctv text-[8.5px] uppercase tracking-[0.14em] text-white/45">Streak freezes</span>
+            <span className="font-mono-ctv whitespace-nowrap text-[8.5px] uppercase tracking-[0.14em] text-white/45">Streak freezes</span>
         </div>
     );
 }

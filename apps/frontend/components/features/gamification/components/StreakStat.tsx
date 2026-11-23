@@ -16,8 +16,8 @@ export function StreakStat({ stat, className = '' }: StreakStatProps) {
     return (
         <div className={`grid grid-cols-[auto_1fr] items-center gap-x-2 py-[11px] pr-3 ${className}`}>
             <Icon aria-hidden className="row-span-2 h-4 w-4" style={{ color: TONES[stat.tone] }} strokeWidth={2} />
-            <b className="font-display text-[19px] font-extrabold uppercase leading-none text-white">{stat.value}</b>
-            <span className="font-mono-ctv text-[8.5px] uppercase tracking-[0.14em] text-white/45">{stat.label}</span>
+            <b className="font-display whitespace-nowrap text-[19px] font-extrabold uppercase leading-none text-white">{stat.value}</b>
+            <span className="font-mono-ctv whitespace-nowrap text-[8.5px] uppercase tracking-[0.14em] text-white/45">{stat.label}</span>
         </div>
     );
 }

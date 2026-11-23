@@ -36,14 +36,14 @@ export function ProgressionSection({ me }: ProgressionSectionProps) {
 
     if (!expanded) {
         return (
-            <section id="progression" aria-label="Progression" className="relative z-[4] mx-auto max-w-[1400px] px-8 pt-6 sm:px-14">
+            <section id="progression" aria-label="Progression" className="relative z-[4] mx-auto max-w-[1400px] px-8 pb-10 pt-6 sm:px-14">
                 <ProgressionStrip me={me} action={toggle} />
             </section>
         );
     }
 
     return (
-        <section id="progression" aria-labelledby="progression-title" className="relative z-[4] mx-auto max-w-[1400px] px-8 pt-6 sm:px-14">
+        <section id="progression" aria-labelledby="progression-title" className="relative z-[4] mx-auto max-w-[1400px] px-8 pb-10 pt-6 sm:px-14">
             <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
                 <div>
                     <div className="font-mono-ctv inline-flex items-center gap-2.5 text-[10px] font-bold uppercase tracking-[0.16em] text-[#E8001D]">

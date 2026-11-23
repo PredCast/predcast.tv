@@ -27,10 +27,10 @@ export function ProgressionStrip({ me, action }: ProgressionStripProps) {
         >
             <LevelIdentity me={me} rank={rank} avatarSize={56} levelSize={40} />
             <XpBar view={xpBarOf(me)} fill={rank.bar} />
-            <div className="grid grid-cols-3 border-[#1E1E1E] lg:border-l lg:pl-6">
+            <div className="flex flex-wrap gap-x-6 border-[#1E1E1E] lg:border-l lg:pl-6">
                 <StreakStat stat={current} />
-                <StreakStat stat={best} className="border-l border-[#1E1E1E] pl-4" />
-                <div className="border-l border-[#1E1E1E] pl-4">
+                <StreakStat stat={best} className="border-[#1E1E1E] sm:border-l sm:pl-6" />
+                <div className="border-[#1E1E1E] sm:border-l sm:pl-6">
                     <StreakFreezes freezes={me.streakFreezes} />
                 </div>
             </div>
