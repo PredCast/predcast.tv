@@ -57,6 +57,10 @@ export const TOKENS = {
   // Ports — access gate
   IAccessCodeVerifier:     Symbol.for('IAccessCodeVerifier'),
 
+  // Identity — accounts proven by the Dynamic JWT
+  IAccountRepository:      Symbol.for('IAccountRepository'),
+  IIdentityTokenVerifier:  Symbol.for('IIdentityTokenVerifier'),
+
   // Ports — cache layer (Redis / Noop)
   ICacheService:           Symbol.for('ICacheService'),
   ILockService:            Symbol.for('ILockService'),
