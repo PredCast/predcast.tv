@@ -4,6 +4,7 @@ import { AnimatePresence } from "framer-motion";
 import { ChatMessage } from "@/models/chat.model";
 import { RefObject, useCallback, useEffect, useRef, useState } from "react";
 import { Eyebrow } from "../primitives";
+import { ProfileBadgesProvider } from "@/components/features/gamification/components/ProfileBadgesProvider";
 import { NewMessagesPill } from "./NewMessagesPill";
 
 interface ChatMessageListProps {
@@ -92,9 +93,12 @@ export function ChatMessageList({ messages, isLoading, messagesEndRef, children 
       onScroll={handleScroll}
       className="scrollbar-thin relative flex-1 overflow-y-auto px-3 py-3"
     >
-      <div className="flex flex-col gap-2">
-        <AnimatePresence initial={false}>{children}</AnimatePresence>
-      </div>
+      {/* One batched badges request for the visible messages (level pills, hover cards). */}
+      <ProfileBadgesProvider wallets={messages.map((m) => m.walletAddress)}>
+        <div className="flex flex-col gap-2">
+          <AnimatePresence initial={false}>{children}</AnimatePresence>
+        </div>
+      </ProfileBadgesProvider>
       <div ref={messagesEndRef} />
 
       <NewMessagesPill

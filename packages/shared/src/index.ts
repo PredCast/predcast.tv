@@ -43,6 +43,9 @@ export * from './dto/leaderboard/LeaderboardTopDto';
 export * from './dto/leaderboard/MyLeaderboardPositionDto';
 export * from './dto/leaderboard/ClaimableEpochDto';
 
+// Gamification
+export * from './dto/gamification/CheckInResultDto';
+
 // Zod schemas
 export * from './schemas/common.schemas';
 export * from './schemas/auth.schemas';
@@ -56,3 +59,12 @@ export * from './tokens/priceQuote';
 export * from './tokens/teamFanTokens';
 export * from './tokens/fanTokenDeployments';
 export * from './dto/prices/PriceHistoryDto';
+
+// Gamification — read API (step 06)
+export * from './dto/gamification/GamificationEnums';
+export * from './dto/gamification/ProfileBadgeDto';
+export * from './dto/gamification/ProfileCardDto';
+export * from './dto/gamification/PublicProfileDto';
+export * from './dto/gamification/DoubleXpPublicDto';
+export * from './dto/gamification/MyGamificationDto';
+export * from './dto/gamification/UpdateCosmeticsBody';

@@ -3,6 +3,7 @@
 import { formatUnits } from 'viem';
 import { Eyebrow } from '../primitives';
 import { useLeaderboardTop } from '@/hooks/api';
+import { ProfileBadgesProvider } from '@/components/features/gamification/components/ProfileBadgesProvider';
 import type { MedalKind } from '../domain/medals';
 import { PREVIEW_COLS, PreviewRow } from './PreviewRow';
 import type { PreviewRow as PreviewRowData } from '../domain/data';
@@ -87,9 +88,11 @@ export function PreviewTable() {
                     </div>
                 )}
 
-                {rows.map((row) => (
-                    <PreviewRow key={row.rank} row={row} />
-                ))}
+                <ProfileBadgesProvider wallets={rows.map((row) => row.walletAddress)}>
+                    {rows.map((row) => (
+                        <PreviewRow key={row.rank} row={row} />
+                    ))}
+                </ProfileBadgesProvider>
             </div>
         </section>
     );

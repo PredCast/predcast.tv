@@ -9,11 +9,14 @@ import { DashEyebrow } from '../components/DashEyebrow';
 import { BanDashboardTile } from '@/components/features/moderation/BanDashboardTile';
 import { truncAddr } from '../domain/formatters';
 import type { DashboardUser } from '../hooks/useDashboardUser';
+import { HeroProgressLine, type HeroProgress } from '../components/HeroProgressLine';
 
 // SelfProtocol QR uses libs that drag wallet/QR deps; lazy-load it client-side only when the user clicks "Verify identity".
 
 interface DashboardHeroProps {
     readonly user: DashboardUser;
+    /** Worn title, frame and level; null when gamification is off (hero unchanged). */
+    readonly gamification?: HeroProgress | null;
 }
 
 interface AvatarUploadResponse {
@@ -22,7 +25,7 @@ interface AvatarUploadResponse {
     readonly version: number;
 }
 
-export function DashboardHero({ user }: DashboardHeroProps) {
+export function DashboardHero({ user, gamification = null }: DashboardHeroProps) {
     const [uploading, setUploading] = useState(false);
     // Cache-buster local to this session — Dynamic stores the clean URL (its
     // metadata validator rejects `?` / `=`), so we append `?v=…` only at render
@@ -101,6 +104,8 @@ export function DashboardHero({ user }: DashboardHeroProps) {
                         uploading={uploading}
                         onUpload={handleUploadAvatar}
                         onRemove={handleRemoveAvatar}
+                        frameId={gamification?.frameId}
+                        level={gamification?.level}
                     />
                     <div className="min-w-0 flex-1">
                         <h1
@@ -109,6 +114,7 @@ export function DashboardHero({ user }: DashboardHeroProps) {
                         >
                             Hello, <span className="text-[#E8001D]">{user.username}</span>
                         </h1>
+                        {gamification && <HeroProgressLine progress={gamification} />}
 
                         <div className="mt-6 flex flex-wrap items-center gap-3">
                             <div className="font-mono-ctv flex items-center gap-2 rounded-md border border-[#1E1E1E] bg-[#111] px-3 py-2 text-[12px] font-semibold tabular-nums text-white">

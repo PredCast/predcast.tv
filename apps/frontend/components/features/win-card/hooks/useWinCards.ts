@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 import { useMyBets } from '@/components/features/dashboard/hooks/useMyBets';
 import { useUserProfile } from '@/hooks/api/useUserProfile';
 import { useMyLeaderboardPosition } from '@/hooks/api/useMyLeaderboardPosition';
+import { useOwnerGamification } from '@/components/features/gamification/hooks/useOwnerGamification';
 
 import { buildWinCards } from '../domain/buildWinCard';
 import type { WinCardData } from '../domain/types';
@@ -27,13 +28,18 @@ export function useWinCards(wallet: string | undefined): {
   const { data: bets, isLoading } = useMyBets({ user: wallet, filter: 'won', limit: WON_PAGE });
   const { data: profile } = useUserProfile(wallet);
   const { data: position } = useMyLeaderboardPosition(wallet);
+  const me = useOwnerGamification();
 
   return useMemo(() => {
     if (!wallet || !bets?.bets) return { cards: [], byContract: new Map(), isLoading };
     const pseudo = profile?.username ?? shortAddr(wallet);
     const rank = position?.rank != null ? `#${position.rank} this week` : null;
-    const cards = buildWinCards(bets.bets, { pseudo, rank, avatar: profile?.avatarUrl ?? null });
+    // Owner view of the signed-in account, shared by its linked wallets.
+    const gamification = me
+      ? { level: me.level, rankTier: me.rankTier, titleId: me.titleId, titleCycleId: me.titleCycleId, frameId: me.frameId }
+      : null;
+    const cards = buildWinCards(bets.bets, { pseudo, rank, avatar: profile?.avatarUrl ?? null, gamification });
     const byContract = new Map(cards.map((c) => [c.contractAddress.toLowerCase(), c]));
     return { cards, byContract, isLoading };
-  }, [wallet, bets, profile, position, isLoading]);
+  }, [wallet, bets, profile, position, me, isLoading]);
 }

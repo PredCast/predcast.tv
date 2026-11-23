@@ -57,6 +57,20 @@ export const TOKENS = {
   // Ports — access gate
   IAccessCodeVerifier:     Symbol.for('IAccessCodeVerifier'),
 
+  // Identity — accounts proven by the Dynamic JWT
+  IAccountRepository:      Symbol.for('IAccountRepository'),
+  IIdentityTokenVerifier:  Symbol.for('IIdentityTokenVerifier'),
+
+  // Gamification
+  IGamificationConfig:                 Symbol.for('IGamificationConfig'),
+  IGamificationLedgerRepository:       Symbol.for('IGamificationLedgerRepository'),
+  IGamificationProfileRepository:      Symbol.for('IGamificationProfileRepository'),
+  IGamificationProgressRepository:     Symbol.for('IGamificationProgressRepository'),
+  IGamificationNotificationRepository: Symbol.for('IGamificationNotificationRepository'),
+  IGamificationCursorRepository:       Symbol.for('IGamificationCursorRepository'),
+  IDoubleXpEventRepository:            Symbol.for('IDoubleXpEventRepository'),
+  ICycleRankRepository:                Symbol.for('ICycleRankRepository'),
+
   // Ports — cache layer (Redis / Noop)
   ICacheService:           Symbol.for('ICacheService'),
   ILockService:            Symbol.for('ILockService'),
@@ -83,6 +97,9 @@ export const TOKENS = {
   IAuditTrail:             Symbol.for('IAuditTrail'),
   IAdminDirectoryRepository: Symbol.for('IAdminDirectoryRepository'),
   IAuditLogReader:         Symbol.for('IAuditLogReader'),
+
+  // Gamification — read side (cards, badges, profiles)
+  IGamificationReadRepository: Symbol.for('IGamificationReadRepository'),
 } as const;
 
 export type TokenKey = keyof typeof TOKENS;

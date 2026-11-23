@@ -30,7 +30,8 @@ import { RedisWarmupService } from './src/infrastructure/cache/RedisWarmupServic
 import { waitForRedisReady, type RedisClient } from './src/infrastructure/cache/RedisClient';
 config();
 setupDependencyInjection();
-import { authRoutes, accessRoutes, predictionRoutes, matchRoutes, chatRoutes, waitlistRoutes, streamRoutes, streamWalletRoutes, fanTokensRoutes, followRoutes, betRoutes, userRoutes, pricesRoutes, leaderboardRoutes, metricsRoutes, reportingRoutes, banRoutes, statsRoutes, adminRoutes, adminGateRoutes, adminAuthRoutes } from './src/presentation/http/routes';
+import { authRoutes, accessRoutes, predictionRoutes, matchRoutes, chatRoutes, waitlistRoutes, streamRoutes, streamWalletRoutes, fanTokensRoutes, followRoutes, betRoutes, userRoutes, pricesRoutes, leaderboardRoutes, metricsRoutes, reportingRoutes, banRoutes, gamificationRoutes, statsRoutes, adminRoutes, adminGateRoutes, adminAuthRoutes } from './src/presentation/http/routes';
+import { gamificationPublicRoutes, gamificationMeRoutes } from './src/presentation/http/routes';
 import { cloudflareStreamWebhookRoutes } from './src/presentation/http/routes/cloudflare-stream-webhook.routes';
 
 // Controls which responsibilities this process takes on.
@@ -94,6 +95,7 @@ if (PROCESS_ROLE === 'api' || PROCESS_ROLE === 'all') {
     app.use('/stats', statsRoutes);
     app.use('/admin/gate', adminGateLimiter, adminGateRoutes);
     app.use('/admin/auth', adminGateLimiter, adminAuthRoutes);
+    app.use('/gamification', gamificationPublicRoutes);
 
     // All routes below require JWT
     app.use(authenticate);
@@ -102,6 +104,8 @@ if (PROCESS_ROLE === 'api' || PROCESS_ROLE === 'all') {
     app.use('/chat', chatLimiter, chatRoutes);
     app.use('/reports', reportsLimiter, requireNotBanned, reportingRoutes);
     app.use('/bans', banRoutes);
+    app.use('/gamification', gamificationRoutes);
+    app.use('/gamification/me', gamificationMeRoutes);
     app.use('/stream-wallet', streamWalletRoutes);
     app.use('/fan-tokens', fanTokensRoutes);
     app.use('/predictions', predictionsLimiter, predictionRoutes);
