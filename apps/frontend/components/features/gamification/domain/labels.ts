@@ -75,6 +75,36 @@ const EN: Readonly<Record<string, string>> = {
     'gamification.tag.streamer': 'Streamer',
     'gamification.tag.crown': 'Crown',
     'gamification.tag.founder': 'Founder',
+
+    'gamification.frame.rank.rookie': 'Rookie',
+    'gamification.frame.rank.starter': 'Starter',
+    'gamification.frame.rank.seasoned': 'Seasoned',
+    'gamification.frame.rank.captain': 'Captain',
+    'gamification.frame.rank.international': 'International',
+    'gamification.frame.rank.legend': 'Legend',
+    'gamification.frame.rank.icon': 'Icon',
+    'gamification.frame.podium.gold': 'Podium · Gold',
+    'gamification.frame.podium.silver': 'Podium · Silver',
+    'gamification.frame.podium.bronze': 'Podium · Bronze',
+    'gamification.frame.crown': 'Crown',
+    'gamification.frame.antenna.bronze': 'Antenna · Bronze',
+    'gamification.frame.antenna.silver': 'Antenna · Silver',
+    'gamification.frame.antenna.red': 'Antenna · Red',
+    'gamification.frame.antenna.legend': 'Antenna · Legend',
+    'gamification.frame.antenna.icon': 'Antenna · Icon',
+    'gamification.frame.founder': 'Founder',
+
+    'gamification.source.check_in': 'Daily check-in',
+    'gamification.source.bet_volume': 'Bet volume',
+    'gamification.source.bet_won': 'Winning bet',
+    'gamification.source.watch': 'Watching',
+    'gamification.source.chat_message': 'Chat message',
+    'gamification.source.follow': 'Follow a streamer',
+    'gamification.source.support': 'Streamer support',
+    'gamification.source.stream_time': 'Live streaming',
+    'gamification.source.onboarding_step': 'First steps',
+    'gamification.source.achievement': 'Achievements',
+    'gamification.source.admin_adjustment': 'Adjustment',
 };
 
 /** Missing keys read as the key itself, so a gap is visible instead of blank. */
@@ -100,7 +130,16 @@ export function tagLabel(tag: ProfileTagDto): string {
     return t(`gamification.tag.${tag}`);
 }
 
-const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
+/** `frame.rank.captain` reads "Captain". */
+export function frameLabel(frameId: string): string {
+    return t(`gamification.${frameId}`);
+}
+
+export function sourceLabel(source: string): string {
+    return t(`gamification.source.${source}`);
+}
+
+const ROMAN =['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
 
 export function romanTier(tier: number): string {
     return ROMAN[tier - 1] ?? String(tier);

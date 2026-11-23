@@ -12,7 +12,7 @@ Source de reprise entre sessions. Sources : [`00-decisions.md`](00-decisions.md)
 | 04 · Sources XP joueurs (G7, G8, G9) | prête pour PR | (branche feat/gamification-player-xp) | **045** `gamification_record_watch_minute` + index (appliquée en local seulement) | aucune | CA6–CA12, CA18, CA19, CA20 (tests) | voir ci-dessous |
 | 05 · Streamers et classement (G10, G11) | prête pour PR | (branche feat/gamification-streamers ; correctif D6 à part : commit `5a375b2`) | **046** `record_leaderboard_win` (D6, indépendante de 043–045), **047** minutes de stream et `stop_stream` (appliquées en local seulement) | aucune | CA13, CA21, rembobinage D6 | voir ci-dessous |
 | 06 · API, composants, surfaces (G12, G13, G14) | prête pour PR | (branche feat/gamification-surfaces) | aucune | aucune | CA15, CA16, CA22, CA23 | voir ci-dessous |
-| 07 · Progression, profil, notifs, admin | à faire | — | — | — | — | — |
+| 07 · Progression, profil, notifs, admin | app (G15, G16, G17, G19) : prête pour PR ; admin (G18) : branche séparée | (branche feat/gamification-progression) | aucune | aucune | CA17 (app), CA15 (profil public) | voir ci-dessous |
 | 08 · Tests et lancement | à faire | — | — | — | — | — |
 
 ## Journal des écarts et décisions
@@ -80,6 +80,16 @@ Source de reprise entre sessions. Sources : [`00-decisions.md`](00-decisions.md)
 - **Réseau** : un chat chargé = 1 requête `cards/badges` (6 wallets), le leaderboard = 1 ; débounce 300 ms, clé de requête triée (le chat desktop et la feuille mobile partagent la même requête).
 - **Ajouts hors liste** : `StreamShelf` (« Now watching ») porte aussi le cadre (même requête de carte que `StreamerStrip`). Sur mobile, la médaille de `PreviewRow` laisse sa place à l'avatar encadré (la colonne Tier garde le nom de la médaille).
 - **Dette / à faire** : bouton *Follow* de la carte streamer de la maquette non repris (pied commun *View profile* + signalement) ; `/u/[wallet]` arrive à l'étape 07 (lien déjà en place) ; `AddressLabel` du leaderboard garde sa police mono pour les pseudos (comportement existant) ; la grille du leaderboard reste serrée sur mobile (existant).
+
+### Étape 07 — partie app (sections 1 à 4)
+- **Domaine testé** (`packages/domain`, le front n'a pas de runner) : `notificationToasts.ts` (un toast par notification, aucun après l'ack ni pour un id déjà montré, level-up dépassé par une annulation acquitté sans toast — CA17 ; volume agrégé par différence de `todayXpBySource`, seuil 2 XP : jamais de toast pour +1 XP), `doubleXpBanner.ts` (texte exact du §3.6, au plus 7 jours avant, interrupteur juridique), `progressionView.ts` (3 paliers les plus proches, classement lu comme un rang).
+- **Toasts** : `GamificationToasts` monté dans `app/layout.tsx` à côté du check-in ; ids montrés gardés en mémoire du module (une session de page), ack de tous les ids non vus. Le toast de connexion passe sur la même carte (maquette 04). **Volume agrégé** : aucune notification `bet_volume` côté backend, le front compare deux lectures de `/me` (la première sert de base) ; la source n'existe pas encore sur cette branche (étape 04), testée par interception de `/me`.
+- **Bannière double XP** : dashboard (section Progression) et Discover ; rien sans événement (flag off inclus), aucun espace réservé. Bouton *How XP works* : dialogue avec le texte du §9.3, la phrase « XP has no monetary value… » et le tableau sources / plafonds lu dans le catalogue (interrupteurs juridiques respectés).
+- **Progression** : visible seulement avec un JWT portant `accountId` et un `/me` en 200 ; *Bet Volume* montré ici seulement (« Only visible to you »), jamais proposé en vitrine. Vitrine : plus haut palier public de chaque famille. Titre, cadre et niveau dans `DashboardHero` / `ProfileAvatar` (lien *Public profile*). `FrameRing` / `LevelChip` extraits de `FramedAvatar` (réutilisés par le hero et la win-card).
+- **Profil public** : `/u/[wallet]`, même page neutre pour un wallet invalide, sans compte, ou flag off ; aucun montant ni autre wallet (vérifié sur les captures).
+- **Win-card (G19)** : `WinCardData.gamification` (niveau, rang, titre, cadre ; `null` flag off), cadre sans rotation pour la capture ; non capturé (pas de pari gagné en local).
+- **Flag off vérifié** (API relancée avec `GAMIFICATION_ENABLED=false`, notifications non vues en base) : ni section, ni toast, ni ligne de titre, ni bannière ; hero identique (captures `flagoff-*`).
+- **Dette** : toasts dédupliqués par onglet (deux onglets ouverts au même instant peuvent montrer le même toast une fois chacun) ; *Bet volume* agrégé seulement pendant une session ouverte (pas de rattrapage au rechargement, par construction) ; *How XP works* ⚠ texte à faire relire ; `AchievementIcon` n'a pas d'icône propre pour *Bet Volume* (trophée).
 
 ### Mode de travail
 - À partir du 23/11, l'utilisateur laisse travailler en autonomie : branches empilées (chaque étape part de la précédente), une PR par étape vers `main` avec ses dépendances, aucun merge. Tests manuels groupés à la fin.

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useBrowseMatches } from "@/hooks/api/useBrowseMatches";
+import { DoubleXpBannerSlot } from "@/components/features/gamification/components/DoubleXpBannerSlot";
 import {
   buildStreams,
   flattenMatches,
@@ -51,6 +52,7 @@ export function DiscoverPage() {
       <BackgroundFX />
       {/* Sticky live ticker — sits at the very top, follows on scroll. */}
       <DiscoverTicker matches={allMatches} now={now} />
+      <DoubleXpBannerSlot containerClassName="relative z-[4] mx-auto max-w-[1400px] px-8 pt-6 sm:px-14" />
       <HeroStrip />
       <MatchExplorer
         matches={allMatches}

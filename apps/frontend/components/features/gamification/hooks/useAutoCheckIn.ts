@@ -2,19 +2,19 @@
 
 import { useEffect, useRef } from 'react';
 import { useDynamicContext } from '@dynamic-labs/sdk-react-core';
-import { toast } from 'sonner';
 
 import { useCheckIn } from '@/hooks/api';
 import { AUTH_TOKEN_SET_EVENT, backendTokenHasAccount, getBackendToken } from '@/lib/api/auth';
 
-import { checkInToastMessage } from '../domain/checkInToast';
+import { checkInToastView } from '../domain/toastView';
+import { showGamificationToast } from './showGamificationToast';
 
 const RECHECK_INTERVAL_MS = 30 * 60_000;
 
 /**
  * Daily check-in (§3.3): on mount, each time the tab becomes visible, and every 30 min while it
  * stays visible — never while hidden. Only with a backend JWT carrying `accountId`. A credited
- * call shows "+65 XP · Day 4 streak"; any refusal (flag off, not launched, already done) shows nothing.
+ * call shows "+65 XP · Day 4"; any refusal (flag off, not launched, already done) shows nothing.
  */
 export function useAutoCheckIn(): void {
     const { primaryWallet } = useDynamicContext();
@@ -32,8 +32,8 @@ export function useAutoCheckIn(): void {
             inFlight.current = true;
             mutate(undefined, {
                 onSuccess: (result) => {
-                    const message = checkInToastMessage(result);
-                    if (message) toast.success(message);
+                    const view = checkInToastView(result);
+                    if (view && result.credited) showGamificationToast(view, `gami-check-in-${result.day}`);
                 },
                 onSettled: () => {
                     inFlight.current = false;

@@ -73,3 +73,16 @@ export async function clearAuthToken(): Promise<void> {
   // Notify the auth provider so it can re-generate if a wallet is still connected.
   window.dispatchEvent(new Event('auth:jwt:cleared'));
 }
+
+export const AUTH_TOKEN_CLEARED_EVENT = 'auth:jwt:cleared';
+
+/** Synchronous `backendTokenHasAccount` on the stored token; false during SSR or without storage. */
+export function storedTokenHasAccount(nowMs: number): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY);
+    return token !== null && backendTokenHasAccount(token, nowMs);
+  } catch {
+    return false;
+  }
+}
