@@ -1,10 +1,9 @@
 import type { MyGamificationDto } from '@chiliztv/shared';
 
-import { rankLabel, titleLabel } from '../domain/labels';
 import { xpBarOf } from '../domain/levelDisplay';
 import { rankStyleOf } from '../domain/rankStyle';
 import { streakStatsOf } from '../domain/streakDisplay';
-import { FramedAvatar } from './FramedAvatar';
+import { LevelIdentity } from './LevelIdentity';
 import { StreakFreezes } from './StreakFreezes';
 import { StreakStat } from './StreakStat';
 import { XpBar } from './XpBar';
@@ -20,29 +19,10 @@ export function ProgressionOverview({ me }: ProgressionOverviewProps) {
     return (
         <div className="overflow-hidden rounded-xl border border-[#1E1E1E] bg-[#111]">
             <div
-                className="flex items-center gap-5 border-b border-[#1E1E1E] p-6"
+                className="border-b border-[#1E1E1E] p-6"
                 style={{ background: `radial-gradient(130% 150% at 100% 0%, ${rank.tint} 0%, transparent 60%), #111` }}
             >
-                <FramedAvatar
-                    walletAddress={me.wallet}
-                    profile={{ username: me.displayName, avatarUrl: me.avatarUrl }}
-                    frameId={me.frameId}
-                    level={me.level}
-                    size={76}
-                />
-                <div className="min-w-0">
-                    <div className="font-mono-ctv text-[10px] font-bold uppercase tracking-[0.16em] text-white/45">Level</div>
-                    <div className="font-display text-[56px] font-extrabold leading-[0.9] text-white tabular-nums">{me.level}</div>
-                    <div className="font-mono-ctv mt-1.5 flex flex-wrap gap-x-2 text-[10px] font-bold uppercase tracking-[0.16em]">
-                        <span style={{ color: rank.accent }}>{rankLabel(me.rankTier)} rank</span>
-                        {me.titleId && (
-                            <>
-                                <span aria-hidden className="text-white/30">·</span>
-                                <span className="text-white">{titleLabel(me.titleId, me.titleCycleId)}</span>
-                            </>
-                        )}
-                    </div>
-                </div>
+                <LevelIdentity me={me} rank={rank} avatarSize={76} levelSize={56} />
             </div>
             <div className="border-b border-[#1E1E1E] px-6 py-4">
                 <XpBar view={xpBarOf(me)} fill={rank.bar} />
