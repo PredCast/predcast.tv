@@ -7,7 +7,7 @@ import { fmtMult, fmtWinNum, winOnomatopoeia, winTier } from '../domain/logic';
 import styles from './WinCard.module.css';
 import { WinHalo, WinRays, WinConfetti } from './WinCardFx';
 import { WinCardMark } from './WinCardMark';
-import { WinCardAvatar } from './WinCardAvatar';
+import { WinCardPlayer } from './WinCardPlayer';
 
 const ONOMA_SIZE: Record<WinCardFormat, Record<1 | 2 | 3 | 4, number>> = {
   story: { 1: 236, 2: 322, 3: 264, 4: 268 },
@@ -212,19 +212,7 @@ export function WinCard({ data, format = 'story', isStatic = false }: WinCardPro
 
         {/* footer */}
         <div className={styles.footer} style={{ paddingTop: story ? 36 : 26 }}>
-          <div className={styles.player}>
-            <WinCardAvatar pseudo={data.pseudo} avatar={data.avatar} size={story ? 74 : 60} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: story ? 8 : 6, minWidth: 0 }}>
-              <span className={`${styles.pseudo} ${styles.wscMono}`} style={{ fontSize: story ? 28 : 23 }}>
-                {data.pseudo}
-              </span>
-              {data.rank ? (
-                <span className={`${styles.rank} ${styles.wscMono}`} style={{ fontSize: story ? 21 : 18 }}>
-                  {data.rank}
-                </span>
-              ) : null}
-            </div>
-          </div>
+          <WinCardPlayer data={data} story={story} />
           <div className={styles.brand}>
             <WinCardMark size={story ? 56 : 46} mono={tier === 4} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: story ? 7 : 5 }}>

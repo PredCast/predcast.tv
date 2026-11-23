@@ -1,3 +1,5 @@
+import type { RankTierDto } from '@chiliztv/shared';
+
 /** Win-card view model — pure data the WinCard component renders. Built from
  *  the user's WON bets on a single match by `buildWinCard`. */
 
@@ -49,4 +51,14 @@ export interface WinCardData {
     readonly avatar: string | null;
     /** e.g. "#7 this week" — null when unranked. */
     readonly rank: string | null;
+    /** Worn level, title and frame (G19); null when gamification is off or the player has no profile. */
+    readonly gamification: WinCardGamification | null;
+}
+
+export interface WinCardGamification {
+    readonly level: number;
+    readonly rankTier: RankTierDto;
+    readonly titleId: string | null;
+    readonly titleCycleId: number | null;
+    readonly frameId: string;
 }
