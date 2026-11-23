@@ -1,4 +1,8 @@
-import { WATCH_LEAGUE_MINUTES, WATCH_PROGRESS_DAILY_CAP_MINUTES } from '@chiliztv/domain/gamification/catalog/constants';
+import {
+    STREAM_PROGRESS_DAILY_CAP_MINUTES,
+    WATCH_LEAGUE_MINUTES,
+    WATCH_PROGRESS_DAILY_CAP_MINUTES,
+} from '@chiliztv/domain/gamification/catalog/constants';
 import type { IStakeTokenDecimals } from '@chiliztv/domain/gamification/ports/IStakeTokenDecimals';
 import type { Match } from '@chiliztv/domain/matches/entities/Match';
 import type { IMatchRepository } from '@chiliztv/domain/matches/repositories/IMatchRepository';
@@ -20,6 +24,7 @@ import { NodeTextHasher } from '../../infrastructure/crypto/NodeTextHasher';
 import { FIXTURE_CHAIN_ID, FIXTURE_USDC_DECIMALS } from '../fixtures/gamification.fixtures';
 import { buildGamificationHarness, type HarnessOptions } from './gamificationHarness';
 import { InMemoryCursors, InMemoryEventSource, InMemoryWatchMinutes } from './InMemorySourceAdapters';
+import { InMemoryStreamSessions } from './InMemoryStreamAdapters';
 
 export interface StreamFixtureInput {
     readonly id: string;
@@ -36,6 +41,8 @@ export function buildSourcesHarness(options: HarnessOptions = {}) {
     const source = new InMemoryEventSource();
     const cursors = new InMemoryCursors();
     const watchMinutes = new InMemoryWatchMinutes(store, WATCH_PROGRESS_DAILY_CAP_MINUTES, WATCH_LEAGUE_MINUTES);
+    const sessions = new InMemoryStreamSessions(store, STREAM_PROGRESS_DAILY_CAP_MINUTES);
+    store.lastSnapshottedCycle = async () => (await cursors.get('cycles'))?.lastEpochId ?? null;
     const decimals: IStakeTokenDecimals = { usdcDecimals: async () => FIXTURE_USDC_DECIMALS };
     const chains: IBettingChainRegistry = {
         list: () => [],
@@ -47,7 +54,10 @@ export function buildSourcesHarness(options: HarnessOptions = {}) {
     // Only the single-match read is used by the heartbeat.
     const matchRepo = { findByApiFootballId: async (id: number) => matches.get(id) ?? null } as unknown as IMatchRepository;
     const streams = new Map<string, Stream>();
-    const streamRepo = { findById: async (id: string) => streams.get(id) ?? null } as unknown as IStreamRepository;
+    const streamRepo = {
+        findById: async (id: string) => streams.get(id) ?? null,
+        findActiveStreams: async () => [...streams.values()].filter((s) => s.isLive()),
+    } as unknown as IStreamRepository;
 
     const getMatch = new GetMatchByIdUseCase(matchRepo, base.cache);
     const watch = new RecordWatchHeartbeatUseCase(
@@ -60,13 +70,13 @@ export function buildSourcesHarness(options: HarnessOptions = {}) {
     const betVolume = new ProcessBetVolumeUseCase(config, cursors, source, decimals, creditXp);
     const settlements = new ProcessMarketSettlementsUseCase(config, cursors, source, store.ledger, decimals, creditXp, afterCredit);
     const support = new ProcessSupportEventsUseCase(config, cursors, source, accounts, creditXp);
-    const moderation = new ProcessModerationReversalsUseCase(config, cursors, source, store.ledger, afterCredit);
+    const moderation = new ProcessModerationReversalsUseCase(config, cursors, source, store.ledger, sessions, afterCredit);
     const chain = new ProcessGamificationChainUseCase(
         config, clock, logger, source, accounts, chains, betVolume, settlements, support, moderation, achievements,
     );
 
     return {
-        ...base, source, cursors, watchMinutes, watch, chatXp, followXp, activity, chain,
+        ...base, source, cursors, watchMinutes, sessions, streams, streamRepo, getMatch, watch, chatXp, followXp, activity, chain,
         addMatch(match: Match): void { matches.set(match.getId(), match); },
         addStream(s: StreamFixtureInput): void {
             streams.set(s.id, Stream.reconstitute({

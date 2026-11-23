@@ -4,6 +4,7 @@ import type { CycleRank } from '../entities/CycleRank';
 export interface ICycleRankRepository {
     /** Idempotent on `(cycle_id, wallet)`. */
     saveSnapshot(ranks: ReadonlyArray<CycleRank>): Promise<void>;
+    /** Last cycle the snapshot job processed, even when it had no score (the Crown then lapses). */
     findLastSnapshottedCycleId(): Promise<number | null>;
     /** Best rank over every snapshotted cycle, among the account's wallets. */
     findBestRankForAccount(accountId: string): Promise<{ readonly cycleId: number; readonly rank: number } | null>;

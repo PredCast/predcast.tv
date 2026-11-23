@@ -23,6 +23,8 @@
     "admin:grant": "ts-node src/presentation/cli/admin-grant.ts",
     "gamification:rebuild-profiles": "ts-node src/presentation/cli/gamification-rebuild-profiles.ts",
     "gamification:process-chain": "ts-node src/presentation/cli/gamification-process-chain.ts",
+    "gamification:stream-minutes": "ts-node src/presentation/cli/gamification-stream-minutes.ts",
+    "gamification:snapshot-cycles": "ts-node src/presentation/cli/gamification-snapshot-cycles.ts",
     "db:migrate": "ts-node scripts/run-migrations.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts"
   },

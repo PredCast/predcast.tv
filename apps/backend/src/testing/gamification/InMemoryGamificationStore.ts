@@ -1,3 +1,4 @@
+import type { CycleRank } from '@chiliztv/domain/gamification/entities/CycleRank';
 import type { DoubleXpEvent } from '@chiliztv/domain/gamification/entities/DoubleXpEvent';
 import type { GamificationNotification } from '@chiliztv/domain/gamification/entities/GamificationNotification';
 import type { GamificationProfile } from '@chiliztv/domain/gamification/entities/GamificationProfile';
@@ -35,7 +36,9 @@ export class InMemoryGamificationStore {
     readonly achievements: UnlockedAchievement[] = [];
     readonly notificationRows: GamificationNotification[] = [];
     events: DoubleXpEvent[] = [];
-    bestRank: number | null = null;
+    readonly cycleRankRows: CycleRank[] = [];
+    /** Mirrors the `cycles` cursor read by SupabaseCycleRankRepository; null falls back to the highest cycle. */
+    lastSnapshottedCycle: () => Promise<number | null> = async () => null;
 
     constructor(private readonly epoch: Date) {}
 
@@ -161,7 +164,11 @@ export class InMemoryGamificationStore {
         listVolumeRowsByMarket: async (marketKey) =>
             this.rows.filter((r) => r.source === 'bet_volume' && r.metadata.marketKey === marketKey &&
                 r.reversesId === null && !this.isReversed(r.refKey)),
-        listReversibleByStream: unsupported('listReversibleByStream'),
+        listReversibleByStream: async (streamId) =>
+            this.rows
+                .filter((r) => r.source === 'stream_time' && r.metadata.streamId === streamId && r.xp > 0 &&
+                    r.reversesId === null && !this.isReversed(r.refKey))
+                .map((r) => r.refKey),
         sumXpBySourceOnDay: unsupported('sumXpBySourceOnDay'),
         listForAccount: async (accountId) => this.rows.filter((r) => r.accountId === accountId).reverse(),
     };
@@ -222,11 +229,32 @@ export class InMemoryGamificationStore {
         listForAdmin: unsupported('listForAdmin'),
     };
 
+    private async lastCycleId(): Promise<number | null> {
+        const fromCursor = await this.lastSnapshottedCycle();
+        if (fromCursor !== null) return fromCursor;
+        return this.cycleRankRows.length === 0 ? null : Math.max(...this.cycleRankRows.map((r) => r.cycleId));
+    }
+
     readonly cycleRanks: ICycleRankRepository = {
-        saveSnapshot: unsupported('saveSnapshot'),
-        findLastSnapshottedCycleId: unsupported('findLastSnapshottedCycleId'),
-        findBestRankForAccount: async () => (this.bestRank === null ? null : { cycleId: 1, rank: this.bestRank }),
-        findCrownHolder: unsupported('findCrownHolder'),
-        listWonCycles: unsupported('listWonCycles'),
+        saveSnapshot: async (ranks) => {
+            for (const r of ranks) {
+                if (!this.cycleRankRows.some((x) => x.cycleId === r.cycleId && x.wallet === r.wallet)) this.cycleRankRows.push(r);
+            }
+        },
+        findLastSnapshottedCycleId: () => this.lastCycleId(),
+        findBestRankForAccount: async (accountId) => {
+            const best = this.cycleRankRows
+                .filter((r) => r.accountId === accountId)
+                .sort((a, b) => a.rank - b.rank || a.cycleId - b.cycleId)[0];
+            return best ? { cycleId: best.cycleId, rank: best.rank } : null;
+        },
+        findCrownHolder: async () => {
+            const last = await this.lastCycleId();
+            if (last === null) return null;
+            const first = this.cycleRankRows.find((r) => r.cycleId === last && r.rank === 1);
+            return { cycleId: last, accountId: first?.accountId ?? null };
+        },
+        listWonCycles: async (accountId) =>
+            this.cycleRankRows.filter((r) => r.accountId === accountId && r.rank === 1).map((r) => r.cycleId).sort((a, b) => b - a),
     };
 }

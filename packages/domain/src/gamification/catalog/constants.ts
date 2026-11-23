@@ -41,6 +41,13 @@ export const STREAM_XP_TRANCHE_MINUTES = 6;
 export const STREAM_PROGRESS_DAILY_CAP_MINUTES = 360;
 export const STREAMER_EXEMPT_LIFETIME_MINUTES = 60;
 export const STREAM_VIEWER_MIN_ACCOUNT_AGE_HOURS = 24;
+/** A stream minute is processed this late, once the viewers' heartbeats are in. */
+export const STREAM_MINUTE_DELAY_MINUTES = 2;
+/** Catch-up bound of one session in one run of the stream minutes job. */
+export const STREAM_MAX_MINUTES_PER_RUN = 240;
+
+/** Frozen top of each closed leaderboard cycle (§5 `leaderboard`). */
+export const CYCLE_SNAPSHOT_TOP = 100;
 
 export const SUPPORT_MIN_AMOUNT_USDC = 1;
 
@@ -54,6 +61,7 @@ export const SHOWCASE_SLOT_LEVELS: ReadonlyArray<number> = [1, 10, 20];
 export const SETTLEMENT_OVERLAP_BLOCKS = 200;
 export const SUPPORT_OVERLAP_MINUTES = 10;
 export const CHAT_REMOVAL_OVERLAP_MINUTES = 10;
+export const STREAM_MODERATION_OVERLAP_MINUTES = 10;
 
 /** Purge (§7.3): watch minutes and daily counters after 35 days, seen notifications after 30. */
 export const WATCH_MINUTES_RETENTION_DAYS = 35;

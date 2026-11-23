@@ -48,6 +48,16 @@ import { GamificationPurgeJob } from '../infrastructure/scheduling/jobs/Gamifica
 import { SupabaseGamificationEventSource } from '../infrastructure/persistence/repositories/gamification/SupabaseGamificationEventSource';
 import { SupabaseWatchMinuteRepository } from '../infrastructure/persistence/repositories/gamification/SupabaseWatchMinuteRepository';
 import { GamificationWatchController } from '../presentation/http/controllers/gamification-watch.controller';
+import type { ILeaderboardCycleSource } from '@chiliztv/domain/gamification/repositories/ILeaderboardCycleSource';
+import type { IStreamSessionRepository } from '@chiliztv/domain/gamification/repositories/IStreamSessionRepository';
+import { SnapshotCycleRanksUseCase } from '../application/gamification/use-cases/cycles/SnapshotCycleRanksUseCase';
+import { CountSessionMinutesUseCase } from '../application/gamification/use-cases/streams/CountSessionMinutesUseCase';
+import { ProcessStreamMinutesUseCase } from '../application/gamification/use-cases/streams/ProcessStreamMinutesUseCase';
+import { ReconcileStreamSessionsUseCase } from '../application/gamification/use-cases/streams/ReconcileStreamSessionsUseCase';
+import { SupabaseLeaderboardCycleSource } from '../infrastructure/persistence/repositories/gamification/SupabaseLeaderboardCycleSource';
+import { SupabaseStreamSessionRepository } from '../infrastructure/persistence/repositories/gamification/SupabaseStreamSessionRepository';
+import { GamificationCycleSnapshotJob } from '../infrastructure/scheduling/jobs/GamificationCycleSnapshotJob';
+import { GamificationStreamMinutesJob } from '../infrastructure/scheduling/jobs/GamificationStreamMinutesJob';
 
 /** Gamification ports, repositories, use cases and controller. Needs identity, cache and audit first. */
 export function registerGamification(container: DependencyContainer): void {
@@ -89,4 +99,14 @@ export function registerGamification(container: DependencyContainer): void {
   container.registerSingleton(GamificationWatchController);
   container.registerSingleton(GamificationChainProcessorJob);
   container.registerSingleton(GamificationPurgeJob);
+
+  // Step 05: streamer minutes and leaderboard cycle snapshots.
+  container.registerSingleton<IStreamSessionRepository>(TOKENS.IStreamSessionRepository, SupabaseStreamSessionRepository);
+  container.registerSingleton<ILeaderboardCycleSource>(TOKENS.ILeaderboardCycleSource, SupabaseLeaderboardCycleSource);
+  container.registerSingleton(ReconcileStreamSessionsUseCase);
+  container.registerSingleton(CountSessionMinutesUseCase);
+  container.registerSingleton(ProcessStreamMinutesUseCase);
+  container.registerSingleton(SnapshotCycleRanksUseCase);
+  container.registerSingleton(GamificationStreamMinutesJob);
+  container.registerSingleton(GamificationCycleSnapshotJob);
 }

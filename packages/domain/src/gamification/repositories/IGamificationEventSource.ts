@@ -54,6 +54,13 @@ export interface RemovedChatMessage {
     readonly removedAt: Date;
 }
 
+/** A `report_actions` row of kind `stop_stream` on a stream. */
+export interface StoppedStream {
+    readonly actionId: string;
+    readonly streamId: string;
+    readonly triggeredAt: Date;
+}
+
 /** Read-only view of the indexed tables the chain processor consumes (`bets`, `market_events`, …). */
 export interface IGamificationEventSource {
     /** `bets.id > afterId`, ascending. */
@@ -70,4 +77,6 @@ export interface IGamificationEventSource {
     listSupportAfter(after: Date, limit: number): Promise<ReadonlyArray<SupportEvent>>;
     /** Chat messages soft-deleted by moderation with `removed_at > after`, oldest first. */
     listChatRemovalsAfter(after: Date, limit: number): Promise<ReadonlyArray<RemovedChatMessage>>;
+    /** `stop_stream` actions with `triggered_at > after`, oldest first. */
+    listStopStreamActionsAfter(after: Date, limit: number): Promise<ReadonlyArray<StoppedStream>>;
 }

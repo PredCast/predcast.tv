@@ -24,7 +24,7 @@ export type ChainProcessorReport =
           readonly bets: number;
           readonly settlements: number;
           readonly support: number;
-          readonly chatRemovals: number;
+          readonly moderation: number;
           readonly accountsEvaluated: number;
       };
 
@@ -72,7 +72,7 @@ export class ProcessGamificationChainUseCase {
         const bets = await run('bet_volume', () => this.betVolume.execute(now, reader));
         const settlements = await run('settlements', () => this.settlements.execute(now, reader));
         const support = await run('support', () => this.support.execute(now));
-        const chatRemovals = await run('chat_removals', () => this.moderation.execute(now));
+        const moderation = await run('moderation', () => this.moderation.execute(now));
 
         const touched = new Set([...bets.touched, ...settlements.touched, ...support.touched]);
         for (const accountId of touched) await this.achievements.run(accountId, now, 'chain');
@@ -83,7 +83,7 @@ export class ProcessGamificationChainUseCase {
             bets: bets.processed,
             settlements: settlements.processed,
             support: support.processed,
-            chatRemovals: chatRemovals.processed,
+            moderation: moderation.processed,
             accountsEvaluated: touched.size,
         };
     }

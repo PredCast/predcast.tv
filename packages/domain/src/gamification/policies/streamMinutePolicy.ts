@@ -65,3 +65,8 @@ export function streamXpForSessionCount(sessionCountedMinutes: number): StreamXp
     if (sessionCountedMinutes <= 0 || sessionCountedMinutes % STREAM_XP_TRANCHE_MINUTES !== 0) return { credit: false };
     return { credit: true, tranche: sessionCountedMinutes / STREAM_XP_TRANCHE_MINUTES };
 }
+
+/** A full streamed hour was just reached: `streamer_hours` tiers are re-evaluated. */
+export function streamProgressReachesHour(totalStreamMinutes: number, progressMoved: boolean): boolean {
+    return progressMoved && totalStreamMinutes > 0 && totalStreamMinutes % 60 === 0;
+}

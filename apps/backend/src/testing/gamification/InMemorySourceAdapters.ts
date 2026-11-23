@@ -12,8 +12,10 @@ import type {
     IndexedBet,
     RemovedChatMessage,
     SettlementEvent,
+    StoppedStream,
     SupportEvent,
 } from '@chiliztv/domain/gamification/repositories/IGamificationEventSource';
+import type { StreamViewer } from '@chiliztv/domain/gamification/policies/streamMinutePolicy';
 import type {
     IWatchMinuteRepository,
     WatchMinuteResult,
@@ -30,6 +32,7 @@ export class InMemoryEventSource implements IGamificationEventSource {
     settlements: SettlementEvent[] = [];
     support: SupportEvent[] = [];
     removals: RemovedChatMessage[] = [];
+    stops: StoppedStream[] = [];
     contractMatches: ContractMatch[] = [];
     readonly marketKinds = new Map<string, { marketType: string; line: number }>();
 
@@ -63,6 +66,12 @@ export class InMemoryEventSource implements IGamificationEventSource {
     async listChatRemovalsAfter(after: Date, limit: number) {
         return this.removals.filter((r) => r.removedAt > after).slice(0, limit);
     }
+    async listStopStreamActionsAfter(after: Date, limit: number) {
+        return this.stops
+            .filter((s) => s.triggeredAt > after)
+            .sort((a, b) => a.triggeredAt.getTime() - b.triggeredAt.getTime())
+            .slice(0, limit);
+    }
 }
 
 export class InMemoryCursors implements IGamificationCursorRepository {
@@ -80,6 +89,8 @@ export class InMemoryCursors implements IGamificationCursorRepository {
 /** Same semantics as `gamification_record_watch_minute` (migration 045), on the store's counters. */
 export class InMemoryWatchMinutes implements IWatchMinuteRepository {
     readonly minutes = new Set<string>();
+    /** Viewers per `{streamId}|{minute ISO}`, as SupabaseWatchMinuteRepository.listViewersAt resolves them. */
+    readonly streamViewers = new Map<string, StreamViewer[]>();
 
     constructor(
         private readonly store: InMemoryGamificationStore,
@@ -122,8 +133,8 @@ export class InMemoryWatchMinutes implements IWatchMinuteRepository {
         return { inserted: true, minutesToday, leagueMinutesToday, totalWatchMinutes, progressMoved, leagueAdded };
     }
 
-    async listViewersAt() {
-        return [];
+    async listViewersAt(streamId: string, minute: Date) {
+        return this.streamViewers.get(`${streamId}|${minute.toISOString()}`) ?? [];
     }
 
     async purgeBefore(cutoff: Date) {

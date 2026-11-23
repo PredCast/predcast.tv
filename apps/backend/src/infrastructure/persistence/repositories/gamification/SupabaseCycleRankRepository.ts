@@ -34,7 +34,12 @@ export class SupabaseCycleRankRepository implements ICycleRankRepository {
     if (error) fail('save snapshot', error.message);
   }
 
+  /** The `cycles` cursor of the snapshot job: an empty cycle (no score) has no rank row but still counts. */
   async findLastSnapshottedCycleId(): Promise<number | null> {
+    const cursor = await supabase.from('gamification_cursors').select('position').eq('name', 'cycles').maybeSingle();
+    if (cursor.error) fail('cycles cursor', cursor.error.message);
+    const position = (cursor.data as { position: { lastEpochId?: number } } | null)?.position;
+    if (typeof position?.lastEpochId === 'number') return position.lastEpochId;
     const { data, error } = await supabase.from(TABLE).select('cycle_id').order('cycle_id', { ascending: false }).limit(1);
     if (error) fail('last cycle', error.message);
     const row = (data ?? [])[0] as RankRow | undefined;

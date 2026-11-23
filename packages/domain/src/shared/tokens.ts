@@ -74,6 +74,8 @@ export const TOKENS = {
   IGamificationEventSource:            Symbol.for('IGamificationEventSource'),
   IStakeTokenDecimals:                 Symbol.for('IStakeTokenDecimals'),
   ITextHasher:                         Symbol.for('ITextHasher'),
+  IStreamSessionRepository:            Symbol.for('IStreamSessionRepository'),
+  ILeaderboardCycleSource:             Symbol.for('ILeaderboardCycleSource'),
 
   // Ports — cache layer (Redis / Noop)
   ICacheService:           Symbol.for('ICacheService'),

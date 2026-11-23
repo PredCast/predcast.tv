@@ -9,7 +9,9 @@ import { CleanupStreamsJob } from './jobs/CleanupStreamsJob';
 import { CloseLiveMarketsJob } from './jobs/CloseLiveMarketsJob';
 import { CloudflareReconcileJob } from './jobs/CloudflareReconcileJob';
 import { GamificationChainProcessorJob } from './jobs/GamificationChainProcessorJob';
+import { GamificationCycleSnapshotJob } from './jobs/GamificationCycleSnapshotJob';
 import { GamificationPurgeJob } from './jobs/GamificationPurgeJob';
+import { GamificationStreamMinutesJob } from './jobs/GamificationStreamMinutesJob';
 import { LiftExpiredBansJob } from './jobs/LiftExpiredBansJob';
 import { OldEndedStreamsCleanupJob } from './jobs/OldEndedStreamsCleanupJob';
 import { ProcessMatchOperationsJob } from './jobs/ProcessMatchOperationsJob';
@@ -67,6 +69,8 @@ export class JobRegistry implements IJobCatalog {
         purgeJobRuns: PurgeJobRunsJob,
         gamificationChain: GamificationChainProcessorJob,
         gamificationPurge: GamificationPurgeJob,
+        gamificationStreamMinutes: GamificationStreamMinutesJob,
+        gamificationCycleSnapshot: GamificationCycleSnapshotJob,
     ) {
         this.jobs = [
             define('SyncLiveMatches', 'on_chain', 'Live scores from API-Football (quota); resolves halftime markets on-chain as soon as the score is known.',
@@ -101,10 +105,14 @@ export class JobRegistry implements IJobCatalog {
                 every(liftExpiredBans.getIntervalMs()), JobLocks.liftExpiredBans, () => liftExpiredBans.execute()),
             define('PurgeJobRuns', 'safe', 'Deletes job run history older than 14 days.',
                 cron(purgeJobRuns.getSchedule()), JobLocks.purgeJobRuns, () => purgeJobRuns.execute()),
-            define('GamificationChainProcessor', 'safe', 'Off-chain XP from indexed bets, market settlements, donations and chat removals.',
+            define('GamificationChainProcessor', 'safe', 'Off-chain XP from indexed bets, market settlements, donations, chat removals and stopped streams.',
                 every(gamificationChain.getIntervalMs()), JobLocks.gamificationChain, () => gamificationChain.execute()),
             define('GamificationPurge', 'safe', 'Deletes gamification watch minutes and daily counters after 35 days, seen notifications after 30.',
                 cron(gamificationPurge.getSchedule()), JobLocks.gamificationPurge, () => gamificationPurge.execute()),
+            define('GamificationStreamMinutes', 'safe', 'Records stream sessions from live streams (always) and counts streamed minutes and their XP (gamification on).',
+                every(gamificationStreamMinutes.getIntervalMs()), JobLocks.gamificationStreamMinutes, () => gamificationStreamMinutes.execute()),
+            define('GamificationCycleSnapshot', 'safe', 'Freezes the top 100 of closed leaderboard cycles and unlocks the Leaderboard achievement tiers.',
+                cron(gamificationCycleSnapshot.getSchedule()), JobLocks.gamificationCycleSnapshot, () => gamificationCycleSnapshot.execute()),
         ];
     }
 

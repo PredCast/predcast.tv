@@ -63,7 +63,7 @@ export class EvaluateAchievementsUseCase {
                     achievementId: unlock.achievementId,
                     tier: unlock.tier,
                     unlockedAt: at,
-                    context: {},
+                    context: unlock.achievementId === 'leaderboard' && best ? { cycleId: best.cycleId, rank: best.rank } : {},
                 });
                 if (!inserted) continue;
                 await this.notifications.create(

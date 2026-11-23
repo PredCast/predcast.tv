@@ -10,4 +10,6 @@ export interface StreamSession {
     readonly countedMinutes: number;
     readonly lastProcessedMinute: Date | null;
     readonly moderatedAt: Date | null;
+    /** Set once an ended session has no minute left to process. */
+    readonly minutesSettledAt: Date | null;
 }

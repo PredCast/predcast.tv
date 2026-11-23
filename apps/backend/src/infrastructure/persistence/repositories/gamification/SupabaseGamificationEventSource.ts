@@ -7,6 +7,7 @@ import type {
   IndexedBet,
   RemovedChatMessage,
   SettlementEvent,
+  StoppedStream,
   SupportEvent,
 } from '@chiliztv/domain/gamification/repositories/IGamificationEventSource';
 
@@ -214,6 +215,23 @@ export class SupabaseGamificationEventSource implements IGamificationEventSource
     return ((data ?? []) as Array<{ id: string; removed_at: string }>).map((r) => ({
       messageId: r.id,
       removedAt: new Date(r.removed_at),
+    }));
+  }
+
+  async listStopStreamActionsAfter(after: Date, limit: number): Promise<ReadonlyArray<StoppedStream>> {
+    const { data, error } = await supabase
+      .from('report_actions')
+      .select('id, affected_stream_id, triggered_at')
+      .eq('kind', 'stop_stream')
+      .not('affected_stream_id', 'is', null)
+      .gt('triggered_at', after.toISOString())
+      .order('triggered_at', { ascending: true })
+      .limit(limit);
+    if (error) fail('list stop_stream actions', error.message);
+    return ((data ?? []) as Array<{ id: string; affected_stream_id: string; triggered_at: string }>).map((r) => ({
+      actionId: r.id,
+      streamId: r.affected_stream_id,
+      triggeredAt: new Date(r.triggered_at),
     }));
   }
 }
