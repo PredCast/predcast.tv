@@ -160,13 +160,16 @@ describe('CheckInUseCase', () => {
         expect(await h.checkIn.execute(accountId)).toMatchObject({ credited: false, reason: 'suspended' });
     });
 
-    it('unlocks the Daily streak tier on day 3 and credits its XP', async () => {
+    it('unlocks the Daily streak tier and the streak3 first step on day 3', async () => {
         const { h, accountId } = setup();
         for (const iso of ['2027-03-01T09:00:00Z', '2027-03-02T09:00:00Z', '2027-03-03T09:00:00Z']) {
             await checkInAt(h, accountId, iso);
         }
         expect(h.store.achievements.map((a) => `${a.achievementId}:${a.tier}`)).toEqual(['daily_streak:1']);
-        expect(h.store.rows.map((r) => `${r.source}:${r.xp}`)).toEqual(['check_in:50', 'check_in:55', 'check_in:60', 'achievement:10']);
+        expect(h.store.rows.map((r) => `${r.source}:${r.xp}`)).toEqual([
+            'check_in:50', 'check_in:55', 'check_in:60', 'onboarding_step:5', 'achievement:10',
+        ]);
+        expect(h.store.rows.find((r) => r.source === 'onboarding_step')?.refKey).toBe(`onboarding:${accountId}:streak3`);
         expect(h.store.profile(accountId).xpTotal).toBe(h.store.sumXp(accountId));
     });
 });

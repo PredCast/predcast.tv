@@ -70,6 +70,10 @@ export const TOKENS = {
   IGamificationCursorRepository:       Symbol.for('IGamificationCursorRepository'),
   IDoubleXpEventRepository:            Symbol.for('IDoubleXpEventRepository'),
   ICycleRankRepository:                Symbol.for('ICycleRankRepository'),
+  IWatchMinuteRepository:              Symbol.for('IWatchMinuteRepository'),
+  IGamificationEventSource:            Symbol.for('IGamificationEventSource'),
+  IStakeTokenDecimals:                 Symbol.for('IStakeTokenDecimals'),
+  ITextHasher:                         Symbol.for('ITextHasher'),
 
   // Ports — cache layer (Redis / Noop)
   ICacheService:           Symbol.for('ICacheService'),

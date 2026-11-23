@@ -14,6 +14,8 @@ import { CheckInUseCase } from '../../application/gamification/use-cases/CheckIn
 import { CreditXpUseCase } from '../../application/gamification/use-cases/CreditXpUseCase';
 import { EvaluateAchievementsUseCase } from '../../application/gamification/use-cases/EvaluateAchievementsUseCase';
 import { RebuildProfilesUseCase } from '../../application/gamification/use-cases/RebuildProfilesUseCase';
+import { RecordProfileStepUseCase } from '../../application/gamification/use-cases/RecordProfileStepUseCase';
+import { AchievementRefresh } from '../../application/gamification/services/AchievementRefresh';
 import { InMemoryCache } from '../cache/InMemoryCache';
 import { MockClock } from '../clock/MockClock';
 import { GAMI_LAUNCH_AT, GAMI_NOW } from '../fixtures/gamification.fixtures';
@@ -36,7 +38,7 @@ export class FakeRateLimiter implements IRateLimitService {
     }
 }
 
-const silentLogger: ILogger = { info: () => undefined, warn: () => undefined, error: () => undefined, debug: () => undefined };
+export const silentLogger: ILogger = { info: () => undefined, warn: () => undefined, error: () => undefined, debug: () => undefined };
 
 export interface HarnessOptions {
     readonly now?: Date;
@@ -74,15 +76,18 @@ export function buildGamificationHarness(options: HarnessOptions = {}) {
     const afterCredit = new GamificationAfterCredit(store.notifications, accounts, cache, silentLogger);
     const creditXp = new CreditXpUseCase(config, accounts, store.profiles, store.ledger, store.doubleXp, isBanned, afterCredit);
     const evaluate = new EvaluateAchievementsUseCase(config, store.profiles, store.progress, store.cycleRanks, store.notifications, creditXp);
+    const achievements = new AchievementRefresh(evaluate, silentLogger);
+    const profileSteps = new RecordProfileStepUseCase(config, store.ledger, creditXp, achievements);
     const checkIn = new CheckInUseCase(
         config, clock, rateLimit, store.profiles, store.ledger, store.doubleXp, store.notifications, silentLogger,
-        isBanned, afterCredit, evaluate,
+        isBanned, afterCredit, evaluate, profileSteps,
     );
     const adjustXp = new AdjustXpUseCase(accounts, audit, clock, creditXp);
     const rebuild = new RebuildProfilesUseCase(store.profiles, afterCredit);
 
     return {
         clock, store, cache, rateLimit, config, audits, creditXp, evaluate, checkIn, adjustXp, rebuild,
+        accounts, isBanned, afterCredit, achievements, profileSteps, logger: silentLogger,
         addAccount(account: Account, wallets: ReadonlyArray<WalletLink>): void {
             accountsById.set(account.id, account);
             links.push(...wallets);

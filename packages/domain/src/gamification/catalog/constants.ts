@@ -34,6 +34,8 @@ export const WATCH_XP_MAX_MINUTES = 100;
 export const WATCH_PROGRESS_DAILY_CAP_MINUTES = 240;
 export const WATCH_LEAGUE_MINUTES = 10;
 export const ONBOARDING_WATCH_MINUTES = 5;
+/** Streak length that completes the `streak3` first step. */
+export const ONBOARDING_STREAK_DAYS = 3;
 
 export const STREAM_XP_TRANCHE_MINUTES = 6;
 export const STREAM_PROGRESS_DAILY_CAP_MINUTES = 360;
@@ -47,3 +49,12 @@ export const BET_VOLUME_PER_MARKET_XP = 5;
 export const BET_VOLUME_PER_MARKET_DAILY_CAP = 25;
 
 export const SHOWCASE_SLOT_LEVELS: ReadonlyArray<number> = [1, 10, 20];
+
+/** Chain processor replay overlaps (§8.3): late indexed rows are re-read, `ref_key` dedups. */
+export const SETTLEMENT_OVERLAP_BLOCKS = 200;
+export const SUPPORT_OVERLAP_MINUTES = 10;
+export const CHAT_REMOVAL_OVERLAP_MINUTES = 10;
+
+/** Purge (§7.3): watch minutes and daily counters after 35 days, seen notifications after 30. */
+export const WATCH_MINUTES_RETENTION_DAYS = 35;
+export const SEEN_NOTIFICATIONS_RETENTION_DAYS = 30;

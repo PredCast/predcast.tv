@@ -3,8 +3,9 @@ import type { GamificationNotification } from '@chiliztv/domain/gamification/ent
 import type { GamificationProfile } from '@chiliztv/domain/gamification/entities/GamificationProfile';
 import type { LedgerEntry } from '@chiliztv/domain/gamification/entities/LedgerEntry';
 import type { ProgressValue, UnlockedAchievement } from '@chiliztv/domain/gamification/entities/Progress';
-import type { ProgressMetric } from '@chiliztv/domain/gamification/catalog/sources';
+import type { LedgerReason, ProgressMetric } from '@chiliztv/domain/gamification/catalog/sources';
 import { levelOf } from '@chiliztv/domain/gamification/policies/levelCurve';
+import type { ProgressUndo } from '@chiliztv/domain/gamification/policies/reversalPolicy';
 import { EMPTY_STREAK } from '@chiliztv/domain/gamification/policies/streakPolicy';
 import type { ICycleRankRepository } from '@chiliztv/domain/gamification/repositories/ICycleRankRepository';
 import type { IDoubleXpEventRepository } from '@chiliztv/domain/gamification/repositories/IDoubleXpEventRepository';
@@ -88,7 +89,14 @@ export class InMemoryGamificationStore {
             if ('item' in p) {
                 if (!current.items.includes(p.item)) metrics.set(p.metric, { value: current.value + 1, items: [...current.items, p.item] });
             } else {
-                metrics.set(p.metric, { value: Math.max(current.value + p.delta, 0), items: current.items });
+                let delta = p.delta;
+                if (p.dailyCap !== undefined) {
+                    const key = `${req.accountId}|${req.day}|progress:${p.metric}`;
+                    const used = this.counters.get(key) ?? 0;
+                    delta = Math.min(delta, Math.max(p.dailyCap - used, 0));
+                    this.counters.set(key, used + delta);
+                }
+                metrics.set(p.metric, { value: Math.max(current.value + delta, 0), items: current.items });
             }
             this.progressMap.set(req.accountId, metrics);
         }
@@ -116,13 +124,43 @@ export class InMemoryGamificationStore {
         return { applied: true as const, ...r };
     }
 
+    private isReversed(refKey: string): boolean {
+        return this.rows.some((r) => r.refKey === `rev:${refKey}`);
+    }
+
+    /** Mirrors `gamification_reverse`: negative row, progressUndo subtracted, level may drop, peak kept. */
+    private reverseSync(refKey: string, reason: LedgerReason, occurredAt: Date) {
+        const row = this.rows.find((r) => r.refKey === refKey && r.reversesId === null);
+        if (!row || this.isReversed(refKey)) return { reversed: false as const };
+        const before = this.profile(row.accountId);
+        const xp = before.xpTotal - row.xp < 0 ? -before.xpTotal : -row.xp;
+        this.rows.push({
+            ...row, id: this.rows.length + 1, refKey: `rev:${refKey}`, occurredAt, requestedXp: 0, baseXp: -row.baseXp,
+            xp, reversesId: row.id, reason, doubleXpEventId: null, createdAt: occurredAt,
+        });
+        const undo = Array.isArray(row.metadata.progressUndo) ? (row.metadata.progressUndo as ProgressUndo[]) : [];
+        const metrics = this.progressMap.get(row.accountId);
+        for (const u of undo) {
+            const current = metrics?.get(u.metric);
+            if (metrics && current) metrics.set(u.metric, { value: Math.max(current.value - u.delta, 0), items: current.items });
+        }
+        const total = before.xpTotal + xp;
+        this.setProfile(row.accountId, { xpTotal: total, level: levelOf(total) });
+        return { reversed: true as const, reversedXp: xp, newTotal: total };
+    }
+
     readonly ledger: IGamificationLedgerRepository = {
         credit: async (req) => this.creditSync(req),
         checkIn: async (write) => this.checkInSync(write),
-        reverse: unsupported('reverse'),
+        reverse: async (refKey, reason, occurredAt) => this.reverseSync(refKey, reason, occurredAt),
         findByRefKey: async (refKey) => this.rows.find((r) => r.refKey === refKey) ?? null,
-        findLastCredited: unsupported('findLastCredited'),
-        listReversibleByMarket: unsupported('listReversibleByMarket'),
+        findLastCredited: async (accountId, source) =>
+            [...this.rows].reverse().find((r) =>
+                r.accountId === accountId && r.source === source && r.reversesId === null &&
+                (r.reason === null || r.reason === 'daily_cap') && !this.isReversed(r.refKey)) ?? null,
+        listVolumeRowsByMarket: async (marketKey) =>
+            this.rows.filter((r) => r.source === 'bet_volume' && r.metadata.marketKey === marketKey &&
+                r.reversesId === null && !this.isReversed(r.refKey)),
         listReversibleByStream: unsupported('listReversibleByStream'),
         sumXpBySourceOnDay: unsupported('sumXpBySourceOnDay'),
         listForAccount: async (accountId) => this.rows.filter((r) => r.accountId === accountId).reverse(),
@@ -153,6 +191,11 @@ export class InMemoryGamificationStore {
             this.achievements.push({ ...w });
             return true;
         },
+        purgeDailyCountersBefore: async (cutoffDay) => {
+            const keys = [...this.counters.keys()].filter((k) => k.split('|')[1] < cutoffDay);
+            for (const k of keys) this.counters.delete(k);
+            return keys.length;
+        },
     };
 
     readonly notifications: IGamificationNotificationRepository = {
@@ -163,7 +206,12 @@ export class InMemoryGamificationStore {
         },
         listUnseen: async (accountId) => this.notificationRows.filter((n) => n.accountId === accountId && n.seenAt === null),
         markSeen: unsupported('markSeen'),
-        purgeSeenBefore: unsupported('purgeSeenBefore'),
+        purgeSeenBefore: async (cutoff) => {
+            const kept = this.notificationRows.filter((n) => n.seenAt === null || n.seenAt >= cutoff);
+            const purged = this.notificationRows.length - kept.length;
+            this.notificationRows.splice(0, this.notificationRows.length, ...kept);
+            return purged;
+        },
     };
 
     readonly doubleXp: IDoubleXpEventRepository = {

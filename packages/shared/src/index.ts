@@ -45,6 +45,7 @@ export * from './dto/leaderboard/ClaimableEpochDto';
 
 // Gamification
 export * from './dto/gamification/CheckInResultDto';
+export * from './dto/gamification/WatchHeartbeatDto';
 
 // Zod schemas
 export * from './schemas/common.schemas';

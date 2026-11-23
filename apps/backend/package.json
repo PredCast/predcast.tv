@@ -22,6 +22,7 @@
     "leaderboard:advance-epoch": "ts-node src/presentation/cli/leaderboard-advance-epoch.ts",
     "admin:grant": "ts-node src/presentation/cli/admin-grant.ts",
     "gamification:rebuild-profiles": "ts-node src/presentation/cli/gamification-rebuild-profiles.ts",
+    "gamification:process-chain": "ts-node src/presentation/cli/gamification-process-chain.ts",
     "db:migrate": "ts-node scripts/run-migrations.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts"
   },

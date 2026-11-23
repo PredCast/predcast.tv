@@ -73,10 +73,13 @@ export interface IGamificationLedgerRepository {
     reverse(refKey: string, reason: LedgerReason, occurredAt: Date): Promise<ReverseResult>;
     checkIn(write: CheckInWrite): Promise<CheckInWriteResult>;
     findByRefKey(refKey: string): Promise<LedgerEntry | null>;
-    /** Latest non-reversed row of the source with XP > 0 (chat duplicate and interval checks). */
+    /**
+     * Latest non-reversed row of the source that counted, daily-capped rows included (chat
+     * duplicate and interval checks); rows zeroed by a ban or a suspension are ignored.
+     */
     findLastCredited(accountId: string, source: GamificationSource): Promise<LedgerEntry | null>;
-    /** `bet_volume` rows of a market with XP > 0 and no reversal yet (market cancellation). */
-    listReversibleByMarket(marketKey: string): Promise<ReadonlyArray<string>>;
+    /** `bet_volume` rows of a market not reversed yet; `isReversibleCredit` picks the ones to cancel. */
+    listVolumeRowsByMarket(marketKey: string): Promise<ReadonlyArray<LedgerEntry>>;
     /** `stream_time` rows of a session not reversed yet (`stop_stream`). */
     listReversibleByStream(streamId: string): Promise<ReadonlyArray<string>>;
     /** Net XP per source on a Paris day (owner dashboard). */

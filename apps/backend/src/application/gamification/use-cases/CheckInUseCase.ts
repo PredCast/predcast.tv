@@ -1,5 +1,6 @@
 import { inject, injectable } from 'tsyringe';
 
+import { ONBOARDING_STREAK_DAYS } from '@chiliztv/domain/gamification/catalog/constants';
 import { multiplierAt } from '@chiliztv/domain/gamification/policies/doubleXpPolicy';
 import { gamificationGate } from '@chiliztv/domain/gamification/policies/launchPolicy';
 import { parisDayOf } from '@chiliztv/domain/gamification/policies/parisDay';
@@ -18,6 +19,7 @@ import type { CheckInRefusalReason, CheckInResultDto } from '@chiliztv/shared';
 import { IsAccountBannedUseCase } from '../../identity/use-cases/IsAccountBannedUseCase';
 import { GamificationAfterCredit } from '../services/GamificationAfterCredit';
 import { EvaluateAchievementsUseCase } from './EvaluateAchievementsUseCase';
+import { RecordProfileStepUseCase } from './RecordProfileStepUseCase';
 
 /** One processed call per account and minute (§3.3), independent of the HTTP kill switch. */
 export const CHECK_IN_RATE_LIMIT = { bucket: 'gamification-check-in', limit: 1, windowSeconds: 60 } as const;
@@ -42,6 +44,7 @@ export class CheckInUseCase {
         private readonly isAccountBanned: IsAccountBannedUseCase,
         private readonly afterCredit: GamificationAfterCredit,
         private readonly evaluateAchievements: EvaluateAchievementsUseCase,
+        private readonly profileSteps: RecordProfileStepUseCase,
     ) {}
 
     async execute(accountId: string): Promise<CheckInResultDto> {
@@ -85,6 +88,7 @@ export class CheckInUseCase {
             await this.notifications.create(accountId, { kind: 'streak_freeze_earned', freezes: outcome.state.freezes }, now);
         }
         const leveledUp = await this.afterCredit.run(accountId, write, now);
+        if (outcome.state.current >= ONBOARDING_STREAK_DAYS) await this.streakStepSafely(accountId, now);
         await this.evaluateSafely(accountId, now);
 
         return {
@@ -98,6 +102,18 @@ export class CheckInUseCase {
             level: write.newLevel,
             leveledUp,
         };
+    }
+
+    /** First step `streak3`; once per account, a failure never undoes the committed check-in. */
+    private async streakStepSafely(accountId: string, at: Date): Promise<void> {
+        try {
+            await this.profileSteps.execute(accountId, 'streak3', at);
+        } catch (error) {
+            this.logger.warn('Streak first step failed', {
+                accountId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
     }
 
     /** The check-in is committed: a failed evaluation is retried by the next credit, not surfaced. */

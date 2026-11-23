@@ -8,6 +8,10 @@ import type { IGamificationLedgerRepository } from '@chiliztv/domain/gamificatio
 import type { IGamificationNotificationRepository } from '@chiliztv/domain/gamification/repositories/IGamificationNotificationRepository';
 import type { IGamificationProfileRepository } from '@chiliztv/domain/gamification/repositories/IGamificationProfileRepository';
 import type { IGamificationProgressRepository } from '@chiliztv/domain/gamification/repositories/IGamificationProgressRepository';
+import type { IStakeTokenDecimals } from '@chiliztv/domain/gamification/ports/IStakeTokenDecimals';
+import type { ITextHasher } from '@chiliztv/domain/gamification/ports/ITextHasher';
+import type { IGamificationEventSource } from '@chiliztv/domain/gamification/repositories/IGamificationEventSource';
+import type { IWatchMinuteRepository } from '@chiliztv/domain/gamification/repositories/IWatchMinuteRepository';
 import { TOKENS } from '@chiliztv/domain/shared/tokens';
 
 import { GamificationAfterCredit } from '../application/gamification/services/GamificationAfterCredit';
@@ -25,6 +29,25 @@ import { SupabaseGamificationNotificationRepository } from '../infrastructure/pe
 import { SupabaseGamificationProfileRepository } from '../infrastructure/persistence/repositories/gamification/SupabaseGamificationProfileRepository';
 import { SupabaseGamificationProgressRepository } from '../infrastructure/persistence/repositories/gamification/SupabaseGamificationProgressRepository';
 import { GamificationController } from '../presentation/http/controllers/gamification.controller';
+import { AchievementRefresh } from '../application/gamification/services/AchievementRefresh';
+import { GamificationActivityRecorder } from '../application/gamification/services/GamificationActivityRecorder';
+import { ProcessBetVolumeUseCase } from '../application/gamification/use-cases/chain/ProcessBetVolumeUseCase';
+import { ProcessGamificationChainUseCase } from '../application/gamification/use-cases/chain/ProcessGamificationChainUseCase';
+import { ProcessMarketSettlementsUseCase } from '../application/gamification/use-cases/chain/ProcessMarketSettlementsUseCase';
+import { ProcessModerationReversalsUseCase } from '../application/gamification/use-cases/chain/ProcessModerationReversalsUseCase';
+import { ProcessSupportEventsUseCase } from '../application/gamification/use-cases/chain/ProcessSupportEventsUseCase';
+import { PurgeGamificationDataUseCase } from '../application/gamification/use-cases/PurgeGamificationDataUseCase';
+import { RecordChatXpUseCase } from '../application/gamification/use-cases/RecordChatXpUseCase';
+import { RecordFollowXpUseCase } from '../application/gamification/use-cases/RecordFollowXpUseCase';
+import { RecordProfileStepUseCase } from '../application/gamification/use-cases/RecordProfileStepUseCase';
+import { RecordWatchHeartbeatUseCase } from '../application/gamification/use-cases/RecordWatchHeartbeatUseCase';
+import { ViemStakeTokenDecimals } from '../infrastructure/blockchain/adapters/ViemStakeTokenDecimals';
+import { NodeTextHasher } from '../infrastructure/crypto/NodeTextHasher';
+import { GamificationChainProcessorJob } from '../infrastructure/scheduling/jobs/GamificationChainProcessorJob';
+import { GamificationPurgeJob } from '../infrastructure/scheduling/jobs/GamificationPurgeJob';
+import { SupabaseGamificationEventSource } from '../infrastructure/persistence/repositories/gamification/SupabaseGamificationEventSource';
+import { SupabaseWatchMinuteRepository } from '../infrastructure/persistence/repositories/gamification/SupabaseWatchMinuteRepository';
+import { GamificationWatchController } from '../presentation/http/controllers/gamification-watch.controller';
 
 /** Gamification ports, repositories, use cases and controller. Needs identity, cache and audit first. */
 export function registerGamification(container: DependencyContainer): void {
@@ -45,4 +68,25 @@ export function registerGamification(container: DependencyContainer): void {
   container.registerSingleton(RebuildProfilesUseCase);
 
   container.registerSingleton(GamificationController);
+
+  // Step 04: player XP sources (watch, chat, follow, first steps, chain processor).
+  container.registerSingleton<IWatchMinuteRepository>(TOKENS.IWatchMinuteRepository, SupabaseWatchMinuteRepository);
+  container.registerSingleton<IGamificationEventSource>(TOKENS.IGamificationEventSource, SupabaseGamificationEventSource);
+  container.registerSingleton<IStakeTokenDecimals>(TOKENS.IStakeTokenDecimals, ViemStakeTokenDecimals);
+  container.registerSingleton<ITextHasher>(TOKENS.ITextHasher, NodeTextHasher);
+  container.registerSingleton(AchievementRefresh);
+  container.registerSingleton(RecordProfileStepUseCase);
+  container.registerSingleton(RecordChatXpUseCase);
+  container.registerSingleton(RecordFollowXpUseCase);
+  container.registerSingleton(GamificationActivityRecorder);
+  container.registerSingleton(RecordWatchHeartbeatUseCase);
+  container.registerSingleton(ProcessBetVolumeUseCase);
+  container.registerSingleton(ProcessMarketSettlementsUseCase);
+  container.registerSingleton(ProcessSupportEventsUseCase);
+  container.registerSingleton(ProcessModerationReversalsUseCase);
+  container.registerSingleton(ProcessGamificationChainUseCase);
+  container.registerSingleton(PurgeGamificationDataUseCase);
+  container.registerSingleton(GamificationWatchController);
+  container.registerSingleton(GamificationChainProcessorJob);
+  container.registerSingleton(GamificationPurgeJob);
 }

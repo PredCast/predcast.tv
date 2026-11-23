@@ -64,6 +64,11 @@ export function leagueQualifiesAt(leagueMinutesToday: number): boolean {
     return leagueMinutesToday === WATCH_LEAGUE_MINUTES;
 }
 
+/** Spectator tiers are whole hours: achievements are re-evaluated on each counted hour only. */
+export function watchProgressReachesHour(totalWatchMinutes: number, progressMoved: boolean): boolean {
+    return progressMoved && totalWatchMinutes > 0 && totalWatchMinutes % 60 === 0;
+}
+
 /** Onboarding step `watch` once 5 counted minutes are reached overall. */
 export function reachesOnboardingWatch(totalWatchMinutes: number): boolean {
     return totalWatchMinutes >= ONBOARDING_WATCH_MINUTES;

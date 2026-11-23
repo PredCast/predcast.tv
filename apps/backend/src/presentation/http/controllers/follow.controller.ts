@@ -27,7 +27,7 @@ export class FollowController {
     try {
       const { streamerId, streamerName } = req.body;
       const followerId = sessionDynamicUserId(req, req.body.followerId);
-      const follow = await this.followStreamerUseCase.execute({ followerId, streamerId, streamerName });
+      const follow = await this.followStreamerUseCase.execute({ followerId, streamerId, streamerName, accountId: req.user?.accountId });
       res.status(201).json({ success: true, follow: follow.toJSON() });
     } catch (error) {
       next(error);

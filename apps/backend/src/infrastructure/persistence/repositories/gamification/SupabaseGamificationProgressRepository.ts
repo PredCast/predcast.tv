@@ -90,4 +90,13 @@ export class SupabaseGamificationProgressRepository implements IGamificationProg
     if (error) fail('unlock achievement', error.message);
     return (data ?? []).length > 0;
   }
+
+  async purgeDailyCountersBefore(cutoffDay: ParisDay): Promise<number> {
+    const { count, error } = await supabase
+      .from('gamification_daily_counters')
+      .delete({ count: 'exact' })
+      .lt('day', cutoffDay);
+    if (error) fail('purge daily counters', error.message);
+    return count ?? 0;
+  }
 }

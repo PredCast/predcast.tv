@@ -130,8 +130,8 @@ export class SupabaseGamificationLedgerRepository implements IGamificationLedger
       .select('*')
       .eq('account_id', accountId)
       .eq('source', source)
-      .gt('xp', 0)
       .is('reverses_id', null)
+      .or('reason.is.null,reason.eq.daily_cap')
       .order('id', { ascending: false })
       .limit(10);
     if (error) fail('find last credited', error.message);
@@ -140,8 +140,17 @@ export class SupabaseGamificationLedgerRepository implements IGamificationLedger
     return rows.find((r) => !reversed.has(r.refKey)) ?? null;
   }
 
-  listReversibleByMarket(marketKey: string): Promise<ReadonlyArray<string>> {
-    return this.listReversible('bet_volume', 'marketKey', marketKey);
+  async listVolumeRowsByMarket(marketKey: string): Promise<ReadonlyArray<LedgerEntry>> {
+    const { data, error } = await supabase
+      .from('gamification_ledger')
+      .select('*')
+      .eq('source', 'bet_volume')
+      .eq('metadata->>marketKey', marketKey)
+      .is('reverses_id', null);
+    if (error) fail('list volume rows', error.message);
+    const rows = ((data ?? []) as LedgerRow[]).map(toLedgerEntry);
+    const reversed = await this.reversedRefKeys(rows.map((r) => r.refKey));
+    return rows.filter((r) => !reversed.has(r.refKey));
   }
 
   listReversibleByStream(streamId: string): Promise<ReadonlyArray<string>> {

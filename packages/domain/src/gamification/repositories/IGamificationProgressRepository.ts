@@ -18,4 +18,6 @@ export interface IGamificationProgressRepository {
     listAchievements(accountId: string): Promise<ReadonlyArray<UnlockedAchievement>>;
     /** `ON CONFLICT DO NOTHING`: false when the tier was already unlocked. */
     unlockAchievement(write: AchievementUnlockWrite): Promise<boolean>;
+    /** Deletes daily counters of days before `cutoffDay` (purge, §7.3); returns the count. */
+    purgeDailyCountersBefore(cutoffDay: ParisDay): Promise<number>;
 }
