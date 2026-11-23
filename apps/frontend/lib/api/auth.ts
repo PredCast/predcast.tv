@@ -32,6 +32,17 @@ export function isBackendTokenReusable(token: string, hasDynamicProof: boolean, 
   }
 }
 
+/** True when the unexpired backend JWT carries `accountId` (required by the gamification routes). */
+export function backendTokenHasAccount(token: string, nowMs: number): boolean {
+  try {
+    const claims = JSON.parse(atob(token.split('.')[1])) as { exp?: number; accountId?: string };
+    if (claims.exp && claims.exp * 1000 <= nowMs) return false;
+    return Boolean(claims.accountId);
+  } catch {
+    return false;
+  }
+}
+
 /** Stored backend JWT (not the Dynamic token); null during SSR. */
 export async function getBackendToken(): Promise<string | null> {
   if (typeof window === 'undefined') return null;
@@ -46,7 +57,11 @@ export async function getBackendToken(): Promise<string | null> {
 export async function setAuthToken(token: string): Promise<void> {
   if (typeof window === 'undefined') return;
   localStorage.setItem(AUTH_TOKEN_KEY, token);
+  // Lets side-effect hooks outside AuthProvider (auto check-in) react to a fresh token.
+  window.dispatchEvent(new Event(AUTH_TOKEN_SET_EVENT));
 }
+
+export const AUTH_TOKEN_SET_EVENT = 'auth:jwt:set';
 
 /**
  * @notice Clears stored JWT token from localStorage
