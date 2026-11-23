@@ -69,6 +69,40 @@ pnpm match:reset                               # DELETE FROM matches WHERE api_f
 **Expected outcome**: without contracts (`--no-deploy`), 4 rows, all undeployed: PSG vs OM (+1d), Lille vs Rennes (+2d), PSG vs Lens (+3d), OM vs Lille (+4d); the first two are meant to be deployed from the admin Markets page ("To deploy" tab). With contracts, PSG vs Lens is deployed + published (on Discover) and OM vs Lille deployed + hidden (admin "Deployed" tab, not on Discover, `/live/<id>` shows "Match not available").
 **Cleanup**: `pnpm match:reset`.
 
+### `gamification-matchday`
+**Intent**: gamification ledger on a real matchday (§11.2). Requires `GAMIFICATION_ENABLED=true` and a past `GAMIFICATION_LAUNCH_AT` in `.env.local`.
+**Expected outcome**: 1 row, Lyon vs Monaco `NS` (kickoff +1 day), deployed and published. Then, by hand from two accounts (`/live/<id>`):
+1. Account A bets 40 USDC on Home from wallet 1 and 10 USDC on Away from wallet 2 (both linked to A); account B bets 4 USDC then 25 USDC.
+2. After the next `GamificationChainProcessor` tick (≤ 1 min): A has `bet_volume` +40 and a 0-XP `hedge` row, B has +25 only (the 4 USDC bet is below 5 USDC). No toast for +1 XP, an aggregated volume toast otherwise.
+3. Resolve the match (admin or `resolveByScore`): A gets `bet_won` +5 once and the first *Winning Bets* tier; replaying (`UPDATE gamification_cursors SET position = …`) adds nothing.
+4. `SELECT source, xp, reason FROM gamification_ledger WHERE account_id = '<A>' ORDER BY id;` and `xp_total = SUM(xp)` on both profiles.
+Pinned without a chain by [`__tests__/gamification-matchday.scenario.test.ts`](src/testing/scenarios/__tests__/gamification-matchday.scenario.test.ts).
+**Cleanup**: `pnpm match:reset` (ledger rows are append-only: use throwaway accounts).
+
+### `gamification-cancel`
+**Intent**: cancelled market and the reversal of its credits (§3.8).
+**Expected outcome**: 1 row, Aston Villa vs Newcastle `NS` (kickoff +1 day), deployed and published. Then:
+1. Bet ≥ 5 USDC from two accounts; after the processor tick, each has a `bet_volume` row.
+2. Admin Markets → Unpublish → "Hide and cancel the markets".
+3. Next tick: one `bet_volume` row per account with negative XP and `reason = market_cancelled` (new rows, the originals are untouched), `bet_volume_usdc` progress back down, unlocked tiers kept. A bet indexed after the cancellation earns nothing.
+Pinned without a chain by [`__tests__/gamification-cancel.scenario.test.ts`](src/testing/scenarios/__tests__/gamification-cancel.scenario.test.ts).
+**Cleanup**: `pnpm match:reset`.
+
+## Gamification — L4 integration
+
+Local Supabase (PredCast stack, migrations 043–047 applied) and Foundry's `anvil` on the PATH. Each file runs **alone**: the other integration suites call `setupIntegrationEnv`, which drops the `public` schema.
+
+```bash
+npx vitest run --config vitest.integration.config.ts src/testing/integration/gamification-chain.integration.test.ts
+npx vitest run --config vitest.integration.config.ts src/testing/integration/gamification-credit.integration.test.ts
+```
+
+- **chain**: PariMatch events on a vanilla Anvil chain (a log emitter speaking the `FootballPariMatch` ABI) → the app's `PariMatchEventIndexer` → `GamificationChainProcessor` on the Supabase adapters → `gamification_ledger`: volume, hedge, < 5 USDC, win, cancellation, then a full rewind of indexer and processor that adds nothing (CA18).
+- **credit**: 20 chat messages credited in parallel through `RecordChatXpUseCase` end on exactly 5 XP; `UPDATE` / `DELETE` on the ledger through the `service_role` client are refused.
+- SQL-level cases (append-only grants, caps, concurrency, reversal, rebuild): `gamification-sql`, `gamification-watch-sql`, `gamification-streams-sql`, `leaderboard-win-sql`.
+
+Rows are created on throwaway accounts and contracts and removed after each run; no transaction leaves the machine.
+
 ## Match visibility (migration 041) — smoke
 
 Only deployed + published matches exist for app users. Run after `pnpm dev:supabase:migrate`.

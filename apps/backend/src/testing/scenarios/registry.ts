@@ -9,6 +9,8 @@ import { fanTokenDerbyScenario } from './fan-token-derby.scenario';
 import { singleFanTokenScenario } from './single-fan-token.scenario';
 import { noFanTokenScenario } from './no-fan-token.scenario';
 import { adminDeployFlowScenario } from './admin-deploy-flow.scenario';
+import { gamificationCancelScenario } from './gamification-cancel.scenario';
+import { gamificationMatchdayScenario } from './gamification-matchday.scenario';
 
 const ALL: ReadonlyArray<MatchScenario> = [
     upcomingSaturdayScenario,
@@ -21,6 +23,8 @@ const ALL: ReadonlyArray<MatchScenario> = [
     singleFanTokenScenario,
     noFanTokenScenario,
     adminDeployFlowScenario,
+    gamificationMatchdayScenario,
+    gamificationCancelScenario,
 ];
 
 export const scenarioRegistry: ReadonlyMap<string, MatchScenario> = new Map(
