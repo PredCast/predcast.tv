@@ -10,6 +10,11 @@ import type { IGamificationProfileRepository } from '@chiliztv/domain/gamificati
 import type { IGamificationProgressRepository } from '@chiliztv/domain/gamification/repositories/IGamificationProgressRepository';
 import { TOKENS } from '@chiliztv/domain/shared/tokens';
 
+import { GamificationAfterCredit } from '../application/gamification/services/GamificationAfterCredit';
+import { AdjustXpUseCase } from '../application/gamification/use-cases/AdjustXpUseCase';
+import { CreditXpUseCase } from '../application/gamification/use-cases/CreditXpUseCase';
+import { EvaluateAchievementsUseCase } from '../application/gamification/use-cases/EvaluateAchievementsUseCase';
+import { RebuildProfilesUseCase } from '../application/gamification/use-cases/RebuildProfilesUseCase';
 import { GamificationConfigService } from '../infrastructure/config/GamificationConfigService';
 import { SupabaseCycleRankRepository } from '../infrastructure/persistence/repositories/gamification/SupabaseCycleRankRepository';
 import { SupabaseDoubleXpEventRepository } from '../infrastructure/persistence/repositories/gamification/SupabaseDoubleXpEventRepository';
@@ -19,7 +24,7 @@ import { SupabaseGamificationNotificationRepository } from '../infrastructure/pe
 import { SupabaseGamificationProfileRepository } from '../infrastructure/persistence/repositories/gamification/SupabaseGamificationProfileRepository';
 import { SupabaseGamificationProgressRepository } from '../infrastructure/persistence/repositories/gamification/SupabaseGamificationProgressRepository';
 
-/** Gamification ports and repositories. Needs identity, cache and audit first. */
+/** Gamification ports, repositories and use cases. Needs identity, cache and audit first. */
 export function registerGamification(container: DependencyContainer): void {
   container.registerSingleton<IGamificationConfig>(TOKENS.IGamificationConfig, GamificationConfigService);
   container.registerSingleton<IGamificationLedgerRepository>(TOKENS.IGamificationLedgerRepository, SupabaseGamificationLedgerRepository);
@@ -29,4 +34,10 @@ export function registerGamification(container: DependencyContainer): void {
   container.registerSingleton<IGamificationCursorRepository>(TOKENS.IGamificationCursorRepository, SupabaseGamificationCursorRepository);
   container.registerSingleton<IDoubleXpEventRepository>(TOKENS.IDoubleXpEventRepository, SupabaseDoubleXpEventRepository);
   container.registerSingleton<ICycleRankRepository>(TOKENS.ICycleRankRepository, SupabaseCycleRankRepository);
+
+  container.registerSingleton(GamificationAfterCredit);
+  container.registerSingleton(CreditXpUseCase);
+  container.registerSingleton(EvaluateAchievementsUseCase);
+  container.registerSingleton(AdjustXpUseCase);
+  container.registerSingleton(RebuildProfilesUseCase);
 }
