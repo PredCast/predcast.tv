@@ -82,7 +82,8 @@ export function buildGamificationHarness(options: HarnessOptions = {}) {
     const rebuild = new RebuildProfilesUseCase(store.profiles, afterCredit);
 
     return {
-        clock, store, cache, rateLimit, config, audits, creditXp, evaluate, checkIn, adjustXp, rebuild,
+        clock, store, cache, rateLimit, config, audits, creditXp, evaluate, checkIn, adjustXp, rebuild, accounts, audit,
+        logger: silentLogger,
         addAccount(account: Account, wallets: ReadonlyArray<WalletLink>): void {
             accountsById.set(account.id, account);
             links.push(...wallets);

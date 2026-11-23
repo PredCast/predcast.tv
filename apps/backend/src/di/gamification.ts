@@ -36,6 +36,15 @@ import { GetPublicProfileUseCase } from '../application/gamification/use-cases/G
 import { UpdateCosmeticsUseCase } from '../application/gamification/use-cases/UpdateCosmeticsUseCase';
 import { SupabaseGamificationReadRepository } from '../infrastructure/persistence/repositories/gamification/SupabaseGamificationReadRepository';
 import { GamificationReadController } from '../presentation/http/controllers/gamification-read.controller';
+import { AdminAccountLookup } from '../application/gamification/services/AdminAccountLookup';
+import { DoubleXpCacheInvalidator } from '../application/gamification/services/DoubleXpCacheInvalidator';
+import { AdminAdjustXpUseCase } from '../application/gamification/use-cases/admin/AdminAdjustXpUseCase';
+import { CancelDoubleXpEventUseCase } from '../application/gamification/use-cases/admin/CancelDoubleXpEventUseCase';
+import { CreateDoubleXpEventUseCase } from '../application/gamification/use-cases/admin/CreateDoubleXpEventUseCase';
+import { GetAccountGamificationUseCase } from '../application/gamification/use-cases/admin/GetAccountGamificationUseCase';
+import { ListDoubleXpEventsUseCase } from '../application/gamification/use-cases/admin/ListDoubleXpEventsUseCase';
+import { SuspendGamificationUseCase } from '../application/gamification/use-cases/admin/SuspendGamificationUseCase';
+import { AdminGamificationController } from '../presentation/http/controllers/admin-gamification.controller';
 
 /** Gamification ports, repositories, use cases and controller. Needs identity, cache and audit first. */
 export function registerGamification(container: DependencyContainer): void {
@@ -58,6 +67,20 @@ export function registerGamification(container: DependencyContainer): void {
   container.registerSingleton(GamificationController);
 
   registerGamificationReads(container);
+  registerGamificationAdmin(container);
+}
+
+/** Admin side of step 07 (double XP, suspension, adjustment, player block). */
+function registerGamificationAdmin(container: DependencyContainer): void {
+  container.registerSingleton(AdminAccountLookup);
+  container.registerSingleton(DoubleXpCacheInvalidator);
+  container.registerSingleton(ListDoubleXpEventsUseCase);
+  container.registerSingleton(CreateDoubleXpEventUseCase);
+  container.registerSingleton(CancelDoubleXpEventUseCase);
+  container.registerSingleton(SuspendGamificationUseCase);
+  container.registerSingleton(AdminAdjustXpUseCase);
+  container.registerSingleton(GetAccountGamificationUseCase);
+  container.registerSingleton(AdminGamificationController);
 }
 
 /** Read API of step 06 (cards, badges, profiles, double XP, owner view). */

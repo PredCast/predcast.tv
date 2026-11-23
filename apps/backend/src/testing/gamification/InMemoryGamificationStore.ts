@@ -16,6 +16,7 @@ import type {
 import type { IGamificationNotificationRepository } from '@chiliztv/domain/gamification/repositories/IGamificationNotificationRepository';
 import type { IGamificationProfileRepository } from '@chiliztv/domain/gamification/repositories/IGamificationProfileRepository';
 import type { IGamificationProgressRepository } from '@chiliztv/domain/gamification/repositories/IGamificationProgressRepository';
+import { ConflictError } from '@chiliztv/domain/shared/errors/ConflictError';
 
 const unsupported = (name: string) => async (): Promise<never> => {
     throw new Error(`InMemoryGamificationStore: ${name} is not used by these tests`);
@@ -125,15 +126,24 @@ export class InMemoryGamificationStore {
         listReversibleByMarket: unsupported('listReversibleByMarket'),
         listReversibleByStream: unsupported('listReversibleByStream'),
         sumXpBySourceOnDay: unsupported('sumXpBySourceOnDay'),
-        listForAccount: async (accountId) => this.rows.filter((r) => r.accountId === accountId).reverse(),
+        listForAccount: async (accountId, _beforeId, limit) =>
+            this.rows.filter((r) => r.accountId === accountId).reverse().slice(0, limit),
     };
 
     readonly profiles: IGamificationProfileRepository = {
         findByAccountId: async (accountId) => this.profileMap.get(accountId) ?? null,
         findByAccountIds: async (ids) => ids.flatMap((id) => this.profileMap.get(id) ?? []),
         updateCosmetics: unsupported('updateCosmetics'),
-        suspend: unsupported('suspend'),
-        unsuspend: unsupported('unsuspend'),
+        suspend: async (accountId, reason, at) => {
+            if (this.profile(accountId).suspendedAt !== null) return false;
+            this.setProfile(accountId, { suspendedAt: at, suspendedReason: reason, updatedAt: at });
+            return true;
+        },
+        unsuspend: async (accountId, at) => {
+            if (this.profileMap.get(accountId)?.suspendedAt == null) return false;
+            this.setProfile(accountId, { suspendedAt: null, suspendedReason: null, updatedAt: at });
+            return true;
+        },
         rebuildFromLedger: async (apply) =>
             [...this.profileMap.values()].flatMap((p) => {
                 const ledgerTotal = Math.max(this.sumXp(p.accountId), 0);
@@ -167,11 +177,31 @@ export class InMemoryGamificationStore {
     };
 
     readonly doubleXp: IDoubleXpEventRepository = {
-        create: unsupported('create'),
-        cancel: unsupported('cancel'),
+        // Mirrors the `dxp_no_overlap` exclusion constraint (non-cancelled events only).
+        create: async (input) => {
+            if (this.events.some((e) => e.cancelledAt === null && e.startsAt < input.endsAt && input.startsAt < e.endsAt)) {
+                throw new ConflictError('Double XP event overlaps another one', { code: 'DOUBLE_XP_OVERLAP' });
+            }
+            const event: DoubleXpEvent = {
+                ...input,
+                id: `00000000-0000-4000-9000-${(this.events.length + 1).toString(16).padStart(12, '0')}`,
+                createdByWallet: input.createdByWallet.toLowerCase(),
+                cancelledAt: null,
+                cancelledByWallet: null,
+            };
+            this.events.push(event);
+            return event;
+        },
+        cancel: async (id, byWallet, at) => {
+            const index = this.events.findIndex((e) => e.id === id && e.cancelledAt === null);
+            if (index < 0) return null;
+            this.events[index] = { ...this.events[index], cancelledAt: at, cancelledByWallet: byWallet.toLowerCase() };
+            return this.events[index];
+        },
         findById: async (id) => this.events.find((e) => e.id === id) ?? null,
         listIntersecting: async (from, to) => this.events.filter((e) => e.startsAt < to && e.endsAt > from),
-        listForAdmin: unsupported('listForAdmin'),
+        listForAdmin: async (limit) =>
+            [...this.events].sort((a, b) => b.startsAt.getTime() - a.startsAt.getTime()).slice(0, limit),
     };
 
     readonly cycleRanks: ICycleRankRepository = {
